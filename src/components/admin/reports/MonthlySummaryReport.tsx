@@ -483,9 +483,61 @@ export default function MonthlySummaryReport() {
     }, [selectedYear, currentYear, currentMonth]);
 
     // ============== SHOWER & LAUNDRY SUMMARY DATA ==============
+    // Pre-compute each guest's first-ever shower/laundry service date across ALL records
+    const guestFirstShowerLaundry = useMemo(() => {
+        const { showerRecords, laundryRecords } = useServicesStore.getState();
+        const completedLaundryStatuses = new Set(['done', 'picked_up', 'returned', 'offsite_picked_up', 'attended']);
+        
+        const firstServiceMap = new Map<string, { year: number; month: number }>();
+        const firstLaundryMap = new Map<string, { year: number; month: number }>();
+        
+        // Process all shower records (all years)
+        (showerRecords || []).forEach((r: any) => {
+            if (!r?.guestId || !r?.date) return;
+            if (r.status !== 'done' && r.status !== 'attended') return;
+            
+            const d = new Date(r.date);
+            const year = d.getFullYear();
+            const month = d.getMonth();
+            const guestId = String(r.guestId);
+            
+            const existing = firstServiceMap.get(guestId);
+            if (!existing || year < existing.year || (year === existing.year && month < existing.month)) {
+                firstServiceMap.set(guestId, { year, month });
+            }
+        });
+        
+        // Process all laundry records (all years)
+        (laundryRecords || []).forEach((r: any) => {
+            if (!r?.guestId || !r?.date) return;
+            const status = (r.status || '').toString().toLowerCase();
+            if (!completedLaundryStatuses.has(status)) return;
+            
+            const d = new Date(r.date);
+            const year = d.getFullYear();
+            const month = d.getMonth();
+            const guestId = String(r.guestId);
+            
+            // Track first service (shower OR laundry combined)
+            const existingService = firstServiceMap.get(guestId);
+            if (!existingService || year < existingService.year || (year === existingService.year && month < existingService.month)) {
+                firstServiceMap.set(guestId, { year, month });
+            }
+            
+            // Track first laundry specifically
+            const existingLaundry = firstLaundryMap.get(guestId);
+            if (!existingLaundry || year < existingLaundry.year || (year === existingLaundry.year && month < existingLaundry.month)) {
+                firstLaundryMap.set(guestId, { year, month });
+            }
+        });
+        
+        return { firstServiceMap, firstLaundryMap };
+    }, []);
+
     const showerLaundrySummary = useMemo(() => {
         const { showerRecords, laundryRecords } = useServicesStore.getState();
         const { guests } = useGuestsStore.getState();
+        const { firstServiceMap, firstLaundryMap } = guestFirstShowerLaundry;
 
         // Build guest lookup map for age categorization
         const guestMap = new Map<string, any>();
@@ -506,7 +558,7 @@ export default function MonthlySummaryReport() {
 
         const completedLaundryStatuses = new Set(['done', 'picked_up', 'returned', 'offsite_picked_up', 'attended']);
 
-        // Filter all shower records for the year
+        // Filter all shower records for the selected year
         const completedShowerRecords = (showerRecords || []).filter((r: any) => {
             if (!r?.date) return false;
             const date = new Date(r.date);
@@ -518,7 +570,7 @@ export default function MonthlySummaryReport() {
             monthIndex: new Date(r.date).getMonth(),
         }));
 
-        // Filter all laundry records for the year
+        // Filter all laundry records for the selected year
         const completedLaundryRecords = (laundryRecords || []).filter((r: any) => {
             if (!r?.date) return false;
             const date = new Date(r.date);
@@ -530,26 +582,6 @@ export default function MonthlySummaryReport() {
             dateObj: new Date(r.date),
             monthIndex: new Date(r.date).getMonth(),
         }));
-
-        // Track first service month for each guest (for new guests calculation)
-        const guestFirstServiceMonth = new Map<string, number>();
-        const laundryGuestFirstMonth = new Map<string, number>();
-
-        [...completedShowerRecords, ...completedLaundryRecords].forEach((r: any) => {
-            if (!r.guestId) return;
-            const existing = guestFirstServiceMonth.get(r.guestId);
-            if (existing == null || r.monthIndex < existing) {
-                guestFirstServiceMonth.set(r.guestId, r.monthIndex);
-            }
-        });
-
-        completedLaundryRecords.forEach((r: any) => {
-            if (!r.guestId) return;
-            const existing = laundryGuestFirstMonth.get(r.guestId);
-            if (existing == null || r.monthIndex < existing) {
-                laundryGuestFirstMonth.set(r.guestId, r.monthIndex);
-            }
-        });
 
         // Accumulator for YTD totals
         const ytdGuestSet = new Set<string>();
@@ -605,8 +637,18 @@ export default function MonthlySummaryReport() {
             const offsiteLaundryLoads = laundryForMonth.filter((r: any) => r.laundryType === 'offsite').length;
 
             const isYearToDate = selectedYear !== currentYear || monthIndex <= currentMonth;
-            const newGuestsThisMonth = [...monthGuestSet].filter((guestId) => guestFirstServiceMonth.get(guestId) === monthIndex).length;
-            const newLaundryGuestsThisMonth = [...laundryGuestSet].filter((guestId) => laundryGuestFirstMonth.get(guestId) === monthIndex).length;
+            
+            // New guests: count those whose first-ever service was in this month/year
+            const newGuestsThisMonth = [...monthGuestSet].filter((guestId) => {
+                const first = firstServiceMap.get(guestId);
+                return first && first.year === selectedYear && first.month === monthIndex;
+            }).length;
+            
+            // New laundry guests: count those whose first-ever laundry was in this month/year
+            const newLaundryGuestsThisMonth = [...laundryGuestSet].filter((guestId) => {
+                const first = firstLaundryMap.get(guestId);
+                return first && first.year === selectedYear && first.month === monthIndex;
+            }).length;
 
             if (isYearToDate) {
                 monthGuestSet.forEach((guestId) => {
