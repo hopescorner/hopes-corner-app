@@ -9,11 +9,15 @@ import {
     ChevronRight,
     Store,
     Utensils,
-    Copy
+    Copy,
+    ChevronDown,
+    ChevronUp,
+    Clock,
+    Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDonationsStore } from '@/stores/useDonationsStore';
-import { DonationTypeEnum, LaPlazaCategoryEnum } from '@/types/database';
+import { DonationTypeEnum, LaPlazaCategoryEnum, DonationRecord } from '@/types/database';
 import {
     calculateServings,
     deriveDonationDateKey,
@@ -32,8 +36,8 @@ const formatDisplayDate = (dateString: string) => {
 };
 
 // Helper to safely format record time
-const formatRecordTime = (record: any) => {
-    const timestamp = record.created_at || record.donated_at || record.received_at;
+const formatRecordTime = (record: DonationRecord) => {
+    const timestamp = record.createdAt || record.donatedAt;
     if (!timestamp) return '';
     const date = new Date(timestamp);
     if (isNaN(date.getTime())) return '';
@@ -51,6 +55,245 @@ const LA_PLAZA_CATEGORIES: LaPlazaCategoryEnum[] = [
 ];
 
 type ViewMode = 'general' | 'laplaza';
+
+// Interface for grouped donation items
+export interface GroupedDonation {
+    key: string; // "type|itemName" for grouping
+    type: string;
+    itemName: string;
+    entries: DonationRecord[];
+    totalTrays: number;
+    totalWeight: number;
+    totalServings: number;
+}
+
+// Group donations by type and item name
+export const groupDonationsByItem = (records: DonationRecord[]): GroupedDonation[] => {
+    const groups = new Map<string, GroupedDonation>();
+
+    for (const record of records) {
+        const itemName = (record.itemName || '').trim().toLowerCase();
+        const type = record.type || '';
+        const key = `${type}|${itemName}`;
+
+        if (!groups.has(key)) {
+            groups.set(key, {
+                key,
+                type,
+                itemName: record.itemName || '',
+                entries: [],
+                totalTrays: 0,
+                totalWeight: 0,
+                totalServings: 0
+            });
+        }
+
+        const group = groups.get(key)!;
+        group.entries.push(record);
+        group.totalTrays += Number(record.trays) || 0;
+        group.totalWeight += Number(record.weightLbs) || 0;
+        group.totalServings += Number(record.servings) || 0;
+    }
+
+    // Sort groups by type then by item name
+    return Array.from(groups.values()).sort((a, b) => {
+        if (a.type !== b.type) return a.type.localeCompare(b.type);
+        return a.itemName.localeCompare(b.itemName);
+    });
+};
+
+// Get unique recent item names for quick selection
+export const getRecentItemNames = (records: DonationRecord[], limit = 5): string[] => {
+    const seen = new Set<string>();
+    const recent: string[] = [];
+
+    // Sort by most recent first
+    const sorted = [...records].sort((a, b) => {
+        const aTime = new Date(a.donatedAt || a.createdAt || 0).getTime();
+        const bTime = new Date(b.donatedAt || b.createdAt || 0).getTime();
+        return bTime - aTime;
+    });
+
+    for (const record of sorted) {
+        const name = (record.itemName || '').trim();
+        if (name && !seen.has(name.toLowerCase())) {
+            seen.add(name.toLowerCase());
+            recent.push(name);
+            if (recent.length >= limit) break;
+        }
+    }
+
+    return recent;
+};
+
+// Grouped Donation Card Component
+const GroupedDonationCard = ({
+    group,
+    onEdit,
+    onDelete,
+    viewMode
+}: {
+    group: GroupedDonation;
+    onEdit: (record: DonationRecord) => void;
+    onDelete: (id: string) => void;
+    viewMode: ViewMode;
+}) => {
+    const [isExpanded, setIsExpanded] = useState(group.entries.length === 1);
+    const hasMultipleEntries = group.entries.length > 1;
+
+    return (
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            {/* Group Header - always visible */}
+            <div
+                className={cn(
+                    "p-4 flex justify-between items-start",
+                    hasMultipleEntries && "cursor-pointer hover:bg-gray-50 transition-colors"
+                )}
+                onClick={() => hasMultipleEntries && setIsExpanded(!isExpanded)}
+            >
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className={cn(
+                            "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider",
+                            viewMode === 'general' ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"
+                        )}>
+                            {group.type}
+                        </span>
+                        {hasMultipleEntries && (
+                            <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 text-[10px] font-bold">
+                                {group.entries.length} entries
+                            </span>
+                        )}
+                    </div>
+                    <h4 className="font-bold text-gray-900 mt-1 text-lg">{group.itemName}</h4>
+                    <div className="text-sm text-gray-600 mt-1 flex gap-4 flex-wrap">
+                        <span className="font-semibold">{group.totalWeight.toFixed(1)} lbs total</span>
+                        {group.totalTrays > 0 && (
+                            <span className="font-semibold">{group.totalTrays} trays total</span>
+                        )}
+                        {group.totalServings > 0 && (
+                            <span className="text-emerald-600 font-semibold">~{group.totalServings} servings</span>
+                        )}
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    {hasMultipleEntries && (
+                        <button
+                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400"
+                            aria-label={isExpanded ? 'Collapse entries' : 'Expand entries'}
+                        >
+                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </button>
+                    )}
+                    {!hasMultipleEntries && (
+                        <div className="flex gap-1">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onEdit(group.entries[0]); }}
+                                className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                                aria-label="Edit entry"
+                            >
+                                <Pencil size={16} />
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onDelete(group.entries[0].id); }}
+                                className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                                aria-label="Delete entry"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Expanded Individual Entries */}
+            {isExpanded && hasMultipleEntries && (
+                <div className="border-t border-gray-100 bg-gray-50/50">
+                    {group.entries.map((entry, idx) => (
+                        <div
+                            key={entry.id}
+                            className={cn(
+                                "px-4 py-3 flex justify-between items-center group hover:bg-white transition-colors",
+                                idx !== group.entries.length - 1 && "border-b border-gray-100"
+                            )}
+                        >
+                            <div className="flex items-center gap-4 flex-wrap">
+                                <div className="flex items-center gap-1 text-xs text-gray-400">
+                                    <Clock size={12} />
+                                    {formatRecordTime(entry)}
+                                </div>
+                                <div className="text-sm text-gray-700">
+                                    <span className="font-medium">{Number(entry.weightLbs || 0).toFixed(1)} lbs</span>
+                                    {Number(entry.trays) > 0 && (
+                                        <span className="ml-3">{entry.trays} {entry.trays === 1 ? 'tray' : 'trays'}</span>
+                                    )}
+                                </div>
+                                {entry.donor && (
+                                    <span className="text-xs text-gray-400">• {entry.donor}</span>
+                                )}
+                                {entry.temperature && (
+                                    <span className="text-xs text-gray-400">• {entry.temperature}</span>
+                                )}
+                            </div>
+                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={() => onEdit(entry)}
+                                    className="p-1.5 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                                    aria-label="Edit entry"
+                                >
+                                    <Pencil size={14} />
+                                </button>
+                                <button
+                                    onClick={() => onDelete(entry.id)}
+                                    className="p-1.5 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
+                                    aria-label="Delete entry"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Quick Select Buttons Component
+const QuickSelectItems = ({
+    recentItems,
+    onSelect,
+    currentValue
+}: {
+    recentItems: string[];
+    onSelect: (name: string) => void;
+    currentValue: string;
+}) => {
+    if (recentItems.length === 0) return null;
+
+    return (
+        <div className="mt-2">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Quick Select</p>
+            <div className="flex flex-wrap gap-1.5">
+                {recentItems.map((name) => (
+                    <button
+                        key={name}
+                        type="button"
+                        onClick={() => onSelect(name)}
+                        className={cn(
+                            "px-2.5 py-1 rounded-lg text-xs font-medium transition-all border",
+                            currentValue.toLowerCase() === name.toLowerCase()
+                                ? "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200"
+                        )}
+                    >
+                        {name}
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
 
 export const DonationsSection = () => {
     const {
@@ -94,6 +337,37 @@ export const DonationsSection = () => {
             return laPlazaRecords.filter(r => deriveDonationDateKey(r) === selectedDate);
         }
     }, [donationRecords, laPlazaRecords, viewMode, selectedDate]);
+
+    // Grouped records for general donations
+    const groupedRecords = useMemo(() => {
+        if (viewMode === 'general') {
+            return groupDonationsByItem(displayedRecords as DonationRecord[]);
+        }
+        return [];
+    }, [displayedRecords, viewMode]);
+
+    // Recent item names for quick select (from all records, not just today)
+    const recentItemNames = useMemo(() => {
+        return getRecentItemNames(donationRecords, 5);
+    }, [donationRecords]);
+
+    // Calculate daily totals
+    const dailyTotals = useMemo(() => {
+        if (viewMode === 'general') {
+            return {
+                totalWeight: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.weightLbs) || 0), 0),
+                totalTrays: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.trays) || 0), 0),
+                totalServings: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.servings) || 0), 0),
+                uniqueItems: groupedRecords.length
+            };
+        }
+        return {
+            totalWeight: displayedRecords.reduce((sum, r) => sum + (Number((r as any).weightLbs) || 0), 0),
+            totalTrays: 0,
+            totalServings: 0,
+            uniqueItems: displayedRecords.length
+        };
+    }, [displayedRecords, groupedRecords, viewMode]);
 
     // Helpers
     const shiftDate = (offset: number) => {
@@ -220,18 +494,24 @@ export const DonationsSection = () => {
 
     const cancelEdit = () => {
         setEditingId(null);
-        // Reset/Clear if needed
+        // Reset forms
+        setGeneralForm(prev => ({ ...prev, itemName: '', trays: '', weightLbs: '', temperature: '' }));
     };
 
     // Copy to clipboard logic
     const handleCopySummary = async () => {
-        const text = formatProteinAndCarbsClipboardText(displayedRecords);
+        const text = formatProteinAndCarbsClipboardText(displayedRecords as DonationRecord[]);
         try {
             await navigator.clipboard.writeText(text);
             toast.success('Copied summary to clipboard');
         } catch (err) {
             toast.error('Failed to copy');
         }
+    };
+
+    // Quick select handler
+    const handleQuickSelect = (itemName: string) => {
+        setGeneralForm(prev => ({ ...prev, itemName }));
     };
 
     return (
@@ -285,6 +565,35 @@ export const DonationsSection = () => {
                 <button onClick={() => shiftDate(1)} className="p-2 hover:bg-white rounded-lg transition-colors" title="Next day"><ChevronRight size={20} /></button>
             </div>
 
+            {/* Daily Summary */}
+            {displayedRecords.length > 0 && (
+                <div className={cn(
+                    "rounded-xl p-4 flex flex-wrap gap-6 items-center justify-center",
+                    viewMode === 'general' ? "bg-emerald-50 border border-emerald-200" : "bg-orange-50 border border-orange-200"
+                )}>
+                    <div className="text-center">
+                        <p className="text-2xl font-bold text-gray-900">{dailyTotals.totalWeight.toFixed(1)}</p>
+                        <p className="text-xs font-medium text-gray-500 uppercase">lbs total</p>
+                    </div>
+                    {viewMode === 'general' && dailyTotals.totalTrays > 0 && (
+                        <div className="text-center">
+                            <p className="text-2xl font-bold text-gray-900">{dailyTotals.totalTrays}</p>
+                            <p className="text-xs font-medium text-gray-500 uppercase">trays</p>
+                        </div>
+                    )}
+                    {viewMode === 'general' && dailyTotals.totalServings > 0 && (
+                        <div className="text-center">
+                            <p className="text-2xl font-bold text-emerald-600">~{dailyTotals.totalServings}</p>
+                            <p className="text-xs font-medium text-gray-500 uppercase">servings</p>
+                        </div>
+                    )}
+                    <div className="text-center">
+                        <p className="text-2xl font-bold text-gray-900">{dailyTotals.uniqueItems}</p>
+                        <p className="text-xs font-medium text-gray-500 uppercase">{viewMode === 'general' ? 'unique items' : 'entries'}</p>
+                    </div>
+                </div>
+            )}
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Form Side */}
                 <div className="lg:col-span-1 space-y-6">
@@ -319,6 +628,12 @@ export const DonationsSection = () => {
                                         value={generalForm.itemName}
                                         onChange={e => setGeneralForm({ ...generalForm, itemName: e.target.value })}
                                         placeholder="e.g. Chicken breast"
+                                    />
+                                    {/* Quick Select for Recent Items */}
+                                    <QuickSelectItems
+                                        recentItems={recentItemNames}
+                                        onSelect={handleQuickSelect}
+                                        currentValue={generalForm.itemName}
                                     />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
@@ -451,38 +766,40 @@ export const DonationsSection = () => {
                     <div className="space-y-3">
                         {displayedRecords.length === 0 ? (
                             <div className="text-center py-12 bg-white rounded-2xl border border-gray-200 border-dashed">
+                                <Plus size={32} className="mx-auto text-gray-300 mb-2" />
                                 <p className="text-gray-400 font-medium">No records for this date</p>
+                                <p className="text-xs text-gray-300 mt-1">Add donations using the form on the left</p>
                             </div>
+                        ) : viewMode === 'general' ? (
+                            // Grouped view for general donations
+                            groupedRecords.map((group) => (
+                                <GroupedDonationCard
+                                    key={group.key}
+                                    group={group}
+                                    onEdit={handleEdit}
+                                    onDelete={handleDelete}
+                                    viewMode={viewMode}
+                                />
+                            ))
                         ) : (
+                            // Flat list for La Plaza donations
                             displayedRecords.map((record: any) => (
                                 <div key={record.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-start group">
                                     <div>
                                         <div className="flex items-center gap-2">
-                                            <span className={cn(
-                                                "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider",
-                                                viewMode === 'general' ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"
-                                            )}>
-                                                {viewMode === 'general' ? record.type : record.category}
+                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-50 text-orange-700">
+                                                {record.category}
                                             </span>
                                             <span className="text-xs text-gray-400">
                                                 {formatRecordTime(record)}
                                             </span>
                                         </div>
                                         <h4 className="font-bold text-gray-900 mt-1">
-                                            {viewMode === 'general' ? record.itemName : (record.notes || 'No description')}
+                                            {record.notes || 'No description'}
                                         </h4>
-                                        <div className="text-sm text-gray-600 mt-1 flex gap-4">
-                                            <span>{record.weightLbs || record.weight_lbs} lbs</span>
-                                            {viewMode === 'general' && Number(record.trays) > 0 && (
-                                                <span>{record.trays} trays</span>
-                                            )}
+                                        <div className="text-sm text-gray-600 mt-1">
+                                            <span>{record.weightLbs} lbs</span>
                                         </div>
-                                        {viewMode === 'general' && record.donor && (
-                                            <p className="text-xs text-gray-400 mt-1">Donor: {record.donor}</p>
-                                        )}
-                                        {viewMode === 'general' && record.temperature && (
-                                            <p className="text-xs text-gray-400 mt-0.5">Temp: {record.temperature}</p>
-                                        )}
                                     </div>
                                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button

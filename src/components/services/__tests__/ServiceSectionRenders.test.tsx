@@ -84,6 +84,6 @@ describe('Service Section Rendering', () => {
 
     it('DonationsSection renders correctly', () => {
         render(<DonationsSection />);
-        expect(screen.getByText(/Donations/i)).toBeDefined();
+        expect(screen.getByText(/General Donations/i)).toBeDefined();
     });
 });
