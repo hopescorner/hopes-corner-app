@@ -1,0 +1,101 @@
+name: Feature Request
+description: Propose a new feature with full quality and test requirements
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing a new feature! Please fill out the details below.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A short, clear description of the requested feature.
+      placeholder: Describe the feature you'd like to see...
+    validations:
+      required: true
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User Story
+      description: Describe the feature from the user's perspective.
+      placeholder: "As a [role], I want [goal] so that [benefit]."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: List specific criteria that must be met for this feature to be considered complete.
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area of the App
+      description: Which part of the app does this feature relate to?
+      multiple: true
+      options:
+        - Check-in
+        - Meals
+        - Showers
+        - Laundry
+        - Bicycle Services
+        - Donations
+        - Dashboard/Reports
+        - Guest Management
+        - Settings
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature?
+      options:
+        - Low - Nice to have
+        - Medium - Would improve workflow
+        - High - Significant impact
+        - Critical - Blocking issue
+      default: 1
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: quality-requirements
+    attributes:
+      label: Quality & Testing Requirements
+      description: These are required for all feature implementations.
+      options:
+        - label: Read relevant existing code and follow current patterns
+          required: true
+        - label: Implement complete logic (no placeholders)
+          required: true
+        - label: Add/update tests for all new logic and UI changes
+          required: true
+        - label: "Run lint: `npm run lint`"
+          required: true
+        - label: "Run full tests: `npm test -- --run`"
+          required: true
+        - label: Verify no regressions
+          required: true
+
+  - type: textarea
+    id: additional-notes
+    attributes:
+      label: Additional Notes (Optional)
+      description: Any other context, mockups, links, or references.
+      placeholder: Add any additional context here...
+    validations:
+      required: false
