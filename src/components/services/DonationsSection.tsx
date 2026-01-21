@@ -16,8 +16,8 @@ import {
     Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useDonationsStore } from '@/stores/useDonationsStore';
-import { DonationTypeEnum, LaPlazaCategoryEnum, DonationRecord } from '@/types/database';
+import { useDonationsStore, DonationRecord } from '@/stores/useDonationsStore';
+import { DonationTypeEnum, LaPlazaCategoryEnum } from '@/types/database';
 import {
     calculateServings,
     deriveDonationDateKey,

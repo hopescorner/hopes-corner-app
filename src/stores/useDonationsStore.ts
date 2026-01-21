@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { mapDonationRow, mapLaPlazaDonationRow } from '@/lib/utils/mappers';
 import { Donation, LaPlazaDonation } from '@/types/database';
 
-interface DonationRecord {
+export interface DonationRecord {
     id: string;
     type: string;
     itemName: string;
