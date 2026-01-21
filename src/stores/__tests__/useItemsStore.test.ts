@@ -4,6 +4,7 @@ import { useItemsStore } from '../useItemsStore';
 // Mock Supabase client
 const mockSelect = vi.fn();
 const mockInsert = vi.fn();
+const mockDelete = vi.fn();
 const mockEq = vi.fn();
 const mockOrder = vi.fn();
 const mockSingle = vi.fn();
@@ -13,6 +14,7 @@ vi.mock('@/lib/supabase/client', () => ({
         from: vi.fn(() => ({
             select: mockSelect,
             insert: mockInsert,
+            delete: mockDelete,
         })),
     }),
 }));
@@ -48,6 +50,11 @@ describe('useItemsStore', () => {
                 created_at: new Date().toISOString(),
             },
             error: null,
+        });
+
+        // Setup delete mock chain
+        mockDelete.mockReturnValue({
+            eq: mockEq,
         });
     });
 
@@ -418,6 +425,116 @@ describe('useItemsStore', () => {
             expect(result.available).toBe(true);
 
             vi.useRealTimers();
+        });
+    });
+
+    describe('undoItem', () => {
+        it('undoes an item successfully', async () => {
+            // Setup initial state with an item
+            useItemsStore.setState({
+                distributedItems: [
+                    { id: 'item-to-undo', guestId: 'g1', itemKey: 'tshirt', distributedAt: new Date().toISOString(), createdAt: new Date().toISOString() },
+                ],
+            });
+
+            // Mock successful delete
+            mockDelete.mockReturnValue({
+                eq: vi.fn().mockResolvedValueOnce({ error: null }),
+            });
+
+            const { undoItem } = useItemsStore.getState();
+            const result = await undoItem('item-to-undo');
+
+            expect(result).toBe(true);
+            const state = useItemsStore.getState();
+            expect(state.distributedItems.length).toBe(0);
+            expect(state.isLoading).toBe(false);
+        });
+
+        it('removes only the specified item from distributedItems', async () => {
+            // Setup initial state with multiple items
+            useItemsStore.setState({
+                distributedItems: [
+                    { id: 'item-1', guestId: 'g1', itemKey: 'tshirt', distributedAt: new Date().toISOString(), createdAt: new Date().toISOString() },
+                    { id: 'item-2', guestId: 'g1', itemKey: 'jacket', distributedAt: new Date().toISOString(), createdAt: new Date().toISOString() },
+                    { id: 'item-3', guestId: 'g2', itemKey: 'tent', distributedAt: new Date().toISOString(), createdAt: new Date().toISOString() },
+                ],
+            });
+
+            // Mock successful delete
+            mockDelete.mockReturnValue({
+                eq: vi.fn().mockResolvedValueOnce({ error: null }),
+            });
+
+            const { undoItem } = useItemsStore.getState();
+            const result = await undoItem('item-2');
+
+            expect(result).toBe(true);
+            const state = useItemsStore.getState();
+            expect(state.distributedItems.length).toBe(2);
+            expect(state.distributedItems.find(i => i.id === 'item-2')).toBeUndefined();
+            expect(state.distributedItems.find(i => i.id === 'item-1')).toBeDefined();
+            expect(state.distributedItems.find(i => i.id === 'item-3')).toBeDefined();
+        });
+
+        it('handles undo item error', async () => {
+            useItemsStore.setState({
+                distributedItems: [
+                    { id: 'item-to-undo', guestId: 'g1', itemKey: 'tshirt', distributedAt: new Date().toISOString(), createdAt: new Date().toISOString() },
+                ],
+            });
+
+            // Mock failed delete
+            mockDelete.mockReturnValue({
+                eq: vi.fn().mockResolvedValueOnce({ error: { message: 'Delete failed' } }),
+            });
+
+            const { undoItem } = useItemsStore.getState();
+            const result = await undoItem('item-to-undo');
+
+            expect(result).toBe(false);
+            expect(useItemsStore.getState().error).toBe('Delete failed');
+            // Item should still be in state
+            expect(useItemsStore.getState().distributedItems.length).toBe(1);
+        });
+
+        it('handles undo item exception', async () => {
+            useItemsStore.setState({
+                distributedItems: [
+                    { id: 'item-to-undo', guestId: 'g1', itemKey: 'tshirt', distributedAt: new Date().toISOString(), createdAt: new Date().toISOString() },
+                ],
+            });
+
+            // Mock exception
+            mockDelete.mockReturnValue({
+                eq: vi.fn().mockRejectedValueOnce(new Error('Network error')),
+            });
+
+            const { undoItem } = useItemsStore.getState();
+            const result = await undoItem('item-to-undo');
+
+            expect(result).toBe(false);
+            expect(useItemsStore.getState().error).toBe('Network error');
+            // Item should still be in state
+            expect(useItemsStore.getState().distributedItems.length).toBe(1);
+        });
+
+        it('handles undoing non-existent item', async () => {
+            // Setup initial state with no items
+            useItemsStore.setState({
+                distributedItems: [],
+            });
+
+            // Mock successful delete (even though item doesn't exist locally)
+            mockDelete.mockReturnValue({
+                eq: vi.fn().mockResolvedValueOnce({ error: null }),
+            });
+
+            const { undoItem } = useItemsStore.getState();
+            const result = await undoItem('non-existent-id');
+
+            expect(result).toBe(true);
+            expect(useItemsStore.getState().distributedItems.length).toBe(0);
         });
     });
 });

@@ -15,13 +15,16 @@ vi.mock('framer-motion', () => ({
 const mockFetchItemsForGuest = vi.fn();
 const mockCheckAvailability = vi.fn((_guestId: string, _itemKey: string) => ({ available: true }));
 const mockGiveItem = vi.fn();
+const mockUndoItem = vi.fn();
+let mockDistributedItems: any[] = [];
 
 vi.mock('@/stores/useItemsStore', () => ({
     useItemsStore: () => ({
         fetchItemsForGuest: mockFetchItemsForGuest,
         checkAvailability: mockCheckAvailability,
         giveItem: mockGiveItem,
-        distributedItems: [],
+        undoItem: mockUndoItem,
+        distributedItems: mockDistributedItems,
         isLoading: false,
     }),
 }));
@@ -63,6 +66,7 @@ describe('ShowerDetailModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockDistributedItems = [];
     });
 
     it('renders modal when open', () => {
@@ -188,6 +192,118 @@ describe('ShowerDetailModal', () => {
         it('fetches items when modal opens', () => {
             render(<ShowerDetailModal {...defaultProps} />);
             expect(mockFetchItemsForGuest).toHaveBeenCalledWith('guest-1');
+        });
+    });
+
+    describe('Undo functionality', () => {
+        it('shows undo button for items given today', () => {
+            const today = new Date().toISOString();
+            mockDistributedItems = [
+                { id: 'item-1', guestId: 'guest-1', itemKey: 'tshirt', distributedAt: today, createdAt: today },
+            ];
+
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            expect(screen.getByText('tshirt')).toBeDefined();
+            expect(screen.getByTitle('Undo - remove this item')).toBeDefined();
+        });
+
+        it('does not show undo button for items given on previous days', () => {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            mockDistributedItems = [
+                { id: 'item-1', guestId: 'guest-1', itemKey: 'jacket', distributedAt: yesterday.toISOString(), createdAt: yesterday.toISOString() },
+            ];
+
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            expect(screen.getByText('jacket')).toBeDefined();
+            expect(screen.queryByTitle('Undo - remove this item')).toBeNull();
+        });
+
+        it('calls undoItem when undo button is clicked', async () => {
+            mockUndoItem.mockResolvedValue(true);
+            const today = new Date().toISOString();
+            mockDistributedItems = [
+                { id: 'item-to-undo', guestId: 'guest-1', itemKey: 'tent', distributedAt: today, createdAt: today },
+            ];
+
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            const undoButton = screen.getByTitle('Undo - remove this item');
+            fireEvent.click(undoButton);
+
+            await waitFor(() => {
+                expect(mockUndoItem).toHaveBeenCalledWith('item-to-undo');
+            });
+        });
+
+        it('shows success toast when undo is successful', async () => {
+            const toast = await import('react-hot-toast');
+            mockUndoItem.mockResolvedValue(true);
+            const today = new Date().toISOString();
+            mockDistributedItems = [
+                { id: 'item-1', guestId: 'guest-1', itemKey: 'backpack', distributedAt: today, createdAt: today },
+            ];
+
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            const undoButton = screen.getByTitle('Undo - remove this item');
+            fireEvent.click(undoButton);
+
+            await waitFor(() => {
+                expect(toast.default.success).toHaveBeenCalledWith(expect.stringContaining('Undid backpack'));
+            });
+        });
+
+        it('shows error toast when undo fails', async () => {
+            const toast = await import('react-hot-toast');
+            mockUndoItem.mockResolvedValue(false);
+            const today = new Date().toISOString();
+            mockDistributedItems = [
+                { id: 'item-1', guestId: 'guest-1', itemKey: 'sleeping_bag', distributedAt: today, createdAt: today },
+            ];
+
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            const undoButton = screen.getByTitle('Undo - remove this item');
+            fireEvent.click(undoButton);
+
+            await waitFor(() => {
+                expect(toast.default.error).toHaveBeenCalledWith('Failed to undo item');
+            });
+        });
+
+        it('displays Recent Items Given section when items exist', () => {
+            const today = new Date().toISOString();
+            mockDistributedItems = [
+                { id: 'item-1', guestId: 'guest-1', itemKey: 'flipflops', distributedAt: today, createdAt: today },
+            ];
+
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            expect(screen.getByText('Recent Items Given')).toBeDefined();
+        });
+
+        it('shows multiple items with appropriate undo buttons', () => {
+            const today = new Date();
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            mockDistributedItems = [
+                { id: 'item-1', guestId: 'guest-1', itemKey: 'tshirt', distributedAt: today.toISOString(), createdAt: today.toISOString() },
+                { id: 'item-2', guestId: 'guest-1', itemKey: 'jacket', distributedAt: yesterday.toISOString(), createdAt: yesterday.toISOString() },
+            ];
+
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            // Both items should be visible
+            expect(screen.getByText('tshirt')).toBeDefined();
+            expect(screen.getByText('jacket')).toBeDefined();
+
+            // Only one undo button should be visible (for today's item)
+            const undoButtons = screen.queryAllByTitle('Undo - remove this item');
+            expect(undoButtons.length).toBe(1);
         });
     });
 });

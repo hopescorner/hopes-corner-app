@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, Shirt, Package, Tent, Footprints, AlertCircle, CheckCircle, Loader2, Clock } from 'lucide-react';
+import { X, Shirt, Package, Tent, Footprints, AlertCircle, CheckCircle, Loader2, Clock, Undo2 } from 'lucide-react';
 import { JacketIcon } from '@/components/icons/JacketIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaiverBadge } from '@/components/ui/WaiverBadge';
@@ -29,8 +29,9 @@ const AMENITY_ITEMS = [
 ];
 
 export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDetailModalProps) {
-    const { fetchItemsForGuest, checkAvailability, giveItem, distributedItems, isLoading } = useItemsStore();
+    const { fetchItemsForGuest, checkAvailability, giveItem, undoItem, distributedItems, isLoading } = useItemsStore();
     const [localLoading, setLocalLoading] = useState<string | null>(null);
+    const [undoLoading, setUndoLoading] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen && guest?.id) {
@@ -55,6 +56,33 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
         } finally {
             setLocalLoading(null);
         }
+    };
+
+    const handleUndoItem = async (itemId: string, itemName: string) => {
+        setUndoLoading(itemId);
+        try {
+            const success = await undoItem(itemId);
+            if (success) {
+                toast.success(`Undid ${itemName} for ${guest.firstName || guest.preferredName || 'Guest'}`);
+            } else {
+                toast.error('Failed to undo item');
+            }
+        } catch (error) {
+            toast.error('Error undoing item');
+        } finally {
+            setUndoLoading(null);
+        }
+    };
+
+    // Check if an item was given today (for showing undo option)
+    const isGivenToday = (distributedAt: string) => {
+        const itemDate = new Date(distributedAt);
+        const today = new Date();
+        return (
+            itemDate.getFullYear() === today.getFullYear() &&
+            itemDate.getMonth() === today.getMonth() &&
+            itemDate.getDate() === today.getDate()
+        );
     };
 
     return (
@@ -164,19 +192,44 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                         <div>
                             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Recent Items Given</h4>
                             <div className="bg-white border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-50">
-                                {distributedItems.slice(0, 5).map((item) => (
-                                    <div key={item.id} className="px-4 py-2.5 flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <CheckCircle size={14} className="text-emerald-500" />
-                                            <span className="capitalize font-bold text-gray-700 text-sm">
-                                                {item.itemKey.replace('_', ' ')}
-                                            </span>
+                                {distributedItems.slice(0, 5).map((item) => {
+                                    const canUndo = isGivenToday(item.distributedAt);
+                                    const isUndoing = undoLoading === item.id;
+                                    
+                                    return (
+                                        <div key={item.id} className="px-4 py-2.5 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <CheckCircle size={14} className="text-emerald-500" />
+                                                <span className="capitalize font-bold text-gray-700 text-sm">
+                                                    {item.itemKey.replace('_', ' ')}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-400 font-medium">
+                                                    {new Date(item.distributedAt).toLocaleDateString()}
+                                                </span>
+                                                {canUndo && (
+                                                    <button
+                                                        onClick={() => handleUndoItem(item.id, item.itemKey.replace('_', ' '))}
+                                                        disabled={isUndoing || isLoading}
+                                                        className={cn(
+                                                            "p-1.5 rounded-lg transition-all",
+                                                            "text-amber-600 hover:bg-amber-50 hover:text-amber-700",
+                                                            "disabled:opacity-50 disabled:cursor-not-allowed"
+                                                        )}
+                                                        title="Undo - remove this item"
+                                                    >
+                                                        {isUndoing ? (
+                                                            <Loader2 size={14} className="animate-spin" />
+                                                        ) : (
+                                                            <Undo2 size={14} />
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
-                                        <span className="text-xs text-gray-400 font-medium">
-                                            {new Date(item.distributedAt).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}

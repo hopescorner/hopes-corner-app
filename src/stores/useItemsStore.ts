@@ -22,6 +22,7 @@ interface ItemsState {
     // Actions
     fetchItemsForGuest: (guestId: string) => Promise<void>;
     giveItem: (guestId: string, itemKey: string) => Promise<DistributedItem | null>;
+    undoItem: (itemId: string) => Promise<boolean>;
     checkAvailability: (guestId: string, itemKey: string) => { available: boolean; nextAvailable?: Date; daysRemaining?: number };
 
     // Internal helper (exposed for potential debugging or specific use)
@@ -109,6 +110,33 @@ export const useItemsStore = create<ItemsState>()(
                     console.error('Error giving item:', err);
                     set({ isLoading: false, error: err.message });
                     return null;
+                }
+            },
+
+            undoItem: async (itemId: string) => {
+                set({ isLoading: true, error: null });
+                const supabase = createClient();
+
+                try {
+                    const { error } = await supabase
+                        .from('items_distributed')
+                        .delete()
+                        .eq('id', itemId);
+
+                    if (error) throw error;
+
+                    set((state) => {
+                        state.distributedItems = state.distributedItems.filter(
+                            (item) => item.id !== itemId
+                        );
+                        state.isLoading = false;
+                    });
+
+                    return true;
+                } catch (err: any) {
+                    console.error('Error undoing item:', err);
+                    set({ isLoading: false, error: err.message });
+                    return false;
                 }
             },
 
