@@ -546,19 +546,22 @@ create index if not exists idx_blocked_slots_lookup
 
 alter table public.blocked_slots enable row level security;
 
+drop policy if exists "Enable read access for authenticated users" on public.blocked_slots;
 create policy "Enable read access for authenticated users"
   on public.blocked_slots for select
-  to authenticated
+  to authenticated, anon
   using (true);
 
+drop policy if exists "Enable insert access for authenticated users" on public.blocked_slots;
 create policy "Enable insert access for authenticated users"
   on public.blocked_slots for insert
-  to authenticated
+  to authenticated, anon
   with check (true);
 
+drop policy if exists "Enable delete access for authenticated users" on public.blocked_slots;
 create policy "Enable delete access for authenticated users"
   on public.blocked_slots for delete
-  to authenticated
+  to authenticated, anon
   using (true);
 
 create table if not exists public.bicycle_repairs (
