@@ -41,6 +41,7 @@ import type {
     MealStatusMap, 
     ServiceStatusMap, 
     ActionStatusMap,
+    RecentGuestsMap,
     TodayMealStatus,
     TodayServiceStatus,
     TodayGuestActions
@@ -63,6 +64,7 @@ interface GuestCardProps {
     mealStatusMap?: MealStatusMap;
     serviceStatusMap?: ServiceStatusMap;
     actionStatusMap?: ActionStatusMap;
+    recentGuestsMap?: RecentGuestsMap;
     // Disable layout animations for better performance in large lists
     disableLayoutAnimation?: boolean;
 }
@@ -76,6 +78,7 @@ export function GuestCard({
     mealStatusMap,
     serviceStatusMap,
     actionStatusMap,
+    recentGuestsMap,
     disableLayoutAnimation = false
 }: GuestCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -391,12 +394,19 @@ export function GuestCard({
                                         BANNED
                                     </span>
                                 )}
-                                {/* Recent Badge (Active in last 7 days) */}
+                                {/* Recent Badge (Active in last 7 days) - uses precomputed map for efficiency */}
                                 {(() => {
-                                    const lastSevenDays = new Date();
-                                    lastSevenDays.setDate(lastSevenDays.getDate() - 7);
-                                    const isRecent = mealRecords.some(r => r.guestId === guest.id && new Date(r.date) > lastSevenDays);
-                                    if (isRecent) {
+                                    // Use precomputed map if available, otherwise compute locally
+                                    const isRecent = recentGuestsMap 
+                                        ? recentGuestsMap.has(guest.id)
+                                        : (() => {
+                                            const sevenDaysAgo = new Date();
+                                            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                                            return mealRecords.some(r => r.guestId === guest.id && new Date(r.date) >= sevenDaysAgo);
+                                        })();
+                                    
+                                    // Don't show "Recent" badge if guest already has meal today (redundant info)
+                                    if (isRecent && !mealStatus.hasMeal) {
                                         return (
                                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold">
                                                 <Utensils size={10} />

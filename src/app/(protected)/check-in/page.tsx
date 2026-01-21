@@ -42,7 +42,7 @@ export default function CheckInPage() {
     const { loadFromSupabase: loadServices } = useServicesStore();
 
     // Precomputed status maps for efficient per-guest lookups
-    const { mealStatus, serviceStatus, actionStatus } = useTodayStatusMaps();
+    const { mealStatus, serviceStatus, actionStatus, recentGuests } = useTodayStatusMaps();
 
     // Initial data load
     useEffect(() => {
@@ -66,11 +66,21 @@ export default function CheckInPage() {
     }, [loadGuests, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase, loadMeals, loadServices]);
 
     // Search logic using the migrated flexibleNameSearch (with deferred value)
+    // Deduplicate results to prevent duplicate key React errors
     const filteredGuests = useMemo(() => {
         if (!deferredSearchQuery.trim()) {
             return [];
         }
-        return flexibleNameSearch(deferredSearchQuery, guests);
+        const results = flexibleNameSearch(deferredSearchQuery, guests);
+        // Deduplicate by guest ID to prevent React key warnings
+        const seen = new Set<string>();
+        return results.filter((guest: Guest) => {
+            if (!guest || !guest.id || seen.has(guest.id)) {
+                return false;
+            }
+            seen.add(guest.id);
+            return true;
+        });
     }, [guests, deferredSearchQuery]);
 
     // Apply sorting
@@ -431,6 +441,7 @@ export default function CheckInPage() {
                                                 mealStatusMap={mealStatus}
                                                 serviceStatusMap={serviceStatus}
                                                 actionStatusMap={actionStatus}
+                                                recentGuestsMap={recentGuests}
                                                 disableLayoutAnimation={true}
                                             />
                                         </div>
@@ -461,6 +472,7 @@ export default function CheckInPage() {
                                                     mealStatusMap={mealStatus}
                                                     serviceStatusMap={serviceStatus}
                                                     actionStatusMap={actionStatus}
+                                                    recentGuestsMap={recentGuests}
                                                 />
                                             </motion.div>
                                         ))}

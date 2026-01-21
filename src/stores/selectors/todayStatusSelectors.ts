@@ -46,6 +46,32 @@ export interface TodayGuestActions {
 export type MealStatusMap = Map<string, TodayMealStatus>;
 export type ServiceStatusMap = Map<string, TodayServiceStatus>;
 export type ActionStatusMap = Map<string, TodayGuestActions>;
+export type RecentGuestsMap = Set<string>;
+
+/**
+ * Hook that returns a Set of guest IDs who have had a meal in the last 7 days.
+ * Efficient O(n) single pass over meal records.
+ */
+export function useRecentGuestsMap(): RecentGuestsMap {
+    const mealRecords = useMealsStore((s) => s.mealRecords);
+    
+    return useMemo(() => {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+        
+        const recentGuests = new Set<string>();
+        
+        for (const record of mealRecords) {
+            const recordDate = new Date(record.date);
+            if (recordDate >= sevenDaysAgo) {
+                recentGuests.add(record.guestId);
+            }
+        }
+        
+        return recentGuests;
+    }, [mealRecords]);
+}
 
 /**
  * Hook that returns precomputed meal status maps for all guests.
@@ -237,8 +263,9 @@ export function useTodayStatusMaps() {
     const mealStatus = useTodayMealStatusMap();
     const serviceStatus = useTodayServiceStatusMap();
     const actionStatus = useTodayActionStatusMap();
+    const recentGuests = useRecentGuestsMap();
     
-    return { mealStatus, serviceStatus, actionStatus };
+    return { mealStatus, serviceStatus, actionStatus, recentGuests };
 }
 
 /**
