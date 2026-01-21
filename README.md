@@ -2,14 +2,6 @@
 
 Check-in and service management app for Hope's Corner.
 
-## Tech
-
-- Next.js 15
-- TypeScript
-- Supabase
-- Zustand
-- Tailwind CSS
-
 ## Scripts
 
 - Dev: `npm run dev`
