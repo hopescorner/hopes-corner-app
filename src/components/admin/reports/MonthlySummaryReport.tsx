@@ -3,6 +3,7 @@
 import React, { useMemo, useCallback, useState } from 'react';
 import {
     Bike,
+    Download,
     Info,
     Lightbulb,
     ShowerHead,
@@ -238,13 +239,13 @@ const ColumnTooltip = ({ label, description }: { label: string, description: str
         <Info size={14} />
         <div className="invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200
             absolute z-[99999] w-64 p-3 bg-gray-900 text-white text-xs rounded-lg 
-            bottom-full left-1/2 -translate-x-1/2 mb-2"
+            top-full left-1/2 -translate-x-1/2 mt-2"
             style={{
                 filter: 'drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4))',
             }}>
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-gray-900" />
             <p className="font-bold mb-1">{label}</p>
             <p className="font-normal text-gray-300 leading-relaxed">{description}</p>
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
         </div>
     </div>
 );
@@ -303,6 +304,34 @@ export default function MonthlySummaryReport() {
 
     const sumQuantities = (records: any[]) => records.reduce((sum, r) => sum + (r.count || 0), 0);
 
+    // Pre-compute each guest's first meal date across ALL meal records for accurate "new guests" calculation
+    const guestFirstMealMonth = useMemo(() => {
+        const firstMealMap = new Map<string, { year: number; month: number }>();
+        const allMealRecords = [
+            ...(mealRecords || []),
+            ...(extraMealRecords || []),
+            ...(rvMealRecords || []),
+            ...(unitedEffortMealRecords || []),
+            ...(dayWorkerMealRecords || []),
+            ...(lunchBagRecords || []),
+            ...(shelterMealRecords || []),
+        ];
+
+        allMealRecords.forEach((record: any) => {
+            if (!record?.guestId || !record?.date) return;
+            const d = new Date(record.date);
+            const year = d.getFullYear();
+            const month = d.getMonth();
+
+            const existing = firstMealMap.get(record.guestId);
+            if (!existing || year < existing.year || (year === existing.year && month < existing.month)) {
+                firstMealMap.set(record.guestId, { year, month });
+            }
+        });
+
+        return firstMealMap;
+    }, [mealRecords, extraMealRecords, rvMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, lunchBagRecords, shelterMealRecords]);
+
     const monthlyData = useMemo(() => {
         const months = [];
         const effectiveLastMonth = selectedYear === currentYear ? currentMonth : 11;
@@ -349,9 +378,14 @@ export default function MonthlySummaryReport() {
             const uniqueGuestIds = new Set(mealsInMonth.map(r => r.guestId).filter(Boolean));
             const uniqueGuests = uniqueGuestIds.size;
 
-            // New Guests (Placeholder logic - requires guest "first meal" analysis which is heavy)
-            // For now, 0 or simplified.
-            const newGuests = 0;
+            // New Guests: Count guests whose first-ever meal was in this month/year
+            let newGuests = 0;
+            uniqueGuestIds.forEach((guestId) => {
+                const firstMeal = guestFirstMealMonth.get(guestId);
+                if (firstMeal && firstMeal.year === selectedYear && firstMeal.month === month) {
+                    newGuests++;
+                }
+            });
 
             months.push({
                 month: monthName,
@@ -388,7 +422,7 @@ export default function MonthlySummaryReport() {
         };
 
         return { months, totals };
-    }, [mealRecords, extraMealRecords, rvMealRecords, unitedEffortMealRecords, selectedYear, currentYear, currentMonth]);
+    }, [mealRecords, extraMealRecords, rvMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, lunchBagRecords, shelterMealRecords, selectedYear, currentYear, currentMonth, guestFirstMealMonth, filterRecords]);
 
     // ============== BICYCLE SUMMARY DATA ==============
     const bicycleSummary = useMemo(() => {
@@ -802,11 +836,70 @@ export default function MonthlySummaryReport() {
 
             {/* ============== SHOWER & LAUNDRY SECTION ============== */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex flex-col items-center mb-6">
                     <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                         <ShowerHead size={20} className="text-sky-600" />
-                        <span>Shower & Laundry Summary</span>
+                        <span>Shower & Laundry Services Summary</span>
                     </h3>
+                    <p className="text-sm text-gray-500 mt-1">Participant trends and laundry loads from January through YTD {selectedYear}</p>
+                    <button
+                        onClick={() => {
+                            // Generate CSV content
+                            const headers = ['Month', 'Program Days', 'Showers', 'Avg/Day', 'New Guests', 'Participants', 'Adult', 'Senior', 'Child', 'Loads', 'On-site', 'Off-site', 'Avg/Day', 'Unique Users', 'Adult', 'Senior', 'Child', 'New Laundry Guests'];
+                            const rows = showerLaundrySummary.months.map(row => [
+                                row.month,
+                                row.programDays,
+                                row.showers,
+                                row.avgShowersPerDay.toFixed(1),
+                                row.newGuests,
+                                row.totalParticipants,
+                                row.participantsAdult,
+                                row.participantsSenior,
+                                row.participantsChild,
+                                row.laundryLoads,
+                                row.onsiteLoads,
+                                row.offsiteLoads,
+                                row.avgLaundryLoadsPerDay.toFixed(1),
+                                row.uniqueLaundryGuests,
+                                row.laundryAdult,
+                                row.laundrySenior,
+                                row.laundryChild,
+                                row.newLaundryGuests
+                            ]);
+                            const totalsRow = [
+                                'Year to Date',
+                                showerLaundrySummary.totals.programDays,
+                                showerLaundrySummary.totals.showers,
+                                showerLaundrySummary.totals.avgShowersPerDay.toFixed(1),
+                                showerLaundrySummary.totals.newGuests,
+                                showerLaundrySummary.totals.totalParticipants,
+                                showerLaundrySummary.totals.participantsAdult,
+                                showerLaundrySummary.totals.participantsSenior,
+                                showerLaundrySummary.totals.participantsChild,
+                                showerLaundrySummary.totals.laundryLoads,
+                                showerLaundrySummary.totals.onsiteLoads,
+                                showerLaundrySummary.totals.offsiteLoads,
+                                showerLaundrySummary.totals.avgLaundryLoadsPerDay.toFixed(1),
+                                showerLaundrySummary.totals.uniqueLaundryGuests,
+                                showerLaundrySummary.totals.laundryAdult,
+                                showerLaundrySummary.totals.laundrySenior,
+                                showerLaundrySummary.totals.laundryChild,
+                                showerLaundrySummary.totals.newLaundryGuests
+                            ];
+                            const csvContent = [headers.join(','), ...rows.map(r => r.join(',')), totalsRow.join(',')].join('\n');
+                            const blob = new Blob([csvContent], { type: 'text/csv' });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `shower-laundry-summary-${selectedYear}.csv`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                        }}
+                        className="mt-4 flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-colors"
+                    >
+                        <Download size={16} />
+                        Export Shower & Laundry CSV
+                    </button>
                 </div>
 
                 <div className="overflow-x-auto overflow-y-visible">
@@ -815,84 +908,100 @@ export default function MonthlySummaryReport() {
                             {/* Group Headers */}
                             <tr className="bg-gray-50">
                                 <th className="p-2 border-b border-gray-200 sticky left-0 z-10 bg-gray-50" />
-                                <th colSpan={5} className="p-2 text-center text-xs font-bold uppercase tracking-wider text-sky-700 bg-sky-50 border-b border-gray-200">Showers</th>
-                                <th colSpan={5} className="p-2 text-center text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border-b border-gray-200">Participants</th>
-                                <th colSpan={6} className="p-2 text-center text-xs font-bold uppercase tracking-wider text-purple-700 bg-purple-50 border-b border-gray-200">Laundry</th>
+                                <th colSpan={5} className="p-2 text-center text-xs font-bold uppercase tracking-wider text-sky-700 bg-sky-50 border-b border-gray-200">Shower Program</th>
+                                <th colSpan={6} className="p-2 text-center text-xs font-bold uppercase tracking-wider text-red-700 bg-red-50 border-b border-gray-200">Laundry Services</th>
                             </tr>
                             {/* Column Headers */}
                             <tr className="bg-sky-50/50">
                                 <th className="p-3 text-left text-xs font-bold uppercase tracking-wider text-gray-700 sticky left-0 z-10 bg-white border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Month</th>
-                                {/* Shower columns */}
+                                {/* Shower Program columns */}
                                 <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-sky-50">Program Days</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-sky-50">Service Days</th>
                                 <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-sky-50">Showers</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-sky-50">Avg/Day</th>
+                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-sky-50">Avg / Day</th>
                                 <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-sky-50">New Guests</th>
-                                {/* Participant columns */}
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-emerald-50">Adult</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-emerald-50">Senior</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-emerald-50">Child</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-emerald-50">Total</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-emerald-50">YTD Unique</th>
-                                {/* Laundry columns */}
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-purple-50">Loads</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-purple-50">Onsite</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-purple-50">Offsite</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-purple-50">Avg/Day</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-purple-50">Unique Users</th>
-                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-purple-50">New</th>
+                                <th className="p-2 text-center text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-emerald-50">Participants</th>
+                                {/* Laundry Services columns */}
+                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-red-50">Loads</th>
+                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-red-50">On-site</th>
+                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-red-50">Off-site</th>
+                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-red-50">Avg / Day</th>
+                                <th className="p-2 text-center text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-purple-50">Unique Users</th>
+                                <th className="p-2 text-right text-[10px] font-bold uppercase tracking-wider text-gray-600 bg-red-50">New Laundry Guests</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {showerLaundrySummary.months.map((row, idx) => (
                                 <tr key={idx} className="hover:bg-gray-50/50">
                                     <td className="p-3 font-medium text-gray-900 sticky left-0 z-10 bg-white border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{row.month}</td>
-                                    {/* Shower columns */}
+                                    {/* Shower Program columns */}
                                     <td className="p-2 text-right text-xs bg-sky-50/30">{formatNumber(row.programDays)}</td>
-                                    <td className="p-2 text-right text-xs bg-sky-50/30">{formatNumber(row.showerServiceDays)}</td>
                                     <td className="p-2 text-right text-xs font-medium bg-sky-50/50">{formatNumber(row.showers)}</td>
                                     <td className="p-2 text-right text-xs bg-sky-50/30">{row.avgShowersPerDay.toFixed(1)}</td>
                                     <td className="p-2 text-right text-xs bg-sky-50/30">{formatNumber(row.newGuests)}</td>
-                                    {/* Participant columns */}
-                                    <td className="p-2 text-right text-xs bg-emerald-50/30">{formatNumber(row.participantsAdult)}</td>
-                                    <td className="p-2 text-right text-xs bg-emerald-50/30">{formatNumber(row.participantsSenior)}</td>
-                                    <td className="p-2 text-right text-xs bg-emerald-50/30">{formatNumber(row.participantsChild)}</td>
-                                    <td className="p-2 text-right text-xs font-medium bg-emerald-50/50">{formatNumber(row.totalParticipants)}</td>
-                                    <td className="p-2 text-right text-xs bg-emerald-50/30">{formatNumber(row.ytdTotalUnduplicatedGuests)}</td>
-                                    {/* Laundry columns */}
-                                    <td className="p-2 text-right text-xs font-medium bg-purple-50/50">{formatNumber(row.laundryLoads)}</td>
-                                    <td className="p-2 text-right text-xs bg-purple-50/30">{formatNumber(row.onsiteLoads)}</td>
-                                    <td className="p-2 text-right text-xs bg-purple-50/30">{formatNumber(row.offsiteLoads)}</td>
-                                    <td className="p-2 text-right text-xs bg-purple-50/30">{row.avgLaundryLoadsPerDay.toFixed(1)}</td>
-                                    <td className="p-2 text-right text-xs bg-purple-50/30">{formatNumber(row.uniqueLaundryGuests)}</td>
-                                    <td className="p-2 text-right text-xs bg-purple-50/30">{formatNumber(row.newLaundryGuests)}</td>
+                                    {/* Participants cell with breakdown */}
+                                    <td className="p-2 text-center bg-emerald-50/30">
+                                        <div className="font-bold text-sm text-gray-900">{formatNumber(row.totalParticipants)}</div>
+                                        <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
+                                            <div>Adult · {formatNumber(row.participantsAdult)}</div>
+                                            <div>Senior · {formatNumber(row.participantsSenior)}</div>
+                                            <div>Child · {formatNumber(row.participantsChild)}</div>
+                                        </div>
+                                    </td>
+                                    {/* Laundry Services columns */}
+                                    <td className="p-2 text-right text-xs font-medium bg-red-50/50">{formatNumber(row.laundryLoads)}</td>
+                                    <td className="p-2 text-right text-xs bg-red-50/30">{formatNumber(row.onsiteLoads)}</td>
+                                    <td className="p-2 text-right text-xs bg-red-50/30">{formatNumber(row.offsiteLoads)}</td>
+                                    <td className="p-2 text-right text-xs bg-red-50/30">{row.avgLaundryLoadsPerDay.toFixed(1)}</td>
+                                    {/* Unique Users cell with breakdown */}
+                                    <td className="p-2 text-center bg-purple-50/30">
+                                        <div className="font-bold text-sm text-gray-900">{formatNumber(row.uniqueLaundryGuests)}</div>
+                                        <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
+                                            <div>Adult · {formatNumber(row.laundryAdult)}</div>
+                                            <div>Senior · {formatNumber(row.laundrySenior)}</div>
+                                            <div>Child · {formatNumber(row.laundryChild)}</div>
+                                        </div>
+                                    </td>
+                                    <td className="p-2 text-right text-xs bg-red-50/30">{formatNumber(row.newLaundryGuests)}</td>
                                 </tr>
                             ))}
                             <tr className="bg-gray-100 border-t-2 border-gray-200 font-bold">
                                 <td className="p-3 text-gray-900 sticky left-0 z-10 bg-gray-100 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Year to Date</td>
-                                {/* Shower totals */}
+                                {/* Shower Program totals */}
                                 <td className="p-2 text-right text-xs bg-sky-100">{formatNumber(showerLaundrySummary.totals.programDays)}</td>
-                                <td className="p-2 text-right text-xs bg-sky-100">{formatNumber(showerLaundrySummary.totals.showerServiceDays)}</td>
                                 <td className="p-2 text-right text-xs font-black bg-sky-100">{formatNumber(showerLaundrySummary.totals.showers)}</td>
                                 <td className="p-2 text-right text-xs bg-sky-100">{showerLaundrySummary.totals.avgShowersPerDay.toFixed(1)}</td>
                                 <td className="p-2 text-right text-xs bg-sky-100">{formatNumber(showerLaundrySummary.totals.newGuests)}</td>
-                                {/* Participant totals */}
-                                <td className="p-2 text-right text-xs bg-emerald-100">{formatNumber(showerLaundrySummary.totals.participantsAdult)}</td>
-                                <td className="p-2 text-right text-xs bg-emerald-100">{formatNumber(showerLaundrySummary.totals.participantsSenior)}</td>
-                                <td className="p-2 text-right text-xs bg-emerald-100">{formatNumber(showerLaundrySummary.totals.participantsChild)}</td>
-                                <td className="p-2 text-right text-xs font-black bg-emerald-100">{formatNumber(showerLaundrySummary.totals.totalParticipants)}</td>
-                                <td className="p-2 text-right text-xs bg-emerald-100">{formatNumber(showerLaundrySummary.totals.ytdTotalUnduplicatedGuests)}</td>
+                                {/* Participants totals with breakdown */}
+                                <td className="p-2 text-center bg-emerald-100">
+                                    <div className="font-black text-sm text-gray-900">{formatNumber(showerLaundrySummary.totals.totalParticipants)}</div>
+                                    <div className="text-[10px] text-gray-600 leading-tight mt-0.5">
+                                        <div>Adult · {formatNumber(showerLaundrySummary.totals.participantsAdult)}</div>
+                                        <div>Senior · {formatNumber(showerLaundrySummary.totals.participantsSenior)}</div>
+                                        <div>Child · {formatNumber(showerLaundrySummary.totals.participantsChild)}</div>
+                                    </div>
+                                </td>
                                 {/* Laundry totals */}
-                                <td className="p-2 text-right text-xs font-black bg-purple-100">{formatNumber(showerLaundrySummary.totals.laundryLoads)}</td>
-                                <td className="p-2 text-right text-xs bg-purple-100">{formatNumber(showerLaundrySummary.totals.onsiteLoads)}</td>
-                                <td className="p-2 text-right text-xs bg-purple-100">{formatNumber(showerLaundrySummary.totals.offsiteLoads)}</td>
-                                <td className="p-2 text-right text-xs bg-purple-100">{showerLaundrySummary.totals.avgLaundryLoadsPerDay.toFixed(1)}</td>
-                                <td className="p-2 text-right text-xs bg-purple-100">{formatNumber(showerLaundrySummary.totals.uniqueLaundryGuests)}</td>
-                                <td className="p-2 text-right text-xs bg-purple-100">{formatNumber(showerLaundrySummary.totals.newLaundryGuests)}</td>
+                                <td className="p-2 text-right text-xs font-black bg-red-100">{formatNumber(showerLaundrySummary.totals.laundryLoads)}</td>
+                                <td className="p-2 text-right text-xs bg-red-100">{formatNumber(showerLaundrySummary.totals.onsiteLoads)}</td>
+                                <td className="p-2 text-right text-xs bg-red-100">{formatNumber(showerLaundrySummary.totals.offsiteLoads)}</td>
+                                <td className="p-2 text-right text-xs bg-red-100">{showerLaundrySummary.totals.avgLaundryLoadsPerDay.toFixed(1)}</td>
+                                {/* Unique Users totals with breakdown */}
+                                <td className="p-2 text-center bg-purple-100">
+                                    <div className="font-black text-sm text-gray-900">{formatNumber(showerLaundrySummary.totals.uniqueLaundryGuests)}</div>
+                                    <div className="text-[10px] text-gray-600 leading-tight mt-0.5">
+                                        <div>Adult · {formatNumber(showerLaundrySummary.totals.laundryAdult)}</div>
+                                        <div>Senior · {formatNumber(showerLaundrySummary.totals.laundrySenior)}</div>
+                                        <div>Child · {formatNumber(showerLaundrySummary.totals.laundryChild)}</div>
+                                    </div>
+                                </td>
+                                <td className="p-2 text-right text-xs bg-red-100">{formatNumber(showerLaundrySummary.totals.newLaundryGuests)}</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
+                <p className="text-xs text-gray-400 mt-4 text-center italic">
+                    Upcoming months (February, March, April, May, June, July, August, September, October, November, December) will populate as data is recorded.
+                </p>
             </div>
 
             {/* Summary Cards */}
