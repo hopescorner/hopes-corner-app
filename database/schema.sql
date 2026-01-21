@@ -1237,3 +1237,33 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- RLS for profiles table
+alter table public.profiles enable row level security;
+
+-- Users can view all profiles (needed for app functionality)
+drop policy if exists "Authenticated users can view profiles" on public.profiles;
+create policy "Authenticated users can view profiles"
+  on public.profiles for select
+  to authenticated
+  using (true);
+
+-- Users can only update their own profile
+drop policy if exists "Users can update own profile" on public.profiles;
+create policy "Users can update own profile"
+  on public.profiles for update
+  to authenticated
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
+
+-- Only allow insert for the user's own profile (typically via trigger on auth.users)
+drop policy if exists "Users can insert own profile" on public.profiles;
+create policy "Users can insert own profile"
+  on public.profiles for insert
+  to authenticated
+  with check (auth.uid() = id);
+
+drop trigger if exists trg_profiles_updated_at on public.profiles;
+create trigger trg_profiles_updated_at
+before update on public.profiles
+for each row execute function public.touch_updated_at();
