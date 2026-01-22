@@ -1,5 +1,5 @@
 name: Feature Request
-description: Propose a new feature with full quality and test requirements
+description: Propose a new feature for the app
 title: "[Feature]: "
 labels: ["feature"]
 body:
@@ -14,27 +14,6 @@ body:
       label: Summary
       description: A short, clear description of the requested feature.
       placeholder: Describe the feature you'd like to see...
-    validations:
-      required: true
-
-  - type: textarea
-    id: user-story
-    attributes:
-      label: User Story
-      description: Describe the feature from the user's perspective.
-      placeholder: "As a [role], I want [goal] so that [benefit]."
-    validations:
-      required: true
-
-  - type: textarea
-    id: acceptance-criteria
-    attributes:
-      label: Acceptance Criteria
-      description: List specific criteria that must be met for this feature to be considered complete.
-      placeholder: |
-        - [ ] Criterion 1
-        - [ ] Criterion 2
-        - [ ] Criterion 3
     validations:
       required: true
 
