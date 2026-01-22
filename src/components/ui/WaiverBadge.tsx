@@ -13,6 +13,8 @@ interface WaiverBadgeProps {
     guestId: string;
     serviceType: ServiceType;
     onDismissed?: () => void;
+    onModalOpen?: () => void;
+    onModalClose?: () => void;
 }
 
 const WAIVER_URLS = {
@@ -29,7 +31,7 @@ const WAIVER_URLS = {
  * IMPORTANT: Shower and laundry share a common waiver. If one is signed, both are covered.
  * Bicycle has a separate waiver.
  */
-export function WaiverBadge({ guestId, serviceType, onDismissed }: WaiverBadgeProps) {
+export function WaiverBadge({ guestId, serviceType, onDismissed, onModalOpen, onModalClose }: WaiverBadgeProps) {
     const [needsWaiver, setNeedsWaiver] = useState(false);
     const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
@@ -99,6 +101,7 @@ export function WaiverBadge({ guestId, serviceType, onDismissed }: WaiverBadgePr
                 setNeedsWaiver(false);
                 setShowModal(false);
                 setWaiverStep('initial');
+                onModalClose?.();
                 onDismissed?.();
             } else {
                 toast.error('Failed to confirm waiver');
@@ -119,6 +122,7 @@ export function WaiverBadge({ guestId, serviceType, onDismissed }: WaiverBadgePr
     const handleBackdropClick = (e: React.MouseEvent) => {
         if (e.target === e.currentTarget) {
             setShowModal(false);
+            onModalClose?.();
         }
     };
 
@@ -139,7 +143,10 @@ export function WaiverBadge({ guestId, serviceType, onDismissed }: WaiverBadgePr
         <>
             {/* Badge */}
             <button
-                onClick={() => setShowModal(true)}
+                onClick={() => {
+                    setShowModal(true);
+                    onModalOpen?.();
+                }}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-amber-700 bg-amber-100 border border-amber-300 rounded-full hover:bg-amber-200 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
                 title={badgeTitle}
             >
@@ -159,7 +166,10 @@ export function WaiverBadge({ guestId, serviceType, onDismissed }: WaiverBadgePr
                     <div className="relative w-full max-w-md bg-white rounded-lg shadow-xl my-auto">
                         {/* Close button */}
                         <button
-                            onClick={() => setShowModal(false)}
+                            onClick={() => {
+                                setShowModal(false);
+                                onModalClose?.();
+                            }}
                             className="absolute top-4 right-4 p-1 text-gray-400 hover:text-gray-600 z-10"
                             aria-label="Close"
                         >
@@ -226,7 +236,10 @@ export function WaiverBadge({ guestId, serviceType, onDismissed }: WaiverBadgePr
                                     {/* Actions */}
                                     <div className="flex gap-3">
                                         <button
-                                            onClick={() => setShowModal(false)}
+                                            onClick={() => {
+                                                setShowModal(false);
+                                                onModalClose?.();
+                                            }}
                                             className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors"
                                         >
                                             Cancel
@@ -275,6 +288,7 @@ export function WaiverBadge({ guestId, serviceType, onDismissed }: WaiverBadgePr
                                             onClick={() => {
                                                 setShowModal(false);
                                                 setWaiverStep('initial');
+                                                onModalClose?.();
                                             }}
                                             className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors"
                                         >

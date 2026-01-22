@@ -520,7 +520,16 @@ export const useServicesStore = create<ServicesState>()(
                         });
 
                         const supabase = createClient();
-                        const payload = { ...updates };
+                        // Convert camelCase to snake_case for database
+                        const payload: any = {};
+                        Object.keys(updates).forEach((key) => {
+                            if (key === 'completedRepairs') {
+                                payload.completed_repairs = updates[key];
+                            } else {
+                                payload[key] = updates[key];
+                            }
+                        });
+                        
                         if (updates.status === 'done') {
                             payload.completed_at = completedAt;
                         }

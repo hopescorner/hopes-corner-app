@@ -351,4 +351,119 @@ describe('GuestCard Component', () => {
             expect(screen.getByText('Unknown')).toBeDefined();
         });
     });
+
+    describe('Shower and Laundry Time Display', () => {
+        it('displays shower badge with booking time when time is provided', () => {
+            const serviceStatusMap = new Map([
+                ['g1', {
+                    hasShower: true,
+                    hasLaundry: false,
+                    hasBicycle: false,
+                    hasHaircut: false,
+                    hasHoliday: false,
+                    showerRecord: { id: 'shower-1', time: '8:00 AM', status: 'booked' },
+                }],
+            ]);
+            render(<GuestCard guest={baseGuest} serviceStatusMap={serviceStatusMap} />);
+            expect(screen.getByText('SHOWER @ 8:00 AM')).toBeDefined();
+        });
+
+        it('displays shower badge without time when time is not provided', () => {
+            const serviceStatusMap = new Map([
+                ['g1', {
+                    hasShower: true,
+                    hasLaundry: false,
+                    hasBicycle: false,
+                    hasHaircut: false,
+                    hasHoliday: false,
+                    showerRecord: { id: 'shower-1', time: null, status: 'booked' },
+                }],
+            ]);
+            render(<GuestCard guest={baseGuest} serviceStatusMap={serviceStatusMap} />);
+            const showerBadge = screen.getByText('SHOWER');
+            expect(showerBadge).toBeDefined();
+            expect(showerBadge.textContent).toBe('SHOWER');
+        });
+
+        it('displays laundry badge with booking time when time is provided', () => {
+            const serviceStatusMap = new Map([
+                ['g1', {
+                    hasShower: false,
+                    hasLaundry: true,
+                    hasBicycle: false,
+                    hasHaircut: false,
+                    hasHoliday: false,
+                    laundryRecord: { id: 'laundry-1', time: '9:30 AM', status: 'waiting' },
+                }],
+            ]);
+            render(<GuestCard guest={baseGuest} serviceStatusMap={serviceStatusMap} />);
+            expect(screen.getByText('LAUNDRY @ 9:30 AM')).toBeDefined();
+        });
+
+        it('displays laundry badge without time when time is not provided', () => {
+            const serviceStatusMap = new Map([
+                ['g1', {
+                    hasShower: false,
+                    hasLaundry: true,
+                    hasBicycle: false,
+                    hasHaircut: false,
+                    hasHoliday: false,
+                    laundryRecord: { id: 'laundry-1', time: null, status: 'waiting' },
+                }],
+            ]);
+            render(<GuestCard guest={baseGuest} serviceStatusMap={serviceStatusMap} />);
+            const laundryBadge = screen.getByText('LAUNDRY');
+            expect(laundryBadge).toBeDefined();
+            expect(laundryBadge.textContent).toBe('LAUNDRY');
+        });
+
+        it('displays both shower and laundry with times', () => {
+            const serviceStatusMap = new Map([
+                ['g1', {
+                    hasShower: true,
+                    hasLaundry: true,
+                    hasBicycle: false,
+                    hasHaircut: false,
+                    hasHoliday: false,
+                    showerRecord: { id: 'shower-1', time: '7:30 AM', status: 'booked' },
+                    laundryRecord: { id: 'laundry-1', time: '10:00 AM', status: 'waiting' },
+                }],
+            ]);
+            render(<GuestCard guest={baseGuest} serviceStatusMap={serviceStatusMap} />);
+            expect(screen.getByText('SHOWER @ 7:30 AM')).toBeDefined();
+            expect(screen.getByText('LAUNDRY @ 10:00 AM')).toBeDefined();
+        });
+
+        it('handles shower with undefined time gracefully', () => {
+            const serviceStatusMap = new Map([
+                ['g1', {
+                    hasShower: true,
+                    hasLaundry: false,
+                    hasBicycle: false,
+                    hasHaircut: false,
+                    hasHoliday: false,
+                    showerRecord: { id: 'shower-1', time: undefined, status: 'booked' },
+                }],
+            ]);
+            render(<GuestCard guest={baseGuest} serviceStatusMap={serviceStatusMap} />);
+            const showerBadge = screen.getByText('SHOWER');
+            expect(showerBadge).toBeDefined();
+        });
+
+        it('handles laundry with empty string time gracefully', () => {
+            const serviceStatusMap = new Map([
+                ['g1', {
+                    hasShower: false,
+                    hasLaundry: true,
+                    hasBicycle: false,
+                    hasHaircut: false,
+                    hasHoliday: false,
+                    laundryRecord: { id: 'laundry-1', time: '', status: 'waiting' },
+                }],
+            ]);
+            render(<GuestCard guest={baseGuest} serviceStatusMap={serviceStatusMap} />);
+            const laundryBadge = screen.getByText('LAUNDRY');
+            expect(laundryBadge).toBeDefined();
+        });
+    });
 });

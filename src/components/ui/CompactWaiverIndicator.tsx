@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useWaiverStore } from '@/stores/useWaiverStore';
 import { WaiverBadge } from './WaiverBadge';
 
@@ -21,6 +22,8 @@ export function CompactWaiverIndicator({ guestId, serviceType }: CompactWaiverIn
     const [loading, setLoading] = useState(true);
     const [showTooltip, setShowTooltip] = useState(false);
     const [showWaiverModal, setShowWaiverModal] = useState(false);
+    const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+    const buttonRef = useRef<HTMLButtonElement>(null);
 
     const { guestNeedsWaiverReminder, hasActiveWaiver, waiverVersion } = useWaiverStore();
 
@@ -83,16 +86,32 @@ export function CompactWaiverIndicator({ guestId, serviceType }: CompactWaiverIn
         setShowWaiverModal(true);
     };
 
+    const handleMouseEnter = () => {
+        if (buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setTooltipPosition({
+                top: rect.top - 8, // Position above the button with gap
+                left: rect.left + rect.width / 2, // Center horizontally
+            });
+        }
+        setShowTooltip(true);
+    };
+
+    const handleMouseLeave = () => {
+        setShowTooltip(false);
+    };
+
     return (
         <>
             <div
                 className="relative inline-flex"
-                onMouseEnter={() => setShowTooltip(true)}
-                onMouseLeave={() => setShowTooltip(false)}
-                onFocus={() => setShowTooltip(true)}
-                onBlur={() => setShowTooltip(false)}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                onFocus={handleMouseEnter}
+                onBlur={handleMouseLeave}
             >
                 <button
+                    ref={buttonRef}
                     type="button"
                     onClick={handleClick}
                     className="flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 border-2 border-amber-300 cursor-pointer hover:bg-amber-200 hover:border-amber-400 transition-colors flex-shrink-0 text-amber-700 font-bold text-lg leading-none"
@@ -100,20 +119,28 @@ export function CompactWaiverIndicator({ guestId, serviceType }: CompactWaiverIn
                 >
                     !
                 </button>
-
-                {/* Tooltip */}
-                {showTooltip && (
-                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 pointer-events-none">
-                        <div className="bg-gray-900 text-white text-[10px] font-medium px-2 py-1 rounded shadow-lg whitespace-nowrap">
-                            {tooltipText}
-                            <div className="text-[9px] text-gray-300 mt-0.5">Click to sign waiver</div>
-                        </div>
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
-                            <div className="border-4 border-transparent border-t-gray-900" />
-                        </div>
-                    </div>
-                )}
             </div>
+
+            {/* Tooltip - rendered in portal to avoid overflow clipping */}
+            {showTooltip && typeof document !== 'undefined' && createPortal(
+                <div
+                    className="fixed z-[9999] pointer-events-none"
+                    style={{
+                        top: `${tooltipPosition.top}px`,
+                        left: `${tooltipPosition.left}px`,
+                        transform: 'translate(-50%, -100%)',
+                    }}
+                >
+                    <div className="bg-gray-900 text-white text-[10px] font-medium px-2 py-1 rounded shadow-lg whitespace-nowrap">
+                        {tooltipText}
+                        <div className="text-[9px] text-gray-300 mt-0.5">Click to sign waiver</div>
+                    </div>
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1">
+                        <div className="border-4 border-transparent border-t-gray-900" />
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* Waiver Modal - show WaiverBadge in modal mode */}
             {showWaiverModal && (

@@ -32,6 +32,7 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
     const { fetchItemsForGuest, checkAvailability, giveItem, undoItem, distributedItems, isLoading } = useItemsStore();
     const [localLoading, setLocalLoading] = useState<string | null>(null);
     const [undoLoading, setUndoLoading] = useState<string | null>(null);
+    const [isWaiverModalOpen, setIsWaiverModalOpen] = useState(false);
 
     useEffect(() => {
         if (isOpen && guest?.id) {
@@ -39,7 +40,8 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
         }
     }, [isOpen, guest?.id, fetchItemsForGuest]);
 
-    if (!isOpen || !record || !guest) return null;
+    // Hide this modal when waiver modal is open to prevent stacking
+    if (!isOpen || !record || !guest || isWaiverModalOpen) return null;
 
     const handleGiveItem = async (itemKey: string, itemName: string) => {
         if (!guest.id) return;
@@ -127,7 +129,12 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                             <span className="font-bold text-gray-900">{record.time || 'N/A'}</span>
                         </div>
                         <div className="pt-3 border-t border-gray-200">
-                            <WaiverBadge guestId={guest.id} serviceType="shower" />
+                            <WaiverBadge 
+                                guestId={guest.id} 
+                                serviceType="shower" 
+                                onModalOpen={() => setIsWaiverModalOpen(true)}
+                                onModalClose={() => setIsWaiverModalOpen(false)}
+                            />
                         </div>
                     </div>
 

@@ -428,13 +428,13 @@ export function GuestCard({
                                 {todayShower && (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">
                                         <ShowerHead size={10} />
-                                        SHOWER
+                                        SHOWER{serviceStatus.showerRecord?.time ? ` @ ${serviceStatus.showerRecord.time}` : ''}
                                     </span>
                                 )}
                                 {todayLaundry && (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
                                         <WashingMachine size={10} />
-                                        LAUNDRY
+                                        LAUNDRY{serviceStatus.laundryRecord?.time ? ` @ ${serviceStatus.laundryRecord.time}` : ''}
                                     </span>
                                 )}
                                 {todayHaircut && (
