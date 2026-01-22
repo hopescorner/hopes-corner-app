@@ -7,6 +7,8 @@ import { ServiceDatePicker } from '../ServiceDatePicker';
 vi.mock('@/lib/utils/date', () => ({
     todayPacificDateString: () => '2024-01-15',
     pacificDateStringFrom: (isoStr: string) => isoStr.split('T')[0],
+    formatTimeInPacific: () => '12:00 PM',
+    formatPacificTimeString: (timeStr: string) => timeStr,
 }));
 
 describe('ServiceDatePicker', () => {

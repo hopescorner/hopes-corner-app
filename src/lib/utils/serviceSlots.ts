@@ -53,6 +53,8 @@ export const generateLaundrySlots = (date: Date = new Date()) => {
     ];
 };
 
+import { formatPacificTimeString } from '@/lib/utils/date';
+
 export const formatSlotLabel = (time: string) => {
     if (!time) return '';
     if (time.includes(' - ')) {
@@ -62,10 +64,4 @@ export const formatSlotLabel = (time: string) => {
     return formatSingleTime(time);
 };
 
-const formatSingleTime = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
-    const date = new Date();
-    date.setHours(h);
-    date.setMinutes(m);
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-};
+const formatSingleTime = (timeStr: string) => formatPacificTimeString(timeStr);

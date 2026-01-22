@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { ShowerHead, WashingMachine } from 'lucide-react';
@@ -10,6 +10,24 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
+
+// Subscribe to array lengths to ensure re-renders when records change
+// This is a workaround for potential subscription issues with complex selectors
+const useShowerRecordsLength = () => {
+    return useSyncExternalStore(
+        useServicesStore.subscribe,
+        () => useServicesStore.getState().showerRecords.length,
+        () => useServicesStore.getState().showerRecords.length
+    );
+};
+
+const useLaundryRecordsLength = () => {
+    return useSyncExternalStore(
+        useServicesStore.subscribe,
+        () => useServicesStore.getState().laundryRecords.length,
+        () => useServicesStore.getState().laundryRecords.length
+    );
+};
 
 interface ServiceStatusOverviewProps {
     onShowerClick?: () => void;
@@ -69,6 +87,12 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
     const { showerRecords, laundryRecords } = useServicesStore();
     const { targets } = useSettingsStore();
     const todayString = todayPacificDateString();
+    const getRecordDate = (record: { date?: string | null; scheduledFor?: string | null }) =>
+        record.date || record.scheduledFor || null;
+
+    // Force re-render when record counts change (ensures reactivity)
+    const showerRecordsLength = useShowerRecordsLength();
+    const laundryRecordsLength = useLaundryRecordsLength();
 
     const allShowerSlots = useMemo(() => generateShowerSlots(), []);
     const allLaundrySlots = useMemo(() => generateLaundrySlots(), []);
@@ -92,7 +116,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
     const showerStats = useMemo(() => {
         const todaysRecords = (showerRecords || []).filter(
             (record: any) =>
-                pacificDateStringFrom(record.scheduledFor || record.date) === todayString &&
+                pacificDateStringFrom(getRecordDate(record) || new Date()) === todayString &&
                 record.status !== 'waitlisted'
         );
 
@@ -104,7 +128,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
         const waitlisted = (showerRecords || []).filter(
             (record: any) =>
                 record.status === 'waitlisted' &&
-                pacificDateStringFrom(record.scheduledFor || record.date) === todayString
+                pacificDateStringFrom(getRecordDate(record) || new Date()) === todayString
         ).length;
 
         return {
@@ -115,13 +139,13 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             isFull: available === 0,
             isNearlyFull: available <= 2 && available > 0,
         };
-    }, [showerRecords, allShowerSlots, todayString, blockedShowerSlotsCount]);
+    }, [showerRecords, allShowerSlots, todayString, blockedShowerSlotsCount, showerRecordsLength]);
 
     // Calculate laundry statistics
     const laundryStats = useMemo(() => {
         const maxSlots = targets?.maxOnsiteLaundrySlots ?? 5;
         const todaysRecords = (laundryRecords || []).filter(
-            (record: any) => pacificDateStringFrom(record.scheduledFor || record.date) === todayString
+            (record: any) => pacificDateStringFrom(getRecordDate(record) || new Date()) === todayString
         );
         const onsiteSlotsTaken = todaysRecords.filter(
             (record: any) => (record.laundryType === 'onsite' || !record.laundryType)
@@ -137,7 +161,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             isFull: onsiteAvailable === 0,
             isNearlyFull: onsiteAvailable === 1,
         };
-    }, [laundryRecords, todayString, targets, blockedLaundrySlotsCount]);
+    }, [laundryRecords, todayString, targets, blockedLaundrySlotsCount, laundryRecordsLength]);
 
     // Find next available shower slot
     const nextAvailableShowerSlot = useMemo(() => {
@@ -145,7 +169,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
         const inactiveStatuses = new Set(['waitlisted', 'cancelled', 'done']);
         const todayActiveRecords = (showerRecords || []).filter(
             (record: any) =>
-                pacificDateStringFrom(record.scheduledFor || record.date) === todayString &&
+                pacificDateStringFrom(getRecordDate(record) || new Date()) === todayString &&
                 !inactiveStatuses.has(record.status)
         );
         const slotCounts: Record<string, number> = {};
@@ -158,7 +182,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             if ((slotCounts[slot] || 0) < 2) return slot;
         }
         return null;
-    }, [allShowerSlots, showerRecords, todayString, showerStats.available, isSlotBlocked]);
+    }, [allShowerSlots, showerRecords, todayString, showerStats.available, isSlotBlocked, showerRecordsLength]);
 
     // Find next available laundry slot
     const nextAvailableLaundrySlot = useMemo(() => {
@@ -166,7 +190,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
         const activeLaundryStatuses = new Set(['waiting', 'washer', 'dryer']);
         const todayLaundryRecords = (laundryRecords || []).filter(
             (record: any) =>
-                pacificDateStringFrom(record.scheduledFor || record.date) === todayString &&
+                pacificDateStringFrom(getRecordDate(record) || new Date()) === todayString &&
                 record.laundryType === 'onsite' &&
                 activeLaundryStatuses.has(record.status)
         );
@@ -178,7 +202,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             if (!bookedLaundrySlots.has(slot)) return slot;
         }
         return null;
-    }, [allLaundrySlots, laundryRecords, todayString, laundryStats.onsiteAvailable, isSlotBlocked]);
+    }, [allLaundrySlots, laundryRecords, todayString, laundryStats.onsiteAvailable, isSlotBlocked, laundryRecordsLength]);
 
     const nextShowerSlotLabel = nextAvailableShowerSlot
         ? `Next slot: ${formatSlotLabel(nextAvailableShowerSlot)}`

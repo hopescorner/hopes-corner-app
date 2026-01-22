@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import toast from 'react-hot-toast';
@@ -430,7 +430,7 @@ export function MealsSection() {
                                                     </div>
                                                 ) : (
                                                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest cursor-pointer hover:text-gray-600" onClick={() => handleEdit(record)}>
-                                                        {record.count} Meal{record.count > 1 ? 's' : ''} · {new Date(record.createdAt || record.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        {record.count} Meal{record.count > 1 ? 's' : ''} · {formatTimeInPacific(record.createdAt || record.date, { hour: '2-digit', minute: '2-digit' })}
                                                     </p>
                                                 )}
                                             </div>

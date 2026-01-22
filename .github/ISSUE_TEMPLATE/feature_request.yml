@@ -64,6 +64,11 @@ body:
         - ✅ Run lint: `npm run lint`
         - ✅ Run full tests: `npm test -- --run`
         - ✅ Verify no regressions
+        - ✅ Update documentation if applicable
+        - ✅ **Update version & changelog** in `src/lib/utils/appVersion.ts`:
+          - Bump `APP_VERSION` (use semantic versioning)
+          - Add new entry to `CHANGELOG` array with feature details (keep it minimal and non-technical)
+        - ✅ Share screenshot of new UI or feature
 
   - type: textarea
     id: additional-notes

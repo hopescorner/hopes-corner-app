@@ -24,7 +24,7 @@ import {
     formatProteinAndCarbsClipboardText,
     DENSITY_SERVINGS
 } from '@/lib/utils/donationUtils';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 
 // Helper to safely format a date string (YYYY-MM-DD) for display
@@ -39,9 +39,7 @@ const formatDisplayDate = (dateString: string) => {
 const formatRecordTime = (record: DonationRecord) => {
     const timestamp = record.createdAt || record.donatedAt;
     if (!timestamp) return '';
-    const date = new Date(timestamp);
-    if (isNaN(date.getTime())) return '';
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatTimeInPacific(timestamp, { hour: '2-digit', minute: '2-digit' });
 };
 
 const DONATION_TYPES: DonationTypeEnum[] = [

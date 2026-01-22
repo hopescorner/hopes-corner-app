@@ -1,3 +1,27 @@
+const PACIFIC_TIME_ZONE = "America/Los_Angeles";
+
+export const formatTimeInPacific = (
+    dateLike: Date | string | number | null | undefined,
+    options: Intl.DateTimeFormatOptions = { hour: 'numeric', minute: '2-digit' }
+) => {
+    if (!dateLike) return '';
+    const date = new Date(dateLike);
+    if (Number.isNaN(date.getTime())) return '';
+    return new Intl.DateTimeFormat(undefined, { timeZone: PACIFIC_TIME_ZONE, ...options }).format(date);
+};
+
+export const formatPacificTimeString = (timeStr: string) => {
+    if (!timeStr) return '';
+    const [hoursRaw, minutesRaw = '00'] = timeStr.trim().split(':');
+    const hours = Number(hoursRaw);
+    const minutes = Number(minutesRaw);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return timeStr;
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const displayHour = ((hours + 11) % 12) + 1;
+    const displayMinutes = String(minutes).padStart(2, '0');
+    return `${displayHour}:${displayMinutes} ${period}`;
+};
+
 export const formatTimeElapsed = (dateString: string | null | undefined | Date) => {
     if (!dateString) return '';
     try {

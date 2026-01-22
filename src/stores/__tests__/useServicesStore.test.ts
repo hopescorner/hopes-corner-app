@@ -35,6 +35,8 @@ vi.mock('@/lib/utils/mappers', () => ({
 vi.mock('@/lib/utils/date', () => ({
     todayPacificDateString: () => '2025-01-06',
     pacificDateStringFrom: (d: string) => d.split('T')[0],
+    formatTimeInPacific: () => '12:00 PM',
+    formatPacificTimeString: (timeStr: string) => timeStr,
 }));
 
 const createMockShowerRecord = (overrides = {}) => ({

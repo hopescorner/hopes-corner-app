@@ -22,6 +22,8 @@ vi.mock('framer-motion', () => ({
 vi.mock('@/lib/utils/date', () => ({
     todayPacificDateString: () => '2024-01-15',
     pacificDateStringFrom: (date: string) => date.split('T')[0],
+    formatTimeInPacific: () => '12:00 PM',
+    formatPacificTimeString: (timeStr: string) => timeStr,
 }));
 
 // Mock stores

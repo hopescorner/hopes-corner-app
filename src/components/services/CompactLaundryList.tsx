@@ -4,7 +4,7 @@ import React, { useMemo, useState, useCallback, memo } from "react";
 import { WashingMachine, Clock, CheckCircle, Package, Wind, Truck, ChevronDown, ChevronUp, Eye } from "lucide-react";
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatPacificTimeString } from '@/lib/utils/date';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
 import { cn } from '@/lib/utils/cn';
 
@@ -43,14 +43,11 @@ interface LaundryBooking {
 const formatLaundrySlot = (slot: string | null | undefined): string => {
     if (!slot) return "—";
     const [start] = String(slot).split(" - ");
-    const [hoursStr, minutesStr] = String(start).split(":");
+    const [hoursStr, minutesStr = '00'] = String(start).split(":");
     const hours = Number(hoursStr);
     const minutes = Number(minutesStr);
     if (Number.isNaN(hours) || Number.isNaN(minutes)) return slot;
-    const date = new Date();
-    date.setHours(hours);
-    date.setMinutes(minutes, 0, 0);
-    return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    return formatPacificTimeString(`${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`);
 };
 
 const parseSlotStartMinutes = (slot: string | null | undefined): number => {

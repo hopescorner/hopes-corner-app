@@ -29,6 +29,8 @@ vi.mock('@/components/ui/CompactWaiverIndicator', () => ({
 vi.mock('@/lib/utils/date', () => ({
     todayPacificDateString: () => '2026-01-08',
     pacificDateStringFrom: (date: string) => '2026-01-08',
+    formatTimeInPacific: () => '12:00 PM',
+    formatPacificTimeString: (timeStr: string) => timeStr,
 }));
 
 describe('CompactLaundryList Component', () => {

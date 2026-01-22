@@ -4,6 +4,7 @@ import NextAuthProvider from '@/components/providers/NextAuthProvider';
 import { Toaster } from 'react-hot-toast';
 import { ModalContainer } from '@/components/modals/ModalContainer';
 import { ServiceWorkerRegistration } from '@/components/pwa/ServiceWorkerRegistration';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
 
 const inter = Inter({
@@ -59,6 +60,7 @@ export default function RootLayout({
           <ServiceWorkerRegistration />
           {children}
           <ModalContainer />
+          <SpeedInsights />
           <Toaster
             position="top-center"
             containerStyle={{ top: 60 }}

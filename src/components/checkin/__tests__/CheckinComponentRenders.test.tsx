@@ -7,12 +7,24 @@ import { ServiceStatusOverview } from '../ServiceStatusOverview';
 import { TodayStats } from '../TodayStats';
 
 // Mock stores
+const mockShowerRecords: any[] = [];
+const mockLaundryRecords: any[] = [];
+
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: vi.fn(() => ({
-        showerRecords: [],
-        laundryRecords: [],
-        bicycleRecords: [],
-    })),
+    useServicesStore: Object.assign(
+        vi.fn(() => ({
+            showerRecords: mockShowerRecords,
+            laundryRecords: mockLaundryRecords,
+            bicycleRecords: [],
+        })),
+        {
+            subscribe: vi.fn(() => () => {}),
+            getState: vi.fn(() => ({
+                showerRecords: mockShowerRecords,
+                laundryRecords: mockLaundryRecords,
+            })),
+        }
+    ),
 }));
 
 vi.mock('@/stores/useBlockedSlotsStore', () => ({

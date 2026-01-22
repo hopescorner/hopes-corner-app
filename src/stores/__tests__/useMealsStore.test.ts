@@ -25,6 +25,8 @@ vi.mock('@/lib/utils/supabasePagination', () => ({
 vi.mock('@/lib/utils/date', () => ({
     todayPacificDateString: vi.fn(() => '2025-01-06'),
     pacificDateStringFrom: vi.fn((d: any) => '2025-01-06'),
+    formatTimeInPacific: () => '12:00 PM',
+    formatPacificTimeString: (timeStr: string) => timeStr,
 }));
 
 vi.mock('@/lib/utils/mappers', () => ({

@@ -56,6 +56,8 @@ vi.mock('@/stores/useGuestsStore', () => ({
 vi.mock('@/lib/utils/date', () => ({
     todayPacificDateString: () => '2026-01-08',
     pacificDateStringFrom: (date: string) => date ? date.slice(0, 10) : null,
+    formatTimeInPacific: () => '12:00 PM',
+    formatPacificTimeString: (timeStr: string) => timeStr,
 }));
 
 describe('MealsSection Component', () => {

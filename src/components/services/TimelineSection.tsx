@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 
 interface TimelineEvent {
@@ -218,7 +218,7 @@ function TimelineCard({ event, index }: { event: TimelineEvent, index: number })
                         {event.timeLabel}
                     </span>
                     <p className="text-xs text-gray-400 font-bold mt-1">
-                        {new Date(event.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                        {formatTimeInPacific(event.timestamp, { hour: 'numeric', minute: '2-digit' })}
                     </p>
                 </div>
             </div>

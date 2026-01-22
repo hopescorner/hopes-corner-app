@@ -22,16 +22,28 @@ vi.mock('@/lib/auth/config', () => ({
 }));
 
 // Mock stores
+const mockShowerRecords: any[] = [];
+const mockLaundryRecords: any[] = [];
+
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: vi.fn(() => ({
-        showerRecords: [],
-        laundryRecords: [],
-        bicycleRecords: [],
-        haircutRecords: [],
-        holidayRecords: [],
-        fetchTodaysRecords: vi.fn(),
-        loadFromSupabase: vi.fn(),
-    })),
+    useServicesStore: Object.assign(
+        vi.fn(() => ({
+            showerRecords: mockShowerRecords,
+            laundryRecords: mockLaundryRecords,
+            bicycleRecords: [],
+            haircutRecords: [],
+            holidayRecords: [],
+            fetchTodaysRecords: vi.fn(),
+            loadFromSupabase: vi.fn(),
+        })),
+        {
+            subscribe: vi.fn(() => () => {}),
+            getState: vi.fn(() => ({
+                showerRecords: mockShowerRecords,
+                laundryRecords: mockLaundryRecords,
+            })),
+        }
+    ),
 }));
 
 vi.mock('@/stores/useMealsStore', () => ({
