@@ -2,7 +2,7 @@
 
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import MainLayout from '@/components/layouts/MainLayout';
 
 export default function ProtectedLayout({
@@ -12,22 +12,16 @@ export default function ProtectedLayout({
 }) {
     const { data: session, status } = useSession();
     const router = useRouter();
-    const [isChecking, setIsChecking] = useState(true);
 
     useEffect(() => {
-        if (status === 'loading') {
-            return;
-        }
-
-        if (!session) {
+        // Only redirect if we're sure there's no session
+        if (status === 'unauthenticated') {
             router.replace('/login');
-        } else {
-            setIsChecking(false);
         }
-    }, [session, status, router]);
+    }, [status, router]);
 
     // Show loading state while checking auth
-    if (status === 'loading' || isChecking) {
+    if (status === 'loading') {
         return (
             <div className="min-h-screen bg-emerald-50 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
