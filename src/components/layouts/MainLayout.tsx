@@ -5,7 +5,7 @@ import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut, Menu, X } from 'lucide-react';
-import { getRoleLabel, ROLE_ACCESS, type UserRole } from '@/lib/auth/types';
+import { getDefaultRoute, getRoleLabel, ROLE_ACCESS, type UserRole } from '@/lib/auth/types';
 import { AppVersion } from '@/components/pwa/AppVersion';
 import { TutorialModal } from '@/components/modals/TutorialModal';
 import { useRealtimeSync } from '@/hooks/useRealtimeSync';
@@ -35,6 +35,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const role = (session?.user?.role as UserRole) || 'checkin';
     const roleLabel = getRoleLabel(role);
     const allowedTabs = ROLE_ACCESS[role];
+    const defaultRoute = getDefaultRoute(role);
 
     const navItems = allNavItems.filter((item) =>
         (allowedTabs as readonly string[]).includes(item.id)
@@ -103,7 +104,8 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         {/* Left Zone: Brand */}
                         <div className="flex items-center gap-3 shrink-0">
                             <Link
-                                href="/"
+                                href={defaultRoute}
+                                prefetch={false}
                                 className="inline-flex items-center p-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
                             >
                                 <img
@@ -135,6 +137,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                                         <Link
                                             key={item.id}
                                             href={item.href}
+                                            prefetch={false}
                                             aria-current={isActive ? 'page' : undefined}
                                             className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 ${isActive
                                                 ? 'bg-white text-emerald-900 shadow-md'
@@ -214,6 +217,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                             <Link
                                 key={item.id}
                                 href={item.href}
+                                prefetch={false}
                                 aria-current={isActive ? 'page' : undefined}
                                 className={`flex flex-col items-center justify-center rounded-lg border py-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${isActive
                                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow'

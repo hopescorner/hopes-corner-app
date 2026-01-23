@@ -224,6 +224,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             {canNavigate ? (
                 <Link
                     href="/services?tab=showers"
+                    prefetch={false}
                     className={`${cardBaseClasses} cursor-pointer ${showerStats.isFull
                         ? 'bg-red-50/50 border-red-200 hover:bg-red-50'
                         : 'bg-blue-50/30 border-blue-100 hover:bg-blue-50/50'
@@ -246,6 +247,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             {canNavigate ? (
                 <Link
                     href="/services?tab=laundry"
+                    prefetch={false}
                     className={`${cardBaseClasses} cursor-pointer ${laundryStats.isFull
                         ? 'bg-red-50/50 border-red-200 hover:bg-red-50'
                         : 'bg-purple-50/30 border-purple-100 hover:bg-purple-50/50'
