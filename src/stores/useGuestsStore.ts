@@ -3,6 +3,11 @@ import { persist, devtools } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { createClient } from '@/lib/supabase/client';
 import { fetchAllPaginated } from '@/lib/utils/supabasePagination';
+import {
+    getCachedGuests,
+    getCachedGuestWarnings,
+    getCachedGuestProxies,
+} from '@/lib/supabase/cachedQueries';
 import toast from 'react-hot-toast';
 import {
     toTitleCase,
@@ -489,16 +494,9 @@ export const useGuestsStore = create<GuestsState>()(
                 },
 
                 loadFromSupabase: async () => {
-                    const supabase = createClient();
                     try {
-                        const guestsData = await fetchAllPaginated(supabase, {
-                            table: 'guests',
-                            select: '*',
-                            orderBy: 'updated_at',
-                            ascending: false,
-                            pageSize: 1000,
-                            mapper: mapGuestRow,
-                        });
+                        // Use cached query to prevent duplicate fetches
+                        const guestsData = await getCachedGuests();
 
                         set((state) => {
                             state.guests = (guestsData || []).map((g: any) => ({
@@ -513,16 +511,9 @@ export const useGuestsStore = create<GuestsState>()(
                 },
 
                 loadGuestWarningsFromSupabase: async () => {
-                    const supabase = createClient();
                     try {
-                        const warningsData = await fetchAllPaginated(supabase, {
-                            table: 'guest_warnings',
-                            select: '*',
-                            orderBy: 'created_at',
-                            ascending: false,
-                            pageSize: 1000,
-                            mapper: mapGuestWarningRow,
-                        });
+                        // Use cached query to prevent duplicate fetches
+                        const warningsData = await getCachedGuestWarnings();
 
                         set((state) => {
                             state.warnings = (warningsData || []) as any;
@@ -533,16 +524,12 @@ export const useGuestsStore = create<GuestsState>()(
                 },
 
                 loadGuestProxiesFromSupabase: async () => {
-                    const supabase = createClient();
                     try {
-                        const { data, error } = await supabase
-                            .from('guest_proxies')
-                            .select('*');
-
-                        if (error) throw error;
+                        // Use cached query to prevent duplicate fetches
+                        const proxiesData = await getCachedGuestProxies();
 
                         set((state) => {
-                            state.guestProxies = (data || []).map(mapGuestProxyRow) as any;
+                            state.guestProxies = proxiesData as any;
                         });
                     } catch (error) {
                         console.error('Failed to load guest proxies from Supabase:', error);

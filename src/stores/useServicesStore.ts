@@ -4,6 +4,11 @@ import { immer } from 'zustand/middleware/immer';
 import { createClient } from '@/lib/supabase/client';
 import { fetchAllPaginated } from '@/lib/utils/supabasePagination';
 import {
+    getCachedShowerRecords,
+    getCachedLaundryRecords,
+    getCachedBicycleRecords,
+} from '@/lib/supabase/cachedQueries';
+import {
     mapShowerRow,
     mapLaundryRow,
     mapBicycleRow,
@@ -686,30 +691,10 @@ export const useServicesStore = create<ServicesState>()(
                         const supabase = createClient();
                         try {
                             const [showerRows, laundryRows, bicycleRows, haircutRows, holidayRows] = await Promise.all([
-                                fetchAllPaginated(supabase, {
-                                    table: 'shower_reservations',
-                                    select: 'id,guest_id,scheduled_for,scheduled_time,status,created_at,updated_at',
-                                    orderBy: 'created_at',
-                                    ascending: false,
-                                    pageSize: 1000,
-                                    mapper: mapShowerRow,
-                                }),
-                                fetchAllPaginated(supabase, {
-                                    table: 'laundry_bookings',
-                                    select: 'id,guest_id,slot_label,laundry_type,bag_number,scheduled_for,status,created_at,updated_at',
-                                    orderBy: 'created_at',
-                                    ascending: false,
-                                    pageSize: 1000,
-                                    mapper: mapLaundryRow,
-                                }),
-                                fetchAllPaginated(supabase, {
-                                    table: 'bicycle_repairs',
-                                    select: 'id,guest_id,requested_at,repair_type,repair_types,notes,status,priority,completed_repairs,completed_at,updated_at',
-                                    orderBy: 'updated_at',
-                                    ascending: false,
-                                    pageSize: 1000,
-                                    mapper: mapBicycleRow,
-                                }),
+                                getCachedShowerRecords(),
+                                getCachedLaundryRecords(),
+                                getCachedBicycleRecords(),
+                                // Haircuts and holidays still use direct queries (not in cached)
                                 fetchAllPaginated(supabase, {
                                     table: 'haircut_visits',
                                     select: 'id,guest_id,served_at,service_date,created_at',

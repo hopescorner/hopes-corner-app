@@ -4,6 +4,11 @@ import { immer } from 'zustand/middleware/immer';
 import { createClient } from '@/lib/supabase/client';
 import { fetchAllPaginated } from '@/lib/utils/supabasePagination';
 import {
+    getCachedMealRecords,
+    getCachedHolidayRecords,
+    getCachedHaircutRecords,
+} from '@/lib/supabase/cachedQueries';
+import {
     mapMealRow,
     mapHolidayRow,
     mapHaircutRow,
@@ -532,38 +537,17 @@ export const useMealsStore = create<MealsState>()(
 
                     // Load from Supabase
                     loadFromSupabase: async () => {
-                        const supabase = createClient();
                         try {
+                            // Use cached queries to prevent duplicate fetches in parallel loads
                             const [mealRows, holidayRows, haircutRows] = await Promise.all([
-                                fetchAllPaginated(supabase, {
-                                    table: 'meal_attendance',
-                                    select: 'id,guest_id,quantity,served_on,meal_type,recorded_at,created_at,picked_up_by_guest_id',
-                                    orderBy: 'recorded_at',
-                                    ascending: false,
-                                    pageSize: 1000,
-                                    mapper: mapMealRow,
-                                }),
-                                fetchAllPaginated(supabase, {
-                                    table: 'holiday_visits',
-                                    select: 'id,guest_id,served_at,created_at',
-                                    orderBy: 'created_at',
-                                    ascending: false,
-                                    pageSize: 1000,
-                                    mapper: mapHolidayRow,
-                                }),
-                                fetchAllPaginated(supabase, {
-                                    table: 'haircut_visits',
-                                    select: 'id,guest_id,served_at,created_at',
-                                    orderBy: 'created_at',
-                                    ascending: false,
-                                    pageSize: 1000,
-                                    mapper: mapHaircutRow,
-                                }),
+                                getCachedMealRecords(),
+                                getCachedHolidayRecords(),
+                                getCachedHaircutRecords(),
                             ]);
 
                             set((state) => {
                                 // Distribute ALL meal rows into buckets
-                                const allMeals = (mealRows || []).map(r => r as MealRecord); // Assuming mapMealRow returns correct shape
+                                const allMeals = (mealRows || []).map(r => r as MealRecord);
 
                                 state.mealRecords = allMeals.filter(r => r.type === 'guest' || !r.type);
                                 state.rvMealRecords = allMeals.filter(r => r.type === 'rv');

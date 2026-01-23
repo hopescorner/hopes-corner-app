@@ -1,10 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-
-// Optimization: Cache page shell statically (auth handled in layout)
-export const dynamic = 'force-static';
-export const revalidate = 60; // Revalidate every 60 seconds
 import {
     BarChart3,
     Home,

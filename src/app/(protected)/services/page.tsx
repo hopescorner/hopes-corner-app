@@ -1,10 +1,6 @@
 'use client';
 
 import { useEffect, useMemo } from 'react';
-
-// Optimization: Cache page shell statically (auth handled in layout)
-export const dynamic = 'force-static';
-export const revalidate = 60; // Revalidate every 60 seconds
 import {
     ClipboardList,
     BarChart3,

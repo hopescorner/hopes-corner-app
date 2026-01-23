@@ -1,10 +1,6 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef, useDeferredValue } from 'react';
-
-// Optimization: Cache page shell statically (auth handled in layout)
-export const dynamic = 'force-static';
-export const revalidate = 60; // Revalidate every 60 seconds
 import { Search, UserPlus, X, Users, Loader2, RefreshCw } from 'lucide-react';
 import { useGuestsStore, Guest } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
