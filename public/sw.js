@@ -69,10 +69,15 @@ self.addEventListener('fetch', (event) => {
     }
 
     // For other requests, use stale-while-revalidate strategy
+    // Only cache GET requests - POST, PUT, DELETE etc. cannot be cached
+    if (request.method !== 'GET') {
+        return;
+    }
+
     event.respondWith(
         caches.match(request).then((cached) => {
             const networkFetch = fetch(request).then((response) => {
-                // Cache successful responses
+                // Cache successful GET responses only
                 if (response.ok) {
                     const responseClone = response.clone();
                     caches.open(CACHE_NAME).then((cache) => {
