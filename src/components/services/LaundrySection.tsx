@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp } from 'lucide-react';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
@@ -63,7 +63,6 @@ export function LaundrySection() {
 
     const today = todayPacificDateString();
     const [selectedDate, setSelectedDate] = useState(today);
-    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Check if user is admin/staff
     const userRole = (session?.user as any)?.role || '';
@@ -71,21 +70,6 @@ export function LaundrySection() {
 
     // Check if viewing historical data
     const isViewingPast = selectedDate !== today;
-
-    // Refresh handler
-    const handleRefresh = useCallback(async () => {
-        setIsRefreshing(true);
-        const toastId = toast.loading('Refreshing laundry...');
-        try {
-            await loadFromSupabase();
-            toast.success('Laundry refreshed', { id: toastId });
-        } catch (error) {
-            console.error('Failed to refresh laundry:', error);
-            toast.error('Failed to refresh', { id: toastId });
-        } finally {
-            setIsRefreshing(false);
-        }
-    }, [loadFromSupabase]);
 
     // Filter logic depends on whether viewing historical data or current
     const activeLaundry = useMemo(() => {
@@ -288,17 +272,6 @@ export function LaundrySection() {
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
-                        {/* Refresh Button */}
-                        <button
-                            onClick={handleRefresh}
-                            disabled={isRefreshing}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-white text-gray-700 rounded-lg border hover:bg-gray-50 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Refresh laundry data"
-                            aria-label="Refresh laundry data"
-                        >
-                            <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
-                            <span className="hidden sm:inline">Refresh</span>
-                        </button>
                         {!isViewingPast && (
                             <button
                                 onClick={() => setShowSlotManager(true)}

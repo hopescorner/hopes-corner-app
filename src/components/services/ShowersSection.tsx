@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShowerHead, Clock, CheckCircle, XCircle, ChevronRight, User, AlertCircle, Loader2, RotateCcw, RefreshCw } from 'lucide-react';
+import { ShowerHead, Clock, CheckCircle, XCircle, ChevronRight, User, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
@@ -29,7 +29,6 @@ export function ShowersSection() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [selectedShower, setSelectedShower] = useState<any>(null);
     const [showSlotManager, setShowSlotManager] = useState(false);
-    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Check if user is admin/staff
     const userRole = (session?.user as any)?.role || '';
@@ -37,21 +36,6 @@ export function ShowersSection() {
 
     // Check if viewing historical data
     const isViewingPast = selectedDate !== today;
-
-    // Refresh handler
-    const handleRefresh = useCallback(async () => {
-        setIsRefreshing(true);
-        const toastId = toast.loading('Refreshing showers...');
-        try {
-            await loadFromSupabase();
-            toast.success('Showers refreshed', { id: toastId });
-        } catch (error) {
-            console.error('Failed to refresh showers:', error);
-            toast.error('Failed to refresh', { id: toastId });
-        } finally {
-            setIsRefreshing(false);
-        }
-    }, [loadFromSupabase]);
 
     // Filter records for selected date
     const selectedDateRecords = showerRecords.filter(
@@ -154,18 +138,6 @@ export function ShowersSection() {
 
                 {/* Right side actions */}
                 <div className="flex items-center gap-4">
-                    {/* Refresh Button */}
-                    <button
-                        onClick={handleRefresh}
-                        disabled={isRefreshing}
-                        className="flex items-center gap-2 px-3 py-2 bg-white text-gray-700 rounded-lg border hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Refresh shower data"
-                        aria-label="Refresh shower data"
-                    >
-                        <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
-                        <span className="hidden sm:inline text-sm font-medium">Refresh</span>
-                    </button>
-
                     {/* Manage Slots Button */}
                     <button
                         onClick={() => setShowSlotManager(true)}
