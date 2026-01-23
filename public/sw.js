@@ -98,6 +98,3 @@ self.addEventListener('push', (event) => {
         });
     }
 });
-
-// Export empty object for TypeScript
-export { };
