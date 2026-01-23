@@ -14,6 +14,7 @@ import {
     mapBicycleRow,
     mapHaircutRow,
     mapHolidayRow,
+    mapShowerStatusToDb,
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 
@@ -366,9 +367,11 @@ export const useServicesStore = create<ServicesState>()(
                         });
 
                         const supabase = createClient();
+                        // Map app status to DB status (e.g., 'awaiting' -> 'booked')
+                        const dbStatus = mapShowerStatusToDb(status as any);
                         const { error } = await supabase
                             .from('shower_reservations')
-                            .update({ status })
+                            .update({ status: dbStatus })
                             .eq('id', recordId);
 
                         if (error) {

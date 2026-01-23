@@ -30,6 +30,7 @@ vi.mock('@/lib/utils/mappers', () => ({
     mapBicycleRow: vi.fn((row: any) => row ? { ...row, id: row.id || 'mapped-bicycle-id', date: row.requested_at || '2025-01-06' } : null),
     mapHaircutRow: vi.fn((row: any) => row ? { ...row, id: row.id || 'mapped-haircut-id', date: row.service_date || '2025-01-06' } : null),
     mapHolidayRow: vi.fn((row: any) => row ? { ...row, id: row.id || 'mapped-holiday-id', date: row.visit_date || '2025-01-06' } : null),
+    mapShowerStatusToDb: vi.fn((status: string) => status === 'awaiting' ? 'booked' : status),
 }));
 
 vi.mock('@/lib/utils/date', () => ({
