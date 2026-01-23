@@ -134,7 +134,7 @@ export const getCachedBicycleRecords = cache(async () => {
     return await fetchAllPaginated(supabase, {
         table: 'bicycle_repairs',
         select: '*',
-        orderBy: 'created_at',
+        orderBy: 'requested_at',
         ascending: false,
         pageSize: 1000,
         mapper: mapBicycleRow,
