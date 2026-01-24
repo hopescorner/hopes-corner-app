@@ -4,6 +4,7 @@ import React, { memo } from "react";
 import { User, Clock, CheckCircle, AlertCircle, Calendar } from "lucide-react";
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
+import { ReminderIndicator } from '@/components/ui/ReminderIndicator';
 import { cn } from '@/lib/utils/cn';
 import { formatSlotLabel } from '@/lib/utils/serviceSlots';
 
@@ -72,6 +73,7 @@ const CompactShowerList = memo(({ records, onGuestClick }: Props) => {
                             </div>
 
                             <div className="flex items-center gap-3">
+                                <ReminderIndicator guestId={record.guestId} serviceType="shower" compact />
                                 <CompactWaiverIndicator guestId={record.guestId} serviceType="shower" />
 
                                 <span className={cn(

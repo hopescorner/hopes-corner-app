@@ -7,6 +7,7 @@ import { useModalStore } from '@/stores/useModalStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
+import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
 import { generateShowerSlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
@@ -138,6 +139,9 @@ export function ShowerBookingModal() {
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
+                    {/* Guest Reminders */}
+                    <ServiceCardReminder guestId={showerPickerGuest.id} serviceType="shower" />
+                    
                     {isCheckinRole ? (
                         <div className="space-y-6">
                             <div className="p-8 rounded-2xl bg-sky-50 border-2 border-sky-100 flex flex-col items-center text-center space-y-4">

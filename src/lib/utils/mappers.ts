@@ -156,6 +156,18 @@ interface BlockedSlotRow {
   created_by?: string | null;
 }
 
+interface GuestReminderRow {
+  id: string;
+  guest_id: string;
+  message: string;
+  applies_to?: string[] | null;
+  created_by?: string | null;
+  dismissed_at?: string | null;
+  dismissed_by?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // Validation result type
 interface ValidationResult {
   isValid: boolean;
@@ -469,4 +481,16 @@ export const mapBlockedSlotRow = (row: BlockedSlotRow) => ({
   date: row.date,
   createdAt: row.created_at,
   createdBy: row.created_by,
+});
+
+export const mapGuestReminderRow = (row: GuestReminderRow) => ({
+  id: row.id,
+  guestId: row.guest_id,
+  message: row.message,
+  appliesTo: row.applies_to || ['all'],
+  createdBy: row.created_by || null,
+  dismissedAt: row.dismissed_at || null,
+  dismissedBy: row.dismissed_by || null,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
 });

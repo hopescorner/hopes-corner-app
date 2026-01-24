@@ -23,7 +23,8 @@ import {
     AlertCircle,
     Scissors,
     Gift,
-    RotateCcw
+    RotateCcw,
+    Bell
 } from 'lucide-react';
 import LinkedGuestsList from './LinkedGuestsList';
 import { cn } from '@/lib/utils/cn';
@@ -36,7 +37,9 @@ import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { GuestEditModal } from '@/components/modals/GuestEditModal';
 import { BanManagementModal } from '@/components/modals/BanManagementModal';
 import { WarningManagementModal } from '@/components/modals/WarningManagementModal';
+import { ReminderManagementModal } from '@/components/modals/ReminderManagementModal';
 import { MobileServiceSheet } from '@/components/checkin/MobileServiceSheet';
+import { useRemindersStore } from '@/stores/useRemindersStore';
 import type { 
     MealStatusMap, 
     ServiceStatusMap, 
@@ -86,6 +89,7 @@ export function GuestCard({
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBanModal, setShowBanModal] = useState(false);
     const [showWarningModal, setShowWarningModal] = useState(false);
+    const [showReminderModal, setShowReminderModal] = useState(false);
     const [showMobileSheet, setShowMobileSheet] = useState(false);
 
     const { mealRecords, addMealRecord, extraMealRecords, addExtraMealRecord } = useMealsStore();
@@ -101,6 +105,7 @@ export function GuestCard({
     const { getWarningsForGuest, getLinkedGuests } = useGuestsStore();
     const { setShowerPickerGuest, setLaundryPickerGuest, setBicyclePickerGuest } = useModalStore();
     const { addAction, undoAction, getActionsForGuestToday } = useActionHistoryStore();
+    const { getActiveRemindersForGuest } = useRemindersStore();
 
     const today = todayPacificDateString();
 
@@ -202,6 +207,7 @@ export function GuestCard({
 
     const warnings = getWarningsForGuest(guest.id);
     const linkedGuests = getLinkedGuests(guest.id);
+    const activeReminders = getActiveRemindersForGuest(guest.id);
     const isBanned = guest.isBanned;
 
     // Check program-specific bans
@@ -381,6 +387,15 @@ export function GuestCard({
                                         <AlertTriangle size={10} />
                                         {warnings.length}
                                     </span>
+                                )}
+                                {activeReminders.length > 0 && (
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200 text-[10px] font-bold hover:from-blue-100 hover:to-purple-100 transition-colors"
+                                    >
+                                        <Bell size={10} className="animate-pulse" />
+                                        {activeReminders.length}
+                                    </button>
                                 )}
                                 {linkedGuests.length > 0 && (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
@@ -841,6 +856,23 @@ export function GuestCard({
                                 <span className="w-px h-4 bg-gray-200 mx-1"></span>
 
                                 <button
+                                    onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
+                                    className={cn(
+                                        "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors",
+                                        activeReminders.length > 0
+                                            ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
+                                            : "text-blue-600 hover:bg-blue-50"
+                                    )}
+                                >
+                                    <Bell size={14} />
+                                    Reminders
+                                    {activeReminders.length > 0 && (
+                                        <span className="ml-0.5 px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded-full text-[9px] font-black">
+                                            {activeReminders.length}
+                                        </span>
+                                    )}
+                                </button>
+                                <button
                                     onClick={(e) => { e.stopPropagation(); setShowWarningModal(true); }}
                                     className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                                 >
@@ -882,6 +914,9 @@ export function GuestCard({
                 )}
                 {showWarningModal && (
                     <WarningManagementModal guest={guest} onClose={() => setShowWarningModal(false)} />
+                )}
+                {showReminderModal && (
+                    <ReminderManagementModal guest={guest} onClose={() => setShowReminderModal(false)} />
                 )}
             </AnimatePresence>
 

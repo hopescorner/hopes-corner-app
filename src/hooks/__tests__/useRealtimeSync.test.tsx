@@ -18,6 +18,7 @@ const mockMealsLoadFromSupabase = vi.fn();
 const mockGuestsLoadFromSupabase = vi.fn();
 const mockGuestsLoadWarnings = vi.fn();
 const mockGuestsLoadProxies = vi.fn();
+const mockRemindersLoadFromSupabase = vi.fn();
 
 vi.mock('@/stores/useServicesStore', () => ({
     useServicesStore: (selector: any) => {
@@ -58,6 +59,17 @@ vi.mock('@/stores/useGuestsStore', () => ({
     },
 }));
 
+vi.mock('@/stores/useRemindersStore', () => ({
+    useRemindersStore: (selector: any) => {
+        if (typeof selector === 'function') {
+            return selector({
+                loadFromSupabase: mockRemindersLoadFromSupabase,
+            });
+        }
+        return { loadFromSupabase: mockRemindersLoadFromSupabase };
+    },
+}));
+
 describe('useRealtimeSync', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -90,13 +102,16 @@ describe('useRealtimeSync', () => {
         expect(mockSubscribeToTable).toHaveBeenCalledWith(
             expect.objectContaining({ table: 'guest_warnings' })
         );
+        expect(mockSubscribeToTable).toHaveBeenCalledWith(
+            expect.objectContaining({ table: 'guest_reminders' })
+        );
     });
 
-    it('subscribes to 6 tables', () => {
+    it('subscribes to 7 tables', () => {
         renderHook(() => useRealtimeSync());
         
-        // 6 tables: showers, laundry, meals, bicycles, guests, warnings
-        expect(mockSubscribeToTable).toHaveBeenCalledTimes(6);
+        // 7 tables: showers, laundry, meals, bicycles, guests, warnings, reminders
+        expect(mockSubscribeToTable).toHaveBeenCalledTimes(7);
     });
 
     it('cleans up subscriptions on unmount', () => {

@@ -5,6 +5,7 @@ import { Search, UserPlus, X, Users, Loader2 } from 'lucide-react';
 import { useGuestsStore, Guest } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
+import { useRemindersStore } from '@/stores/useRemindersStore';
 import { flexibleNameSearch } from '@/lib/utils/flexibleNameSearch';
 import { findFuzzySuggestions } from '@/lib/utils/fuzzyMatch';
 import { GuestCard } from '@/components/guests/GuestCard';
@@ -41,6 +42,7 @@ export default function CheckInPage() {
     const { guests, loadFromSupabase: loadGuests, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase } = useGuestsStore();
     const { loadFromSupabase: loadMeals } = useMealsStore();
     const { loadFromSupabase: loadServices } = useServicesStore();
+    const { loadFromSupabase: loadReminders } = useRemindersStore();
 
     // Precomputed status maps for efficient per-guest lookups
     const { mealStatus, serviceStatus, actionStatus, recentGuests } = useTodayStatusMaps();
@@ -52,9 +54,10 @@ export default function CheckInPage() {
             loadGuestWarningsFromSupabase(),
             loadGuestProxiesFromSupabase(),
             loadMeals(),
-            loadServices()
+            loadServices(),
+            loadReminders()
         ]);
-    }, [loadGuests, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase, loadMeals, loadServices]);
+    }, [loadGuests, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase, loadMeals, loadServices, loadReminders]);
 
     // Initial data load
     useEffect(() => {

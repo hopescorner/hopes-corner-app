@@ -12,6 +12,7 @@ import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date'
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
+import { ReminderIndicator } from '@/components/ui/ReminderIndicator';
 
 const BICYCLE_REPAIR_STATUS = {
     PENDING: 'pending',
@@ -421,6 +422,7 @@ function BicycleCard({
                         </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
+                        {!isDone && <ReminderIndicator guestId={record.guestId} serviceType="bicycle" compact />}
                         {!isDone && <CompactWaiverIndicator guestId={record.guestId} serviceType="bicycle" />}
                         <button onClick={onToggle} className="text-gray-400 hover:text-gray-600 transition-colors">
                             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}

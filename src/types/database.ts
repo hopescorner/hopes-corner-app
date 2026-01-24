@@ -149,6 +149,20 @@ export interface ServiceWaiver {
     updated_at: string;
 }
 
+export type ReminderServiceType = 'shower' | 'laundry' | 'bicycle' | 'all';
+
+export interface GuestReminder {
+    id: string;
+    guest_id: string;
+    message: string;
+    applies_to: ReminderServiceType[];
+    created_by?: string;
+    dismissed_at?: string;
+    dismissed_by?: string;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface GuestWarning {
     id: string;
     guest_id: string;
@@ -209,4 +223,5 @@ export interface GuestWithRelations extends Guest {
     warnings?: GuestWarning[];
     proxies?: GuestProxy[];
     linked_guests?: Guest[];
+    reminders?: GuestReminder[];
 }

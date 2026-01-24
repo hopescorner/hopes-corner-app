@@ -265,6 +265,49 @@ create policy "Authenticated users can manage guest warnings"
   using (true)
   with check (true);
 
+-- 3a-2. Guest Reminders (staff reminders that must be dismissed)
+create table if not exists public.guest_reminders (
+  id uuid primary key default gen_random_uuid(),
+  guest_id uuid not null references public.guests(id) on delete cascade,
+  message text not null,
+  -- Services this reminder applies to: 'shower', 'laundry', 'bicycle', or 'all'
+  applies_to text[] not null default '{all}',
+  created_by text, -- optional: staff id or name who created the reminder
+  dismissed_at timestamptz, -- null means active, set when dismissed
+  dismissed_by text, -- optional: staff who dismissed
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+comment on table public.guest_reminders is 'Reminders for guests that staff must acknowledge before providing services';
+comment on column public.guest_reminders.applies_to is 'Array of services: shower, laundry, bicycle, or all. Reminder shows on these service cards.';
+comment on column public.guest_reminders.dismissed_at is 'When set, the reminder is considered dismissed and will not show on service cards.';
+
+create index if not exists guest_reminders_guest_id_idx on public.guest_reminders (guest_id);
+create index if not exists guest_reminders_active_idx on public.guest_reminders (guest_id) where dismissed_at is null;
+create index if not exists guest_reminders_created_at_idx on public.guest_reminders (created_at desc);
+
+drop trigger if exists trg_guest_reminders_updated_at on public.guest_reminders;
+create trigger trg_guest_reminders_updated_at
+before update on public.guest_reminders
+for each row execute function public.touch_updated_at();
+
+-- RLS for guest_reminders table
+alter table public.guest_reminders enable row level security;
+
+drop policy if exists "Authenticated users can view guest reminders" on public.guest_reminders;
+create policy "Authenticated users can view guest reminders"
+  on public.guest_reminders for select
+  to authenticated, anon
+  using (true);
+
+drop policy if exists "Authenticated users can manage guest reminders" on public.guest_reminders;
+create policy "Authenticated users can manage guest reminders"
+  on public.guest_reminders for all
+  to authenticated, anon
+  using (true)
+  with check (true);
+
 -- 3b. Guest Proxies (from migrations)
 create table if not exists public.guest_proxies (
     id uuid primary key default gen_random_uuid(),
@@ -1486,5 +1529,12 @@ begin
     where pubname = 'supabase_realtime' and tablename = 'guest_warnings'
   ) then
     alter publication supabase_realtime add table public.guest_warnings;
+  end if;
+  
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and tablename = 'guest_reminders'
+  ) then
+    alter publication supabase_realtime add table public.guest_reminders;
   end if;
 end $$;

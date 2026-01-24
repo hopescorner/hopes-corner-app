@@ -5,6 +5,7 @@ import { subscribeToTable, unsubscribeFromAll } from '@/lib/supabase/realtime';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { useRemindersStore } from '@/stores/useRemindersStore';
 
 /**
  * Hook to set up realtime subscriptions for all critical tables.
@@ -18,6 +19,7 @@ export function useRealtimeSync() {
     const guestsLoadFromSupabase = useGuestsStore(state => state.loadFromSupabase);
     const guestsLoadWarnings = useGuestsStore(state => state.loadGuestWarningsFromSupabase);
     const guestsLoadProxies = useGuestsStore(state => state.loadGuestProxiesFromSupabase);
+    const remindersLoadFromSupabase = useRemindersStore(state => state.loadFromSupabase);
 
     // Track if subscriptions are set up
     const subscriptionsRef = useRef<(() => void)[]>([]);
@@ -87,6 +89,12 @@ export function useRealtimeSync() {
             onChange: () => debouncedRefresh(guestsLoadWarnings),
         });
 
+        // Subscribe to guest reminders changes
+        const unsubReminders = subscribeToTable({
+            table: 'guest_reminders',
+            onChange: () => debouncedRefresh(remindersLoadFromSupabase),
+        });
+
         // Store unsubscribe functions
         subscriptionsRef.current = [
             unsubShowers,
@@ -95,6 +103,7 @@ export function useRealtimeSync() {
             unsubBicycles,
             unsubGuests,
             unsubWarnings,
+            unsubReminders,
         ];
 
         // Cleanup on unmount
@@ -113,6 +122,7 @@ export function useRealtimeSync() {
         guestsLoadFromSupabase,
         guestsLoadWarnings,
         guestsLoadProxies,
+        remindersLoadFromSupabase,
     ]);
 }
 
