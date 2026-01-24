@@ -8,7 +8,8 @@ type TableName =
     | 'bicycle_repairs'
     | 'guests'
     | 'guest_warnings'
-    | 'guest_proxies';
+    | 'guest_proxies'
+    | 'guest_reminders';
 
 type ChangeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
 

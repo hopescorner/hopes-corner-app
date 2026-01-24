@@ -91,6 +91,15 @@ vi.mock('@/stores/useBlockedSlotsStore', () => ({
     })),
 }));
 
+vi.mock('@/stores/useRemindersStore', () => ({
+    useRemindersStore: vi.fn(() => ({
+        reminders: [],
+        loadFromSupabase: vi.fn(() => Promise.resolve()),
+        getActiveRemindersForGuest: vi.fn(() => []),
+        hasActiveReminder: vi.fn(() => false),
+    })),
+}));
+
 // Mock the selectors for check-in page
 vi.mock('@/stores/selectors/todayStatusSelectors', () => ({
     useTodayMealStatusMap: vi.fn(() => new Map()),

@@ -5,6 +5,7 @@ import { X, Shirt, Package, Tent, Footprints, AlertCircle, CheckCircle, Loader2,
 import { JacketIcon } from '@/components/icons/JacketIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaiverBadge } from '@/components/ui/WaiverBadge';
+import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
 import { useItemsStore } from '@/stores/useItemsStore';
 import { formatTimeElapsed } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
@@ -113,6 +114,9 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Reminders Section - Shows at top if guest has active reminders */}
+                    <ServiceCardReminder guestId={guest.id} serviceType="shower" />
+
                     {/* Status & Waiver Section */}
                     <div className="bg-gray-50 rounded-xl p-4 space-y-3 border border-gray-100">
                         <div className="flex items-center justify-between">

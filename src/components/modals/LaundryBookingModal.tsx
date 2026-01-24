@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import { type UserRole } from '@/lib/auth/types';
 import { ShieldAlert } from 'lucide-react';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
+import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
 import { todayPacificDateString } from '@/lib/utils/date';
@@ -109,6 +110,9 @@ export function LaundryBookingModal() {
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
+                    {/* Guest Reminders */}
+                    <ServiceCardReminder guestId={laundryPickerGuest.id} serviceType="laundry" />
+                    
                     {isCheckinRole ? (
                         <div className="space-y-8">
                             <div className="flex p-1 bg-gray-100 rounded-2xl">

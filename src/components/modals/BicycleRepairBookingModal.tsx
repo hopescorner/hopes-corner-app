@@ -6,6 +6,7 @@ import { X, Bike, Star, AlertCircle, CheckCircle, Loader2, ClipboardList, Info }
 import { useModalStore } from '@/stores/useModalStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
+import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 
@@ -116,6 +117,9 @@ export function BicycleRepairBookingModal() {
 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                    {/* Guest Reminders */}
+                    <ServiceCardReminder guestId={bicyclePickerGuest.id} serviceType="bicycle" />
+                    
                     {/* Bike Info Banner */}
                     {bikeDescription ? (
                         <div className="flex items-start gap-3 p-4 rounded-xl bg-sky-50 border border-sky-100">

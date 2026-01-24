@@ -6,6 +6,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom, formatPacificTimeString } from '@/lib/utils/date';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
+import { ReminderIndicator } from '@/components/ui/ReminderIndicator';
 import { cn } from '@/lib/utils/cn';
 
 // Status Constants
@@ -151,6 +152,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick }: { booking: LaundryBook
                 </div>
             </div>
             <div className="flex items-center gap-2">
+                <ReminderIndicator guestId={booking.guestId} serviceType="laundry" compact />
                 <CompactWaiverIndicator guestId={booking.guestId} serviceType="laundry" />
                 <LaundryStatusBadge status={booking.status} />
             </div>
@@ -215,6 +217,7 @@ const OffsiteActiveRow = memo(({ item, onGuestClick }: { item: LaundryBooking; o
                 )}
             </div>
             <div className="flex items-center gap-2">
+                <ReminderIndicator guestId={item.guestId} serviceType="laundry" compact />
                 <CompactWaiverIndicator guestId={item.guestId} serviceType="laundry" />
                 <LaundryStatusBadge status={item.status} />
             </div>
