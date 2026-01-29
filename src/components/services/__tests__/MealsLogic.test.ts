@@ -4,7 +4,7 @@ describe('Meals logic', () => {
     describe('Automatic Meals logic', () => {
         const config = {
             monday: { rv: 100, lunchBags: 120 },
-            wednesday: { rv: 35, lunchBags: 120 },
+            wednesday: { rv: 40, lunchBags: 120 },
             saturday: { rv: 100, lunchBags: 220, dayWorker: 50 },
         };
 
