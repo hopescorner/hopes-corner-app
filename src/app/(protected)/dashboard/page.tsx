@@ -7,7 +7,8 @@ import {
     Download,
     Activity,
     Utensils,
-    ClipboardList
+    ClipboardList,
+    FileText
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { DashboardOverview } from '@/components/admin/DashboardOverview';
@@ -15,6 +16,7 @@ import { AnalyticsSection } from '@/components/admin/AnalyticsSection';
 import { DataExportSection } from '@/components/admin/DataExportSection';
 import { MealReport } from '@/components/admin/reports/MealReport';
 import MonthlySummaryReport from '@/components/admin/reports/MonthlySummaryReport';
+import MonthlyReportGenerator from '@/components/admin/reports/MonthlyReportGenerator';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
@@ -24,9 +26,10 @@ import { cn } from '@/lib/utils/cn';
 const DASHBOARD_TABS = [
     { id: 'overview', label: 'Overview', icon: Home, color: 'text-indigo-600' },
     { id: 'analytics', label: 'Analytics', icon: Activity, color: 'text-blue-600' },
+    { id: 'monthly-report', label: 'Monthly Report', icon: FileText, color: 'text-purple-600' },
     { id: 'meal-report', label: 'Meal Report', icon: Utensils, color: 'text-orange-600' },
     { id: 'monthly-summary', label: 'Summary', icon: ClipboardList, color: 'text-emerald-600' },
-    { id: 'export', label: 'Data Export', icon: Download, color: 'text-purple-600' },
+    { id: 'export', label: 'Data Export', icon: Download, color: 'text-gray-600' },
 ];
 
 export default function DashboardPage() {
@@ -47,6 +50,7 @@ export default function DashboardPage() {
         switch (activeTab) {
             case 'overview': return <DashboardOverview />;
             case 'analytics': return <AnalyticsSection />;
+            case 'monthly-report': return <MonthlyReportGenerator />;
             case 'meal-report': return <MealReport />;
             case 'monthly-summary': return <MonthlySummaryReport />;
             case 'export': return <DataExportSection />;
