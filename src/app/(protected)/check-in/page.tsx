@@ -45,7 +45,7 @@ export default function CheckInPage() {
     const { loadFromSupabase: loadMeals } = useMealsStore();
     const { loadFromSupabase: loadServices } = useServicesStore();
     const { loadFromSupabase: loadReminders } = useRemindersStore();
-    const { loadFromSupabase: loadDailyNotes } = useDailyNotesStore();
+    const { loadFromSupabase: loadDailyNotes, subscribeToRealtime: subscribeDailyNotes } = useDailyNotesStore();
 
     // Precomputed status maps for efficient per-guest lookups
     const { mealStatus, serviceStatus, actionStatus, recentGuests } = useTodayStatusMaps();
@@ -77,6 +77,14 @@ export default function CheckInPage() {
         };
         init();
     }, [loadAllData]);
+
+    // Subscribe to real-time daily notes updates
+    useEffect(() => {
+        const unsubscribe = subscribeDailyNotes();
+        return () => {
+            unsubscribe();
+        };
+    }, [subscribeDailyNotes]);
 
     // Search logic using the migrated flexibleNameSearch (with deferred value)
     // Deduplicate results to prevent duplicate key React errors

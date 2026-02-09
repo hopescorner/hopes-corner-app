@@ -81,11 +81,11 @@ function AddNoteButton({ serviceType, onClick }: AddNoteButtonProps) {
 
 export function DailyNotesSection() {
     const [isExpanded, setIsExpanded] = useState(false);
-    const { getNotesForDate } = useDailyNotesStore();
+    const { notes, getNotesForDate } = useDailyNotesStore();
     const { openNoteModal } = useModalStore();
 
     const today = todayPacificDateString();
-    const todaysNotes = useMemo(() => getNotesForDate(today), [getNotesForDate, today]);
+    const todaysNotes = useMemo(() => getNotesForDate(today), [notes, getNotesForDate, today]);
     const hasNotes = todaysNotes.length > 0;
 
     // Services without notes today
