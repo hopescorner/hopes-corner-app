@@ -105,6 +105,7 @@ vi.mock('@/stores/useDailyNotesStore', () => ({
         notes: [],
         isLoading: false,
         loadFromSupabase: vi.fn(() => Promise.resolve()),
+        subscribeToRealtime: vi.fn(() => () => {}),
         addOrUpdateNote: vi.fn(() => Promise.resolve()),
         deleteNote: vi.fn(() => Promise.resolve()),
         getNotesForDate: vi.fn(() => []),
