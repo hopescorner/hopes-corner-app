@@ -101,7 +101,7 @@ describe('ShowersSection Cancelled Tab', () => {
     it('renders the cancelled tab', () => {
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         expect(cancelledTab).toBeDefined();
     });
 
@@ -109,14 +109,14 @@ describe('ShowersSection Cancelled Tab', () => {
         render(<ShowersSection />);
         
         // Should show count of 2 (one cancelled + one no_show)
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         expect(cancelledTab.textContent).toContain('(2)');
     });
 
     it('shows cancelled showers when cancelled tab is clicked', async () => {
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
@@ -129,7 +129,7 @@ describe('ShowersSection Cancelled Tab', () => {
     it('cancelled tab is not selected by default', () => {
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         // Active tab has specific styling classes
         expect(cancelledTab.className).toContain('text-gray-500');
     });
@@ -137,7 +137,7 @@ describe('ShowersSection Cancelled Tab', () => {
     it('cancelled tab becomes selected when clicked', async () => {
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
@@ -148,7 +148,7 @@ describe('ShowersSection Cancelled Tab', () => {
     it('shows cancelled status badge with red styling', async () => {
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
@@ -161,7 +161,7 @@ describe('ShowersSection Cancelled Tab', () => {
     it('shows no_show status badge with red styling', async () => {
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
@@ -173,7 +173,7 @@ describe('ShowersSection Cancelled Tab', () => {
     it('shows REBOOK button for cancelled showers', async () => {
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
@@ -185,7 +185,7 @@ describe('ShowersSection Cancelled Tab', () => {
     it('calls updateShowerStatus when REBOOK is clicked', async () => {
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
@@ -201,7 +201,7 @@ describe('ShowersSection Cancelled Tab', () => {
     it('does not show COMPLETE or cancel buttons for cancelled showers', async () => {
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
@@ -224,7 +224,7 @@ describe('ShowersSection Cancelled Tab', () => {
         
         render(<ShowersSection />);
         
-        const cancelledTab = screen.getByRole('button', { name: /cancelled/i });
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {

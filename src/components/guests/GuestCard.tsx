@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
     User,
     ChevronDown,
@@ -91,6 +92,7 @@ export function GuestCard({
     const [showWarningModal, setShowWarningModal] = useState(false);
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [showMobileSheet, setShowMobileSheet] = useState(false);
+    const prefersReducedMotion = useReducedMotion();
 
     const { mealRecords, addMealRecord, extraMealRecords, addExtraMealRecord } = useMealsStore();
     const {
@@ -683,7 +685,7 @@ export function GuestCard({
                                     onClick={(e) => { e.stopPropagation(); setShowerPickerGuest(guest); }}
                                     disabled={isBannedFromShower || !!todayShower}
                                     className={cn(
-                                        "flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm transition-all",
+                                        "relative flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm transition-all",
                                         todayShower
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                             : isBannedFromShower
@@ -709,7 +711,7 @@ export function GuestCard({
                                     onClick={(e) => { e.stopPropagation(); setLaundryPickerGuest(guest); }}
                                     disabled={isBannedFromLaundry || !!todayLaundry}
                                     className={cn(
-                                        "flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm transition-all",
+                                        "relative flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm transition-all",
                                         todayLaundry
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                             : isBannedFromLaundry
@@ -735,7 +737,7 @@ export function GuestCard({
                                     onClick={(e) => { e.stopPropagation(); setBicyclePickerGuest(guest); }}
                                     disabled={isBannedFromBicycle || !!todayBicycle}
                                     className={cn(
-                                        "flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm transition-all",
+                                        "relative flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm transition-all",
                                         todayBicycle
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                             : isBannedFromBicycle

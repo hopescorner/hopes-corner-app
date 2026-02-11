@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { X, UserPlus, Loader2, Home, MapPin, User, Users, Info, AlertCircle } from 'lucide-react';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from '@/lib/constants/constants';
@@ -23,6 +24,7 @@ const BAY_AREA_CITIES = [
 export function GuestCreateModal({ onClose, initialName = '', defaultLocation = '' }: GuestCreateModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [duplicateWarning, setDuplicateWarning] = useState('');
+    const prefersReducedMotion = useReducedMotion();
 
     const { guests, addGuest } = useGuestsStore();
 
@@ -88,9 +90,9 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
+                initial={prefersReducedMotion ? false : { scale: 0.95, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
+                exit={prefersReducedMotion ? undefined : { scale: 0.95, opacity: 0 }}
                 className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
             >
                 {/* Header */}
@@ -128,7 +130,7 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
                                 </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-semibold text-gray-700 ml-1">First Name *</label>
                                     <input

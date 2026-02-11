@@ -281,7 +281,7 @@ export function DataExportSection() {
             </div>
 
             {/* Stats Bar */}
-            <div className="bg-gray-50 rounded-2xl p-6 flex flex-wrap items-center justify-center gap-8 text-center">
+            <div className="bg-gray-50 rounded-2xl p-6 flex flex-wrap items-center justify-center gap-4 md:gap-8 text-center">
                 <div>
                     <div className="text-2xl font-black text-gray-900">{guests.length.toLocaleString()}</div>
                     <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Guests</div>

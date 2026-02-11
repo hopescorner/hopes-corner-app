@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
     X,
     Utensils,
@@ -71,6 +72,7 @@ export function MobileServiceSheet({
     const startY = useRef(0);
     const currentY = useRef(0);
     const isDragging = useRef(false);
+    const prefersReducedMotion = useReducedMotion();
 
     // Handle escape key
     useEffect(() => {
@@ -139,10 +141,10 @@ export function MobileServiceSheet({
                 <>
                     {/* Backdrop */}
                     <motion.div
-                        initial={{ opacity: 0 }}
+                        initial={prefersReducedMotion ? false : { opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
+                        exit={prefersReducedMotion ? undefined : { opacity: 0 }}
+                        transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
                         className="fixed inset-0 bg-black/50 z-40"
                         onClick={onClose}
                         aria-hidden="true"
@@ -154,10 +156,10 @@ export function MobileServiceSheet({
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="mobile-service-sheet-title"
-                        initial={{ y: '100%' }}
+                        initial={prefersReducedMotion ? false : { y: '100%' }}
                         animate={{ y: 0 }}
-                        exit={{ y: '100%' }}
-                        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                        exit={prefersReducedMotion ? undefined : { y: '100%' }}
+                        transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', damping: 25, stiffness: 300 }}
                         className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-y-auto"
                         onTouchStart={handleTouchStart}
                         onTouchMove={handleTouchMove}

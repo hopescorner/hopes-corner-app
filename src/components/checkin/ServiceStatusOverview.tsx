@@ -219,7 +219,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
     const cardBaseClasses = "block w-full rounded-xl border p-4 transition-all duration-200 hover:shadow-md active:scale-[0.98] text-left";
 
     return (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Shower Status */}
             {canNavigate ? (
                 <Link

@@ -578,7 +578,7 @@ export function AnalyticsSection() {
                         </span>
                     )}
                 </h3>
-                <div className="h-[400px] w-full">
+                <div className="h-[300px] md:h-[400px] w-full">
                     {isMounted && dailyData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={dailyData}>
@@ -597,7 +597,7 @@ export function AnalyticsSection() {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 600, fill: '#9ca3af' }} />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 600, fill: '#9ca3af' }} interval="preserveStartEnd" angle={-45} textAnchor="end" height={60} dy={10} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 600, fill: '#9ca3af' }} />
                                 <Tooltip content={<CustomChartTooltip />} />
                                 <Legend />

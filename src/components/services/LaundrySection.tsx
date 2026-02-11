@@ -2,7 +2,20 @@
 
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp } from 'lucide-react';
+import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp, GripVertical } from 'lucide-react';
+import {
+    DndContext,
+    DragOverlay,
+    PointerSensor,
+    TouchSensor,
+    useSensor,
+    useSensors,
+    closestCenter,
+    type DragStartEvent,
+    type DragEndEvent,
+    type DragOverEvent,
+} from '@dnd-kit/core';
+import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
@@ -114,9 +127,21 @@ export function LaundrySection() {
         }
     };
 
-    // Drag and drop state
-    const [draggedItem, setDraggedItem] = useState<any>(null);
-    const draggedItemRef = useRef<any>(null);
+    // Drag and drop state (using @dnd-kit)
+    const [activeId, setActiveId] = useState<string | null>(null);
+    const activeRecord = useMemo(
+        () => activeLaundry.find(r => r.id === activeId) || null,
+        [activeLaundry, activeId]
+    );
+
+    // Configure sensors with activation constraints to avoid accidental drags
+    const pointerSensor = useSensor(PointerSensor, {
+        activationConstraint: { distance: 8 },
+    });
+    const touchSensor = useSensor(TouchSensor, {
+        activationConstraint: { delay: 200, tolerance: 5 },
+    });
+    const sensors = useSensors(pointerSensor, touchSensor);
 
     // View mode state
     const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
@@ -179,39 +204,25 @@ export function LaundrySection() {
         }
     }, [requiresBagPrompt, updateLaundryBagNumber, updateLaundryStatus, isViewingPast]);
 
-    // Drag handlers - disabled when viewing historical data
-    const handleDragStart = useCallback((e: React.DragEvent, record: any) => {
-        if (isViewingPast) {
-            e.preventDefault();
-            return;
-        }
-        draggedItemRef.current = record;
-        setDraggedItem(record);
-        e.dataTransfer.effectAllowed = 'move';
-        if (typeof e.dataTransfer.setDragImage === 'function') {
-            e.dataTransfer.setDragImage(e.currentTarget as Element, 0, 0);
-        }
+    // @dnd-kit drag handlers
+    const handleDragStart = useCallback((event: DragStartEvent) => {
+        if (isViewingPast) return;
+        setActiveId(event.active.id as string);
     }, [isViewingPast]);
 
-    const handleDragOver = useCallback((e: React.DragEvent) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    }, []);
+    const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+        const { active, over } = event;
+        setActiveId(null);
 
-    const handleDrop = useCallback(async (e: React.DragEvent, newStatus: string) => {
-        e.preventDefault();
-        const item = draggedItemRef.current;
-        if (item && item.status !== newStatus) {
-            await handleStatusChange(item, newStatus);
+        if (!over) return;
+
+        const draggedRecord = activeLaundry.find(r => r.id === active.id);
+        const newStatus = over.id as string;
+
+        if (draggedRecord && draggedRecord.status !== newStatus) {
+            await handleStatusChange(draggedRecord, newStatus);
         }
-        draggedItemRef.current = null;
-        setDraggedItem(null);
-    }, [handleStatusChange]);
-
-    const handleDragEnd = useCallback(() => {
-        draggedItemRef.current = null;
-        setDraggedItem(null);
-    }, []);
+    }, [activeLaundry, handleStatusChange]);
 
     // Get guest name details
     const getGuestNameDetails = useCallback((guestId: string) => {
@@ -312,21 +323,26 @@ export function LaundrySection() {
                 {viewMode === 'list' ? (
                     <CompactLaundryList />
                 ) : (
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                    >
                     <div className="flex gap-4 overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide">
                         {STATUS_COLUMNS.map((column) => {
                             const columnRecords = onsiteLaundry.filter(r => r.status === column.id);
                             const Icon = column.icon;
 
                             return (
-                                <div
+                                <DroppableColumn
                                     key={column.id}
-                                    onDragOver={handleDragOver}
-                                    onDrop={(e) => handleDrop(e, column.id)}
+                                    columnId={column.id}
                                     className={cn(
                                         "flex-shrink-0 w-56 lg:flex-1 lg:min-w-[180px] rounded-xl border-2 p-4 min-h-[400px] flex flex-col transition-colors",
                                         column.bg,
                                         column.border,
-                                        draggedItem && draggedItem.status !== column.id && "border-opacity-75"
+                                        activeId && activeRecord?.status !== column.id && "ring-2 ring-offset-2 ring-blue-200"
                                     )}
                                 >
                                     <div className="flex items-center justify-between mb-4">
@@ -345,13 +361,11 @@ export function LaundrySection() {
                                     <div className="space-y-3 flex-1">
                                         <AnimatePresence mode="popLayout">
                                             {columnRecords.map((record) => (
-                                                <LaundryCard
+                                                <DraggableLaundryCard
                                                     key={record.id}
                                                     record={record}
                                                     guestDetails={getGuestNameDetails(record.guestId)}
-                                                    isDragging={draggedItem?.id === record.id}
-                                                    onDragStart={(e) => handleDragStart(e, record)}
-                                                    onDragEnd={handleDragEnd}
+                                                    isDragging={activeId === record.id}
                                                     onStatusChange={(newStatus) => handleStatusChange(record, newStatus)}
                                                     columns={STATUS_COLUMNS}
                                                     readOnly={isViewingPast}
@@ -366,11 +380,24 @@ export function LaundrySection() {
                                             )}
                                         </AnimatePresence>
                                     </div>
-                                </div>
+                                </DroppableColumn>
                             );
                         })}
 
                     </div>
+                    <DragOverlay>
+                        {activeRecord ? (
+                            <div className="bg-white rounded-lg border-2 border-blue-400 shadow-2xl p-3 opacity-90 w-56 rotate-2">
+                                <div className="font-medium text-xs text-gray-900">
+                                    {getGuestNameDetails(activeRecord.guestId).primaryName}
+                                </div>
+                                {activeRecord.bagNumber && (
+                                    <div className="text-[10px] text-purple-600 mt-1">Bag #{activeRecord.bagNumber}</div>
+                                )}
+                            </div>
+                        ) : null}
+                    </DragOverlay>
+                    </DndContext>
                 )}
             </div>
 
@@ -389,6 +416,12 @@ export function LaundrySection() {
                         </span>
                     </div>
 
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                    >
                     <div className="flex gap-4 overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide">
                         {OFFSITE_STATUS_COLUMNS.map((column) => {
                             // For pending column, also include 'waiting' status for backwards compatibility
@@ -400,15 +433,14 @@ export function LaundrySection() {
                             const Icon = column.icon;
 
                             return (
-                                <div
+                                <DroppableColumn
                                     key={column.id}
-                                    onDragOver={handleDragOver}
-                                    onDrop={(e) => handleDrop(e, column.id)}
+                                    columnId={column.id}
                                     className={cn(
                                         "flex-shrink-0 w-56 lg:flex-1 lg:min-w-[200px] rounded-xl border-2 p-4 min-h-[400px] flex flex-col transition-colors",
                                         column.bg,
                                         column.border,
-                                        draggedItem && draggedItem.status !== column.id && "border-opacity-75"
+                                        activeId && activeRecord?.status !== column.id && "ring-2 ring-offset-2 ring-blue-200"
                                     )}
                                 >
                                     <div className="flex items-center justify-between mb-4">
@@ -426,13 +458,11 @@ export function LaundrySection() {
                                     <div className="space-y-3 flex-1">
                                         <AnimatePresence mode="popLayout">
                                             {columnRecords.map((record) => (
-                                                <LaundryCard
+                                                <DraggableLaundryCard
                                                     key={record.id}
                                                     record={record}
                                                     guestDetails={getGuestNameDetails(record.guestId)}
-                                                    isDragging={draggedItem?.id === record.id}
-                                                    onDragStart={(e) => handleDragStart(e, record)}
-                                                    onDragEnd={handleDragEnd}
+                                                    isDragging={activeId === record.id}
                                                     onStatusChange={(newStatus) => handleStatusChange(record, newStatus)}
                                                     columns={OFFSITE_STATUS_COLUMNS}
                                                     isOffsite
@@ -448,10 +478,23 @@ export function LaundrySection() {
                                             )}
                                         </AnimatePresence>
                                     </div>
-                                </div>
+                                </DroppableColumn>
                             );
                         })}
                     </div>
+                    <DragOverlay>
+                        {activeRecord ? (
+                            <div className="bg-white rounded-lg border-2 border-blue-400 shadow-2xl p-3 opacity-90 w-56 rotate-2">
+                                <div className="font-medium text-xs text-gray-900">
+                                    {getGuestNameDetails(activeRecord.guestId).primaryName}
+                                </div>
+                                {activeRecord.bagNumber && (
+                                    <div className="text-[10px] text-purple-600 mt-1">Bag #{activeRecord.bagNumber}</div>
+                                )}
+                            </div>
+                        ) : null}
+                    </DragOverlay>
+                    </DndContext>
                 </div>
             )}
 
@@ -464,19 +507,68 @@ export function LaundrySection() {
     );
 }
 
-interface LaundryCardProps {
+/** @dnd-kit droppable column wrapper */
+function DroppableColumn({ columnId, children, className }: { columnId: string; children: React.ReactNode; className?: string }) {
+    const { isOver, setNodeRef } = useDroppable({ id: columnId });
+    return (
+        <div
+            ref={setNodeRef}
+            className={cn(className, isOver && 'ring-2 ring-blue-400 bg-blue-50/40')}
+        >
+            {children}
+        </div>
+    );
+}
+
+/** @dnd-kit draggable wrapper for LaundryCard */
+interface DraggableLaundryCardProps {
     record: any;
     guestDetails: { guest: any; legalName: string; preferredName: string; hasPreferred: boolean; primaryName: string };
     isDragging: boolean;
-    onDragStart: (e: React.DragEvent) => void;
-    onDragEnd: () => void;
     onStatusChange: (newStatus: string) => void;
     columns: typeof STATUS_COLUMNS;
     isOffsite?: boolean;
     readOnly?: boolean;
 }
 
-function LaundryCard({ record, guestDetails, isDragging, onDragStart, onDragEnd, onStatusChange, columns, isOffsite = false, readOnly = false }: LaundryCardProps) {
+function DraggableLaundryCard({ record, guestDetails, isDragging, onStatusChange, columns, isOffsite = false, readOnly = false }: DraggableLaundryCardProps) {
+    const { attributes, listeners, setNodeRef, transform } = useDraggable({
+        id: record.id,
+        disabled: readOnly,
+    });
+
+    const style = transform
+        ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+        : undefined;
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes}>
+            <LaundryCard
+                record={record}
+                guestDetails={guestDetails}
+                isDragging={isDragging}
+                dragListeners={listeners}
+                onStatusChange={onStatusChange}
+                columns={columns}
+                isOffsite={isOffsite}
+                readOnly={readOnly}
+            />
+        </div>
+    );
+}
+
+interface LaundryCardProps {
+    record: any;
+    guestDetails: { guest: any; legalName: string; preferredName: string; hasPreferred: boolean; primaryName: string };
+    isDragging: boolean;
+    dragListeners?: Record<string, any>;
+    onStatusChange: (newStatus: string) => void;
+    columns: typeof STATUS_COLUMNS;
+    isOffsite?: boolean;
+    readOnly?: boolean;
+}
+
+function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatusChange, columns, isOffsite = false, readOnly = false }: LaundryCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isEditingBag, setIsEditingBag] = useState(false);
     const [bagValue, setBagValue] = useState(record.bagNumber || '');
@@ -497,13 +589,9 @@ function LaundryCard({ record, guestDetails, isDragging, onDragStart, onDragEnd,
 
     return (
         <div
-            draggable={!readOnly}
-            onDragStart={readOnly ? undefined : onDragStart}
-            onDragEnd={readOnly ? undefined : onDragEnd}
-            style={{ willChange: isDragging ? 'transform, opacity' : 'auto' }}
             className={cn(
                 "bg-white rounded-lg border-2 shadow-sm p-3 transition-all hover:shadow-md",
-                readOnly ? "cursor-default" : "cursor-move",
+                readOnly ? "cursor-default" : "cursor-grab active:cursor-grabbing",
                 isDragging && "opacity-50 scale-105",
                 isCompleted ? "border-emerald-200 hover:border-emerald-300" : "border-gray-200 hover:border-gray-300"
             )}
@@ -515,6 +603,15 @@ function LaundryCard({ record, guestDetails, isDragging, onDragStart, onDragEnd,
                 exit={{ opacity: 0, scale: 0.9 }}
             >
                 <div className="flex items-center justify-between gap-1.5 mb-2 min-h-[24px]">
+                    {!readOnly && dragListeners && (
+                        <div
+                            {...dragListeners}
+                            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 touch-manipulation"
+                            aria-label="Drag to reorder"
+                        >
+                            <GripVertical size={14} />
+                        </div>
+                    )}
                     <div className="flex-1 min-w-0">
                         <div className="font-medium text-xs text-gray-900 leading-tight break-words line-clamp-2" title={guestDetails.hasPreferred ? `${guestDetails.preferredName} (${guestDetails.legalName})` : guestDetails.legalName}>
                             {guestDetails.primaryName}

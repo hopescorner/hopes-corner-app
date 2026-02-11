@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
     BarChart3,
     TrendingUp,
@@ -83,6 +84,7 @@ export function DashboardOverview() {
 
     const [isEditing, setIsEditing] = useState(false);
     const [editedTargets, setEditedTargets] = useState(targets);
+    const prefersReducedMotion = useReducedMotion();
 
     const now = new Date();
     const month = now.getMonth();
@@ -141,7 +143,7 @@ export function DashboardOverview() {
                             <Sparkles size={16} className="text-blue-200" />
                             <span className="text-[10px] font-black uppercase tracking-widest text-blue-100">Live Insights Dashboard</span>
                         </div>
-                        <h1 className="text-5xl font-black tracking-tight mb-4">Operations <br /> Performance</h1>
+                        <h1 className="text-3xl md:text-5xl font-black tracking-tight mb-4">Operations <br /> Performance</h1>
                         <p className="text-lg font-medium text-blue-100/80 leading-relaxed">
                             Real-time monitoring of community impact. Tracking our journey towards serving thousands of individuals in our community.
                         </p>
@@ -160,7 +162,7 @@ export function DashboardOverview() {
 
             {isEditing && (
                 <motion.div
-                    initial={{ opacity: 0, y: -20 }}
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     className="bg-white rounded-3xl border-2 border-dashed border-blue-200 p-8 shadow-sm"
                 >

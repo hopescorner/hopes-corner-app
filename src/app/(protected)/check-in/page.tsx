@@ -18,6 +18,7 @@ import { TodayStats } from '@/components/checkin/TodayStats';
 import { DailyNotesSection } from '@/components/checkin/DailyNotesSection';
 import { useTodayStatusMaps } from '@/stores/selectors/todayStatusSelectors';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 
@@ -37,6 +38,7 @@ export default function CheckInPage() {
     const searchInputRef = useRef<HTMLInputElement>(null);
     const guestCardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
     const listContainerRef = useRef<HTMLDivElement>(null);
+    const prefersReducedMotion = useReducedMotion();
 
     // Use deferred value for search to prevent UI jank during typing
     const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -309,9 +311,9 @@ export default function CheckInPage() {
                         <AnimatePresence>
                             {searchQuery && (
                                 <motion.button
-                                    initial={{ scale: 0.5, opacity: 0 }}
+                                    initial={prefersReducedMotion ? false : { scale: 0.5, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
-                                    exit={{ scale: 0.5, opacity: 0 }}
+                                    exit={prefersReducedMotion ? undefined : { scale: 0.5, opacity: 0 }}
                                     onClick={() => {
                                         setSearchQuery('');
                                         setSelectedIndex(-1);
@@ -480,10 +482,10 @@ export default function CheckInPage() {
                                         {sortedGuests.filter((g: Guest) => g && g.id).map((guest: Guest, index: number) => (
                                             <motion.div
                                                 key={guest.id}
-                                                initial={{ opacity: 0, y: 20 }}
+                                                initial={prefersReducedMotion ? false : { opacity: 0, y: 20 }}
                                                 animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, scale: 0.95 }}
-                                                transition={{ duration: 0.2 }}
+                                                exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.95 }}
+                                                transition={{ duration: prefersReducedMotion ? 0 : 0.2 }}
                                                 className={cn(
                                                     'outline-none',
                                                     selectedIndex === index ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-2xl' : ''

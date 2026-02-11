@@ -12,6 +12,7 @@ import {
     Heart
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
@@ -41,6 +42,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 export default function ServicesPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
+    const prefersReducedMotion = useReducedMotion();
 
     // Use URL as source of truth for active tab
     const activeTab = searchParams.get('tab') || 'overview';
@@ -141,7 +143,7 @@ export default function ServicesPage() {
                         </div>
                         <span className="text-xs font-black uppercase tracking-widest text-emerald-600">Service Center</span>
                     </div>
-                    <h1 className="text-4xl font-black text-gray-900 tracking-tight">Management</h1>
+                    <h1 className="text-2xl md:text-4xl font-black text-gray-900 tracking-tight">Management</h1>
                     <p className="text-gray-500 font-medium mt-2 max-w-xl">
                         Coordinate and monitor all daily services including showers, laundry, and bicycle repairs from a centralized hub.
                     </p>
@@ -199,9 +201,9 @@ export default function ServicesPage() {
             {/* Main Content Area */}
             <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, y: 10 }}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
             >
                 {renderContent()}
             </motion.div>

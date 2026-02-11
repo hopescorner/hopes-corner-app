@@ -114,8 +114,8 @@ export function ShowersSection() {
                         isAdmin={isAdmin}
                     />
 
-                    {/* Tab Navigation */}
-                    <div className="flex p-1 bg-gray-100 rounded-2xl w-fit">
+                    {/* Tab Navigation - Desktop */}
+                    <div className="hidden sm:flex p-1 bg-gray-100 rounded-2xl w-fit">
                         {(['active', 'completed', 'waitlist', 'cancelled'] as const).map((tab) => (
                             <button
                                 key={tab}
@@ -129,6 +129,27 @@ export function ShowersSection() {
                             >
                                 {tab}
                                 <span className="ml-2 text-[10px] opacity-60">
+                                    ({tab === 'active' ? activeShowers.length : tab === 'completed' ? completedShowers.length : tab === 'waitlist' ? waitlistedShowers.length : cancelledShowers.length})
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Tab Navigation - Mobile (horizontal scroll) */}
+                    <div className="sm:hidden flex overflow-x-auto gap-2 scrollbar-hide">
+                        {(['active', 'completed', 'waitlist', 'cancelled'] as const).map((tab) => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={cn(
+                                    'flex-shrink-0 px-4 py-2 rounded-xl text-sm font-black transition-all capitalize border',
+                                    activeTab === tab
+                                        ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                                        : 'bg-white text-gray-500 border-gray-200'
+                                )}
+                            >
+                                {tab}
+                                <span className="ml-1.5 text-[10px] opacity-75">
                                     ({tab === 'active' ? activeShowers.length : tab === 'completed' ? completedShowers.length : tab === 'waitlist' ? waitlistedShowers.length : cancelledShowers.length})
                                 </span>
                             </button>
