@@ -114,6 +114,7 @@ interface ServicesState {
     getTodayOffsiteLaundry: () => LaundryRecord[];
     getActiveBicycles: () => BicycleRecord[];
     getTodayBicycles: () => BicycleRecord[];
+    hasReceivedNewBicycleInLastSixMonths: (guestId: string) => { hasReceived: boolean; lastBicycleDate?: string };
 }
 
 export const useServicesStore = create<ServicesState>()(
@@ -784,6 +785,35 @@ export const useServicesStore = create<ServicesState>()(
                         return get().bicycleRecords.filter(
                             (r) => pacificDateStringFrom(r.date) === today
                         );
+                    },
+
+                    hasReceivedNewBicycleInLastSixMonths: (guestId: string) => {
+                        const sixMonthsAgo = new Date();
+                        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                        
+                        const newBicycleRecords = get().bicycleRecords.filter((r) => {
+                            // Check if this record is for the guest
+                            if (r.guestId !== guestId) return false;
+                            
+                            // Check if "New Bicycle" was one of the repair types
+                            const hasNewBicycle = r.repairTypes?.includes('New Bicycle');
+                            if (!hasNewBicycle) return false;
+                            
+                            // Check if the record is within the last 6 months
+                            const recordDate = new Date(r.date);
+                            return recordDate >= sixMonthsAgo;
+                        });
+                        
+                        if (newBicycleRecords.length > 0) {
+                            // Sort by date descending to get the most recent
+                            newBicycleRecords.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                            return {
+                                hasReceived: true,
+                                lastBicycleDate: newBicycleRecords[0].date
+                            };
+                        }
+                        
+                        return { hasReceived: false };
                     },
                 })),
                 {

@@ -33,12 +33,13 @@ const REPAIR_TYPES = [
 
 export function BicycleRepairBookingModal() {
     const { bicyclePickerGuest, setBicyclePickerGuest } = useModalStore();
-    const { addBicycleRecord } = useServicesStore();
+    const { addBicycleRecord, hasReceivedNewBicycleInLastSixMonths } = useServicesStore();
     const { addAction } = useActionHistoryStore();
 
     const [selectedRepairTypes, setSelectedRepairTypes] = useState<string[]>([]);
     const [notes, setNotes] = useState('');
     const [isPending, setIsPending] = useState(false);
+    const [showWarning, setShowWarning] = useState(false);
 
     if (!bicyclePickerGuest) return null;
 
@@ -68,6 +69,17 @@ export function BicycleRepairBookingModal() {
             return;
         }
 
+        // Check if "New Bicycle" is selected and guest received one in the last 6 months
+        if (selectedRepairTypes.includes("New Bicycle")) {
+            const { hasReceived, lastBicycleDate } = hasReceivedNewBicycleInLastSixMonths(bicyclePickerGuest.id);
+            
+            if (hasReceived && !showWarning) {
+                // Show warning modal
+                setShowWarning(true);
+                return;
+            }
+        }
+
         setIsPending(true);
         try {
             const record = await addBicycleRecord(bicyclePickerGuest.id, {
@@ -83,8 +95,72 @@ export function BicycleRepairBookingModal() {
             toast.error(error.message || 'Failed to log repair');
         } finally {
             setIsPending(false);
+            setShowWarning(false);
         }
     };
+
+    // Warning modal for 6-month rule
+    if (showWarning) {
+        const { lastBicycleDate } = hasReceivedNewBicycleInLastSixMonths(bicyclePickerGuest.id);
+        const lastDate = lastBicycleDate ? new Date(lastBicycleDate).toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+        }) : '';
+
+        return (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+                >
+                    {/* Warning Header */}
+                    <div className="p-6 border-b border-gray-100 bg-amber-50 flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-lg shadow-amber-200">
+                            <AlertCircle size={28} />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-gray-900 tracking-tight">6-Month Rule</h2>
+                            <p className="text-sm text-gray-600 font-medium">Review bicycle distribution</p>
+                        </div>
+                    </div>
+
+                    {/* Warning Content */}
+                    <div className="p-6 space-y-4">
+                        <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                            <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-sm text-gray-800 font-semibold">
+                                    <span className="font-black text-amber-700">{bicyclePickerGuest.preferredName || bicyclePickerGuest.firstName}</span> received a new bicycle on <span className="font-black text-amber-700">{lastDate}</span>.
+                                </p>
+                                <p className="text-sm text-gray-600 mt-2">
+                                    Guests should only receive 1 new bicycle every 6 months. Do you want to proceed anyway?
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Warning Footer */}
+                    <div className="p-6 border-t border-gray-100 bg-gray-50 flex items-center justify-end gap-3">
+                        <button
+                            onClick={() => setShowWarning(false)}
+                            className="px-6 py-2.5 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-100 transition-all"
+                        >
+                            Go Back
+                        </button>
+                        <button
+                            onClick={handleBook}
+                            className="px-6 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-black shadow-lg shadow-amber-200 hover:bg-amber-700 hover:shadow-amber-300 transition-all flex items-center gap-2"
+                        >
+                            Proceed Anyway
+                        </button>
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
