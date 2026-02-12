@@ -2,7 +2,7 @@ export function getMealServiceInfo(date: Date = new Date()) {
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
     const serviceSchedule: Record<number, { startHour: number; startMinute: number; endHour: number; endMinute: number; } | null> = {
-        0: null, // Sunday - no service
+        0: { startHour: 8, startMinute: 0, endHour: 10, endMinute: 0 }, // Sunday
         1: { startHour: 8, startMinute: 0, endHour: 9, endMinute: 0 }, // Monday
         2: null, // Tuesday - no service
         3: { startHour: 8, startMinute: 0, endHour: 9, endMinute: 0 }, // Wednesday

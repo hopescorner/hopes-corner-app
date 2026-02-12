@@ -520,12 +520,15 @@ export const useMealsStore = create<MealsState>()(
                         const todaysLunchBags = lunchBagRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
 
                         // Schedule Logic (from older app's automaticMealEntries.js)
+                        // Sun (0): 150 RV
                         // Mon (1): 100 RV
                         // Wed (3): 40 RV
                         // Thu (4): 100 RV
                         // Sat (6): 100 Lunch Bags, 100 RV, 50 Day Worker
 
-                        if (dayOfWeek === 1) { // Mon
+                        if (dayOfWeek === 0) { // Sun
+                            if (todaysRv.length === 0) await addBulkMealRecord('rv', 150, 'Automatic Entry (Sun)', `rv_${todayStr}`);
+                        } else if (dayOfWeek === 1) { // Mon
                             if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Mon)', `rv_${todayStr}`);
                         } else if (dayOfWeek === 3) { // Wed
                             if (todaysRv.length === 0) await addBulkMealRecord('rv', 40, 'Automatic Entry (Wed)', `rv_${todayStr}`);
