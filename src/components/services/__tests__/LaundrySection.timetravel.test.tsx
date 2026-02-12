@@ -3,9 +3,10 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import '@testing-library/jest-dom';
 
 // Mock next-auth session
+let mockRole = 'admin';
 vi.mock('next-auth/react', () => ({
     useSession: () => ({
-        data: { user: { role: 'admin' } },
+        data: { user: { role: mockRole } },
         status: 'authenticated',
     }),
 }));
@@ -104,7 +105,15 @@ import { LaundrySection } from '../LaundrySection';
 
 describe('LaundrySection Time Travel', () => {
     beforeEach(() => {
+        mockRole = 'admin';
         vi.clearAllMocks();
+    });
+
+    it('allows staff to use historical add actions', () => {
+        mockRole = 'staff';
+        render(<LaundrySection />);
+        expect(screen.getByRole('button', { name: 'Add Completed' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Add Laundry' })).toBeInTheDocument();
     });
 
     it('adds a completed laundry record for a historical date', async () => {

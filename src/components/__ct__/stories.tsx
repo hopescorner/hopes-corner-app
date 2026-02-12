@@ -601,6 +601,7 @@ export function BicycleSectionStory({
 // ---------------------------------------------------------------------------
 
 interface ShowersSectionStoryProps {
+  role?: 'checkin' | 'staff' | 'admin';
   showerRecords?: Array<{
     id: string;
     guestId: string;
@@ -619,6 +620,7 @@ interface ShowersSectionStoryProps {
 }
 
 export function ShowersSectionStory({
+  role = 'admin',
   showerRecords = [],
   guests = [],
 }: ShowersSectionStoryProps) {
@@ -626,7 +628,7 @@ export function ShowersSectionStory({
 
   useLayoutEffect(() => {
     (__setMockSession as any)({
-      data: { user: { role: 'admin', email: 'test@test.com', name: 'Test User' }, expires: '2099-01-01' },
+      data: { user: { role, email: 'test@test.com', name: 'Test User' }, expires: '2099-01-01' },
       status: 'authenticated',
     });
 
@@ -664,7 +666,7 @@ export function ShowersSectionStory({
       hasActiveWaiver: (async () => false) as any,
       dismissWaiver: (async () => true) as any,
     });
-  }, [guests, showerRecords]);
+  }, [guests, role, showerRecords]);
 
   return (
     <>
@@ -679,6 +681,7 @@ export function ShowersSectionStory({
 // ---------------------------------------------------------------------------
 
 interface LaundrySectionStoryProps {
+  role?: 'checkin' | 'staff' | 'admin';
   laundryRecords?: Array<{
     id: string;
     guestId: string;
@@ -699,6 +702,7 @@ interface LaundrySectionStoryProps {
 }
 
 export function LaundrySectionStory({
+  role = 'admin',
   laundryRecords = [],
   guests = [],
 }: LaundrySectionStoryProps) {
@@ -706,7 +710,7 @@ export function LaundrySectionStory({
 
   useLayoutEffect(() => {
     (__setMockSession as any)({
-      data: { user: { role: 'admin', email: 'test@test.com', name: 'Test User' }, expires: '2099-01-01' },
+      data: { user: { role, email: 'test@test.com', name: 'Test User' }, expires: '2099-01-01' },
       status: 'authenticated',
     });
 
@@ -754,7 +758,7 @@ export function LaundrySectionStory({
       getRemindersForService: (() => []) as any,
       hasActiveReminder: (() => false) as any,
     });
-  }, [guests, laundryRecords]);
+  }, [guests, laundryRecords, role]);
 
   return (
     <>

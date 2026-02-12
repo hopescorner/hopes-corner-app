@@ -7,6 +7,11 @@ const guests = [
 ];
 
 test.describe('LaundrySection', () => {
+  test('staff can access historical backfill actions', async ({ mount }) => {
+    const component = await mount(<LaundrySectionStory guests={guests} role="staff" />);
+    await expect(component.getByRole('button', { name: 'Add Completed' })).toBeVisible();
+  });
+
   test('shows Add Completed action in admin backfill panel', async ({ mount }) => {
     const component = await mount(<LaundrySectionStory guests={guests} />);
     await expect(component.getByRole('button', { name: 'Add Completed' })).toBeVisible();
