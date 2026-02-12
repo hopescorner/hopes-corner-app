@@ -17,22 +17,20 @@
 
 ## Tech Stack
 
-| Layer     | Technology                            |
-| --------- | ------------------------------------- |
-| Framework | Next.js 16.1.1 (App Router, React 19) |
-| Language  | TypeScript                            |
-| Styling   | Tailwind CSS v4                       |
-| State     | Zustand with immer middleware         |
-| Database  | Supabase (PostgreSQL)                 |
-| Auth      | NextAuth v5 (beta) with Supabase      |
-| Animation | framer-motion                         |
-| Charts    | recharts, chart.js                    |
-| Testing   | Vitest + React Testing Library        |
-| PWA       | Custom service worker (public/sw.js)  |
+- Framework: Next.js 16.1.6 (App Router, React 19)
+- Language: TypeScript
+- Styling: Tailwind CSS v4
+- State: Zustand with immer middleware
+- Database: Supabase (PostgreSQL)
+- Auth: NextAuth v5 (beta) with Supabase
+- Animation: framer-motion
+- Charts: recharts, chart.js
+- Testing: Vitest + React Testing Library + Playwright Component Testing
+- PWA: Custom service worker (`public/sw.js`)
 
 ## Directory Structure
 
-```
+```text
 src/
 ├── app/                    # Next.js App Router pages
 │   ├── (auth)/            # Login page (unprotected)
@@ -93,7 +91,7 @@ All stores use:
 - `bicycle_repairs` - Repair requests with priority queue
 - `haircut_visits`, `holiday_visits` - Simple visit logs
 - `items_distributed` - Item distribution records
-- `donations`, `la_plaza_donations` - Food donation logs
+- `donations` - Primary food donation logs used by current Services UI
 - `guest_proxies` - Linked guests (max 3 per guest)
 - `guest_warnings` - Warning records for guests
 - `service_waivers` - Signed waivers for services
@@ -132,10 +130,11 @@ Protected routes in `src/app/(protected)/` require authentication.
 
 ## Testing
 
-- **Framework**: Vitest with jsdom
+- **Frameworks**: Vitest (jsdom) + Playwright Component Testing
 - **Location**: `__tests__/` directories adjacent to source files
 - **Run**: `npm test` (or `npm run test:watch`)
 - **Coverage**: `npm run test:coverage`
+- **Component tests**: `npm run test:ct` (or `npm run test:ct:ui`)
 
 Test files follow pattern: `*.test.ts` or `*.test.tsx`
 
@@ -144,8 +143,10 @@ Test files follow pattern: `*.test.ts` or `*.test.tsx`
 ```bash
 npm run dev      # Start dev server
 npm run build    # Production build
+npm run start    # Start production server
 npm run lint     # ESLint
 npm test         # Run all tests
+npm run test:ct  # Run Playwright component tests
 ```
 
 ## Common Patterns
@@ -176,22 +177,23 @@ Guests can be banned globally or per-service:
 
 See `.env.example`:
 
-- NEXT_PUBLIC_SUPABASE_URL=<your-project-id>.supabase.co
-- NEXT_PUBLIC_SUPABASE_ANON_KEY=ey_<your-anon-key-here>
-- NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_<your-publishable-default-key-here>
-- SUPABASE_SECRET_KEY=sb_secret_<your-secret-key-here>
+- `NEXT_PUBLIC_SUPABASE_URL=[your-project-id].supabase.co`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY=ey_[your-anon-key-here]`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_[your-publishable-default-key-here]`
+- `SUPABASE_SECRET_KEY=sb_secret_[your-secret-key-here]`
 
-- NEXTAUTH_URL=http://localhost:3000
-- NEXTAUTH_SECRET="<your-nextauth-secret-here>"
-- NEXT_PUBLIC_APP_NAME="Hope's Corner"
+- `NEXTAUTH_URL=http://localhost:3000`
+- `NEXTAUTH_SECRET="[your-nextauth-secret-here]"`
+- `NEXT_PUBLIC_APP_NAME="Hope's Corner"`
 
 
 ## CI/CD
 
 GitHub Actions workflow (`.github/workflows/ci.yml`):
 
-1. Lint + Test on all branches
-2. Deploy on push to `main`
+1. Lint + Vitest + Playwright component tests on branches/PRs
+2. Run Supabase migrations on push to `main` when `supabase/migrations/` changed
+3. Build and deploy on push to `main`
 
 ## Code Style
 
@@ -210,3 +212,4 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 5. **Component colocation**: Tests live in `__tests__/` next to components
 6. **Date handling**: Use `date-fns` patterns, dates stored as ISO strings
 7. **Location options**: BAY_AREA_CITIES array in `GuestCreateModal.tsx` and `GuestEditModal.tsx`
+8. **Zustand selectors**: Prefer `useShallow` from `zustand/react/shallow` for object selectors
