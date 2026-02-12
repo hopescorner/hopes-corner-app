@@ -678,6 +678,20 @@ describe('useServicesStore', () => {
                     }));
                 });
 
+                it('adds a completed shower record for a selected past date', async () => {
+                    const mockData = { id: 's125', guest_id: 'g1', scheduled_for: '2025-01-04', status: 'done' };
+                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+
+                    await useServicesStore.getState().addShowerRecord('g1', '09:30', '2025-01-04', 'done');
+
+                    expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
+                        guest_id: 'g1',
+                        scheduled_for: '2025-01-04',
+                        scheduled_time: '09:30',
+                        status: 'done',
+                    }));
+                });
+
                 it('adds a shower waitlist record successfully', async () => {
                     mockSupabase.single.mockResolvedValueOnce({ data: { id: 'w1', status: 'waitlisted' }, error: null });
                     await useServicesStore.getState().addShowerWaitlist('g1');
@@ -732,6 +746,20 @@ describe('useServicesStore', () => {
                         scheduled_for: '2025-01-04',
                         slot_label: '08:30 - 10:00',
                         bag_number: 'B2',
+                    }));
+                });
+
+                it('adds a completed laundry record for a selected past date', async () => {
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l3' }, error: null });
+                    await useServicesStore.getState().addLaundryRecord('g1', 'onsite', '08:30 - 10:00', 'B3', '2025-01-04', 'done');
+
+                    expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
+                        guest_id: 'g1',
+                        laundry_type: 'onsite',
+                        scheduled_for: '2025-01-04',
+                        slot_label: '08:30 - 10:00',
+                        bag_number: 'B3',
+                        status: 'done',
                     }));
                 });
 

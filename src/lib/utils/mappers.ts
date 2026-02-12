@@ -344,9 +344,9 @@ export const mapShowerRow = (row: ShowerRow) => {
     row.scheduled_time,
   );
   const fallbackTimestamp =
+    fallbackIsoFromDateOnly(row.scheduled_for) ||
     row.updated_at ||
     row.created_at ||
-    fallbackIsoFromDateOnly(row.scheduled_for) ||
     new Date().toISOString();
   const effectiveTimestamp = scheduledTimestamp || fallbackTimestamp;
   return {
@@ -369,9 +369,9 @@ export const mapLaundryRow = (row: LaundryRow) => {
     slotStart,
   );
   const fallbackTimestamp =
+    fallbackIsoFromDateOnly(row.scheduled_for) ||
     row.updated_at ||
     row.created_at ||
-    fallbackIsoFromDateOnly(row.scheduled_for) ||
     new Date().toISOString();
   const effectiveTimestamp = scheduledTimestamp || fallbackTimestamp;
   return {

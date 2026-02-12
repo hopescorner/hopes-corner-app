@@ -88,10 +88,10 @@ interface ServicesState {
     haircutRecords: HaircutRecord[];
     holidayRecords: HolidayRecord[];
 
-    addShowerRecord: (guestId: string, time?: string, serviceDate?: string) => Promise<ShowerRecord | Partial<ShowerRecord>>;
+    addShowerRecord: (guestId: string, time?: string, serviceDate?: string, initialStatus?: 'booked' | 'done') => Promise<ShowerRecord | Partial<ShowerRecord>>;
     addShowerWaitlist: (guestId: string, serviceDate?: string) => Promise<ShowerRecord | Partial<ShowerRecord>>;
     deleteShowerRecord: (recordId: string) => Promise<void>;
-    addLaundryRecord: (guestId: string, washType: string, slotLabel?: string, bagNumber?: string, serviceDate?: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
+    addLaundryRecord: (guestId: string, washType: string, slotLabel?: string, bagNumber?: string, serviceDate?: string, initialStatus?: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
     addLaundryWaitlist: (guestId: string, serviceDate?: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
     deleteLaundryRecord: (recordId: string) => Promise<void>;
     updateLaundryStatus: (recordId: string, status: string) => Promise<boolean>;
@@ -129,7 +129,7 @@ export const useServicesStore = create<ServicesState>()(
                     holidayRecords: [],
 
                     // Shower Actions
-                    addShowerRecord: async (guestId: string, time: string | null = null, serviceDate?: string) => {
+                    addShowerRecord: async (guestId: string, time: string | null = null, serviceDate?: string, initialStatus: 'booked' | 'done' = 'booked') => {
                         if (!guestId) throw new Error('Guest ID is required');
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
@@ -138,7 +138,7 @@ export const useServicesStore = create<ServicesState>()(
                             guest_id: guestId,
                             scheduled_for: targetDate,
                             scheduled_time: time,
-                            status: 'booked',
+                            status: initialStatus,
                         };
 
                         const { data, error } = await supabase
@@ -212,7 +212,7 @@ export const useServicesStore = create<ServicesState>()(
                     },
 
                     // Laundry Actions
-                    addLaundryRecord: async (guestId: string, washType: string, slotLabel: string | null = null, bagNumber: string = '', serviceDate?: string) => {
+                    addLaundryRecord: async (guestId: string, washType: string, slotLabel: string | null = null, bagNumber: string = '', serviceDate?: string, initialStatus?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
                         if (!washType) throw new Error('Wash type is required');
 
@@ -225,8 +225,7 @@ export const useServicesStore = create<ServicesState>()(
                             slot_label: slotLabel,
                             bag_number: bagNumber,
                             scheduled_for: targetDate,
-                            // Use 'pending' for offsite laundry, 'waiting' for onsite
-                            status: washType.toLowerCase() === 'offsite' ? 'pending' : 'waiting',
+                            status: initialStatus || (washType.toLowerCase() === 'offsite' ? 'pending' : 'waiting'),
                         };
 
                         const { data, error } = await supabase

@@ -174,6 +174,35 @@ export function LaundrySection() {
         }
     }, [addLaundryRecord, backfillBagNumber, backfillGuestId, backfillLaundryType, backfillSlotLabel, selectedDate]);
 
+    const handleAddCompletedLaundryRecord = useCallback(async () => {
+        if (!backfillGuestId) {
+            toast.error('Please select a guest');
+            return;
+        }
+
+        const completedStatus = backfillLaundryType === 'offsite' ? 'returned' : 'done';
+
+        setIsAddingBackfill(true);
+        try {
+            await addLaundryRecord(
+                backfillGuestId,
+                backfillLaundryType,
+                backfillLaundryType === 'onsite' ? backfillSlotLabel : undefined,
+                backfillBagNumber,
+                selectedDate,
+                completedStatus
+            );
+            toast.success(`Completed laundry added for ${selectedDate}`);
+            setBackfillGuestId('');
+            setBackfillSlotLabel('');
+            setBackfillBagNumber('');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to add completed laundry');
+        } finally {
+            setIsAddingBackfill(false);
+        }
+    }, [addLaundryRecord, backfillBagNumber, backfillGuestId, backfillLaundryType, backfillSlotLabel, selectedDate]);
+
     // Drag and drop state (using @dnd-kit)
     const [activeId, setActiveId] = useState<string | null>(null);
     const activeRecord = useMemo(
@@ -360,18 +389,32 @@ export function LaundrySection() {
                                 className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
                             />
                         </div>
-                        <button
-                            onClick={handleAddLaundryRecord}
-                            disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
-                            className={cn(
-                                "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
-                                !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                            )}
-                        >
-                            {isAddingBackfill ? 'Saving...' : 'Add Laundry'}
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleAddLaundryRecord}
+                                disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
+                                className={cn(
+                                    "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                                    !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                )}
+                            >
+                                {isAddingBackfill ? 'Saving...' : 'Add Laundry'}
+                            </button>
+                            <button
+                                onClick={handleAddCompletedLaundryRecord}
+                                disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
+                                className={cn(
+                                    "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                                    !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                )}
+                            >
+                                Add Completed
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

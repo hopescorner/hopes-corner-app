@@ -35,9 +35,12 @@ const mockLaundryRecords = [
     { id: '5', guestId: 'g5', date: '2024-01-14', status: 'picked_up', laundryType: 'onsite', bagNumber: '104' },
 ];
 
+const mockAddLaundryRecord = vi.fn().mockResolvedValue({ id: 'new-laundry' });
+
 vi.mock('@/stores/useServicesStore', () => ({
     useServicesStore: () => ({
         laundryRecords: mockLaundryRecords,
+        addLaundryRecord: mockAddLaundryRecord,
         updateLaundryStatus: vi.fn(),
         updateLaundryBagNumber: vi.fn(),
         cancelMultipleLaundry: vi.fn(),
@@ -102,6 +105,27 @@ import { LaundrySection } from '../LaundrySection';
 describe('LaundrySection Time Travel', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('adds a completed laundry record for a historical date', async () => {
+        render(<LaundrySection />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByTestId('go-to-yesterday'));
+        });
+
+        fireEvent.change(screen.getByDisplayValue('Select guest'), {
+            target: { value: 'g1' },
+        });
+        fireEvent.change(screen.getByDisplayValue('On-site'), {
+            target: { value: 'offsite' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: 'Add Completed' }));
+
+        await waitFor(() => {
+            expect(mockAddLaundryRecord).toHaveBeenCalledWith('g1', 'offsite', undefined, '', '2024-01-14', 'returned');
+        });
     });
 
     describe('Date Picker Visibility', () => {

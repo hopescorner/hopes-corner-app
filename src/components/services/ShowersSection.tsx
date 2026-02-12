@@ -144,6 +144,25 @@ export function ShowersSection() {
         }
     };
 
+    const handleAddCompletedShower = async () => {
+        if (!backfillGuestId) {
+            toast.error('Please select a guest');
+            return;
+        }
+
+        setIsAddingBackfill(true);
+        try {
+            await addShowerRecord(backfillGuestId, backfillSlotTime || undefined, selectedDate, 'done');
+            toast.success(`Completed shower added for ${selectedDate}`);
+            setBackfillGuestId('');
+            setBackfillSlotTime('');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to add completed shower');
+        } finally {
+            setIsAddingBackfill(false);
+        }
+    };
+
     const handleAddShowerWaitlist = async () => {
         if (!backfillGuestId) {
             toast.error('Please select a guest');
@@ -230,6 +249,18 @@ export function ShowersSection() {
                                 )}
                             >
                                 {isAddingBackfill ? 'Saving...' : 'Add Shower'}
+                            </button>
+                            <button
+                                onClick={handleAddCompletedShower}
+                                disabled={!backfillGuestId || isAddingBackfill}
+                                className={cn(
+                                    "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                                    !backfillGuestId || isAddingBackfill
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                )}
+                            >
+                                Add Done
                             </button>
                             <button
                                 onClick={handleAddShowerWaitlist}
