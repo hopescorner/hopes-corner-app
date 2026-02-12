@@ -2,18 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { DonationsSection, groupDonationsByItem, getRecentItemNames } from '../DonationsSection';
-import { DonationRecord } from '@/types/database';
+import { DonationRecord } from '@/stores/useDonationsStore';
 
 // Mock the stores
 const mockDonationsStore = {
     donationRecords: [] as DonationRecord[],
-    laPlazaRecords: [] as any[],
     addDonation: vi.fn().mockResolvedValue({ id: 'd-new' }),
     updateDonation: vi.fn().mockResolvedValue(true),
     deleteDonation: vi.fn().mockResolvedValue(true),
-    addLaPlazaDonation: vi.fn().mockResolvedValue(true),
-    updateLaPlazaDonation: vi.fn().mockResolvedValue(true),
-    deleteLaPlazaDonation: vi.fn().mockResolvedValue(true),
 };
 
 vi.mock('next-auth/react', () => ({
@@ -70,6 +66,7 @@ const createDonationRecord = (overrides: Partial<DonationRecord> = {}): Donation
     servings: 20,
     temperature: '165°F',
     donor: 'LinkedIn',
+    date: '2024-01-15T10:00:00Z',
     dateKey: '2024-01-15',
     createdAt: '2024-01-15T10:00:00Z',
     donatedAt: '2024-01-15T10:00:00Z',
@@ -250,7 +247,6 @@ describe('DonationsSection Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockDonationsStore.donationRecords = [];
-        mockDonationsStore.laPlazaRecords = [];
     });
 
     afterEach(() => {
@@ -258,12 +254,10 @@ describe('DonationsSection Component', () => {
     });
 
     describe('Rendering', () => {
-        it('renders the header and view mode toggle', () => {
+        it('renders the header', () => {
             render(<DonationsSection />);
 
-            expect(screen.getByText('General Donations')).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: 'General' })).toBeInTheDocument();
-            expect(screen.getByRole('button', { name: 'La Plaza' })).toBeInTheDocument();
+            expect(screen.getByText('Donations')).toBeInTheDocument();
         });
 
         it('displays empty state when no records exist', () => {
@@ -496,22 +490,6 @@ describe('DonationsSection Component', () => {
 
             // Collapsed again
             expect(screen.queryByText(/Donor A/)).not.toBeInTheDocument();
-        });
-    });
-
-    describe('Tab Switching', () => {
-        it('switches between General and La Plaza view modes', async () => {
-            await act(async () => {
-                render(<DonationsSection />);
-            });
-
-            expect(screen.getByText('General Donations')).toBeInTheDocument();
-
-            await act(async () => {
-                fireEvent.click(screen.getByRole('button', { name: 'La Plaza' }));
-            });
-
-            expect(screen.getByText('La Plaza Donations')).toBeInTheDocument();
         });
     });
 

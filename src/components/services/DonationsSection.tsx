@@ -7,7 +7,6 @@ import {
     Pencil,
     ChevronLeft,
     ChevronRight,
-    Store,
     Utensils,
     Copy,
     ChevronDown,
@@ -17,7 +16,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDonationsStore, DonationRecord } from '@/stores/useDonationsStore';
-import { DonationTypeEnum, LaPlazaCategoryEnum } from '@/types/database';
+import { DonationTypeEnum } from '@/types/database';
 import {
     calculateServings,
     deriveDonationDateKey,
@@ -46,13 +45,6 @@ const DONATION_TYPES: DonationTypeEnum[] = [
     'Protein', 'Carbs', 'Vegetables', 'Fruit',
     'Veggie Protein', 'Deli Foods', 'Pastries', 'School Lunch'
 ];
-
-const LA_PLAZA_CATEGORIES: LaPlazaCategoryEnum[] = [
-    'Bakery', 'Beverages', 'Dairy', 'Meat',
-    'Mix', 'Nonfood', 'Prepared/Perishable', 'Produce'
-];
-
-type ViewMode = 'general' | 'laplaza';
 
 // Interface for grouped donation items
 export interface GroupedDonation {
@@ -128,13 +120,11 @@ export const getRecentItemNames = (records: DonationRecord[], limit = 5): string
 const GroupedDonationCard = ({
     group,
     onEdit,
-    onDelete,
-    viewMode
+    onDelete
 }: {
     group: GroupedDonation;
     onEdit: (record: DonationRecord) => void;
     onDelete: (id: string) => void;
-    viewMode: ViewMode;
 }) => {
     const [isExpanded, setIsExpanded] = useState(group.entries.length === 1);
     const hasMultipleEntries = group.entries.length > 1;
@@ -151,10 +141,7 @@ const GroupedDonationCard = ({
             >
                 <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <span className={cn(
-                            "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider",
-                            viewMode === 'general' ? "bg-emerald-50 text-emerald-700" : "bg-orange-50 text-orange-700"
-                        )}>
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700">
                             {group.type}
                         </span>
                         {hasMultipleEntries && (
@@ -296,16 +283,10 @@ const QuickSelectItems = ({
 export const DonationsSection = () => {
     const {
         donationRecords,
-        laPlazaRecords,
         addDonation,
         updateDonation,
-        deleteDonation,
-        addLaPlazaDonation,
-        updateLaPlazaDonation,
-        deleteLaPlazaDonation
+        deleteDonation
     } = useDonationsStore();
-
-    const [viewMode, setViewMode] = useState<ViewMode>('general');
     const [selectedDate, setSelectedDate] = useState(todayPacificDateString());
     const [loading, setLoading] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -321,28 +302,15 @@ export const DonationsSection = () => {
         temperature: ''
     });
 
-    const [laPlazaForm, setLaPlazaForm] = useState({
-        category: 'Produce' as LaPlazaCategoryEnum,
-        weightLbs: '',
-        notes: ''
-    });
-
     // Filtering
     const displayedRecords = useMemo(() => {
-        if (viewMode === 'general') {
-            return donationRecords.filter(r => deriveDonationDateKey(r) === selectedDate);
-        } else {
-            return laPlazaRecords.filter(r => deriveDonationDateKey(r) === selectedDate);
-        }
-    }, [donationRecords, laPlazaRecords, viewMode, selectedDate]);
+        return donationRecords.filter(r => deriveDonationDateKey(r) === selectedDate);
+    }, [donationRecords, selectedDate]);
 
     // Grouped records for general donations
     const groupedRecords = useMemo(() => {
-        if (viewMode === 'general') {
-            return groupDonationsByItem(displayedRecords as DonationRecord[]);
-        }
-        return [];
-    }, [displayedRecords, viewMode]);
+        return groupDonationsByItem(displayedRecords as DonationRecord[]);
+    }, [displayedRecords]);
 
     // Recent item names for quick select (from all records, not just today)
     const recentItemNames = useMemo(() => {
@@ -351,21 +319,13 @@ export const DonationsSection = () => {
 
     // Calculate daily totals
     const dailyTotals = useMemo(() => {
-        if (viewMode === 'general') {
-            return {
-                totalWeight: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.weightLbs) || 0), 0),
-                totalTrays: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.trays) || 0), 0),
-                totalServings: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.servings) || 0), 0),
-                uniqueItems: groupedRecords.length
-            };
-        }
         return {
-            totalWeight: displayedRecords.reduce((sum, r) => sum + (Number((r as any).weightLbs) || 0), 0),
-            totalTrays: 0,
-            totalServings: 0,
-            uniqueItems: displayedRecords.length
+            totalWeight: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.weightLbs) || 0), 0),
+            totalTrays: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.trays) || 0), 0),
+            totalServings: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.servings) || 0), 0),
+            uniqueItems: groupedRecords.length
         };
-    }, [displayedRecords, groupedRecords, viewMode]);
+    }, [displayedRecords, groupedRecords]);
 
     // Helpers
     const shiftDate = (offset: number) => {
@@ -425,44 +385,10 @@ export const DonationsSection = () => {
         }
     };
 
-    const handleLaPlazaSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            const weight = Number(laPlazaForm.weightLbs) || 0;
-
-            if (editingId) {
-                await updateLaPlazaDonation(editingId, {
-                    category: laPlazaForm.category,
-                    weight_lbs: weight,
-                    notes: laPlazaForm.notes,
-                    date_key: selectedDate
-                });
-                toast.success('Updated La Plaza record');
-                setEditingId(null);
-            } else {
-                await addLaPlazaDonation({
-                    category: laPlazaForm.category,
-                    weight_lbs: weight,
-                    notes: laPlazaForm.notes,
-                    date_key: selectedDate
-                });
-                toast.success('Logged La Plaza donation');
-            }
-            setLaPlazaForm(prev => ({ ...prev, weightLbs: '', notes: '' }));
-        } catch (err) {
-            console.error(err);
-            toast.error('Failed to save');
-        } finally {
-            setLoading(false);
-        }
-    };
-
     const handleDelete = async (id: string) => {
         if (!confirm('Delete this record?')) return;
         try {
-            if (viewMode === 'general') await deleteDonation(id);
-            else await deleteLaPlazaDonation(id);
+            await deleteDonation(id);
             toast.success('Deleted');
         } catch (err) {
             toast.error('Failed to delete');
@@ -471,23 +397,15 @@ export const DonationsSection = () => {
 
     const handleEdit = (record: any) => {
         setEditingId(record.id);
-        if (viewMode === 'general') {
-            setGeneralForm({
-                type: record.type || record.donation_type,
-                itemName: record.itemName || record.item_name,
-                trays: record.trays?.toString() || '',
-                weightLbs: record.weightLbs?.toString() || record.weight_lbs?.toString() || '',
-                density: record.density || 'medium',
-                donor: record.donor || '',
-                temperature: record.temperature || ''
-            });
-        } else {
-            setLaPlazaForm({
-                category: record.category,
-                weightLbs: record.weightLbs?.toString() || record.weight_lbs?.toString() || '',
-                notes: record.notes || ''
-            });
-        }
+        setGeneralForm({
+            type: record.type || record.donation_type,
+            itemName: record.itemName || record.item_name,
+            trays: record.trays?.toString() || '',
+            weightLbs: record.weightLbs?.toString() || record.weight_lbs?.toString() || '',
+            density: record.density || 'medium',
+            donor: record.donor || '',
+            temperature: record.temperature || ''
+        });
     };
 
     const cancelEdit = () => {
@@ -517,32 +435,17 @@ export const DonationsSection = () => {
             {/* Header / Date Nav */}
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div className="flex items-center gap-4">
-                    <div className={cn("p-3 rounded-xl", viewMode === 'general' ? "bg-emerald-100 text-emerald-600" : "bg-orange-100 text-orange-600")}>
-                        {viewMode === 'general' ? <Utensils size={24} /> : <Store size={24} />}
+                    <div className="p-3 rounded-xl bg-emerald-100 text-emerald-600">
+                        <Utensils size={24} />
                     </div>
                     <div>
                         <h2 className="text-2xl font-bold text-gray-900">
-                            {viewMode === 'general' ? 'General Donations' : 'La Plaza Donations'}
+                            Donations
                         </h2>
                         <p className="text-gray-500 text-sm">
-                            {viewMode === 'general' ? 'Track trays and prepared food' : 'Track raw ingredients and grocery items'}
+                            Track trays and prepared food
                         </p>
                     </div>
-                </div>
-
-                <div className="flex bg-gray-100 p-1 rounded-lg">
-                    <button
-                        onClick={() => setViewMode('general')}
-                        className={cn("px-4 py-2 rounded-md text-sm font-medium transition-all", viewMode === 'general' ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-900")}
-                    >
-                        General
-                    </button>
-                    <button
-                        onClick={() => setViewMode('laplaza')}
-                        className={cn("px-4 py-2 rounded-md text-sm font-medium transition-all", viewMode === 'laplaza' ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-900")}
-                    >
-                        La Plaza
-                    </button>
                 </div>
             </div>
 
@@ -565,21 +468,18 @@ export const DonationsSection = () => {
 
             {/* Daily Summary */}
             {displayedRecords.length > 0 && (
-                <div className={cn(
-                    "rounded-xl p-4 flex flex-wrap gap-6 items-center justify-center",
-                    viewMode === 'general' ? "bg-emerald-50 border border-emerald-200" : "bg-orange-50 border border-orange-200"
-                )}>
+                <div className="rounded-xl p-4 flex flex-wrap gap-6 items-center justify-center bg-emerald-50 border border-emerald-200">
                     <div className="text-center">
                         <p className="text-2xl font-bold text-gray-900">{dailyTotals.totalWeight.toFixed(1)}</p>
                         <p className="text-xs font-medium text-gray-500 uppercase">lbs total</p>
                     </div>
-                    {viewMode === 'general' && dailyTotals.totalTrays > 0 && (
+                    {dailyTotals.totalTrays > 0 && (
                         <div className="text-center">
                             <p className="text-2xl font-bold text-gray-900">{dailyTotals.totalTrays}</p>
                             <p className="text-xs font-medium text-gray-500 uppercase">trays</p>
                         </div>
                     )}
-                    {viewMode === 'general' && dailyTotals.totalServings > 0 && (
+                    {dailyTotals.totalServings > 0 && (
                         <div className="text-center">
                             <p className="text-2xl font-bold text-emerald-600">~{dailyTotals.totalServings}</p>
                             <p className="text-xs font-medium text-gray-500 uppercase">servings</p>
@@ -587,7 +487,7 @@ export const DonationsSection = () => {
                     )}
                     <div className="text-center">
                         <p className="text-2xl font-bold text-gray-900">{dailyTotals.uniqueItems}</p>
-                        <p className="text-xs font-medium text-gray-500 uppercase">{viewMode === 'general' ? 'unique items' : 'entries'}</p>
+                        <p className="text-xs font-medium text-gray-500 uppercase">unique items</p>
                     </div>
                 </div>
             )}
@@ -595,7 +495,7 @@ export const DonationsSection = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Form Side */}
                 <div className="lg:col-span-1 space-y-6">
-                    <form onSubmit={viewMode === 'general' ? handleGeneralSubmit : handleLaPlazaSubmit} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                    <form onSubmit={handleGeneralSubmit} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
                         <div className="flex justify-between items-center">
                             <h3 className="font-bold text-gray-900">
                                 {editingId ? 'Edit Record' : 'Log New Item'}
@@ -605,18 +505,16 @@ export const DonationsSection = () => {
                             )}
                         </div>
 
-                        {viewMode === 'general' ? (
-                            <>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
-                                    <select
-                                        className="w-full p-2 rounded-lg border border-gray-200 bg-gray-50 font-medium"
-                                        value={generalForm.type}
-                                        onChange={e => setGeneralForm({ ...generalForm, type: e.target.value as DonationTypeEnum })}
-                                    >
-                                        {DONATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
+                            <select
+                                className="w-full p-2 rounded-lg border border-gray-200 bg-gray-50 font-medium"
+                                value={generalForm.type}
+                                onChange={e => setGeneralForm({ ...generalForm, type: e.target.value as DonationTypeEnum })}
+                            >
+                                {DONATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                        </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Item Name</label>
                                     <input
@@ -699,51 +597,11 @@ export const DonationsSection = () => {
                                     </div>
                                     <p className="text-xs text-gray-400 mt-1">Tip: Click °F button to add the symbol</p>
                                 </div>
-                            </>
-                        ) : (
-                            <>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Category</label>
-                                    <select
-                                        className="w-full p-2 rounded-lg border border-gray-200 bg-gray-50 font-medium"
-                                        value={laPlazaForm.category}
-                                        onChange={e => setLaPlazaForm({ ...laPlazaForm, category: e.target.value as LaPlazaCategoryEnum })}
-                                    >
-                                        {LA_PLAZA_CATEGORIES.map(t => <option key={t} value={t}>{t}</option>)}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Weight (lbs)</label>
-                                    <input
-                                        type="number"
-                                        required
-                                        className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none"
-                                        value={laPlazaForm.weightLbs}
-                                        onChange={e => setLaPlazaForm({ ...laPlazaForm, weightLbs: e.target.value })}
-                                        placeholder="0.0"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Notes</label>
-                                    <textarea
-                                        className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-orange-500 outline-none h-24 resize-none"
-                                        value={laPlazaForm.notes}
-                                        onChange={e => setLaPlazaForm({ ...laPlazaForm, notes: e.target.value })}
-                                        placeholder="Optional details..."
-                                    />
-                                </div>
-                            </>
-                        )}
 
                         <button
                             disabled={loading}
                             type="submit"
-                            className={cn(
-                                "w-full py-3 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2",
-                                viewMode === 'general'
-                                    ? "bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
-                                    : "bg-orange-600 hover:bg-orange-700 shadow-orange-200"
-                            )}
+                            className="w-full py-3 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200"
                         >
                             {editingId ? <Pencil size={18} /> : <Save size={18} />}
                             {editingId ? 'Update Record' : 'Save Record'}
@@ -753,7 +611,7 @@ export const DonationsSection = () => {
 
                 {/* List Side */}
                 <div className="lg:col-span-2 space-y-4">
-                    {viewMode === 'general' && displayedRecords.length > 0 && (
+                    {displayedRecords.length > 0 && (
                         <div className="flex justify-end">
                             <button onClick={handleCopySummary} className="text-xs font-bold text-emerald-600 flex items-center gap-1 hover:bg-emerald-50 px-2 py-1 rounded-md transition-colors">
                                 <Copy size={14} /> Copy Summary
@@ -768,7 +626,7 @@ export const DonationsSection = () => {
                                 <p className="text-gray-400 font-medium">No records for this date</p>
                                 <p className="text-xs text-gray-300 mt-1">Add donations using the form on the left</p>
                             </div>
-                        ) : viewMode === 'general' ? (
+                        ) : (
                             // Grouped view for general donations
                             groupedRecords.map((group) => (
                                 <GroupedDonationCard
@@ -776,44 +634,7 @@ export const DonationsSection = () => {
                                     group={group}
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}
-                                    viewMode={viewMode}
                                 />
-                            ))
-                        ) : (
-                            // Flat list for La Plaza donations
-                            displayedRecords.map((record: any) => (
-                                <div key={record.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex justify-between items-start group">
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-orange-50 text-orange-700">
-                                                {record.category}
-                                            </span>
-                                            <span className="text-xs text-gray-400">
-                                                {formatRecordTime(record)}
-                                            </span>
-                                        </div>
-                                        <h4 className="font-bold text-gray-900 mt-1">
-                                            {record.notes || 'No description'}
-                                        </h4>
-                                        <div className="text-sm text-gray-600 mt-1">
-                                            <span>{record.weightLbs} lbs</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={() => handleEdit(record)}
-                                            className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
-                                        >
-                                            <Pencil size={16} />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(record.id)}
-                                            className="p-2 hover:bg-red-50 text-red-600 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </div>
                             ))
                         )}
                     </div>

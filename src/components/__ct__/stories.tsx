@@ -492,26 +492,14 @@ interface DonationsSectionStoryProps {
     createdAt?: string;
     donatedAt?: string;
   }>;
-  /** La Plaza donation records */
-  laPlazaRecords?: Array<{
-    id: string;
-    category: string;
-    weightLbs: number;
-    notes?: string;
-    receivedAt?: string;
-    dateKey?: string;
-    createdAt?: string;
-  }>;
 }
 
 export function DonationsSectionStory({
   donationRecords = [],
-  laPlazaRecords = [],
 }: DonationsSectionStoryProps) {
   useEffect(() => {
     useDonationsStore.setState({
       donationRecords: donationRecords as any,
-      laPlazaRecords: laPlazaRecords as any,
       addDonation: (async (d: any) => {
         const newRecord = {
           id: 'new-donation-' + Date.now(),
@@ -536,27 +524,8 @@ export function DonationsSectionStory({
           donationRecords: state.donationRecords.filter((r: any) => r.id !== id),
         }));
       }) as any,
-      addLaPlazaDonation: (async (d: any) => {
-        const newRecord = {
-          id: 'new-laplaza-' + Date.now(),
-          category: d.category,
-          weightLbs: d.weight_lbs || 0,
-          notes: d.notes || '',
-          dateKey: d.date_key,
-        };
-        useDonationsStore.setState((state: any) => ({
-          laPlazaRecords: [...state.laPlazaRecords, newRecord],
-        }));
-        return newRecord;
-      }) as any,
-      updateLaPlazaDonation: (async () => ({})) as any,
-      deleteLaPlazaDonation: (async (id: string) => {
-        useDonationsStore.setState((state: any) => ({
-          laPlazaRecords: state.laPlazaRecords.filter((r: any) => r.id !== id),
-        }));
-      }) as any,
     });
-  }, [donationRecords, laPlazaRecords]);
+  }, [donationRecords]);
 
   return <DonationsSection />;
 }

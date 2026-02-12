@@ -23,22 +23,16 @@ vi.mock('@/lib/utils/supabasePagination', () => ({
 
 const createMockDonation = (overrides = {}) => ({
     id: 'donation-1',
-    donorName: 'John Smith',
-    type: 'monetary',
-    amount: 100,
-    description: 'Monthly donation',
+    type: 'Protein',
+    itemName: 'Chicken',
+    trays: 2,
+    weightLbs: 10,
+    servings: 20,
+    donor: 'John Smith',
     date: '2025-01-06',
+    dateKey: '2025-01-06',
     createdAt: '2025-01-06T08:00:00Z',
-    ...overrides,
-});
-
-const createMockLaPlazaDonation = (overrides = {}) => ({
-    id: 'laplaza-1',
-    itemType: 'clothing',
-    quantity: 10,
-    description: 'Winter coats',
-    date: '2025-01-06',
-    createdAt: '2025-01-06T08:00:00Z',
+    donatedAt: '2025-01-06T08:00:00Z',
     ...overrides,
 });
 
@@ -46,7 +40,6 @@ describe('useDonationsStore', () => {
     beforeEach(() => {
         useDonationsStore.setState({
             donationRecords: [],
-            laPlazaRecords: [],
         });
     });
 
@@ -54,11 +47,6 @@ describe('useDonationsStore', () => {
         it('starts with empty donation records', () => {
             const { donationRecords } = useDonationsStore.getState();
             expect(donationRecords).toEqual([]);
-        });
-
-        it('starts with empty La Plaza records', () => {
-            const { laPlazaRecords } = useDonationsStore.getState();
-            expect(laPlazaRecords).toEqual([]);
         });
     });
 
@@ -103,17 +91,17 @@ describe('useDonationsStore', () => {
 
             it('can update a donation record', () => {
                 useDonationsStore.setState({
-                    donationRecords: [createMockDonation({ id: 'd1', amount: 100 })],
+                    donationRecords: [createMockDonation({ id: 'd1', weightLbs: 100 })],
                 });
 
                 useDonationsStore.setState((state) => ({
                     donationRecords: state.donationRecords.map((r) =>
-                        r.id === 'd1' ? { ...r, amount: 200 } : r
+                        r.id === 'd1' ? { ...r, weightLbs: 200 } : r
                     ),
                 }));
 
                 const { donationRecords } = useDonationsStore.getState();
-                expect(donationRecords[0].amount).toBe(200);
+                expect(donationRecords[0].weightLbs).toBe(200);
             });
         });
 
@@ -147,74 +135,72 @@ describe('useDonationsStore', () => {
 
             it('filters by donor name', () => {
                 const records = [
-                    createMockDonation({ id: 'd1', donorName: 'John Smith' }),
-                    createMockDonation({ id: 'd2', donorName: 'Jane Doe' }),
-                    createMockDonation({ id: 'd3', donorName: 'John Smith' }),
+                    createMockDonation({ id: 'd1', donor: 'John Smith' }),
+                    createMockDonation({ id: 'd2', donor: 'Jane Doe' }),
+                    createMockDonation({ id: 'd3', donor: 'John Smith' }),
                 ];
 
                 useDonationsStore.setState({ donationRecords: records });
 
                 const { donationRecords } = useDonationsStore.getState();
-                const johnDonations = donationRecords.filter((r) => r.donorName === 'John Smith');
+                const johnDonations = donationRecords.filter((r) => r.donor === 'John Smith');
                 expect(johnDonations.length).toBe(2);
             });
         });
 
         describe('donation types', () => {
-            it('tracks monetary donations', () => {
-                const record = createMockDonation({ type: 'monetary', amount: 500 });
+            it('tracks protein donations', () => {
+                const record = createMockDonation({ type: 'Protein', weightLbs: 50 });
                 useDonationsStore.setState({ donationRecords: [record] });
 
                 const { donationRecords } = useDonationsStore.getState();
-                expect(donationRecords[0].type).toBe('monetary');
-                expect(donationRecords[0].amount).toBe(500);
+                expect(donationRecords[0].type).toBe('Protein');
+                expect(donationRecords[0].weightLbs).toBe(50);
             });
 
-            it('tracks in-kind donations', () => {
-                const record = createMockDonation({ type: 'in-kind', description: 'Food items' });
+            it('tracks carb donations', () => {
+                const record = createMockDonation({ type: 'Carbs', itemName: 'Rice' });
                 useDonationsStore.setState({ donationRecords: [record] });
 
                 const { donationRecords } = useDonationsStore.getState();
-                expect(donationRecords[0].type).toBe('in-kind');
+                expect(donationRecords[0].type).toBe('Carbs');
             });
 
-            it('tracks volunteer hours', () => {
-                const record = createMockDonation({ type: 'volunteer', amount: 8 });
+            it('tracks vegetable donations', () => {
+                const record = createMockDonation({ type: 'Vegetables', weightLbs: 30 });
                 useDonationsStore.setState({ donationRecords: [record] });
 
                 const { donationRecords } = useDonationsStore.getState();
-                expect(donationRecords[0].type).toBe('volunteer');
+                expect(donationRecords[0].type).toBe('Vegetables');
             });
         });
 
         describe('aggregate calculations', () => {
-            it('calculates total monetary donations', () => {
+            it('calculates total weight', () => {
                 const records = [
-                    createMockDonation({ id: 'd1', type: 'monetary', amount: 100 }),
-                    createMockDonation({ id: 'd2', type: 'monetary', amount: 250 }),
-                    createMockDonation({ id: 'd3', type: 'monetary', amount: 50 }),
+                    createMockDonation({ id: 'd1', type: 'Protein', weightLbs: 100 }),
+                    createMockDonation({ id: 'd2', type: 'Carbs', weightLbs: 250 }),
+                    createMockDonation({ id: 'd3', type: 'Vegetables', weightLbs: 50 }),
                 ];
 
                 useDonationsStore.setState({ donationRecords: records });
 
                 const { donationRecords } = useDonationsStore.getState();
-                const total = donationRecords
-                    .filter((r) => r.type === 'monetary')
-                    .reduce((sum, r) => sum + (r.amount || 0), 0);
-                expect(total).toBe(400);
+                const totalWeight = donationRecords.reduce((sum, r) => sum + (r.weightLbs || 0), 0);
+                expect(totalWeight).toBe(400);
             });
 
             it('counts unique donors', () => {
                 const records = [
-                    createMockDonation({ id: 'd1', donorName: 'John Smith' }),
-                    createMockDonation({ id: 'd2', donorName: 'Jane Doe' }),
-                    createMockDonation({ id: 'd3', donorName: 'John Smith' }),
+                    createMockDonation({ id: 'd1', donor: 'John Smith' }),
+                    createMockDonation({ id: 'd2', donor: 'Jane Doe' }),
+                    createMockDonation({ id: 'd3', donor: 'John Smith' }),
                 ];
 
                 useDonationsStore.setState({ donationRecords: records });
 
                 const { donationRecords } = useDonationsStore.getState();
-                const uniqueDonors = new Set(donationRecords.map((r) => r.donorName));
+                const uniqueDonors = new Set(donationRecords.map((r) => r.donor));
                 expect(uniqueDonors.size).toBe(2);
             });
 
@@ -232,99 +218,6 @@ describe('useDonationsStore', () => {
                     r.date.startsWith('2025-01')
                 );
                 expect(janDonations.length).toBe(2);
-            });
-        });
-    });
-
-    describe('La Plaza records', () => {
-        describe('state management', () => {
-            it('can add a La Plaza record', () => {
-                const record = createMockLaPlazaDonation();
-                useDonationsStore.setState({ laPlazaRecords: [record] });
-
-                const { laPlazaRecords } = useDonationsStore.getState();
-                expect(laPlazaRecords.length).toBe(1);
-            });
-
-            it('can add multiple La Plaza records', () => {
-                const records = [
-                    createMockLaPlazaDonation({ id: 'lp1' }),
-                    createMockLaPlazaDonation({ id: 'lp2' }),
-                ];
-
-                useDonationsStore.setState({ laPlazaRecords: records });
-
-                const { laPlazaRecords } = useDonationsStore.getState();
-                expect(laPlazaRecords.length).toBe(2);
-            });
-
-            it('can remove a La Plaza record', () => {
-                useDonationsStore.setState({
-                    laPlazaRecords: [
-                        createMockLaPlazaDonation({ id: 'lp1' }),
-                        createMockLaPlazaDonation({ id: 'lp2' }),
-                    ],
-                });
-
-                useDonationsStore.setState((state) => ({
-                    laPlazaRecords: state.laPlazaRecords.filter((r) => r.id !== 'lp1'),
-                }));
-
-                const { laPlazaRecords } = useDonationsStore.getState();
-                expect(laPlazaRecords.length).toBe(1);
-            });
-        });
-
-        describe('filtering', () => {
-            it('filters by item type', () => {
-                const records = [
-                    createMockLaPlazaDonation({ id: 'lp1', itemType: 'clothing' }),
-                    createMockLaPlazaDonation({ id: 'lp2', itemType: 'food' }),
-                    createMockLaPlazaDonation({ id: 'lp3', itemType: 'clothing' }),
-                ];
-
-                useDonationsStore.setState({ laPlazaRecords: records });
-
-                const { laPlazaRecords } = useDonationsStore.getState();
-                const clothingItems = laPlazaRecords.filter((r) => r.itemType === 'clothing');
-                expect(clothingItems.length).toBe(2);
-            });
-
-            it('filters by date', () => {
-                const records = [
-                    createMockLaPlazaDonation({ id: 'lp1', date: '2025-01-06' }),
-                    createMockLaPlazaDonation({ id: 'lp2', date: '2025-01-05' }),
-                ];
-
-                useDonationsStore.setState({ laPlazaRecords: records });
-
-                const { laPlazaRecords } = useDonationsStore.getState();
-                const todayItems = laPlazaRecords.filter((r) => r.date === '2025-01-06');
-                expect(todayItems.length).toBe(1);
-            });
-        });
-
-        describe('quantity tracking', () => {
-            it('tracks item quantities', () => {
-                const record = createMockLaPlazaDonation({ quantity: 25 });
-                useDonationsStore.setState({ laPlazaRecords: [record] });
-
-                const { laPlazaRecords } = useDonationsStore.getState();
-                expect(laPlazaRecords[0].quantity).toBe(25);
-            });
-
-            it('calculates total items distributed', () => {
-                const records = [
-                    createMockLaPlazaDonation({ id: 'lp1', quantity: 10 }),
-                    createMockLaPlazaDonation({ id: 'lp2', quantity: 20 }),
-                    createMockLaPlazaDonation({ id: 'lp3', quantity: 15 }),
-                ];
-
-                useDonationsStore.setState({ laPlazaRecords: records });
-
-                const { laPlazaRecords } = useDonationsStore.getState();
-                const total = laPlazaRecords.reduce((sum, r) => sum + r.quantity, 0);
-                expect(total).toBe(45);
             });
         });
     });
@@ -365,36 +258,36 @@ describe('useDonationsStore', () => {
     });
 
     describe('edge cases', () => {
-        it('handles zero amounts', () => {
-            const record = createMockDonation({ amount: 0 });
+        it('handles zero weights', () => {
+            const record = createMockDonation({ weightLbs: 0 });
             useDonationsStore.setState({ donationRecords: [record] });
 
             const { donationRecords } = useDonationsStore.getState();
-            expect(donationRecords[0].amount).toBe(0);
+            expect(donationRecords[0].weightLbs).toBe(0);
         });
 
         it('handles empty donor names', () => {
-            const record = createMockDonation({ donorName: '' });
+            const record = createMockDonation({ donor: '' });
             useDonationsStore.setState({ donationRecords: [record] });
 
             const { donationRecords } = useDonationsStore.getState();
-            expect(donationRecords[0].donorName).toBe('');
+            expect(donationRecords[0].donor).toBe('');
         });
 
         it('handles null descriptions', () => {
-            const record = createMockDonation({ description: null as any });
+            const record = createMockDonation({ temperature: null as any });
             useDonationsStore.setState({ donationRecords: [record] });
 
             const { donationRecords } = useDonationsStore.getState();
-            expect(donationRecords[0].description).toBeNull();
+            expect(donationRecords[0].temperature).toBeNull();
         });
 
         it('handles very large amounts', () => {
-            const record = createMockDonation({ amount: 999999999 });
+            const record = createMockDonation({ weightLbs: 999999999 });
             useDonationsStore.setState({ donationRecords: [record] });
 
             const { donationRecords } = useDonationsStore.getState();
-            expect(donationRecords[0].amount).toBe(999999999);
+            expect(donationRecords[0].weightLbs).toBe(999999999);
         });
 
         it('handles future dates', () => {
@@ -409,14 +302,14 @@ describe('useDonationsStore', () => {
     describe('async actions', () => {
         beforeEach(() => {
             vi.clearAllMocks();
-            useDonationsStore.setState({ donationRecords: [], laPlazaRecords: [] });
+            useDonationsStore.setState({ donationRecords: [] });
         });
 
         describe('addDonation', () => {
             it('adds a donation successfully', async () => {
                 const { addDonation } = useDonationsStore.getState();
                 const result = await addDonation({
-                    donation_type: 'food',
+                    donation_type: 'Protein',
                     item_name: 'Test Item',
                     trays: 5,
                     weight_lbs: 10,
@@ -456,46 +349,6 @@ describe('useDonationsStore', () => {
             });
         });
 
-        describe('addLaPlazaDonation', () => {
-            it('adds a La Plaza donation successfully', async () => {
-                const { addLaPlazaDonation } = useDonationsStore.getState();
-                const result = await addLaPlazaDonation({
-                    category: 'produce',
-                    weight_lbs: 25,
-                    notes: 'Fresh vegetables',
-                });
-
-                expect(result).toBeDefined();
-                expect(useDonationsStore.getState().laPlazaRecords.length).toBe(1);
-            });
-        });
-
-        describe('updateLaPlazaDonation', () => {
-            it('updates a La Plaza donation successfully', async () => {
-                useDonationsStore.setState({
-                    laPlazaRecords: [{ id: 'lp1', category: 'produce', weightLbs: 25, notes: 'Old notes' }],
-                });
-
-                const { updateLaPlazaDonation } = useDonationsStore.getState();
-                const result = await updateLaPlazaDonation('lp1', { category: 'dairy', weight_lbs: 30, notes: 'Updated notes' });
-
-                expect(result).toBeDefined();
-            });
-        });
-
-        describe('deleteLaPlazaDonation', () => {
-            it('deletes a La Plaza donation successfully', async () => {
-                useDonationsStore.setState({
-                    laPlazaRecords: [{ id: 'lp1', category: 'produce', weightLbs: 25 }],
-                });
-
-                const { deleteLaPlazaDonation } = useDonationsStore.getState();
-                await deleteLaPlazaDonation('lp1');
-
-                expect(useDonationsStore.getState().laPlazaRecords.length).toBe(0);
-            });
-        });
-
         describe('loadFromSupabase', () => {
             it('loads donations from Supabase', async () => {
                 const { loadFromSupabase } = useDonationsStore.getState();
@@ -504,7 +357,6 @@ describe('useDonationsStore', () => {
                 // Should not throw and state should be set
                 const state = useDonationsStore.getState();
                 expect(Array.isArray(state.donationRecords)).toBe(true);
-                expect(Array.isArray(state.laPlazaRecords)).toBe(true);
             });
         });
 
@@ -512,15 +364,15 @@ describe('useDonationsStore', () => {
             it('sorts donations by most recent first', () => {
                 useDonationsStore.setState({
                     donationRecords: [
-                        { id: 'd1', donorName: 'A', type: 'food', amount: 10, description: '', date: '2025-01-05', createdAt: '2025-01-05T08:00:00Z', donated_at: '2025-01-05T08:00:00Z' },
-                        { id: 'd2', donorName: 'B', type: 'food', amount: 20, description: '', date: '2025-01-06', createdAt: '2025-01-06T08:00:00Z', donated_at: '2025-01-06T08:00:00Z' },
-                    ],
+                        { id: 'd1', donor: 'A', type: 'Protein', itemName: 'Chicken', trays: 1, weightLbs: 10, servings: 10, date: '2025-01-05', createdAt: '2025-01-05T08:00:00Z', donatedAt: '2025-01-05T08:00:00Z', donated_at: '2025-01-05T08:00:00Z' },
+                        { id: 'd2', donor: 'B', type: 'Carbs', itemName: 'Rice', trays: 2, weightLbs: 20, servings: 20, date: '2025-01-06', createdAt: '2025-01-06T08:00:00Z', donatedAt: '2025-01-06T08:00:00Z', donated_at: '2025-01-06T08:00:00Z' },
+                    ] as any,
                 });
 
                 const { getRecentDonations } = useDonationsStore.getState();
                 const recent = getRecentDonations(2);
 
-                expect(recent[0].donorName).toBe('B');
+                expect(recent[0].donor).toBe('B');
             });
         });
     });

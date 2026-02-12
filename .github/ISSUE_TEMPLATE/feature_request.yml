@@ -61,6 +61,7 @@ body:
         - ✅ Read relevant existing code and follow current patterns
         - ✅ Implement complete logic (no placeholders)
         - ✅ Add/update tests for all new logic and UI changes
+        - ✅ Run Playwright component tests: `npm run test:ct`
         - ✅ Run lint: `npm run lint`
         - ✅ Run full tests: `npm test -- --run`
         - ✅ Run production build: `npm run build`

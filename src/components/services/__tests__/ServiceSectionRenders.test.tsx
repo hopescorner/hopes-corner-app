@@ -103,6 +103,6 @@ describe('Service Section Rendering', () => {
 
     it('DonationsSection renders correctly', () => {
         render(<DonationsSection />);
-        expect(screen.getByText(/General Donations/i)).toBeDefined();
+        expect(screen.getByRole('heading', { name: /Donations/i })).toBeDefined();
     });
 });

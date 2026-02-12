@@ -120,16 +120,6 @@ interface DonationRow {
   created_at?: string;
 }
 
-interface LaPlazaDonationRow {
-  id: string;
-  category: string;
-  weight_lbs?: number | string | null;
-  notes?: string | null;
-  received_at: string;
-  date_key?: string;
-  created_at?: string;
-}
-
 interface GuestProxyRow {
   id: string;
   guest_id: string;
@@ -458,18 +448,6 @@ export const mapDonationRow = (row: DonationRow) => {
     temperature: row.temperature || undefined,
     donor: row.donor || "",
     date: row.donated_at,
-    dateKey: row.date_key,
-    createdAt: row.created_at,
-  };
-};
-
-export const mapLaPlazaDonationRow = (row: LaPlazaDonationRow) => {
-  return {
-    id: row.id,
-    category: row.category,
-    weightLbs: Number(row.weight_lbs) || 0,
-    notes: row.notes || "",
-    receivedAt: row.received_at,
     dateKey: row.date_key,
     createdAt: row.created_at,
   };

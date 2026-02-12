@@ -12,23 +12,17 @@ const todayKey = new Intl.DateTimeFormat('en-CA', {
 const todayISO = `${todayKey}T12:00:00.000Z`;
 
 test.describe('DonationsSection', () => {
-  test('renders General Donations header by default', async ({ mount }) => {
+  test('renders Donations header by default', async ({ mount }) => {
     const component = await mount(<DonationsSectionStory />);
-    await expect(component.getByText('General Donations')).toBeVisible();
+    await expect(component.getByRole('heading', { name: 'Donations' })).toBeVisible();
     await expect(component.getByText('Track trays and prepared food')).toBeVisible();
   });
 
-  test('shows General and La Plaza tab buttons', async ({ mount }) => {
+  test('does not render legacy General/La Plaza tabs', async ({ mount }) => {
     const component = await mount(<DonationsSectionStory />);
-    await expect(component.getByRole('button', { name: 'General' })).toBeVisible();
-    await expect(component.getByRole('button', { name: 'La Plaza' })).toBeVisible();
-  });
-
-  test('switches to La Plaza view when tab is clicked', async ({ mount }) => {
-    const component = await mount(<DonationsSectionStory />);
-    await component.getByRole('button', { name: 'La Plaza' }).click();
-    await expect(component.getByText('La Plaza Donations')).toBeVisible();
-    await expect(component.getByText('Track raw ingredients and grocery items')).toBeVisible();
+    await expect(component.getByRole('button', { name: 'General' })).toHaveCount(0);
+    await expect(component.getByRole('button', { name: 'La Plaza' })).toHaveCount(0);
+    await expect(component.getByText('La Plaza Donations')).toHaveCount(0);
   });
 
   test('shows empty state when no records', async ({ mount }) => {
@@ -48,14 +42,13 @@ test.describe('DonationsSection', () => {
     await expect(component.getByText('Donor / Source')).toBeVisible();
   });
 
-  test('shows La Plaza form fields when La Plaza tab is active', async ({ mount }) => {
+  test('shows core donation form fields for single-mode flow', async ({ mount }) => {
     const component = await mount(<DonationsSectionStory />);
-    await component.getByRole('button', { name: 'La Plaza' }).click();
-    await expect(component.getByText('Category')).toBeVisible();
-    await expect(component.getByText('Notes')).toBeVisible();
-    // La Plaza category dropdown should have its options
-    const categorySelect = component.locator('select').first();
-    await expect(categorySelect).toBeVisible();
+    await expect(component.getByText('Type', { exact: true })).toBeVisible();
+    await expect(component.getByText('Item Name')).toBeVisible();
+    await expect(component.getByText('Donor / Source')).toBeVisible();
+    const typeSelect = component.locator('select').first();
+    await expect(typeSelect).toBeVisible();
   });
 
   test('donation type dropdown has all options', async ({ mount }) => {
@@ -130,26 +123,6 @@ test.describe('DonationsSection', () => {
       />
     );
     await expect(component.getByText('Copy Summary')).toBeVisible();
-  });
-
-  test('La Plaza records display category and weight', async ({ mount }) => {
-    const component = await mount(
-      <DonationsSectionStory
-        laPlazaRecords={[
-          {
-            id: 'lp1', category: 'Produce', weightLbs: 25,
-            notes: 'Fresh vegetables', dateKey: todayKey, createdAt: todayISO,
-          },
-        ]}
-      />
-    );
-    // Switch to La Plaza view
-    await component.getByRole('button', { name: 'La Plaza' }).click();
-    // The category "Produce" appears both as a badge span and as an <option> in the dropdown.
-    // Target the span element specifically to avoid the <option> match.
-    await expect(component.locator('span:text-is("Produce")').first()).toBeVisible();
-    await expect(component.getByText('Fresh vegetables')).toBeVisible();
-    await expect(component.getByText('25 lbs')).toBeVisible();
   });
 
   test('Save Record button is present in general form', async ({ mount }) => {

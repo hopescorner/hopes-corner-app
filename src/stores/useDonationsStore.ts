@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { persist, devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { createClient } from '@/lib/supabase/client';
-import { mapDonationRow, mapLaPlazaDonationRow } from '@/lib/utils/mappers';
-import { Donation, LaPlazaDonation } from '@/types/database';
+import { mapDonationRow } from '@/lib/utils/mappers';
+import { Donation } from '@/types/database';
 
 export interface DonationRecord {
     id: string;
@@ -22,29 +22,13 @@ export interface DonationRecord {
     [key: string]: any;
 }
 
-interface LaPlazaRecord {
-    id: string;
-    category: string;
-    weightLbs: number;
-    notes?: string;
-    receivedAt?: string;
-    dateKey?: string;
-    createdAt?: string;
-    [key: string]: any;
-}
-
 interface DonationsState {
     donationRecords: DonationRecord[];
-    laPlazaRecords: LaPlazaRecord[];
 
     // Actions
     addDonation: (donation: Partial<Donation>) => Promise<DonationRecord>;
     updateDonation: (id: string, updates: Partial<Donation>) => Promise<DonationRecord>;
     deleteDonation: (id: string) => Promise<void>;
-
-    addLaPlazaDonation: (donation: Partial<LaPlazaDonation>) => Promise<LaPlazaRecord>;
-    updateLaPlazaDonation: (id: string, updates: Partial<LaPlazaDonation>) => Promise<LaPlazaRecord>;
-    deleteLaPlazaDonation: (id: string) => Promise<void>;
 
     loadFromSupabase: () => Promise<void>;
     getRecentDonations: (limit?: number) => DonationRecord[];
@@ -56,7 +40,6 @@ export const useDonationsStore = create<DonationsState>()(
             persist(
                 immer((set, get) => ({
                     donationRecords: [],
-                    laPlazaRecords: [],
 
                     addDonation: async (donation) => {
                         const supabase = createClient();
@@ -123,63 +106,6 @@ export const useDonationsStore = create<DonationsState>()(
                         });
                     },
 
-                    addLaPlazaDonation: async (donation) => {
-                        const supabase = createClient();
-                        const { data, error } = await supabase
-                            .from('la_plaza_donations')
-                            .insert({
-                                category: donation.category,
-                                weight_lbs: donation.weight_lbs,
-                                notes: donation.notes,
-                                received_at: donation.received_at || new Date().toISOString(),
-                                date_key: donation.date_key,
-                            })
-                            .select()
-                            .single();
-
-                        if (error) throw error;
-                        const mapped = mapLaPlazaDonationRow(data);
-                        set((state) => {
-                            state.laPlazaRecords.push(mapped);
-                        });
-                        return mapped;
-                    },
-
-                    updateLaPlazaDonation: async (id, updates) => {
-                        const supabase = createClient();
-                        const payload: any = {};
-                        if (updates.category) payload.category = updates.category;
-                        if (typeof updates.weight_lbs === 'number') payload.weight_lbs = updates.weight_lbs;
-                        if (typeof updates.notes !== 'undefined') payload.notes = updates.notes;
-                        if (updates.received_at) payload.received_at = updates.received_at;
-
-                        const { data, error } = await supabase
-                            .from('la_plaza_donations')
-                            .update(payload)
-                            .eq('id', id)
-                            .select()
-                            .single();
-
-                        if (error) throw error;
-                        const mapped = mapLaPlazaDonationRow(data);
-                        set((state) => {
-                            const index = state.laPlazaRecords.findIndex(r => r.id === id);
-                            if (index !== -1) {
-                                state.laPlazaRecords[index] = mapped;
-                            }
-                        });
-                        return mapped;
-                    },
-
-                    deleteLaPlazaDonation: async (id) => {
-                        const supabase = createClient();
-                        const { error } = await supabase.from('la_plaza_donations').delete().eq('id', id);
-                        if (error) throw error;
-                        set((state) => {
-                            state.laPlazaRecords = state.laPlazaRecords.filter(r => r.id !== id);
-                        });
-                    },
-
                     loadFromSupabase: async () => {
                         const supabase = createClient();
                         const { data: donations } = await supabase
@@ -188,15 +114,8 @@ export const useDonationsStore = create<DonationsState>()(
                             .order('donated_at', { ascending: false })
                             .limit(2000); // Reasonable limit for recent history
 
-                        const { data: laPlaza } = await supabase
-                            .from('la_plaza_donations')
-                            .select('*')
-                            .order('received_at', { ascending: false })
-                            .limit(2000);
-
                         set((state) => {
                             if (donations) state.donationRecords = donations.map(mapDonationRow);
-                            if (laPlaza) state.laPlazaRecords = laPlaza.map(mapLaPlazaDonationRow);
                         });
                     },
 
