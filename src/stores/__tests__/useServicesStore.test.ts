@@ -66,10 +66,13 @@ const createMockBicycleRecord = (overrides = {}) => ({
     id: 'bicycle-1',
     guestId: 'guest-1',
     date: '2025-01-06',
-    serviceType: 'repair',
-    description: 'Flat tire fix',
-    isNewBicycle: false,
+    type: 'bicycle',
+    repairType: 'Flat Tire',
+    repairTypes: ['Flat Tire'],
+    completedRepairs: [],
+    notes: 'Flat tire fix',
     status: 'pending',
+    priority: 0,
     createdAt: '2025-01-06T08:00:00Z',
     ...overrides,
 });
@@ -1116,6 +1119,129 @@ describe('useServicesStore', () => {
                 await useServicesStore.getState().loadFromSupabase();
                 expect(useServicesStore.getState().showerRecords).toEqual([]);
             });
+        });
+    });
+
+    describe('hasReceivedNewBicycleInLastSixMonths', () => {
+        it('returns true when guest received new bicycle within last 6 months', () => {
+            const today = new Date();
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(today.getMonth() - 3);
+
+            useServicesStore.setState({
+                bicycleRecords: [
+                    createMockBicycleRecord({
+                        id: 'bicycle-1',
+                        guestId: 'guest-123',
+                        repairTypes: ['New Bicycle'],
+                        date: threeMonthsAgo.toISOString(),
+                    }),
+                ],
+            });
+
+            const result = useServicesStore.getState().hasReceivedNewBicycleInLastSixMonths('guest-123');
+            expect(result.hasReceived).toBe(true);
+            expect(result.lastBicycleDate).toBe(threeMonthsAgo.toISOString());
+        });
+
+        it('returns false when guest received new bicycle over 6 months ago', () => {
+            const today = new Date();
+            const sevenMonthsAgo = new Date();
+            sevenMonthsAgo.setMonth(today.getMonth() - 7);
+
+            useServicesStore.setState({
+                bicycleRecords: [
+                    createMockBicycleRecord({
+                        id: 'bicycle-1',
+                        guestId: 'guest-123',
+                        repairTypes: ['New Bicycle'],
+                        date: sevenMonthsAgo.toISOString(),
+                    }),
+                ],
+            });
+
+            const result = useServicesStore.getState().hasReceivedNewBicycleInLastSixMonths('guest-123');
+            expect(result.hasReceived).toBe(false);
+            expect(result.lastBicycleDate).toBeUndefined();
+        });
+
+        it('returns false when guest only has other repair types', () => {
+            const today = new Date();
+            const twoMonthsAgo = new Date();
+            twoMonthsAgo.setMonth(today.getMonth() - 2);
+
+            useServicesStore.setState({
+                bicycleRecords: [
+                    createMockBicycleRecord({
+                        id: 'bicycle-1',
+                        guestId: 'guest-123',
+                        repairTypes: ['Flat Tire', 'Brake Adjustment'],
+                        date: twoMonthsAgo.toISOString(),
+                    }),
+                ],
+            });
+
+            const result = useServicesStore.getState().hasReceivedNewBicycleInLastSixMonths('guest-123');
+            expect(result.hasReceived).toBe(false);
+            expect(result.lastBicycleDate).toBeUndefined();
+        });
+
+        it('returns false when guest has no bicycle records', () => {
+            useServicesStore.setState({ bicycleRecords: [] });
+
+            const result = useServicesStore.getState().hasReceivedNewBicycleInLastSixMonths('guest-123');
+            expect(result.hasReceived).toBe(false);
+            expect(result.lastBicycleDate).toBeUndefined();
+        });
+
+        it('returns the most recent new bicycle date when multiple exist', () => {
+            const today = new Date();
+            const twoMonthsAgo = new Date();
+            twoMonthsAgo.setMonth(today.getMonth() - 2);
+            const fourMonthsAgo = new Date();
+            fourMonthsAgo.setMonth(today.getMonth() - 4);
+
+            useServicesStore.setState({
+                bicycleRecords: [
+                    createMockBicycleRecord({
+                        id: 'bicycle-1',
+                        guestId: 'guest-123',
+                        repairTypes: ['New Bicycle'],
+                        date: fourMonthsAgo.toISOString(),
+                    }),
+                    createMockBicycleRecord({
+                        id: 'bicycle-2',
+                        guestId: 'guest-123',
+                        repairTypes: ['New Bicycle'],
+                        date: twoMonthsAgo.toISOString(),
+                    }),
+                ],
+            });
+
+            const result = useServicesStore.getState().hasReceivedNewBicycleInLastSixMonths('guest-123');
+            expect(result.hasReceived).toBe(true);
+            expect(result.lastBicycleDate).toBe(twoMonthsAgo.toISOString());
+        });
+
+        it('only checks records for the specified guest', () => {
+            const today = new Date();
+            const twoMonthsAgo = new Date();
+            twoMonthsAgo.setMonth(today.getMonth() - 2);
+
+            useServicesStore.setState({
+                bicycleRecords: [
+                    createMockBicycleRecord({
+                        id: 'bicycle-1',
+                        guestId: 'guest-456',
+                        repairTypes: ['New Bicycle'],
+                        date: twoMonthsAgo.toISOString(),
+                    }),
+                ],
+            });
+
+            const result = useServicesStore.getState().hasReceivedNewBicycleInLastSixMonths('guest-123');
+            expect(result.hasReceived).toBe(false);
+            expect(result.lastBicycleDate).toBeUndefined();
         });
     });
 });
