@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Clock } from 'lucide-react';
-import { getMealServiceStatus, MealServiceStatus } from '@/lib/utils/mealServiceTime';
+import { getMealServiceStatus, MealServiceStatus, isSundayBrunch } from '@/lib/utils/mealServiceTime';
 import { cn } from '@/lib/utils/cn';
 
 export function MealServiceTimer() {
@@ -28,6 +28,27 @@ export function MealServiceTimer() {
     if (!status || status.type === 'no-service') return null;
 
     const getStatusColor = () => {
+        // Sunday Brunch uses red color scheme
+        if (isSundayBrunch()) {
+            switch (status.type) {
+                case 'before-service':
+                    return 'text-red-600 bg-red-50 border-red-200';
+                case 'during-service':
+                    if ((status.timeRemaining || 0) <= 10) {
+                        return 'text-red-700 bg-red-100 border-red-300';
+                    }
+                    if ((status.timeRemaining || 0) <= 20) {
+                        return 'text-red-600 bg-red-50 border-red-200';
+                    }
+                    return 'text-red-600 bg-red-50 border-red-200';
+                case 'ended':
+                    return 'text-red-500 bg-red-50 border-red-200';
+                default:
+                    return 'text-red-500 bg-red-50 border-red-200';
+            }
+        }
+
+        // Default colors for other days
         switch (status.type) {
             case 'before-service':
                 return 'text-amber-600 bg-amber-50 border-amber-200';
@@ -55,6 +76,12 @@ export function MealServiceTimer() {
     };
 
     const getProgressBarColor = () => {
+        // Sunday Brunch uses red progress bar
+        if (isSundayBrunch()) {
+            return 'bg-red-400';
+        }
+
+        // Default colors for other days
         const remaining = status.timeRemaining || 0;
         if (remaining <= 10) return 'bg-red-400';
         if (remaining <= 20) return 'bg-orange-400';
