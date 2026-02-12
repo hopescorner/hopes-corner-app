@@ -21,6 +21,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
+import { useShallow } from 'zustand/react/shallow';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 
 // Threshold for disabling animations for better performance
 const LARGE_LIST_THRESHOLD = 20;
@@ -35,6 +37,7 @@ export default function CheckInPage() {
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: null, direction: 'asc' });
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [defaultLocation, setDefaultLocation] = useState('');
+    const [scrollMargin, setScrollMargin] = useState(0);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const guestCardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
     const listContainerRef = useRef<HTMLDivElement>(null);
@@ -43,11 +46,24 @@ export default function CheckInPage() {
     // Use deferred value for search to prevent UI jank during typing
     const deferredSearchQuery = useDeferredValue(searchQuery);
 
-    const { guests, loadFromSupabase: loadGuests, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase } = useGuestsStore();
-    const { loadFromSupabase: loadMeals } = useMealsStore();
-    const { loadFromSupabase: loadServices } = useServicesStore();
-    const { loadFromSupabase: loadReminders } = useRemindersStore();
-    const { loadFromSupabase: loadDailyNotes, subscribeToRealtime: subscribeDailyNotes } = useDailyNotesStore();
+    const guests = useGuestsStore((s) => s.guests);
+    const warnings = useGuestsStore((s) => s.warnings);
+    const guestProxies = useGuestsStore((s) => s.guestProxies);
+    const reminders = useRemindersStore((s) => s.reminders);
+
+    const { loadFromSupabase: loadGuests, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase } = useGuestsStore(
+        useShallow((s) => ({
+            loadFromSupabase: s.loadFromSupabase,
+            loadGuestWarningsFromSupabase: s.loadGuestWarningsFromSupabase,
+            loadGuestProxiesFromSupabase: s.loadGuestProxiesFromSupabase,
+        }))
+    );
+    const loadMeals = useMealsStore((s) => s.loadFromSupabase);
+    const loadServices = useServicesStore((s) => s.loadFromSupabase);
+    const loadReminders = useRemindersStore((s) => s.loadFromSupabase);
+    const { loadFromSupabase: loadDailyNotes, subscribeToRealtime: subscribeDailyNotes } = useDailyNotesStore(
+        useShallow((s) => ({ loadFromSupabase: s.loadFromSupabase, subscribeToRealtime: s.subscribeToRealtime }))
+    );
 
     // Precomputed status maps for efficient per-guest lookups
     const { mealStatus, serviceStatus, actionStatus, recentGuests } = useTodayStatusMaps();
@@ -120,6 +136,63 @@ export default function CheckInPage() {
 
     // Determine if we should use virtualization and disable animations
     const isLargeList = sortedGuests.length > LARGE_LIST_THRESHOLD;
+
+    const warningsCountMap = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const w of warnings || []) {
+            if (!w?.guestId || !w.active) continue;
+            map.set(w.guestId, (map.get(w.guestId) || 0) + 1);
+        }
+        return map;
+    }, [warnings]);
+
+    const linkedGuestsCountMap = useMemo(() => {
+        const sets = new Map<string, Set<string>>();
+        for (const p of guestProxies || []) {
+            if (!p?.guestId || !p?.proxyId) continue;
+            if (!sets.has(p.guestId)) sets.set(p.guestId, new Set());
+            if (!sets.has(p.proxyId)) sets.set(p.proxyId, new Set());
+            sets.get(p.guestId)!.add(p.proxyId);
+            sets.get(p.proxyId)!.add(p.guestId);
+        }
+        const counts = new Map<string, number>();
+        sets.forEach((set, id) => counts.set(id, set.size));
+        return counts;
+    }, [guestProxies]);
+
+    const activeRemindersCountMap = useMemo(() => {
+        const map = new Map<string, number>();
+        for (const r of reminders || []) {
+            if (!r?.guestId || r.dismissedAt) continue;
+            map.set(r.guestId, (map.get(r.guestId) || 0) + 1);
+        }
+        return map;
+    }, [reminders]);
+
+    useEffect(() => {
+        if (!isLargeList) return;
+        const el = listContainerRef.current;
+        if (!el) return;
+        setScrollMargin(el.getBoundingClientRect().top + window.scrollY);
+    }, [isLargeList, sortedGuests.length]);
+
+    const rowVirtualizer = useWindowVirtualizer({
+        count: sortedGuests.length,
+        estimateSize: () => 190,
+        overscan: 10,
+        scrollMargin,
+    });
+
+    useEffect(() => {
+        if (!isLargeList) return;
+        if (selectedIndex < 0 || selectedIndex >= sortedGuests.length) return;
+
+        rowVirtualizer.scrollToIndex(selectedIndex, { align: 'auto' });
+        requestAnimationFrame(() => {
+            const guest = sortedGuests[selectedIndex];
+            if (guest?.id) guestCardRefs.current[guest.id]?.focus();
+        });
+    }, [isLargeList, selectedIndex, sortedGuests, rowVirtualizer]);
 
     // Fuzzy suggestions for when there are no matches (use deferred value)
     const fuzzySuggestions = useMemo(() => {
@@ -450,30 +523,57 @@ export default function CheckInPage() {
                         {/* Guest Cards - Animations disabled for large lists */}
                         <div ref={listContainerRef} className="space-y-4">
                             {isLargeList ? (
-                                // Non-animated list for large result sets (better performance)
-                                <div className="grid grid-cols-1 gap-4">
-                                    {sortedGuests.filter((g: Guest) => g && g.id).map((guest: Guest, index: number) => (
-                                        <div
-                                            key={guest.id}
-                                            className={cn(
-                                                'outline-none',
-                                                selectedIndex === index ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-2xl' : ''
-                                            )}
-                                            tabIndex={-1}
-                                            ref={(el) => { guestCardRefs.current[guest.id] = el; }}
-                                        >
-                                            <GuestCard
-                                                guest={guest}
-                                                onClearSearch={handleClearSearch}
-                                                isSelected={selectedIndex === index}
-                                                mealStatusMap={mealStatus}
-                                                serviceStatusMap={serviceStatus}
-                                                actionStatusMap={actionStatus}
-                                                recentGuestsMap={recentGuests}
-                                                disableLayoutAnimation={true}
-                                            />
-                                        </div>
-                                    ))}
+                                // Virtualized, non-animated list for large result sets (only visible cards mount)
+                                <div
+                                    style={{
+                                        height: rowVirtualizer.getTotalSize(),
+                                        width: '100%',
+                                        position: 'relative',
+                                    }}
+                                >
+                                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                                        const guest = sortedGuests[virtualRow.index];
+                                        if (!guest?.id) return null;
+
+                                        return (
+                                            <div
+                                                key={guest.id}
+                                                data-index={virtualRow.index}
+                                                className={cn(
+                                                    'outline-none',
+                                                    selectedIndex === virtualRow.index ? 'ring-2 ring-emerald-500 ring-offset-2 rounded-2xl' : ''
+                                                )}
+                                                tabIndex={-1}
+                                                style={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    width: '100%',
+                                                    transform: `translateY(${virtualRow.start - scrollMargin}px)`,
+                                                }}
+                                                ref={(el) => {
+                                                    // Keep both: measurement and focus ref
+                                                    if (el) rowVirtualizer.measureElement(el);
+                                                    guestCardRefs.current[guest.id] = el;
+                                                }}
+                                            >
+                                                <GuestCard
+                                                    guest={guest}
+                                                    onClearSearch={handleClearSearch}
+                                                    isSelected={selectedIndex === virtualRow.index}
+                                                    mealStatusMap={mealStatus}
+                                                    serviceStatusMap={serviceStatus}
+                                                    actionStatusMap={actionStatus}
+                                                    recentGuestsMap={recentGuests}
+                                                    warningsCount={warningsCountMap.get(guest.id) || 0}
+                                                    linkedGuestsCount={linkedGuestsCountMap.get(guest.id) || 0}
+                                                    activeRemindersCount={activeRemindersCountMap.get(guest.id) || 0}
+                                                    disableLayoutAnimation={true}
+                                                    onExpandedChange={(_guestId, _expanded) => rowVirtualizer.measure()}
+                                                />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 // Animated list for small result sets
@@ -501,6 +601,9 @@ export default function CheckInPage() {
                                                     serviceStatusMap={serviceStatus}
                                                     actionStatusMap={actionStatus}
                                                     recentGuestsMap={recentGuests}
+                                                    warningsCount={warningsCountMap.get(guest.id) || 0}
+                                                    linkedGuestsCount={linkedGuestsCountMap.get(guest.id) || 0}
+                                                    activeRemindersCount={activeRemindersCountMap.get(guest.id) || 0}
                                                 />
                                             </motion.div>
                                         ))}

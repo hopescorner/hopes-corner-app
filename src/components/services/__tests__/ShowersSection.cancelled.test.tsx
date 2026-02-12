@@ -43,19 +43,23 @@ const defaultGuests = [
 
 // Mock stores with shower data
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: vi.fn(() => ({
-        showerRecords: defaultShowerRecords,
-        cancelMultipleShowers: mockCancelMultipleShowers,
-        loadFromSupabase: mockLoadFromSupabase,
-        deleteShowerRecord: vi.fn(),
-        updateShowerStatus: mockUpdateShowerStatus,
-    })),
+    useServicesStore: vi.fn((selector) => {
+        const state = {
+            showerRecords: defaultShowerRecords,
+            cancelMultipleShowers: mockCancelMultipleShowers,
+            loadFromSupabase: mockLoadFromSupabase,
+            deleteShowerRecord: vi.fn(),
+            updateShowerStatus: mockUpdateShowerStatus,
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useGuestsStore', () => ({
-    useGuestsStore: vi.fn(() => ({
-        guests: defaultGuests,
-    })),
+    useGuestsStore: vi.fn((selector) => {
+        const state = { guests: defaultGuests };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useBlockedSlotsStore', () => ({
@@ -212,15 +216,18 @@ describe('ShowersSection Cancelled Tab', () => {
     it('displays empty state when no cancelled showers exist', async () => {
         // Override the mock to have no cancelled showers
         const { useServicesStore } = await import('@/stores/useServicesStore');
-        vi.mocked(useServicesStore).mockReturnValue({
-            showerRecords: [
-                { id: '1', guestId: 'g1', date: '2026-01-22', time: '09:00', status: 'booked' },
-            ],
-            cancelMultipleShowers: mockCancelMultipleShowers,
-            loadFromSupabase: mockLoadFromSupabase,
-            deleteShowerRecord: vi.fn(),
-            updateShowerStatus: mockUpdateShowerStatus,
-        } as any);
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = {
+                showerRecords: [
+                    { id: '1', guestId: 'g1', date: '2026-01-22', time: '09:00', status: 'booked' },
+                ],
+                cancelMultipleShowers: mockCancelMultipleShowers,
+                loadFromSupabase: mockLoadFromSupabase,
+                deleteShowerRecord: vi.fn(),
+                updateShowerStatus: mockUpdateShowerStatus,
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
         
         render(<ShowersSection />);
         

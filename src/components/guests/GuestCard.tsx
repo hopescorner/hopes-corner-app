@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
@@ -56,6 +56,7 @@ import {
     defaultActionStatus
 } from '@/stores/selectors/todayStatusSelectors';
 import toast from 'react-hot-toast';
+import { useShallow } from 'zustand/react/shallow';
 
 interface GuestCardProps {
     guest: any;
@@ -71,9 +72,67 @@ interface GuestCardProps {
     recentGuestsMap?: RecentGuestsMap;
     // Disable layout animations for better performance in large lists
     disableLayoutAnimation?: boolean;
+
+    // Optional precomputed per-guest counts to avoid per-card store subscriptions
+    warningsCount?: number;
+    linkedGuestsCount?: number;
+    activeRemindersCount?: number;
+
+    // Optional expansion callback (useful for list virtualization measurement)
+    onExpandedChange?: (guestId: string, expanded: boolean) => void;
 }
 
-export function GuestCard({
+type PureGuestCardProps = GuestCardProps & {
+    mealRecords: any[];
+    extraMealRecords: any[];
+    showerRecords: any[];
+    laundryRecords: any[];
+    bicycleRecords: any[];
+    haircutRecords: any[];
+    holidayRecords: any[];
+
+    addMealRecord: (guestId: string, count?: number) => Promise<any>;
+    addExtraMealRecord: (guestId: string, count?: number) => Promise<any>;
+    addHaircutRecord: (guestId: string) => Promise<any>;
+    addHolidayRecord: (guestId: string) => Promise<any>;
+
+    setShowerPickerGuest: (guest: any) => void;
+    setLaundryPickerGuest: (guest: any) => void;
+    setBicyclePickerGuest: (guest: any) => void;
+
+    addAction: (type: any, data?: any) => void;
+    undoAction: (actionId: string) => Promise<any>;
+    getActionsForGuestToday: (guestId: string) => any[];
+};
+
+const EMPTY_ARRAY: any[] = [];
+
+function GuestWarningsPanel({ guestId }: { guestId: string }) {
+    const warnings = useGuestsStore((s) => s.warnings);
+
+    const activeWarnings = useMemo(
+        () => (warnings || []).filter((w: any) => w.guestId === guestId && w.active),
+        [warnings, guestId]
+    );
+
+    if (activeWarnings.length === 0) return null;
+
+    return (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Warnings</p>
+            <ul className="space-y-1">
+                {activeWarnings.map((warning: any) => (
+                    <li key={warning.id} className="text-sm text-amber-800 flex items-start gap-2">
+                        <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                        {warning.message}
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+function PureGuestCard({
     guest,
     isSelected = false,
     onSelect,
@@ -83,8 +142,29 @@ export function GuestCard({
     serviceStatusMap,
     actionStatusMap,
     recentGuestsMap,
-    disableLayoutAnimation = false
-}: GuestCardProps) {
+    disableLayoutAnimation = false,
+    warningsCount,
+    linkedGuestsCount,
+    activeRemindersCount,
+    onExpandedChange,
+    mealRecords,
+    extraMealRecords,
+    showerRecords,
+    laundryRecords,
+    bicycleRecords,
+    haircutRecords,
+    holidayRecords,
+    addMealRecord,
+    addExtraMealRecord,
+    addHaircutRecord,
+    addHolidayRecord,
+    setShowerPickerGuest,
+    setLaundryPickerGuest,
+    setBicyclePickerGuest,
+    addAction,
+    undoAction,
+    getActionsForGuestToday,
+}: PureGuestCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
@@ -94,26 +174,16 @@ export function GuestCard({
     const [showMobileSheet, setShowMobileSheet] = useState(false);
     const prefersReducedMotion = useReducedMotion();
 
-    const { mealRecords, addMealRecord, extraMealRecords, addExtraMealRecord } = useMealsStore();
-    const {
-        showerRecords,
-        laundryRecords,
-        bicycleRecords,
-        haircutRecords,
-        holidayRecords,
-        addHaircutRecord,
-        addHolidayRecord
-    } = useServicesStore();
-    const { getWarningsForGuest, getLinkedGuests } = useGuestsStore();
-    const { setShowerPickerGuest, setLaundryPickerGuest, setBicyclePickerGuest } = useModalStore();
-    const { addAction, undoAction, getActionsForGuestToday } = useActionHistoryStore();
-    const { getActiveRemindersForGuest } = useRemindersStore();
+    const warningBadgeCount = warningsCount ?? 0;
+    const linkedBadgeCount = linkedGuestsCount ?? 0;
+    const reminderBadgeCount = activeRemindersCount ?? 0;
 
     const today = todayPacificDateString();
 
     // Always compute local status (useMemo must be called unconditionally)
     // Then use precomputed map if provided
     const localMealStatus = useMemo(() => {
+        if (mealStatusMap) return defaultMealStatus;
         const todayRecord = mealRecords.find(
             (r) => r.guestId === guest.id && pacificDateStringFrom(r.date) === today
         );
@@ -132,6 +202,7 @@ export function GuestCard({
     }, [mealRecords, extraMealRecords, guest.id, today]);
 
     const localServiceStatus = useMemo(() => {
+        if (serviceStatusMap) return defaultServiceStatus;
         const shower = showerRecords.find(
             (r) => r.guestId === guest.id && pacificDateStringFrom(r.date) === today
         );
@@ -162,6 +233,7 @@ export function GuestCard({
     }, [showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, guest.id, today]);
 
     const localActionStatus = useMemo(() => {
+        if (actionStatusMap) return defaultActionStatus;
         const actions = getActionsForGuestToday(guest.id);
         return {
             mealActionId: actions.find(a => a.type === 'MEAL_ADDED' && pacificDateStringFrom(a.timestamp) === today)?.id,
@@ -206,10 +278,6 @@ export function GuestCard({
     const holidayAction = actionStatus.holidayActionId ? { id: actionStatus.holidayActionId } : undefined;
 
     const hasServiceToday = !!todayMeal || todayShower || todayLaundry || todayBicycle;
-
-    const warnings = getWarningsForGuest(guest.id);
-    const linkedGuests = getLinkedGuests(guest.id);
-    const activeReminders = getActiveRemindersForGuest(guest.id);
     const isBanned = guest.isBanned;
 
     // Check program-specific bans
@@ -276,6 +344,15 @@ export function GuestCard({
         }
     };
 
+    const toggleExpand = (e?: React.MouseEvent) => {
+        e?.stopPropagation();
+        if (compact) return;
+        const next = !isExpanded;
+        setIsExpanded(next);
+        onExpandedChange?.(guest.id, next);
+        if (onSelect) onSelect();
+    };
+
     const handleHaircutAdd = async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (isPending || isBanned) return; // Blanket ban check
@@ -323,12 +400,6 @@ export function GuestCard({
 
         toast.success(`${servicesSummary} ✓`);
         if (onClearSearch) onClearSearch();
-    };
-
-    const toggleExpand = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setIsExpanded(!isExpanded);
-        if (onSelect) onSelect();
     };
 
     // Conditionally wrap in motion.div for layout animation
@@ -384,25 +455,25 @@ export function GuestCard({
                                         </span>
                                     ) : null;
                                 })()}
-                                {warnings.length > 0 && (
+                                {warningBadgeCount > 0 && (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
                                         <AlertTriangle size={10} />
-                                        {warnings.length}
+                                        {warningBadgeCount}
                                     </span>
                                 )}
-                                {activeReminders.length > 0 && (
+                                {reminderBadgeCount > 0 && (
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
                                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200 text-[10px] font-bold hover:from-blue-100 hover:to-purple-100 transition-colors"
                                     >
                                         <Bell size={10} className="animate-pulse" />
-                                        {activeReminders.length}
+                                        {reminderBadgeCount}
                                     </button>
                                 )}
-                                {linkedGuests.length > 0 && (
+                                {linkedBadgeCount > 0 && (
                                     <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
                                         <Link2 size={10} />
-                                        {linkedGuests.length}
+                                        {linkedBadgeCount}
                                     </span>
                                 )}
                                 {isBanned && (
@@ -414,13 +485,7 @@ export function GuestCard({
                                 {/* Recent Badge (Active in last 7 days) - uses precomputed map for efficiency */}
                                 {(() => {
                                     // Use precomputed map if available, otherwise compute locally
-                                    const isRecent = recentGuestsMap 
-                                        ? recentGuestsMap.has(guest.id)
-                                        : (() => {
-                                            const sevenDaysAgo = new Date();
-                                            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                                            return mealRecords.some(r => r.guestId === guest.id && new Date(r.date) >= sevenDaysAgo);
-                                        })();
+                                    const isRecent = recentGuestsMap ? recentGuestsMap.has(guest.id) : false;
                                     
                                     // Don't show "Recent" badge if guest already has meal today (redundant info)
                                     if (isRecent && !mealStatus.hasMeal) {
@@ -774,20 +839,8 @@ export function GuestCard({
                             {/* Linked Guests Manager */}
                             <LinkedGuestsList guestId={guest.id} className="mb-4" />
 
-                            {/* Warnings */}
-                            {warnings.length > 0 && (
-                                <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
-                                    <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Warnings</p>
-                                    <ul className="space-y-1">
-                                        {warnings.map((warning: any) => (
-                                            <li key={warning.id} className="text-sm text-amber-800 flex items-start gap-2">
-                                                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                                                {warning.message}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
+                            {/* Warnings (store-driven, mounted only when expanded) */}
+                            <GuestWarningsPanel guestId={guest.id} />
 
                             {/* Actions */}
                             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
@@ -861,16 +914,16 @@ export function GuestCard({
                                     onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
                                     className={cn(
                                         "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors",
-                                        activeReminders.length > 0
+                                        reminderBadgeCount > 0
                                             ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
                                             : "text-blue-600 hover:bg-blue-50"
                                     )}
                                 >
                                     <Bell size={14} />
                                     Reminders
-                                    {activeReminders.length > 0 && (
+                                    {reminderBadgeCount > 0 && (
                                         <span className="ml-0.5 px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded-full text-[9px] font-black">
-                                            {activeReminders.length}
+                                            {reminderBadgeCount}
                                         </span>
                                     )}
                                 </button>
@@ -954,3 +1007,158 @@ export function GuestCard({
         </CardWrapper>
     );
 }
+
+function GuestCardImpl(props: GuestCardProps) {
+    const { mealStatusMap, serviceStatusMap, actionStatusMap, recentGuestsMap, guest } = props;
+
+    const needsMealRecords = !mealStatusMap || !recentGuestsMap;
+    const mealRecords = useMealsStore((s) => (needsMealRecords ? s.mealRecords : EMPTY_ARRAY));
+    const extraMealRecords = useMealsStore((s) => (!mealStatusMap ? s.extraMealRecords : EMPTY_ARRAY));
+
+    const needsServiceRecords = !serviceStatusMap;
+    const showerRecords = useServicesStore((s) => (needsServiceRecords ? s.showerRecords : EMPTY_ARRAY));
+    const laundryRecords = useServicesStore((s) => (needsServiceRecords ? s.laundryRecords : EMPTY_ARRAY));
+    const bicycleRecords = useServicesStore((s) => (needsServiceRecords ? (s.bicycleRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
+    const haircutRecords = useServicesStore((s) => (needsServiceRecords ? (s.haircutRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
+    const holidayRecords = useServicesStore((s) => (needsServiceRecords ? (s.holidayRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
+
+    const { addMealRecord, addExtraMealRecord } = useMealsStore(
+        useShallow((s) => ({ addMealRecord: s.addMealRecord, addExtraMealRecord: s.addExtraMealRecord }))
+    );
+    const { addHaircutRecord, addHolidayRecord } = useServicesStore(
+        useShallow((s) => ({ addHaircutRecord: s.addHaircutRecord, addHolidayRecord: s.addHolidayRecord }))
+    );
+    const { setShowerPickerGuest, setLaundryPickerGuest, setBicyclePickerGuest } = useModalStore(
+        useShallow((s) => ({
+            setShowerPickerGuest: s.setShowerPickerGuest,
+            setLaundryPickerGuest: s.setLaundryPickerGuest,
+            setBicyclePickerGuest: s.setBicyclePickerGuest,
+        }))
+    );
+    const { addAction, undoAction, getActionsForGuestToday } = useActionHistoryStore(
+        useShallow((s) => ({
+            addAction: s.addAction,
+            undoAction: s.undoAction,
+            getActionsForGuestToday: s.getActionsForGuestToday,
+        }))
+    );
+
+    const warningsCount = useGuestsStore((s) => {
+        if (props.warningsCount != null) return props.warningsCount;
+        return (s.warnings || []).filter((w: any) => w.guestId === guest.id && w.active).length;
+    });
+
+    const linkedGuestsCount = useGuestsStore((s) => {
+        if (props.linkedGuestsCount != null) return props.linkedGuestsCount;
+        const linkedIds = new Set<string>();
+        for (const p of s.guestProxies || []) {
+            if (p.guestId === guest.id) linkedIds.add(p.proxyId);
+            if (p.proxyId === guest.id) linkedIds.add(p.guestId);
+        }
+        return linkedIds.size;
+    });
+
+    const activeRemindersCount = useRemindersStore((s) => {
+        if (props.activeRemindersCount != null) return props.activeRemindersCount;
+        return (s.reminders || []).filter((r: any) => r.guestId === guest.id && !r.dismissedAt).length;
+    });
+
+    return (
+        <PureGuestCard
+            {...props}
+            mealRecords={mealRecords}
+            extraMealRecords={extraMealRecords}
+            showerRecords={showerRecords}
+            laundryRecords={laundryRecords}
+            bicycleRecords={bicycleRecords}
+            haircutRecords={haircutRecords}
+            holidayRecords={holidayRecords}
+            addMealRecord={addMealRecord}
+            addExtraMealRecord={addExtraMealRecord}
+            addHaircutRecord={addHaircutRecord}
+            addHolidayRecord={addHolidayRecord}
+            setShowerPickerGuest={setShowerPickerGuest}
+            setLaundryPickerGuest={setLaundryPickerGuest}
+            setBicyclePickerGuest={setBicyclePickerGuest}
+            addAction={addAction}
+            undoAction={undoAction}
+            getActionsForGuestToday={getActionsForGuestToday}
+            warningsCount={warningsCount}
+            linkedGuestsCount={linkedGuestsCount}
+            activeRemindersCount={activeRemindersCount}
+        />
+    );
+}
+
+const mealSnapshot = (props: GuestCardProps) => {
+    const id = props.guest?.id;
+    if (!id) return '';
+    const s = props.mealStatusMap?.get(id) || defaultMealStatus;
+    return `${s.hasMeal}-${s.mealCount}-${s.extraMealCount}-${s.totalMeals}`;
+};
+
+const serviceSnapshot = (props: GuestCardProps) => {
+    const id = props.guest?.id;
+    if (!id) return '';
+    const s = props.serviceStatusMap?.get(id) || defaultServiceStatus;
+    return [
+        s.hasShower,
+        s.hasLaundry,
+        s.hasBicycle,
+        s.hasHaircut,
+        s.hasHoliday,
+        s.showerRecord?.id || '',
+        s.laundryRecord?.id || '',
+        s.bicycleRecord?.id || '',
+    ].join('|');
+};
+
+const actionSnapshot = (props: GuestCardProps) => {
+    const id = props.guest?.id;
+    if (!id) return '';
+    const s = props.actionStatusMap?.get(id) || defaultActionStatus;
+    return [
+        s.mealActionId || '',
+        s.showerActionId || '',
+        s.laundryActionId || '',
+        s.bicycleActionId || '',
+        s.haircutActionId || '',
+        s.holidayActionId || '',
+    ].join('|');
+};
+
+const recentSnapshot = (props: GuestCardProps) => {
+    const id = props.guest?.id;
+    if (!id) return '0';
+    return props.recentGuestsMap?.has(id) ? '1' : '0';
+};
+
+export const GuestCard = memo(GuestCardImpl, (prev, next) => {
+    const prevId = prev.guest?.id;
+    const nextId = next.guest?.id;
+    if (!prevId || !nextId || prevId !== nextId) return false;
+
+    // If the guest object identity changes but none of the rendered fields do, allow memo to skip.
+    // Track a few common fields used in rendering.
+    const guestFieldsEqual =
+        (prev.guest?.preferredName || prev.guest?.name) === (next.guest?.preferredName || next.guest?.name) &&
+        prev.guest?.housingStatus === next.guest?.housingStatus &&
+        prev.guest?.location === next.guest?.location &&
+        prev.guest?.gender === next.guest?.gender &&
+        prev.guest?.age === next.guest?.age &&
+        prev.guest?.isBanned === next.guest?.isBanned;
+
+    return (
+        guestFieldsEqual &&
+        prev.isSelected === next.isSelected &&
+        prev.compact === next.compact &&
+        prev.disableLayoutAnimation === next.disableLayoutAnimation &&
+        (prev.warningsCount || 0) === (next.warningsCount || 0) &&
+        (prev.linkedGuestsCount || 0) === (next.linkedGuestsCount || 0) &&
+        (prev.activeRemindersCount || 0) === (next.activeRemindersCount || 0) &&
+        mealSnapshot(prev) === mealSnapshot(next) &&
+        serviceSnapshot(prev) === serviceSnapshot(next) &&
+        actionSnapshot(prev) === actionSnapshot(next) &&
+        recentSnapshot(prev) === recentSnapshot(next)
+    );
+});

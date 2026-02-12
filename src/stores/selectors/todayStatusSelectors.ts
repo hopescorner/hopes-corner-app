@@ -84,10 +84,12 @@ export function useTodayMealStatusMap(): MealStatusMap {
     return useMemo(() => {
         const today = todayPacificDateString();
         const map = new Map<string, TodayMealStatus>();
+
+        const recordDateKey = (record: any) => record?.dateKey || pacificDateStringFrom(record.date);
         
         // Build base meal map in single pass
         for (const record of mealRecords) {
-            if (pacificDateStringFrom(record.date) === today) {
+            if (recordDateKey(record) === today) {
                 const existing = map.get(record.guestId);
                 if (existing) {
                     existing.mealCount += record.count || 1;
@@ -106,7 +108,7 @@ export function useTodayMealStatusMap(): MealStatusMap {
         
         // Add extra meals in single pass
         for (const record of extraMealRecords || []) {
-            if (pacificDateStringFrom(record.date) === today) {
+            if (recordDateKey(record) === today) {
                 const count = record.count || 1;
                 const existing = map.get(record.guestId);
                 if (existing) {
@@ -141,6 +143,8 @@ export function useTodayServiceStatusMap(): ServiceStatusMap {
     return useMemo(() => {
         const today = todayPacificDateString();
         const map = new Map<string, TodayServiceStatus>();
+
+        const recordDateKey = (record: any) => record?.dateKey || pacificDateStringFrom(record.date);
         
         const getOrCreate = (guestId: string): TodayServiceStatus => {
             let status = map.get(guestId);
@@ -159,7 +163,7 @@ export function useTodayServiceStatusMap(): ServiceStatusMap {
         
         // Showers
         for (const record of showerRecords) {
-            if (pacificDateStringFrom(record.date) === today) {
+            if (recordDateKey(record) === today) {
                 const status = getOrCreate(record.guestId);
                 status.hasShower = true;
                 status.showerRecord = { id: record.id, time: record.time, status: record.status };
@@ -168,7 +172,7 @@ export function useTodayServiceStatusMap(): ServiceStatusMap {
         
         // Laundry
         for (const record of laundryRecords) {
-            if (pacificDateStringFrom(record.date) === today) {
+            if (recordDateKey(record) === today) {
                 const status = getOrCreate(record.guestId);
                 status.hasLaundry = true;
                 status.laundryRecord = { id: record.id, time: record.time, status: record.status };
@@ -177,7 +181,7 @@ export function useTodayServiceStatusMap(): ServiceStatusMap {
         
         // Bicycles
         for (const record of bicycleRecords || []) {
-            if (pacificDateStringFrom(record.date) === today) {
+            if (recordDateKey(record) === today) {
                 const status = getOrCreate(record.guestId);
                 status.hasBicycle = true;
                 status.bicycleRecord = { id: record.id, status: record.status };
@@ -186,7 +190,7 @@ export function useTodayServiceStatusMap(): ServiceStatusMap {
         
         // Haircuts
         for (const record of haircutRecords || []) {
-            if (pacificDateStringFrom(record.date) === today) {
+            if (recordDateKey(record) === today) {
                 const status = getOrCreate(record.guestId);
                 status.hasHaircut = true;
                 status.haircutRecord = { id: record.id };
@@ -195,7 +199,7 @@ export function useTodayServiceStatusMap(): ServiceStatusMap {
         
         // Holidays
         for (const record of holidayRecords || []) {
-            if (pacificDateStringFrom(record.date) === today) {
+            if (recordDateKey(record) === today) {
                 const status = getOrCreate(record.guestId);
                 status.hasHoliday = true;
                 status.holidayRecord = { id: record.id };

@@ -7,7 +7,7 @@
  * and wire up Zustand stores, toast, and other browser-side dependencies
  * internally.
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useLayoutEffect } from 'react';
 import { TodayStats } from '@/components/checkin/TodayStats';
 import { BanManagementModal } from '@/components/modals/BanManagementModal';
 import { GuestEditModal } from '@/components/modals/GuestEditModal';
@@ -432,7 +432,9 @@ export function MealsSectionStory({
   lunchBagRecords = [],
   guests = [],
 }: MealsSectionStoryProps) {
-  useEffect(() => {
+  // Use layout effect so the store is seeded before MealsSection's own useEffects run.
+  // Otherwise CT will execute the real store actions (Supabase client creation) on mount.
+  useLayoutEffect(() => {
     useMealsStore.setState({
       mealRecords: mealRecords as any,
       rvMealRecords: rvMealRecords as any,
@@ -454,7 +456,16 @@ export function MealsSectionStory({
     useGuestsStore.setState({
       guests: guests as any,
     });
-  }, [mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, guests]);
+  }, [
+    mealRecords,
+    rvMealRecords,
+    extraMealRecords,
+    dayWorkerMealRecords,
+    shelterMealRecords,
+    unitedEffortMealRecords,
+    lunchBagRecords,
+    guests,
+  ]);
 
   return <MealsSection />;
 }

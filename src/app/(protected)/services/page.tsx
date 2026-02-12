@@ -26,6 +26,7 @@ import { MealsSection } from '@/components/services/MealsSection';
 import { DonationsSection } from '@/components/services/DonationsSection';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
+import { useShallow } from 'zustand/react/shallow';
 
 const TABS = [
     { id: 'overview', label: 'Overview', icon: BarChart3, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -53,50 +54,69 @@ export default function ServicesPage() {
         router.push(`?${params.toString()}`, { scroll: false });
     };
 
-    const { loadFromSupabase, showerRecords, laundryRecords, bicycleRecords } = useServicesStore();
-    const { loadFromSupabase: loadGuests, guests } = useGuestsStore();
-    const { loadFromSupabase: loadMeals, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords } = useMealsStore();
-    const { loadFromSupabase: loadDonations } = useDonationsStore();
+    const { loadFromSupabase: loadServices, showerRecords, laundryRecords, bicycleRecords } = useServicesStore(
+        useShallow((s) => ({
+            loadFromSupabase: s.loadFromSupabase,
+            showerRecords: s.showerRecords,
+            laundryRecords: s.laundryRecords,
+            bicycleRecords: s.bicycleRecords,
+        }))
+    );
+    const { loadFromSupabase: loadGuests, guests } = useGuestsStore(
+        useShallow((s) => ({ loadFromSupabase: s.loadFromSupabase, guests: s.guests }))
+    );
+    const { loadFromSupabase: loadMeals, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords } = useMealsStore(
+        useShallow((s) => ({
+            loadFromSupabase: s.loadFromSupabase,
+            mealRecords: s.mealRecords,
+            rvMealRecords: s.rvMealRecords,
+            extraMealRecords: s.extraMealRecords,
+            unitedEffortMealRecords: s.unitedEffortMealRecords,
+        }))
+    );
+    const loadDonations = useDonationsStore((s) => s.loadFromSupabase);
 
     useEffect(() => {
-        loadFromSupabase();
+        loadServices();
         loadGuests();
         loadMeals();
         loadDonations();
-    }, [loadFromSupabase, loadGuests, loadMeals, loadDonations]);
+    }, [loadServices, loadGuests, loadMeals, loadDonations]);
 
-    const today = pacificDateStringFrom(new Date().toISOString());
+    const today = useMemo(() => pacificDateStringFrom(new Date().toISOString()), []);
 
     // Get the start of this week (Sunday)
-    const getStartOfWeek = () => {
+    const startOfWeek = useMemo(() => {
         const now = new Date();
         const day = now.getDay();
         const diff = now.getDate() - day;
-        const sunday = new Date(now.setDate(diff));
+        const sunday = new Date(now);
+        sunday.setDate(diff);
         return pacificDateStringFrom(sunday.toISOString());
-    };
-    const startOfWeek = getStartOfWeek();
+    }, []);
 
     // Compute metrics for the overview
     const metrics = useMemo(() => {
+        const dateKeyOf = (r: any) => r?.dateKey || pacificDateStringFrom(r.date);
+
         const mealsToday = (
-            mealRecords.filter(r => pacificDateStringFrom(r.date) === today).length +
-            rvMealRecords.filter(r => pacificDateStringFrom(r.date) === today).length +
-            extraMealRecords.filter(r => pacificDateStringFrom(r.date) === today).length +
-            unitedEffortMealRecords.filter(r => pacificDateStringFrom(r.date) === today).length
+            mealRecords.filter(r => dateKeyOf(r) === today).length +
+            rvMealRecords.filter(r => dateKeyOf(r) === today).length +
+            extraMealRecords.filter(r => dateKeyOf(r) === today).length +
+            unitedEffortMealRecords.filter(r => dateKeyOf(r) === today).length
         );
         
         const uniqueGuestsToday = new Set([
-            ...mealRecords.filter(r => pacificDateStringFrom(r.date) === today).map(r => r.guestId),
-            ...showerRecords.filter(r => pacificDateStringFrom(r.date) === today).map(r => r.guestId),
-            ...laundryRecords.filter(r => pacificDateStringFrom(r.date) === today).map(r => r.guestId),
-            ...bicycleRecords.filter(r => pacificDateStringFrom(r.date) === today).map(r => r.guestId),
+            ...mealRecords.filter(r => dateKeyOf(r) === today).map(r => r.guestId),
+            ...showerRecords.filter(r => dateKeyOf(r) === today).map(r => r.guestId),
+            ...laundryRecords.filter(r => dateKeyOf(r) === today).map(r => r.guestId),
+            ...bicycleRecords.filter(r => dateKeyOf(r) === today).map(r => r.guestId),
         ]).size;
 
         // Bicycle metrics
         const bicyclesPending = bicycleRecords.filter(r => r.status !== 'done').length;
         const bicyclesCompletedThisWeek = bicycleRecords.filter(r => 
-            pacificDateStringFrom(r.date) >= startOfWeek && r.status === 'done'
+            dateKeyOf(r) >= startOfWeek && r.status === 'done'
         ).length;
 
         return {
@@ -104,17 +124,17 @@ export default function ServicesPage() {
             housingStatusSummary: `${guests.filter(g => g.housingStatus === 'Housed').length} housed · ${guests.filter(g => g.housingStatus === 'Unsheltered').length} unsheltered`,
             mealsToday,
             uniqueGuestsToday,
-            showersDone: showerRecords.filter(r => pacificDateStringFrom(r.date) === today && r.status === 'done').length,
-            showersActive: showerRecords.filter(r => pacificDateStringFrom(r.date) === today && (r.status === 'booked' || r.status === 'awaiting')).length,
-            showerWaitlist: showerRecords.filter(r => pacificDateStringFrom(r.date) === today && r.status === 'waitlisted').length,
-            laundryTotal: laundryRecords.filter(r => pacificDateStringFrom(r.date) === today).length,
-            laundryActive: laundryRecords.filter(r => pacificDateStringFrom(r.date) === today && ['waiting', 'washer', 'dryer'].includes(r.status)).length,
-            laundryDone: laundryRecords.filter(r => pacificDateStringFrom(r.date) === today && r.status === 'done').length,
+            showersDone: showerRecords.filter(r => dateKeyOf(r) === today && r.status === 'done').length,
+            showersActive: showerRecords.filter(r => dateKeyOf(r) === today && (r.status === 'booked' || r.status === 'awaiting')).length,
+            showerWaitlist: showerRecords.filter(r => dateKeyOf(r) === today && r.status === 'waitlisted').length,
+            laundryTotal: laundryRecords.filter(r => dateKeyOf(r) === today).length,
+            laundryActive: laundryRecords.filter(r => dateKeyOf(r) === today && ['waiting', 'washer', 'dryer'].includes(r.status)).length,
+            laundryDone: laundryRecords.filter(r => dateKeyOf(r) === today && r.status === 'done').length,
             bicyclesPending,
             bicyclesCompletedThisWeek,
             timelineCount: (
-                showerRecords.filter(r => pacificDateStringFrom(r.date) === today).length +
-                laundryRecords.filter(r => pacificDateStringFrom(r.date) === today).length
+                showerRecords.filter(r => dateKeyOf(r) === today).length +
+                laundryRecords.filter(r => dateKeyOf(r) === today).length
             )
         };
     }, [guests, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, showerRecords, laundryRecords, bicycleRecords, today, startOfWeek]);

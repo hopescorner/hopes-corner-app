@@ -27,18 +27,22 @@ vi.mock('@/stores/useDonationsStore', () => ({
 }));
 
 vi.mock('@/stores/useDailyNotesStore', () => ({
-    useDailyNotesStore: vi.fn(() => ({
-        notes: [],
-        isLoading: false,
-        loadFromSupabase: vi.fn(),
-        getNotesForDateRange: vi.fn(() => []),
-    })),
+    useDailyNotesStore: vi.fn((selector) => {
+        const state = {
+            notes: [],
+            isLoading: false,
+            loadFromSupabase: vi.fn(),
+            getNotesForDateRange: vi.fn(() => []),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useModalStore', () => ({
-    useModalStore: vi.fn(() => ({
-        openNoteModal: vi.fn(),
-    })),
+    useModalStore: vi.fn((selector) => {
+        const state = { openNoteModal: vi.fn() };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 // Mock Recharts to avoid issues in test environment
@@ -80,29 +84,35 @@ describe('AnalyticsSection Demographic Filters', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(useMealsStore).mockReturnValue({
-            mealRecords: mockMealRecords,
-            rvMealRecords: [],
-            extraMealRecords: [],
-            dayWorkerMealRecords: [],
-            shelterMealRecords: [],
-            unitedEffortMealRecords: [],
-            lunchBagRecords: [],
-            holidayRecords: [],
-            haircutRecords: [],
-        } as any);
 
-        vi.mocked(useServicesStore).mockReturnValue({
-            showerRecords: [],
-            laundryRecords: [],
-            bicycleRecords: [],
-            haircutRecords: [],
-            holidayRecords: [],
-        } as any);
+        vi.mocked(useMealsStore).mockImplementation((selector: any) => {
+            const state = {
+                mealRecords: mockMealRecords,
+                rvMealRecords: [],
+                extraMealRecords: [],
+                dayWorkerMealRecords: [],
+                shelterMealRecords: [],
+                unitedEffortMealRecords: [],
+                lunchBagRecords: [],
+                holidayRecords: [],
+                haircutRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
 
-        vi.mocked(useGuestsStore).mockReturnValue({
-            guests: mockGuests,
-        } as any);
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = {
+                showerRecords: [],
+                laundryRecords: [],
+                bicycleRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useGuestsStore).mockImplementation((selector: any) => {
+            const state = { guests: mockGuests };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
 
         vi.mocked(useDonationsStore).mockReturnValue({} as any);
     });
@@ -255,29 +265,34 @@ describe('AnalyticsSection Meal Type Filters', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.mocked(useMealsStore).mockReturnValue({
-            mealRecords: mockMealRecords,
-            rvMealRecords: [],
-            extraMealRecords: [],
-            dayWorkerMealRecords: [],
-            shelterMealRecords: [],
-            unitedEffortMealRecords: [],
-            lunchBagRecords: [],
-            holidayRecords: [],
-            haircutRecords: [],
-        } as any);
+        vi.mocked(useMealsStore).mockImplementation((selector: any) => {
+            const state = {
+                mealRecords: mockMealRecords,
+                rvMealRecords: [],
+                extraMealRecords: [],
+                dayWorkerMealRecords: [],
+                shelterMealRecords: [],
+                unitedEffortMealRecords: [],
+                lunchBagRecords: [],
+                holidayRecords: [],
+                haircutRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
 
-        vi.mocked(useServicesStore).mockReturnValue({
-            showerRecords: [],
-            laundryRecords: [],
-            bicycleRecords: [],
-            haircutRecords: [],
-            holidayRecords: [],
-        } as any);
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = {
+                showerRecords: [],
+                laundryRecords: [],
+                bicycleRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
 
-        vi.mocked(useGuestsStore).mockReturnValue({
-            guests: mockGuests,
-        } as any);
+        vi.mocked(useGuestsStore).mockImplementation((selector: any) => {
+            const state = { guests: mockGuests };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
 
         vi.mocked(useDonationsStore).mockReturnValue({} as any);
     });
@@ -356,21 +371,30 @@ describe('AnalyticsSection Multiple Filter Combinations', () => {
             { date: today, guestId: 'g2', count: 1 },
         ];
 
-        vi.mocked(useMealsStore).mockReturnValue({
-            mealRecords: mockMealRecords,
-            rvMealRecords: [],
-            extraMealRecords: [],
-            dayWorkerMealRecords: [],
-            shelterMealRecords: [],
-            unitedEffortMealRecords: [],
-            lunchBagRecords: [],
-            holidayRecords: [],
-            haircutRecords: [],
-        } as any);
+        vi.mocked(useMealsStore).mockImplementation((selector: any) => {
+            const state = {
+                mealRecords: mockMealRecords,
+                rvMealRecords: [],
+                extraMealRecords: [],
+                dayWorkerMealRecords: [],
+                shelterMealRecords: [],
+                unitedEffortMealRecords: [],
+                lunchBagRecords: [],
+                holidayRecords: [],
+                haircutRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
 
-        vi.mocked(useGuestsStore).mockReturnValue({
-            guests: mockGuests,
-        } as any);
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = { showerRecords: [], laundryRecords: [], bicycleRecords: [] };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useGuestsStore).mockImplementation((selector: any) => {
+            const state = { guests: mockGuests };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
 
         render(<AnalyticsSection />);
 
@@ -403,21 +427,30 @@ describe('AnalyticsSection Multiple Filter Combinations', () => {
             { date: today, guestId: 'g3', count: 1 },
         ];
 
-        vi.mocked(useMealsStore).mockReturnValue({
-            mealRecords: mockMealRecords,
-            rvMealRecords: [],
-            extraMealRecords: [],
-            dayWorkerMealRecords: [],
-            shelterMealRecords: [],
-            unitedEffortMealRecords: [],
-            lunchBagRecords: [],
-            holidayRecords: [],
-            haircutRecords: [],
-        } as any);
+        vi.mocked(useMealsStore).mockImplementation((selector: any) => {
+            const state = {
+                mealRecords: mockMealRecords,
+                rvMealRecords: [],
+                extraMealRecords: [],
+                dayWorkerMealRecords: [],
+                shelterMealRecords: [],
+                unitedEffortMealRecords: [],
+                lunchBagRecords: [],
+                holidayRecords: [],
+                haircutRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
 
-        vi.mocked(useGuestsStore).mockReturnValue({
-            guests: mockGuests,
-        } as any);
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = { showerRecords: [], laundryRecords: [], bicycleRecords: [] };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useGuestsStore).mockImplementation((selector: any) => {
+            const state = { guests: mockGuests };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
 
         render(<AnalyticsSection />);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Utensils,
@@ -27,6 +27,7 @@ import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } fr
 import { cn } from '@/lib/utils/cn';
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import toast from 'react-hot-toast';
+import { useShallow } from 'zustand/react/shallow';
 
 // Meal category configurations
 const MEAL_CATEGORIES = [
@@ -52,20 +53,42 @@ export function MealsSection() {
         unitedEffortMealRecords,
         lunchBagRecords,
         deleteMealRecord,
-        deleteRvMealRecord,
         deleteExtraMealRecord,
         addBulkMealRecord,
         deleteBulkMealRecord,
         updateBulkMealRecord,
         updateMealRecord,
         checkAndAddAutomaticMeals
-    } = useMealsStore();
-    const { guests } = useGuestsStore();
+    } = useMealsStore(useShallow((s) => ({
+        mealRecords: s.mealRecords,
+        rvMealRecords: s.rvMealRecords,
+        extraMealRecords: s.extraMealRecords,
+        dayWorkerMealRecords: s.dayWorkerMealRecords,
+        shelterMealRecords: s.shelterMealRecords,
+        unitedEffortMealRecords: s.unitedEffortMealRecords,
+        lunchBagRecords: s.lunchBagRecords,
+        deleteMealRecord: s.deleteMealRecord,
+        deleteExtraMealRecord: s.deleteExtraMealRecord,
+        addBulkMealRecord: s.addBulkMealRecord,
+        deleteBulkMealRecord: s.deleteBulkMealRecord,
+        updateBulkMealRecord: s.updateBulkMealRecord,
+        updateMealRecord: s.updateMealRecord,
+        checkAndAddAutomaticMeals: s.checkAndAddAutomaticMeals,
+    })));
 
-    // Check for automatic meals on mount
-    useState(() => {
+    const guests = useGuestsStore((s) => s.guests);
+
+    useEffect(() => {
         checkAndAddAutomaticMeals();
-    });
+    }, [checkAndAddAutomaticMeals]);
+
+    const guestMap = useMemo(() => {
+        const map = new Map<string, (typeof guests)[number]>();
+        for (const g of guests) {
+            if (g?.id) map.set(g.id, g);
+        }
+        return map;
+    }, [guests]);
 
     const isToday = selectedDate === todayPacificDateString();
 
@@ -74,7 +97,8 @@ export function MealsSection() {
     const [editValue, setEditValue] = useState<number>(0);
 
     const dayMetrics = useMemo(() => {
-        const filterByDate = (records: any[]) => records.filter(r => pacificDateStringFrom(r.date) === selectedDate);
+        const filterByDate = (records: any[]) =>
+            records.filter((r) => (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate);
         // ... same existing logic ...
         const guestMeals = filterByDate(mealRecords);
         const rvMeals = filterByDate(rvMealRecords);
@@ -110,7 +134,7 @@ export function MealsSection() {
             ...lunchBagRecords.map(r => ({ ...r, type: 'lunch_bag' })),
         ];
         return allRecords
-            .filter(r => pacificDateStringFrom(r.date) === selectedDate)
+            .filter((r) => (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate)
             .sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
     }, [selectedDate, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords]);
 
@@ -192,10 +216,10 @@ export function MealsSection() {
         if (type === 'lunch_bag') return 'Lunch Bags';
         if (type === 'united_effort') return 'United Effort';
         if (type === 'extra') {
-            const guest = guests.find(g => g.id === record.guestId);
+            const guest = guestMap.get(record.guestId);
             return `${guest ? (guest.preferredName || guest.firstName) : 'Guest'} (Extra)`;
         }
-        const guest = guests.find(g => g.id === record.guestId);
+        const guest = guestMap.get(record.guestId);
         return guest ? (guest.preferredName || guest.firstName + ' ' + (guest.lastName || '')) : 'Unknown Guest';
     };
 

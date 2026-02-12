@@ -26,6 +26,8 @@ interface SubscriptionOptions {
 // Store active channels to prevent duplicates and enable cleanup
 const activeChannels: Map<string, RealtimeChannel> = new Map();
 
+const realtimeDebugEnabled = process.env.NEXT_PUBLIC_REALTIME_DEBUG === 'true';
+
 /**
  * Subscribe to realtime changes on a Supabase table
  * Returns an unsubscribe function
@@ -38,7 +40,9 @@ export function subscribeToTable(options: SubscriptionOptions): () => void {
     
     // If channel already exists, reuse it
     if (activeChannels.has(channelName)) {
-        console.log(`[Realtime] Channel ${channelName} already exists, reusing`);
+        if (realtimeDebugEnabled) {
+            console.log(`[Realtime] Channel ${channelName} already exists, reusing`);
+        }
         return () => unsubscribeFromChannel(channelName);
     }
 
@@ -57,7 +61,9 @@ export function subscribeToTable(options: SubscriptionOptions): () => void {
     const channel = supabase
         .channel(channelName)
         .on('postgres_changes', channelConfig, (payload: RealtimePostgresChangesPayload<any>) => {
-            console.log(`[Realtime] ${table} change:`, payload.eventType);
+            if (realtimeDebugEnabled) {
+                console.log(`[Realtime] ${table} change:`, payload.eventType);
+            }
             
             // Call specific event handlers
             if (payload.eventType === 'INSERT' && onInsert) {
@@ -74,7 +80,9 @@ export function subscribeToTable(options: SubscriptionOptions): () => void {
             }
         })
         .subscribe((status) => {
-            console.log(`[Realtime] ${table} subscription status:`, status);
+            if (realtimeDebugEnabled) {
+                console.log(`[Realtime] ${table} subscription status:`, status);
+            }
         });
 
     activeChannels.set(channelName, channel);
@@ -91,7 +99,9 @@ function unsubscribeFromChannel(channelName: string): void {
         const supabase = createClient();
         supabase.removeChannel(channel);
         activeChannels.delete(channelName);
-        console.log(`[Realtime] Unsubscribed from ${channelName}`);
+        if (realtimeDebugEnabled) {
+            console.log(`[Realtime] Unsubscribed from ${channelName}`);
+        }
     }
 }
 
@@ -102,7 +112,9 @@ export function unsubscribeFromAll(): void {
     const supabase = createClient();
     activeChannels.forEach((channel, name) => {
         supabase.removeChannel(channel);
-        console.log(`[Realtime] Unsubscribed from ${name}`);
+        if (realtimeDebugEnabled) {
+            console.log(`[Realtime] Unsubscribed from ${name}`);
+        }
     });
     activeChannels.clear();
 }

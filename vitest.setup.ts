@@ -118,6 +118,15 @@ vi.mock("framer-motion", () => ({
   }),
 }));
 
+// Polyfill ResizeObserver for virtualization libs (jsdom doesn't provide it by default)
+if (typeof (globalThis as any).ResizeObserver === 'undefined') {
+  (globalThis as any).ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 // Mock Supabase client
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({

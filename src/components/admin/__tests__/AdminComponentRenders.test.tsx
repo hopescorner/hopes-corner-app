@@ -9,39 +9,71 @@ import { SlotBlockModal } from '../SlotBlockModal';
 
 // Mock stores
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: vi.fn(() => ({
-        showerRecords: [],
-        laundryRecords: [],
-        bicycleRecords: [],
-        haircutRecords: [],
-        holidayRecords: [],
-        fetchTodaysRecords: vi.fn(),
-        loadFromSupabase: vi.fn(),
-    })),
+    useServicesStore: vi.fn((selector) => {
+        const state = {
+            showerRecords: [],
+            laundryRecords: [],
+            bicycleRecords: [],
+            haircutRecords: [],
+            holidayRecords: [],
+            fetchTodaysRecords: vi.fn(),
+            loadFromSupabase: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useMealsStore', () => ({
-    useMealsStore: vi.fn(() => ({
-        mealRecords: [],
-        rvMealRecords: [],
-        extraMealRecords: [],
-        unitedEffortMealRecords: [],
-        dayWorkerMealRecords: [],
-        shelterMealRecords: [],
-        lunchBagRecords: [],
-        loadFromSupabase: vi.fn(),
-        checkAndAddAutomaticMeals: vi.fn(),
-    })),
+    useMealsStore: vi.fn((selector) => {
+        const state = {
+            mealRecords: [],
+            rvMealRecords: [],
+            extraMealRecords: [],
+            unitedEffortMealRecords: [],
+            dayWorkerMealRecords: [],
+            shelterMealRecords: [],
+            lunchBagRecords: [],
+            holidayRecords: [],
+            haircutRecords: [],
+            loadFromSupabase: vi.fn(),
+            checkAndAddAutomaticMeals: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useGuestsStore', () => ({
-    useGuestsStore: vi.fn(() => ({
-        guests: [],
-        searchGuests: vi.fn(),
-        loadFromSupabase: vi.fn(),
-        loadGuestWarningsFromSupabase: vi.fn(),
-        loadGuestProxiesFromSupabase: vi.fn(),
-    })),
+    useGuestsStore: vi.fn((selector) => {
+        const state = {
+            guests: [],
+            warnings: [],
+            guestProxies: [],
+            searchGuests: vi.fn(),
+            loadFromSupabase: vi.fn(),
+            loadGuestWarningsFromSupabase: vi.fn(),
+            loadGuestProxiesFromSupabase: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
+}));
+
+vi.mock('@/stores/useDailyNotesStore', () => ({
+    useDailyNotesStore: vi.fn((selector) => {
+        const state = {
+            notes: [],
+            isLoading: false,
+            loadFromSupabase: vi.fn(),
+            getNotesForDateRange: vi.fn(() => []),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
+}));
+
+vi.mock('@/stores/useModalStore', () => ({
+    useModalStore: vi.fn((selector) => {
+        const state = { openNoteModal: vi.fn() };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useSettingsStore', () => ({

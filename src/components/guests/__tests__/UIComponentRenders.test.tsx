@@ -17,33 +17,44 @@ vi.mock('next-auth/react', () => ({
 
 // Mock stores
 vi.mock('@/stores/useGuestsStore', () => ({
-    useGuestsStore: vi.fn(() => ({
-        guests: [],
-        getWarningsForGuest: vi.fn(() => []),
-        getProxiesForGuest: vi.fn(() => []),
-        getLinkedGuests: vi.fn(() => []),
-    })),
+    useGuestsStore: vi.fn((selector) => {
+        const state = {
+            guests: [],
+            warnings: [],
+            guestProxies: [],
+            getLinkedGuests: vi.fn(() => []),
+            linkGuests: vi.fn(async () => ({})),
+            unlinkGuests: vi.fn(async () => true),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useMealsStore', () => ({
-    useMealsStore: vi.fn(() => ({
-        mealRecords: [],
-        extraMealRecords: [],
-        addMealRecord: vi.fn(),
-        addExtraMealRecord: vi.fn(),
-    })),
+    useMealsStore: vi.fn((selector) => {
+        const state = {
+            mealRecords: [],
+            extraMealRecords: [],
+            addMealRecord: vi.fn(),
+            addExtraMealRecord: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: vi.fn(() => ({
-        showerRecords: [],
-        laundryRecords: [],
-        bicycleRecords: [],
-        haircutRecords: [],
-        holidayRecords: [],
-        addHaircutRecord: vi.fn(),
-        addHolidayRecord: vi.fn(),
-    })),
+    useServicesStore: vi.fn((selector) => {
+        const state = {
+            showerRecords: [],
+            laundryRecords: [],
+            bicycleRecords: [],
+            haircutRecords: [],
+            holidayRecords: [],
+            addHaircutRecord: vi.fn(),
+            addHolidayRecord: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useWaiverStore', () => ({
@@ -56,11 +67,14 @@ vi.mock('@/stores/useWaiverStore', () => ({
 }));
 
 vi.mock('@/stores/useActionHistoryStore', () => ({
-    useActionHistoryStore: vi.fn(() => ({
-        addAction: vi.fn(),
-        undoAction: vi.fn(),
-        getActionsForGuestToday: vi.fn(() => []),
-    })),
+    useActionHistoryStore: vi.fn((selector) => {
+        const state = {
+            addAction: vi.fn(),
+            undoAction: vi.fn(),
+            getActionsForGuestToday: vi.fn(() => []),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 // Mock the selectors for LinkedGuestsList
@@ -90,11 +104,21 @@ vi.mock('@/stores/selectors/todayStatusSelectors', () => ({
 }));
 
 vi.mock('@/stores/useModalStore', () => ({
-    useModalStore: vi.fn(() => ({
-        setShowerPickerGuest: vi.fn(),
-        setLaundryPickerGuest: vi.fn(),
-        setBicyclePickerGuest: vi.fn(),
-    })),
+    useModalStore: vi.fn((selector) => {
+        const state = {
+            setShowerPickerGuest: vi.fn(),
+            setLaundryPickerGuest: vi.fn(),
+            setBicyclePickerGuest: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
+}));
+
+vi.mock('@/stores/useRemindersStore', () => ({
+    useRemindersStore: vi.fn((selector) => {
+        const state = { reminders: [] };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 const mockGuest = {

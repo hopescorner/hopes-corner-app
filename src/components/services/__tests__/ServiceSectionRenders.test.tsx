@@ -9,17 +9,22 @@ import { DonationsSection } from '../DonationsSection';
 
 // Mock stores
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: vi.fn(() => ({
-        showerRecords: [],
-        laundryRecords: [],
-        bicycleRecords: [],
-        haircutRecords: [],
-        holidayRecords: [],
-        isLoaded: true,
-        addShowerRecord: vi.fn(),
-        updateShowerStatus: vi.fn(),
-        loadFromSupabase: vi.fn(),
-    })),
+    useServicesStore: vi.fn((selector) => {
+        const state = {
+            showerRecords: [],
+            laundryRecords: [],
+            bicycleRecords: [],
+            haircutRecords: [],
+            holidayRecords: [],
+            isLoaded: true,
+            addShowerRecord: vi.fn(),
+            updateShowerStatus: vi.fn(),
+            deleteShowerRecord: vi.fn(),
+            cancelMultipleShowers: vi.fn(),
+            loadFromSupabase: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useWaiverStore', () => ({
@@ -29,28 +34,42 @@ vi.mock('@/stores/useWaiverStore', () => ({
 }));
 
 vi.mock('@/stores/useMealsStore', () => ({
-    useMealsStore: vi.fn(() => ({
-        mealRecords: [],
-        rvMealRecords: [],
-        extraMealRecords: [],
-        unitedEffortMealRecords: [],
-        dayWorkerMealRecords: [],
-        shelterMealRecords: [],
-        lunchBagRecords: [],
-        holidayRecords: [],
-        haircutRecords: [],
-        checkAndAddAutomaticMeals: vi.fn(),
-        loadFromSupabase: vi.fn(),
-    })),
+    useMealsStore: vi.fn((selector) => {
+        const state = {
+            mealRecords: [],
+            rvMealRecords: [],
+            extraMealRecords: [],
+            unitedEffortMealRecords: [],
+            dayWorkerMealRecords: [],
+            shelterMealRecords: [],
+            lunchBagRecords: [],
+            holidayRecords: [],
+            haircutRecords: [],
+            checkAndAddAutomaticMeals: vi.fn(),
+            updateMealRecord: vi.fn(),
+            deleteMealRecord: vi.fn(),
+            deleteExtraMealRecord: vi.fn(),
+            addBulkMealRecord: vi.fn(),
+            deleteBulkMealRecord: vi.fn(),
+            updateBulkMealRecord: vi.fn(),
+            loadFromSupabase: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useGuestsStore', () => ({
-    useGuestsStore: vi.fn(() => ({
-        guests: [],
-        loadGuestWarningsFromSupabase: vi.fn(),
-        loadFromSupabase: vi.fn(),
-        loadGuestProxiesFromSupabase: vi.fn(),
-    })),
+    useGuestsStore: vi.fn((selector) => {
+        const state = {
+            guests: [],
+            warnings: [],
+            guestProxies: [],
+            loadGuestWarningsFromSupabase: vi.fn(),
+            loadFromSupabase: vi.fn(),
+            loadGuestProxiesFromSupabase: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/stores/useDonationsStore', () => ({

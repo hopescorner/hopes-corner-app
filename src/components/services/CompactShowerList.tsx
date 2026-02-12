@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo } from "react";
+import React, { memo, useMemo } from "react";
 import { User, Clock, CheckCircle, AlertCircle, Calendar } from "lucide-react";
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
@@ -14,7 +14,15 @@ interface Props {
 }
 
 const CompactShowerList = memo(({ records, onGuestClick }: Props) => {
-    const { guests } = useGuestsStore();
+    const guests = useGuestsStore((s) => s.guests);
+
+    const guestMap = useMemo(() => {
+        const map = new Map<string, (typeof guests)[number]>();
+        for (const guest of guests) {
+            if (guest?.id) map.set(guest.id, guest);
+        }
+        return map;
+    }, [guests]);
 
     if (records.length === 0) {
         return (
@@ -31,7 +39,7 @@ const CompactShowerList = memo(({ records, onGuestClick }: Props) => {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
             <div className="divide-y divide-gray-100">
                 {records.map((record) => {
-                    const guest = guests.find(g => g.id === record.guestId);
+                    const guest = guestMap.get(record.guestId);
                     const guestName = guest ? (guest.preferredName || guest.name) : 'Unknown Guest';
 
                     return (

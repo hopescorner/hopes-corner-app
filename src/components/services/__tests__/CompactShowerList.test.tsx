@@ -5,12 +5,15 @@ import CompactShowerList from '../CompactShowerList';
 
 // Mock dependencies
 vi.mock('@/stores/useGuestsStore', () => ({
-    useGuestsStore: vi.fn(() => ({
-        guests: [
-            { id: 'g1', name: 'John Doe', preferredName: 'Johnny' },
-            { id: 'g2', name: 'Jane Smith', preferredName: '' },
-        ],
-    })),
+    useGuestsStore: vi.fn((selector) => {
+        const state = {
+            guests: [
+                { id: 'g1', name: 'John Doe', preferredName: 'Johnny' },
+                { id: 'g2', name: 'Jane Smith', preferredName: '' },
+            ],
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
 }));
 
 vi.mock('@/components/ui/CompactWaiverIndicator', () => ({

@@ -35,23 +35,29 @@ const mockShowerRecords = [
 ];
 
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: () => ({
-        showerRecords: mockShowerRecords,
-        cancelMultipleShowers: vi.fn(),
-        deleteShowerRecord: vi.fn(),
-        updateShowerStatus: vi.fn(),
-    }),
+    useServicesStore: (selector: any) => {
+        const state = {
+            showerRecords: mockShowerRecords,
+            cancelMultipleShowers: vi.fn(),
+            deleteShowerRecord: vi.fn(),
+            updateShowerStatus: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    },
 }));
 
 vi.mock('@/stores/useGuestsStore', () => ({
-    useGuestsStore: () => ({
-        guests: [
-            { id: 'g1', name: 'John Doe', preferredName: '' },
-            { id: 'g2', name: 'Jane Smith', preferredName: 'Janie' },
-            { id: 'g3', name: 'Bob Wilson', preferredName: '' },
-            { id: 'g4', name: 'Alice Brown', preferredName: '' },
-        ],
-    }),
+    useGuestsStore: (selector: any) => {
+        const state = {
+            guests: [
+                { id: 'g1', name: 'John Doe', preferredName: '' },
+                { id: 'g2', name: 'Jane Smith', preferredName: 'Janie' },
+                { id: 'g3', name: 'Bob Wilson', preferredName: '' },
+                { id: 'g4', name: 'Alice Brown', preferredName: '' },
+            ],
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    },
 }));
 
 // Mock child components to simplify tests

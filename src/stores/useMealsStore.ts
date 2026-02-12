@@ -22,6 +22,7 @@ export interface MealRecord {
     pickedUpByProxyId?: string | null;
     count: number;
     date: string;
+    dateKey?: string;
     recordedAt?: string | null;
     servedOn?: string | null;
     createdAt?: string | null;
@@ -33,6 +34,7 @@ interface HolidayRecord {
     id: string;
     guestId: string;
     date: string;
+    dateKey?: string;
     type: 'holiday';
 }
 
@@ -40,6 +42,7 @@ interface HaircutRecord {
     id: string;
     guestId: string;
     date: string;
+    dateKey?: string;
     type: 'haircut';
 }
 

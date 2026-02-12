@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShowerHead, Clock, CheckCircle, XCircle, ChevronRight, User, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 import { useServicesStore } from '@/stores/useServicesStore';
@@ -19,8 +19,9 @@ import { LayoutGrid, List, Settings } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 export function ShowersSection() {
-    const { showerRecords, cancelMultipleShowers, loadFromSupabase } = useServicesStore();
-    const { guests } = useGuestsStore();
+    const showerRecords = useServicesStore((s) => s.showerRecords);
+    const cancelMultipleShowers = useServicesStore((s) => s.cancelMultipleShowers);
+    const guests = useGuestsStore((s) => s.guests);
     const { data: session } = useSession();
 
     const today = todayPacificDateString();
@@ -37,23 +38,50 @@ export function ShowersSection() {
     // Check if viewing historical data
     const isViewingPast = selectedDate !== today;
 
-    // Filter records for selected date
-    const selectedDateRecords = showerRecords.filter(
-        (r) => pacificDateStringFrom(r.date) === selectedDate
+    const getRecordDateKey = useCallback(
+        (record: any) => record?.dateKey || pacificDateStringFrom(record?.date),
+        []
     );
 
-    const activeShowers = selectedDateRecords.filter(r => r.status === 'booked' || r.status === 'awaiting');
-    const completedShowers = selectedDateRecords.filter(r => r.status === 'done');
-    const waitlistedShowers = selectedDateRecords.filter(r => r.status === 'waitlisted');
-    const cancelledShowers = selectedDateRecords.filter(r => r.status === 'cancelled' || r.status === 'no_show');
-    
-    // For today only - pending showers for end-of-day cancellation
-    const todaysRecords = showerRecords.filter(
-        (r) => pacificDateStringFrom(r.date) === today
-    );
-    const pendingShowers = todaysRecords.filter(r => r.status !== 'done' && r.status !== 'cancelled');
+    const selectedDateRecords = useMemo(() => {
+        return showerRecords.filter((r) => getRecordDateKey(r) === selectedDate);
+    }, [showerRecords, selectedDate, getRecordDateKey]);
 
-    const currentList = activeTab === 'active' ? activeShowers : activeTab === 'completed' ? completedShowers : activeTab === 'waitlist' ? waitlistedShowers : cancelledShowers;
+    const activeShowers = useMemo(
+        () => selectedDateRecords.filter((r) => r.status === 'booked' || r.status === 'awaiting'),
+        [selectedDateRecords]
+    );
+    const completedShowers = useMemo(
+        () => selectedDateRecords.filter((r) => r.status === 'done'),
+        [selectedDateRecords]
+    );
+    const waitlistedShowers = useMemo(
+        () => selectedDateRecords.filter((r) => r.status === 'waitlisted'),
+        [selectedDateRecords]
+    );
+    const cancelledShowers = useMemo(
+        () => selectedDateRecords.filter((r) => r.status === 'cancelled' || r.status === 'no_show'),
+        [selectedDateRecords]
+    );
+
+    const pendingShowers = useMemo(() => {
+        // For today only - pending showers for end-of-day cancellation
+        const todaysRecords = showerRecords.filter((r) => getRecordDateKey(r) === today);
+        return todaysRecords.filter((r) => r.status !== 'done' && r.status !== 'cancelled');
+    }, [showerRecords, today, getRecordDateKey]);
+
+    const currentList = useMemo(() => {
+        switch (activeTab) {
+            case 'active':
+                return activeShowers;
+            case 'completed':
+                return completedShowers;
+            case 'waitlist':
+                return waitlistedShowers;
+            case 'cancelled':
+                return cancelledShowers;
+        }
+    }, [activeTab, activeShowers, completedShowers, waitlistedShowers, cancelledShowers]);
 
     const handleEndShowerDay = async () => {
         if (pendingShowers.length === 0) {
@@ -250,7 +278,8 @@ export function ShowersSection() {
 
 function ShowerListItem({ record, guest, onClick, readOnly = false }: { record: any, guest: any, onClick?: () => void, readOnly?: boolean }) {
     const [isUpdating, setIsUpdating] = useState(false);
-    const { deleteShowerRecord, updateShowerStatus } = useServicesStore();
+    const deleteShowerRecord = useServicesStore((s) => s.deleteShowerRecord);
+    const updateShowerStatus = useServicesStore((s) => s.updateShowerStatus);
 
     const handleCancel = async () => {
         if (readOnly) return;

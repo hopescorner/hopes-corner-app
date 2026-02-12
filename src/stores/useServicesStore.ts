@@ -24,6 +24,7 @@ interface ShowerRecord {
     time?: string | null;
     scheduledFor?: string | null;
     date: string;
+    dateKey?: string;
     status: string;
     createdAt?: string;
     lastUpdated?: string;
@@ -38,6 +39,7 @@ interface LaundryRecord {
     bagNumber?: string;
     scheduledFor?: string | null;
     date: string;
+    dateKey?: string;
     status: string;
     createdAt?: string;
     lastUpdated?: string;
@@ -47,6 +49,7 @@ interface BicycleRecord {
     id: string;
     guestId: string;
     date: string;
+    dateKey?: string;
     type: string;
     repairType: string;
     repairTypes: string[];
@@ -64,6 +67,7 @@ interface HaircutRecord {
     id: string;
     guestId: string;
     date: string;
+    dateKey?: string;
     type: string;
     createdAt?: string;
 }
@@ -72,6 +76,7 @@ interface HolidayRecord {
     id: string;
     guestId: string;
     date: string;
+    dateKey?: string;
     type: string;
     createdAt?: string;
 }

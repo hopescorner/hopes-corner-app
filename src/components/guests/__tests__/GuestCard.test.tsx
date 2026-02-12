@@ -22,51 +22,76 @@ const mockSetBicyclePickerGuest = vi.fn();
 const mockAddAction = vi.fn();
 const mockUndoAction = vi.fn().mockResolvedValue(true);
 const mockGetActionsForGuestToday = vi.fn().mockReturnValue([]);
-const mockGetWarningsForGuest = vi.fn().mockReturnValue([]);
-const mockGetLinkedGuests = vi.fn().mockReturnValue([]);
+
+const mockWarnings = [{ id: 'w1', guestId: 'g1', message: 'Test warning', active: true }];
+const mockGuestProxies: any[] = [];
 
 vi.mock('@/stores/useMealsStore', () => ({
-    useMealsStore: vi.fn(() => ({
-        mealRecords: [],
-        extraMealRecords: [],
-        addMealRecord: mockAddMealRecord,
-        addExtraMealRecord: mockAddExtraMealRecord,
-    })),
+    useMealsStore: (selector: any) => {
+        const state = {
+            mealRecords: [],
+            extraMealRecords: [],
+            addMealRecord: mockAddMealRecord,
+            addExtraMealRecord: mockAddExtraMealRecord,
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    },
 }));
 
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: vi.fn(() => ({
-        showerRecords: [],
-        laundryRecords: [],
-        bicycleRecords: [],
-        haircutRecords: [],
-        holidayRecords: [],
-        addHaircutRecord: mockAddHaircutRecord,
-        addHolidayRecord: mockAddHolidayRecord,
-    })),
+    useServicesStore: (selector: any) => {
+        const state = {
+            showerRecords: [],
+            laundryRecords: [],
+            bicycleRecords: [],
+            haircutRecords: [],
+            holidayRecords: [],
+            addHaircutRecord: mockAddHaircutRecord,
+            addHolidayRecord: mockAddHolidayRecord,
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    },
 }));
 
 vi.mock('@/stores/useGuestsStore', () => ({
-    useGuestsStore: vi.fn(() => ({
-        getWarningsForGuest: mockGetWarningsForGuest,
-        getLinkedGuests: mockGetLinkedGuests,
-    })),
+    useGuestsStore: (selector: any) => {
+        const state = {
+            warnings: mockWarnings,
+            guestProxies: mockGuestProxies,
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    },
+}));
+
+vi.mock('@/stores/useRemindersStore', () => ({
+    useRemindersStore: (selector: any) => {
+        const state = {
+            reminders: [],
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    },
 }));
 
 vi.mock('@/stores/useModalStore', () => ({
-    useModalStore: vi.fn(() => ({
-        setShowerPickerGuest: mockSetShowerPickerGuest,
-        setLaundryPickerGuest: mockSetLaundryPickerGuest,
-        setBicyclePickerGuest: mockSetBicyclePickerGuest,
-    })),
+    useModalStore: (selector: any) => {
+        const state = {
+            setShowerPickerGuest: mockSetShowerPickerGuest,
+            setLaundryPickerGuest: mockSetLaundryPickerGuest,
+            setBicyclePickerGuest: mockSetBicyclePickerGuest,
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    },
 }));
 
 vi.mock('@/stores/useActionHistoryStore', () => ({
-    useActionHistoryStore: vi.fn(() => ({
-        addAction: mockAddAction,
-        undoAction: mockUndoAction,
-        getActionsForGuestToday: mockGetActionsForGuestToday,
-    })),
+    useActionHistoryStore: (selector: any) => {
+        const state = {
+            addAction: mockAddAction,
+            undoAction: mockUndoAction,
+            getActionsForGuestToday: mockGetActionsForGuestToday,
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    },
 }));
 
 vi.mock('../LinkedGuestsList', () => ({
@@ -205,16 +230,29 @@ describe('GuestCard Component', () => {
     });
 
     describe('Warnings and Links', () => {
-        it('calls getWarningsForGuest with guest id', () => {
-            mockGetWarningsForGuest.mockReturnValue([{ id: 'w1', message: 'Test warning' }]);
-            render(<GuestCard guest={baseGuest} />);
-            expect(mockGetWarningsForGuest).toHaveBeenCalledWith('g1');
+        it('renders warning badge count from props', () => {
+            render(<GuestCard guest={baseGuest} warningsCount={77} />);
+            expect(screen.getByText('77')).toBeDefined();
         });
 
-        it('calls getLinkedGuests with guest id', () => {
-            mockGetLinkedGuests.mockReturnValue([{ id: 'lg1', firstName: 'Linked' }]);
+        it('renders linked guest badge count from props', () => {
+            render(<GuestCard guest={baseGuest} linkedGuestsCount={88} />);
+            expect(screen.getByText('88')).toBeDefined();
+        });
+
+        it('renders reminders badge count from props', () => {
+            render(<GuestCard guest={baseGuest} activeRemindersCount={99} />);
+            expect(screen.getByText('99')).toBeDefined();
+        });
+
+        it('only mounts warning panel when expanded', () => {
             render(<GuestCard guest={baseGuest} />);
-            expect(mockGetLinkedGuests).toHaveBeenCalledWith('g1');
+
+            // Warning message shouldn't be visible before expand
+            expect(screen.queryByText('Test warning')).toBeNull();
+
+            fireEvent.click(screen.getByText('Johnny'));
+            expect(screen.getByText('Test warning')).toBeDefined();
         });
     });
 

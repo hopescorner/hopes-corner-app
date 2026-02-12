@@ -36,10 +36,10 @@ import {
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
-import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useDailyNotesStore, DailyNote } from '@/stores/useDailyNotesStore';
 import { useModalStore } from '@/stores/useModalStore';
 import { cn } from '@/lib/utils/cn';
+import { useShallow } from 'zustand/react/shallow';
 import {
     HOUSING_STATUSES,
     AGE_GROUPS,
@@ -93,13 +93,49 @@ const DEMO_MEAL_TYPE_DEFAULTS: Record<DemoMealTypeKey, boolean> = {
 };
 
 export function AnalyticsSection() {
-    const { mealRecords, rvMealRecords, extraMealRecords, holidayRecords, haircutRecords,
-        dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords } = useMealsStore();
-    const { showerRecords, laundryRecords, bicycleRecords } = useServicesStore();
-    const { guests } = useGuestsStore();
-    useDonationsStore();
-    const { getNotesForDateRange, loadFromSupabase: loadDailyNotes } = useDailyNotesStore();
-    const { openNoteModal } = useModalStore();
+    const {
+        mealRecords,
+        rvMealRecords,
+        extraMealRecords,
+        holidayRecords,
+        haircutRecords,
+        dayWorkerMealRecords,
+        shelterMealRecords,
+        unitedEffortMealRecords,
+        lunchBagRecords,
+    } = useMealsStore(
+        useShallow((s) => ({
+            mealRecords: s.mealRecords,
+            rvMealRecords: s.rvMealRecords,
+            extraMealRecords: s.extraMealRecords,
+            holidayRecords: s.holidayRecords,
+            haircutRecords: s.haircutRecords,
+            dayWorkerMealRecords: s.dayWorkerMealRecords,
+            shelterMealRecords: s.shelterMealRecords,
+            unitedEffortMealRecords: s.unitedEffortMealRecords,
+            lunchBagRecords: s.lunchBagRecords,
+        }))
+    );
+
+    const { showerRecords, laundryRecords, bicycleRecords } = useServicesStore(
+        useShallow((s) => ({
+            showerRecords: s.showerRecords,
+            laundryRecords: s.laundryRecords,
+            bicycleRecords: s.bicycleRecords,
+        }))
+    );
+
+    const guests = useGuestsStore((s) => s.guests);
+
+    const { notes, getNotesForDateRange, loadFromSupabase: loadDailyNotes } = useDailyNotesStore(
+        useShallow((s) => ({
+            notes: s.notes,
+            getNotesForDateRange: s.getNotesForDateRange,
+            loadFromSupabase: s.loadFromSupabase,
+        }))
+    );
+
+    const openNoteModal = useModalStore((s) => s.openNoteModal);
 
     const [isMounted, setIsMounted] = useState(false);
     const [activeView, setActiveView] = useState('overview');
@@ -163,6 +199,39 @@ export function AnalyticsSection() {
         const d = dateStr.split('T')[0];
         return d >= start && d <= end;
     }, []);
+
+    const dateKeyOf = useCallback((record: any) => {
+        return record?.dateKey || (typeof record?.date === 'string' ? record.date.split('T')[0] : '');
+    }, []);
+
+    const dailyCountMaps = useMemo(() => {
+        const mealsByDay = new Map<string, number>();
+        const showersDoneByDay = new Map<string, number>();
+        const laundryDoneByDay = new Map<string, number>();
+        const bicyclesDoneByDay = new Map<string, number>();
+
+        const addToMap = (map: Map<string, number>, day: string, delta: number) => {
+            if (!day) return;
+            map.set(day, (map.get(day) || 0) + delta);
+        };
+
+        for (const r of [...mealRecords, ...rvMealRecords, ...extraMealRecords]) {
+            addToMap(mealsByDay, dateKeyOf(r), Number(r.count) || 0);
+        }
+        for (const r of showerRecords) {
+            if (r.status === 'done') addToMap(showersDoneByDay, dateKeyOf(r), 1);
+        }
+        for (const r of laundryRecords) {
+            if (['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status)) {
+                addToMap(laundryDoneByDay, dateKeyOf(r), 1);
+            }
+        }
+        for (const r of bicycleRecords) {
+            if (r.status === 'done') addToMap(bicyclesDoneByDay, dateKeyOf(r), 1);
+        }
+
+        return { mealsByDay, showersDoneByDay, laundryDoneByDay, bicyclesDoneByDay };
+    }, [mealRecords, rvMealRecords, extraMealRecords, showerRecords, laundryRecords, bicycleRecords, dateKeyOf]);
 
     // Calculate metrics for the selected range
     const metrics = useMemo(() => {
@@ -246,18 +315,19 @@ export function AnalyticsSection() {
         const days: { date: string, fullDate: string, meals: number, showers: number, laundry: number, bicycles: number, hasNote: boolean }[] = [];
         const start = new Date(dateRange.start);
         const end = new Date(dateRange.end);
-        const notesInRange = getNotesForDateRange(dateRange.start, dateRange.end);
-        const noteDates = new Set(notesInRange.map(n => n.noteDate));
+        const noteDates = new Set(
+            (notes || [])
+                .filter((n) => n.noteDate >= dateRange.start && n.noteDate <= dateRange.end)
+                .map((n) => n.noteDate)
+        );
 
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
             const dateStr = d.toISOString().split('T')[0];
 
-            const dayMeals = [...mealRecords, ...rvMealRecords, ...extraMealRecords]
-                .filter(r => r.date.startsWith(dateStr))
-                .reduce((sum, r) => sum + (r.count || 0), 0);
-            const dayShowers = showerRecords.filter(r => r.date.startsWith(dateStr) && r.status === 'done').length;
-            const dayLaundry = laundryRecords.filter(r => r.date.startsWith(dateStr) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status)).length;
-            const dayBicycles = bicycleRecords.filter(r => r.date.startsWith(dateStr) && r.status === 'done').length;
+            const dayMeals = dailyCountMaps.mealsByDay.get(dateStr) || 0;
+            const dayShowers = dailyCountMaps.showersDoneByDay.get(dateStr) || 0;
+            const dayLaundry = dailyCountMaps.laundryDoneByDay.get(dateStr) || 0;
+            const dayBicycles = dailyCountMaps.bicyclesDoneByDay.get(dateStr) || 0;
 
             days.push({
                 date: new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -270,7 +340,7 @@ export function AnalyticsSection() {
             });
         }
         return days;
-    }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, showerRecords, laundryRecords, bicycleRecords, getNotesForDateRange]);
+    }, [dateRange, notes, dailyCountMaps]);
 
     // Notes summary for the selected date range
     const notesInRange = useMemo(() => {
