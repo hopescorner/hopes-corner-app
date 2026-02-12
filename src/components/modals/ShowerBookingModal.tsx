@@ -141,6 +141,9 @@ export function ShowerBookingModal() {
                 <div className="flex-1 overflow-y-auto p-6">
                     {/* Guest Reminders */}
                     <ServiceCardReminder guestId={showerPickerGuest.id} serviceType="shower" />
+                    <p className="text-[11px] text-gray-500 mt-3 mb-4" title="Bookings from this modal save to this service date.">
+                        Entries save to service date: {new Date(`${today}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
                     
                     {isCheckinRole ? (
                         <div className="space-y-6">

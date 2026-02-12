@@ -43,6 +43,9 @@ export function MealsSection() {
     const [showAddPanel, setShowAddPanel] = useState(false);
     const [addingType, setAddingType] = useState<string | null>(null);
     const [quantities, setQuantities] = useState<Record<string, number>>({});
+    const [individualGuestId, setIndividualGuestId] = useState('');
+    const [individualMealCount, setIndividualMealCount] = useState(1);
+    const [isPendingIndividual, setIsPendingIndividual] = useState(false);
 
     const {
         mealRecords,
@@ -58,7 +61,8 @@ export function MealsSection() {
         deleteBulkMealRecord,
         updateBulkMealRecord,
         updateMealRecord,
-        checkAndAddAutomaticMeals
+        checkAndAddAutomaticMeals,
+        addMealRecord,
     } = useMealsStore(useShallow((s) => ({
         mealRecords: s.mealRecords,
         rvMealRecords: s.rvMealRecords,
@@ -74,6 +78,7 @@ export function MealsSection() {
         updateBulkMealRecord: s.updateBulkMealRecord,
         updateMealRecord: s.updateMealRecord,
         checkAndAddAutomaticMeals: s.checkAndAddAutomaticMeals,
+        addMealRecord: s.addMealRecord,
     })));
 
     const guests = useGuestsStore((s) => s.guests);
@@ -214,6 +219,31 @@ export function MealsSection() {
         }
     };
 
+    const handleAddIndividualMeal = async () => {
+        if (!individualGuestId) {
+            toast.error('Please select a guest');
+            return;
+        }
+
+        if (individualMealCount <= 0) {
+            toast.error('Meal count must be at least 1');
+            return;
+        }
+
+        setIsPendingIndividual(true);
+        try {
+            await addMealRecord(individualGuestId, individualMealCount, null, selectedDate);
+            toast.success(`Added meal record${!isToday ? ` for ${selectedDate}` : ''}`);
+            setIndividualGuestId('');
+            setIndividualMealCount(1);
+        } catch (error) {
+            console.error('Failed to add individual meal:', error);
+            toast.error('Failed to add individual meal');
+        } finally {
+            setIsPendingIndividual(false);
+        }
+    };
+
     const shiftDate = (days: number) => {
         const d = new Date(selectedDate + 'T12:00:00');
         d.setDate(d.getDate() + days);
@@ -342,6 +372,59 @@ export function MealsSection() {
                             <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                                 <Plus size={16} /> Quick Add Bulk Meals
                             </h3>
+                            <p className="text-[11px] text-gray-500 mb-4" title="All entries in this panel save to the date selected above.">
+                                Entries save to selected date: {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </p>
+
+                            <div className="mb-5 p-4 rounded-2xl border border-emerald-100 bg-emerald-50/40">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700 mb-3">Individual Meal Entry</p>
+                                <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_160px] gap-3">
+                                    <select
+                                        value={individualGuestId}
+                                        onChange={(e) => setIndividualGuestId(e.target.value)}
+                                        className="w-full p-2.5 rounded-xl border border-emerald-200 bg-white text-sm font-medium"
+                                    >
+                                        <option value="">Select guest</option>
+                                        {guests
+                                            .filter((guest) => guest?.id)
+                                            .sort((firstGuest, secondGuest) => {
+                                                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${firstGuest.lastName || ''}`).toString();
+                                                const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
+                                                return firstName.localeCompare(secondName);
+                                            })
+                                            .map((guest) => {
+                                                const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
+                                                return (
+                                                    <option key={guest.id} value={guest.id}>
+                                                        {displayName}
+                                                    </option>
+                                                );
+                                            })}
+                                    </select>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={individualMealCount}
+                                        onChange={(e) => setIndividualMealCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                        className="w-full p-2.5 rounded-xl border border-emerald-200 bg-white text-sm font-bold text-center"
+                                        aria-label="Individual meal quantity"
+                                    />
+                                    <button
+                                        onClick={handleAddIndividualMeal}
+                                        disabled={!individualGuestId || isPendingIndividual}
+                                        className={cn(
+                                            "w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
+                                            !individualGuestId || isPendingIndividual
+                                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                                : "bg-emerald-600 text-white hover:bg-emerald-700"
+                                        )}
+                                    >
+                                        {isPendingIndividual ? 'Adding...' : `Add${!isToday ? ` for ${selectedDate}` : ''}`}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3">Bulk Meal Entry</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                                 {MEAL_CATEGORIES.map((category) => {
                                     const Icon = category.icon;

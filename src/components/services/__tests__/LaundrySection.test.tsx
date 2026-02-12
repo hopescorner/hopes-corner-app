@@ -17,8 +17,11 @@ vi.mock('@/stores/useServicesStore', () => ({
             { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '1', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
             { id: 'l2', guestId: 'g2', status: 'washer', time: '10:00-10:30', bagNumber: '2', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T10:00:00Z' },
         ],
-        updateLaundryRecord: vi.fn().mockResolvedValue(true),
+        addLaundryRecord: vi.fn().mockResolvedValue({ id: 'l3' }),
+        updateLaundryStatus: vi.fn().mockResolvedValue(true),
+        updateLaundryBagNumber: vi.fn().mockResolvedValue(true),
         cancelMultipleLaundry: vi.fn().mockResolvedValue(true),
+        loadFromSupabase: vi.fn().mockResolvedValue(undefined),
     })),
 }));
 
@@ -66,8 +69,8 @@ describe('LaundrySection Component', () => {
 
         it('shows guest names in cards', () => {
             render(<LaundrySection />);
-            expect(screen.getByText('Johnny')).toBeDefined();
-            expect(screen.getByText('Jane Smith')).toBeDefined();
+            expect(screen.getAllByText('Johnny').length).toBeGreaterThan(0);
+            expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0);
         });
     });
 

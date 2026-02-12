@@ -19,6 +19,7 @@ import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { generateLaundrySlots } from '@/lib/utils/serviceSlots';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
@@ -70,12 +71,17 @@ const formatTimeElapsed = (isoTimestamp: string | null): string | null => {
 };
 
 export function LaundrySection() {
-    const { laundryRecords, updateLaundryStatus, updateLaundryBagNumber, cancelMultipleLaundry, loadFromSupabase } = useServicesStore();
+    const { laundryRecords, updateLaundryStatus, updateLaundryBagNumber, cancelMultipleLaundry, loadFromSupabase, addLaundryRecord } = useServicesStore();
     const { guests } = useGuestsStore();
     const { data: session } = useSession();
 
     const today = todayPacificDateString();
     const [selectedDate, setSelectedDate] = useState(today);
+    const [backfillGuestId, setBackfillGuestId] = useState('');
+    const [backfillLaundryType, setBackfillLaundryType] = useState<'onsite' | 'offsite'>('onsite');
+    const [backfillSlotLabel, setBackfillSlotLabel] = useState('');
+    const [backfillBagNumber, setBackfillBagNumber] = useState('');
+    const [isAddingBackfill, setIsAddingBackfill] = useState(false);
 
     // Check if user is admin/staff
     const userRole = (session?.user as any)?.role || '';
@@ -108,6 +114,21 @@ export function LaundrySection() {
     const onsiteLaundry = activeLaundry.filter(r => r.laundryType === 'onsite' || !r.laundryType);
     const offsiteLaundry = activeLaundry.filter(r => r.laundryType === 'offsite');
 
+    const selectedDateLaundrySlots = useMemo(() => {
+        const selectedDateObject = new Date(`${selectedDate}T12:00:00`);
+        return generateLaundrySlots(selectedDateObject);
+    }, [selectedDate]);
+
+    const selectableGuests = useMemo(() => {
+        return (guests || [])
+            .filter((guest) => guest?.id)
+            .sort((firstGuest, secondGuest) => {
+                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${firstGuest.lastName || ''}`).toString();
+                const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
+                return firstName.localeCompare(secondName);
+            });
+    }, [guests]);
+
     // Calculate pending on-site laundry for End Service Day (only 'waiting' status, only for today)
     const todaysRecords = laundryRecords.filter(r => pacificDateStringFrom(r.date) === today);
     const pendingOnsiteLaundry = todaysRecords.filter(r => 
@@ -126,6 +147,32 @@ export function LaundrySection() {
             toast.error('Failed to cancel laundry.');
         }
     };
+
+    const handleAddLaundryRecord = useCallback(async () => {
+        if (!backfillGuestId) {
+            toast.error('Please select a guest');
+            return;
+        }
+
+        setIsAddingBackfill(true);
+        try {
+            await addLaundryRecord(
+                backfillGuestId,
+                backfillLaundryType,
+                backfillLaundryType === 'onsite' ? backfillSlotLabel : undefined,
+                backfillBagNumber,
+                selectedDate
+            );
+            toast.success(`Laundry record added for ${selectedDate}`);
+            setBackfillGuestId('');
+            setBackfillSlotLabel('');
+            setBackfillBagNumber('');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to add laundry record');
+        } finally {
+            setIsAddingBackfill(false);
+        }
+    }, [addLaundryRecord, backfillBagNumber, backfillGuestId, backfillLaundryType, backfillSlotLabel, selectedDate]);
 
     // Drag and drop state (using @dnd-kit)
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -244,8 +291,87 @@ export function LaundrySection() {
                         <p className="text-sm font-bold text-amber-800">Viewing Historical Data</p>
                         <p className="text-xs text-amber-600">
                             You are viewing laundry records from {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}. 
-                            Actions are disabled in history view.
+                            Status updates are disabled in history view.
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {isAdmin && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-[11px] text-gray-500 mb-3" title="Entries added here save to the date currently selected above.">
+                        Entries save to selected date: {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                    <div className="flex flex-col xl:flex-row xl:items-end gap-3">
+                        <div className="flex-1">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Add Individual Laundry Record</p>
+                            <select
+                                value={backfillGuestId}
+                                onChange={(event) => setBackfillGuestId(event.target.value)}
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                            >
+                                <option value="">Select guest</option>
+                                {selectableGuests.map((guest) => {
+                                    const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
+                                    return (
+                                        <option key={guest.id} value={guest.id}>
+                                            {displayName}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+                        <div className="w-full xl:w-40">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Type</p>
+                            <select
+                                value={backfillLaundryType}
+                                onChange={(event) => {
+                                    const laundryType = event.target.value as 'onsite' | 'offsite';
+                                    setBackfillLaundryType(laundryType);
+                                    if (laundryType === 'offsite') setBackfillSlotLabel('');
+                                }}
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                            >
+                                <option value="onsite">On-site</option>
+                                <option value="offsite">Off-site</option>
+                            </select>
+                        </div>
+                        {backfillLaundryType === 'onsite' && (
+                            <div className="w-full xl:w-52">
+                                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Slot</p>
+                                <select
+                                    value={backfillSlotLabel}
+                                    onChange={(event) => setBackfillSlotLabel(event.target.value)}
+                                    className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                                >
+                                    <option value="">Select slot</option>
+                                    {selectedDateLaundrySlots.map((slotLabel) => (
+                                        <option key={slotLabel} value={slotLabel}>{slotLabel}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        <div className="w-full xl:w-44">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Bag # (Optional)</p>
+                            <input
+                                value={backfillBagNumber}
+                                onChange={(event) => setBackfillBagNumber(event.target.value)}
+                                placeholder="Bag number"
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                            />
+                        </div>
+                        <button
+                            onClick={handleAddLaundryRecord}
+                            disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
+                            className={cn(
+                                "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                                !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                            )}
+                        >
+                            {isAddingBackfill ? 'Saving...' : 'Add Laundry'}
+                        </button>
                     </div>
                 </div>
             )}
@@ -278,7 +404,7 @@ export function LaundrySection() {
                                 {viewMode === 'list' ? 'Laundry Overview' : 'On-site Laundry - Kanban Board'}
                             </h2>
                             <p className="text-sm text-gray-500 font-medium">
-                                {isViewingPast ? 'Historical view - read only' : 'Drag and drop cards between columns to update status'}
+                                {isViewingPast ? 'Historical view - status updates disabled' : 'Drag and drop cards between columns to update status'}
                             </p>
                         </div>
                     </div>

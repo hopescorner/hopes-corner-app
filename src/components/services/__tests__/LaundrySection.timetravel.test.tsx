@@ -181,7 +181,7 @@ describe('LaundrySection Time Travel', () => {
             });
         });
 
-        it('should show read-only instruction when viewing past date', async () => {
+        it('should show historical status restriction message when viewing past date', async () => {
             render(<LaundrySection />);
 
             // Click to go to yesterday
@@ -191,7 +191,7 @@ describe('LaundrySection Time Travel', () => {
 
             // Should show read-only message
             await waitFor(() => {
-                expect(screen.getByText(/Historical view - read only/)).toBeInTheDocument();
+                expect(screen.getByText(/Historical view - status updates disabled/)).toBeInTheDocument();
             });
         });
 

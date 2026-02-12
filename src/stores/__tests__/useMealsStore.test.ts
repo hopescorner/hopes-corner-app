@@ -384,6 +384,16 @@ describe('useMealsStore', () => {
                 // We rely on default mock response which is quantity=1
                 expect(useMealsStore.getState().mealRecords).toHaveLength(1);
             });
+
+            it('adds a meal record for a selected past date', async () => {
+                await useMealsStore.getState().addMealRecord('g1', 1, null, '2025-01-04');
+
+                expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
+                    guest_id: 'g1',
+                    quantity: 1,
+                    served_on: '2025-01-04',
+                }));
+            });
         });
 
         // Restoring other actions coverage:

@@ -7,6 +7,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { formatSlotLabel } from '@/lib/utils/serviceSlots';
+import { generateShowerSlots } from '@/lib/utils/serviceSlots';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
@@ -21,6 +22,8 @@ import { useSession } from 'next-auth/react';
 export function ShowersSection() {
     const showerRecords = useServicesStore((s) => s.showerRecords);
     const cancelMultipleShowers = useServicesStore((s) => s.cancelMultipleShowers);
+    const addShowerRecord = useServicesStore((s) => s.addShowerRecord);
+    const addShowerWaitlist = useServicesStore((s) => s.addShowerWaitlist);
     const guests = useGuestsStore((s) => s.guests);
     const { data: session } = useSession();
 
@@ -30,6 +33,9 @@ export function ShowersSection() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const [selectedShower, setSelectedShower] = useState<any>(null);
     const [showSlotManager, setShowSlotManager] = useState(false);
+    const [backfillGuestId, setBackfillGuestId] = useState('');
+    const [backfillSlotTime, setBackfillSlotTime] = useState('');
+    const [isAddingBackfill, setIsAddingBackfill] = useState(false);
 
     // Check if user is admin/staff
     const userRole = (session?.user as any)?.role || '';
@@ -70,6 +76,21 @@ export function ShowersSection() {
         return todaysRecords.filter((r) => r.status !== 'done' && r.status !== 'cancelled');
     }, [showerRecords, today, getRecordDateKey]);
 
+    const selectedDateSlots = useMemo(() => {
+        const selectedDateObject = new Date(`${selectedDate}T12:00:00`);
+        return generateShowerSlots(selectedDateObject);
+    }, [selectedDate]);
+
+    const selectableGuests = useMemo(() => {
+        return (guests || [])
+            .filter((guest) => guest?.id)
+            .sort((firstGuest, secondGuest) => {
+                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${firstGuest.lastName || ''}`).toString();
+                const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
+                return firstName.localeCompare(secondName);
+            });
+    }, [guests]);
+
     const currentList = useMemo(() => {
         switch (activeTab) {
             case 'active':
@@ -104,6 +125,44 @@ export function ShowersSection() {
         }
     };
 
+    const handleAddShowerRecord = async () => {
+        if (!backfillGuestId) {
+            toast.error('Please select a guest');
+            return;
+        }
+
+        setIsAddingBackfill(true);
+        try {
+            await addShowerRecord(backfillGuestId, backfillSlotTime || undefined, selectedDate);
+            toast.success(`Shower added for ${selectedDate}`);
+            setBackfillGuestId('');
+            setBackfillSlotTime('');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to add shower record');
+        } finally {
+            setIsAddingBackfill(false);
+        }
+    };
+
+    const handleAddShowerWaitlist = async () => {
+        if (!backfillGuestId) {
+            toast.error('Please select a guest');
+            return;
+        }
+
+        setIsAddingBackfill(true);
+        try {
+            await addShowerWaitlist(backfillGuestId, selectedDate);
+            toast.success(`Waitlist entry added for ${selectedDate}`);
+            setBackfillGuestId('');
+            setBackfillSlotTime('');
+        } catch (error: any) {
+            toast.error(error?.message || 'Failed to add waitlist entry');
+        } finally {
+            setIsAddingBackfill(false);
+        }
+    };
+
     return (
         <div className="space-y-6">
             {/* Historical Data Warning Banner */}
@@ -114,8 +173,77 @@ export function ShowersSection() {
                         <p className="text-sm font-bold text-amber-800">Viewing Historical Data</p>
                         <p className="text-xs text-amber-600">
                             You are viewing shower records from {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}. 
-                            Actions are disabled in history view.
+                            Status updates are disabled in history view.
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {isAdmin && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-[11px] text-gray-500 mb-3" title="Entries added here save to the date currently selected above.">
+                        Entries save to selected date: {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                    <div className="flex flex-col lg:flex-row lg:items-end gap-3">
+                        <div className="flex-1">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Add Individual Shower Record</p>
+                            <select
+                                value={backfillGuestId}
+                                onChange={(event) => setBackfillGuestId(event.target.value)}
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                            >
+                                <option value="">Select guest</option>
+                                {selectableGuests.map((guest) => {
+                                    const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
+                                    return (
+                                        <option key={guest.id} value={guest.id}>
+                                            {displayName}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+                        <div className="w-full lg:w-56">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Slot (Optional)</p>
+                            <select
+                                value={backfillSlotTime}
+                                onChange={(event) => setBackfillSlotTime(event.target.value)}
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                            >
+                                <option value="">No slot time</option>
+                                {selectedDateSlots.map((slotTime) => (
+                                    <option key={slotTime} value={slotTime}>
+                                        {formatSlotLabel(slotTime)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleAddShowerRecord}
+                                disabled={!backfillGuestId || isAddingBackfill}
+                                className={cn(
+                                    "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                                    !backfillGuestId || isAddingBackfill
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-sky-600 text-white hover:bg-sky-700'
+                                )}
+                            >
+                                {isAddingBackfill ? 'Saving...' : 'Add Shower'}
+                            </button>
+                            <button
+                                onClick={handleAddShowerWaitlist}
+                                disabled={!backfillGuestId || isAddingBackfill}
+                                className={cn(
+                                    "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                                    !backfillGuestId || isAddingBackfill
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-amber-500 text-white hover:bg-amber-600'
+                                )}
+                            >
+                                Add Waitlist
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

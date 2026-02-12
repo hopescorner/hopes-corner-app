@@ -57,7 +57,7 @@ interface MealsState {
     holidayRecords: HolidayRecord[];
     haircutRecords: HaircutRecord[];
 
-    addMealRecord: (guestId: string, quantity?: number, pickedUpByGuestId?: string | null) => Promise<MealRecord>;
+    addMealRecord: (guestId: string, quantity?: number, pickedUpByGuestId?: string | null, serviceDate?: string) => Promise<MealRecord>;
     deleteMealRecord: (recordId: string) => Promise<void>;
     addRvMealRecord: (guestId: string, quantity?: number) => Promise<Partial<MealRecord>>;
     deleteRvMealRecord: (recordId: string) => Promise<void>;
@@ -108,16 +108,16 @@ export const useMealsStore = create<MealsState>()(
                     haircutRecords: [],
 
                     // Meal Actions
-                    addMealRecord: async (guestId: string, quantity = 1, pickedUpByGuestId: string | null = null) => {
+                    addMealRecord: async (guestId: string, quantity = 1, pickedUpByGuestId: string | null = null, serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
 
-                        const todayStr = todayPacificDateString();
+                        const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
                         const payload: any = {
                             guest_id: guestId,
                             quantity,
-                            served_on: todayStr,
+                            served_on: targetDate,
                             recorded_at: new Date().toISOString(),
                             picked_up_by_guest_id: pickedUpByGuestId || null,
                         };
@@ -140,11 +140,11 @@ export const useMealsStore = create<MealsState>()(
 
                         // Auto-add lunch bag
                         try {
-                            await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal');
+                            await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
                             // If proxy pickup, add another? Logic from old app:
                             // "If proxy pickup (different guest picked up), add additional lunch bag for the proxy guest"
                             if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
-                                await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup');
+                                await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', undefined, targetDate);
                             }
                         } catch (err) {
                             console.error('Failed to auto-add lunch bag', err);

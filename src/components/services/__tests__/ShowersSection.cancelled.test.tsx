@@ -24,6 +24,8 @@ vi.mock('react-hot-toast', () => ({
 const mockLoadFromSupabase = vi.fn().mockResolvedValue(undefined);
 const mockCancelMultipleShowers = vi.fn().mockResolvedValue(true);
 const mockUpdateShowerStatus = vi.fn().mockResolvedValue(undefined);
+const mockAddShowerRecord = vi.fn().mockResolvedValue({ id: 'new-shower' });
+const mockAddShowerWaitlist = vi.fn().mockResolvedValue({ id: 'new-waitlist' });
 
 const defaultShowerRecords = [
     { id: '1', guestId: 'g1', date: '2026-01-22', time: '09:00', status: 'booked' },
@@ -47,6 +49,8 @@ vi.mock('@/stores/useServicesStore', () => ({
         const state = {
             showerRecords: defaultShowerRecords,
             cancelMultipleShowers: mockCancelMultipleShowers,
+            addShowerRecord: mockAddShowerRecord,
+            addShowerWaitlist: mockAddShowerWaitlist,
             loadFromSupabase: mockLoadFromSupabase,
             deleteShowerRecord: vi.fn(),
             updateShowerStatus: mockUpdateShowerStatus,
@@ -91,6 +95,7 @@ vi.mock('@/lib/utils/date', () => ({
 
 vi.mock('@/lib/utils/serviceSlots', () => ({
     formatSlotLabel: vi.fn((slot: string) => slot),
+    generateShowerSlots: vi.fn(() => ['09:00', '09:30', '10:00']),
 }));
 
 describe('ShowersSection Cancelled Tab', () => {
@@ -125,8 +130,8 @@ describe('ShowersSection Cancelled Tab', () => {
         
         await waitFor(() => {
             // Should show Alice Brown (cancelled) and Charlie Davis/Chuck (no_show)
-            expect(screen.getByText('Alice Brown')).toBeDefined();
-            expect(screen.getByText('Chuck')).toBeDefined();
+            expect(screen.getAllByText('Alice Brown').length).toBeGreaterThan(0);
+            expect(screen.getAllByText('Chuck').length).toBeGreaterThan(0);
         });
     });
 
@@ -222,6 +227,8 @@ describe('ShowersSection Cancelled Tab', () => {
                     { id: '1', guestId: 'g1', date: '2026-01-22', time: '09:00', status: 'booked' },
                 ],
                 cancelMultipleShowers: mockCancelMultipleShowers,
+                addShowerRecord: mockAddShowerRecord,
+                addShowerWaitlist: mockAddShowerWaitlist,
                 loadFromSupabase: mockLoadFromSupabase,
                 deleteShowerRecord: vi.fn(),
                 updateShowerStatus: mockUpdateShowerStatus,

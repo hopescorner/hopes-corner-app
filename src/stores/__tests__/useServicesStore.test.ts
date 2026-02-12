@@ -664,6 +664,20 @@ describe('useServicesStore', () => {
                     }));
                 });
 
+                it('adds a shower record for a selected past date', async () => {
+                    const mockData = { id: 's124', guest_id: 'g1', scheduled_for: '2025-01-04' };
+                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+
+                    await useServicesStore.getState().addShowerRecord('g1', '09:00', '2025-01-04');
+
+                    expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
+                        guest_id: 'g1',
+                        scheduled_for: '2025-01-04',
+                        scheduled_time: '09:00',
+                        status: 'booked',
+                    }));
+                });
+
                 it('adds a shower waitlist record successfully', async () => {
                     mockSupabase.single.mockResolvedValueOnce({ data: { id: 'w1', status: 'waitlisted' }, error: null });
                     await useServicesStore.getState().addShowerWaitlist('g1');
@@ -706,6 +720,19 @@ describe('useServicesStore', () => {
                     mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l1' }, error: null });
                     await useServicesStore.getState().addLaundryRecord('g1', 'onsite', '08:00', 'B1');
                     expect(useServicesStore.getState().laundryRecords).toHaveLength(1);
+                });
+
+                it('adds a laundry record for a selected past date', async () => {
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l2' }, error: null });
+                    await useServicesStore.getState().addLaundryRecord('g1', 'onsite', '08:30 - 10:00', 'B2', '2025-01-04');
+
+                    expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
+                        guest_id: 'g1',
+                        laundry_type: 'onsite',
+                        scheduled_for: '2025-01-04',
+                        slot_label: '08:30 - 10:00',
+                        bag_number: 'B2',
+                    }));
                 });
 
                 it('adds a laundry waitlist successfully', async () => {

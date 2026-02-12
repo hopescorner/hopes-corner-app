@@ -88,11 +88,11 @@ interface ServicesState {
     haircutRecords: HaircutRecord[];
     holidayRecords: HolidayRecord[];
 
-    addShowerRecord: (guestId: string, time?: string) => Promise<ShowerRecord | Partial<ShowerRecord>>;
-    addShowerWaitlist: (guestId: string) => Promise<ShowerRecord | Partial<ShowerRecord>>;
+    addShowerRecord: (guestId: string, time?: string, serviceDate?: string) => Promise<ShowerRecord | Partial<ShowerRecord>>;
+    addShowerWaitlist: (guestId: string, serviceDate?: string) => Promise<ShowerRecord | Partial<ShowerRecord>>;
     deleteShowerRecord: (recordId: string) => Promise<void>;
-    addLaundryRecord: (guestId: string, washType: string, slotLabel?: string, bagNumber?: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
-    addLaundryWaitlist: (guestId: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
+    addLaundryRecord: (guestId: string, washType: string, slotLabel?: string, bagNumber?: string, serviceDate?: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
+    addLaundryWaitlist: (guestId: string, serviceDate?: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
     deleteLaundryRecord: (recordId: string) => Promise<void>;
     updateLaundryStatus: (recordId: string, status: string) => Promise<boolean>;
     updateLaundryBagNumber: (recordId: string, bagNumber: string) => Promise<boolean>;
@@ -129,14 +129,14 @@ export const useServicesStore = create<ServicesState>()(
                     holidayRecords: [],
 
                     // Shower Actions
-                    addShowerRecord: async (guestId: string, time: string | null = null) => {
+                    addShowerRecord: async (guestId: string, time: string | null = null, serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
-                        const todayStr = todayPacificDateString();
+                        const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
                         const payload = {
                             guest_id: guestId,
-                            scheduled_for: todayStr,
+                            scheduled_for: targetDate,
                             scheduled_time: time,
                             status: 'booked',
                         };
@@ -159,14 +159,14 @@ export const useServicesStore = create<ServicesState>()(
                         return mapped;
                     },
 
-                    addShowerWaitlist: async (guestId: string) => {
+                    addShowerWaitlist: async (guestId: string, serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
-                        const todayStr = todayPacificDateString();
+                        const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
                         const payload = {
                             guest_id: guestId,
-                            scheduled_for: todayStr,
+                            scheduled_for: targetDate,
                             status: 'waitlisted',
                         };
 
@@ -212,11 +212,11 @@ export const useServicesStore = create<ServicesState>()(
                     },
 
                     // Laundry Actions
-                    addLaundryRecord: async (guestId: string, washType: string, slotLabel: string | null = null, bagNumber: string = '') => {
+                    addLaundryRecord: async (guestId: string, washType: string, slotLabel: string | null = null, bagNumber: string = '', serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
                         if (!washType) throw new Error('Wash type is required');
 
-                        const todayStr = todayPacificDateString();
+                        const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
                         const payload = {
@@ -224,7 +224,7 @@ export const useServicesStore = create<ServicesState>()(
                             laundry_type: washType.toLowerCase(),
                             slot_label: slotLabel,
                             bag_number: bagNumber,
-                            scheduled_for: todayStr,
+                            scheduled_for: targetDate,
                             // Use 'pending' for offsite laundry, 'waiting' for onsite
                             status: washType.toLowerCase() === 'offsite' ? 'pending' : 'waiting',
                         };
@@ -247,14 +247,14 @@ export const useServicesStore = create<ServicesState>()(
                         return mapped;
                     },
 
-                    addLaundryWaitlist: async (guestId: string) => {
+                    addLaundryWaitlist: async (guestId: string, serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
-                        const todayStr = todayPacificDateString();
+                        const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
                         const payload = {
                             guest_id: guestId,
-                            scheduled_for: todayStr,
+                            scheduled_for: targetDate,
                             status: 'waitlisted',
                         };
 
