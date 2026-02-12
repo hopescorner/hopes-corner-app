@@ -236,7 +236,7 @@ function PureGuestCard({
         if (actionStatusMap) return defaultActionStatus;
         const actions = getActionsForGuestToday(guest.id);
         return {
-            mealActionId: actions.find(a => a.type === 'MEAL_ADDED' && pacificDateStringFrom(a.timestamp) === today)?.id,
+            mealActionId: actions.find(a => (a.type === 'MEAL_ADDED' || a.type === 'EXTRA_MEALS_ADDED') && pacificDateStringFrom(a.timestamp) === today)?.id,
             showerActionId: actions.find(a => a.type === 'SHOWER_BOOKED' && pacificDateStringFrom(a.timestamp) === today)?.id,
             laundryActionId: actions.find(a => a.type === 'LAUNDRY_BOOKED' && pacificDateStringFrom(a.timestamp) === today)?.id,
             bicycleActionId: actions.find(a => a.type === 'BICYCLE_LOGGED' && pacificDateStringFrom(a.timestamp) === today)?.id,
