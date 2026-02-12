@@ -43,7 +43,23 @@ export const generateLaundrySlots = (date: Date = new Date()) => {
         ];
     }
 
-    // Monday, Wednesday, and all other days
+    // Monday (day 1) and Wednesday (day 3) - 10 slots
+    if (dayOfWeek === 1 || dayOfWeek === 3) {
+        return [
+            "05:00 - 06:00",
+            "05:30 - 06:30",
+            "06:00 - 07:00",
+            "06:30 - 07:30",
+            "07:00 - 08:00",
+            "07:30 - 08:30",
+            "08:00 - 09:00",
+            "08:30 - 09:45",
+            "09:00 - 10:15",
+            "09:30 - 11:45",
+        ];
+    }
+
+    // All other days (Tuesday, Thursday, Friday, Sunday) - 5 slots
     return [
         "07:30 - 08:30",
         "08:00 - 09:00",

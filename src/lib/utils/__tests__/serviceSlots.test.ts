@@ -56,12 +56,31 @@ describe('serviceSlots utilities', () => {
     });
 
     describe('generateLaundrySlots', () => {
-        it('returns 5 slots for weekdays', () => {
+        it('returns 10 slots for Monday', () => {
             const monday = new Date(2025, 0, 6);
             const slots = generateLaundrySlots(monday);
 
+            expect(slots.length).toBe(10);
+            expect(slots[0]).toBe('05:00 - 06:00');
+            expect(slots[slots.length - 1]).toBe('09:30 - 11:45');
+        });
+
+        it('returns 10 slots for Wednesday', () => {
+            const wednesday = new Date(2025, 0, 8);
+            const slots = generateLaundrySlots(wednesday);
+
+            expect(slots.length).toBe(10);
+            expect(slots[0]).toBe('05:00 - 06:00');
+            expect(slots[slots.length - 1]).toBe('09:30 - 11:45');
+        });
+
+        it('returns 5 slots for other weekdays', () => {
+            const tuesday = new Date(2025, 0, 7);
+            const slots = generateLaundrySlots(tuesday);
+
             expect(slots.length).toBe(5);
             expect(slots[0]).toBe('07:30 - 08:30');
+            expect(slots[slots.length - 1]).toBe('09:30 - 11:45');
         });
 
         it('returns 5 slots for Saturday', () => {
@@ -84,7 +103,7 @@ describe('serviceSlots utilities', () => {
         it('uses current date when no argument provided', () => {
             const slots = generateLaundrySlots();
             expect(Array.isArray(slots)).toBe(true);
-            expect(slots.length).toBe(5);
+            expect(slots.length).toBeGreaterThan(0);
         });
     });
 
