@@ -8,9 +8,15 @@ import {
 
 describe('mealServiceTime utilities', () => {
     describe('getMealServiceInfo', () => {
-        it('returns null for Sunday (no service)', () => {
+        it('returns Sunday schedule (8:00 - 10:00)', () => {
             const sunday = new Date(2025, 0, 5); // January 5, 2025 is a Sunday
-            expect(getMealServiceInfo(sunday)).toBeNull();
+            const service = getMealServiceInfo(sunday);
+
+            expect(service).not.toBeNull();
+            expect(service?.startHour).toBe(8);
+            expect(service?.startMinute).toBe(0);
+            expect(service?.endHour).toBe(10);
+            expect(service?.endMinute).toBe(0);
         });
 
         it('returns null for Tuesday (no service)', () => {
@@ -109,9 +115,9 @@ describe('mealServiceTime utilities', () => {
 
     describe('getMealServiceStatus', () => {
         describe('no-service days', () => {
-            it('returns no-service for Sunday', () => {
-                const sunday = new Date(2025, 0, 5, 9, 0);
-                const status = getMealServiceStatus(sunday);
+            it('returns no-service for Tuesday', () => {
+                const tuesday = new Date(2025, 0, 7, 9, 0);
+                const status = getMealServiceStatus(tuesday);
 
                 expect(status.type).toBe('no-service');
                 expect(status.message).toBeNull();
