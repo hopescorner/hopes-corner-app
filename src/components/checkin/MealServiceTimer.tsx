@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Clock } from 'lucide-react';
-import { getMealServiceStatus, MealServiceStatus, isSundayBrunch } from '@/lib/utils/mealServiceTime';
+import { getMealServiceStatus, MealServiceStatus, isSunday } from '@/lib/utils/mealServiceTime';
 import { cn } from '@/lib/utils/cn';
 
 export function MealServiceTimer() {
@@ -29,7 +29,7 @@ export function MealServiceTimer() {
 
     const getStatusColor = () => {
         // Sunday Brunch uses red color scheme
-        if (isSundayBrunch()) {
+        if (isSunday()) {
             switch (status.type) {
                 case 'before-service':
                     return 'text-red-600 bg-red-50 border-red-200';
@@ -74,7 +74,7 @@ export function MealServiceTimer() {
 
     const getProgressBarColor = () => {
         // Sunday Brunch uses red progress bar
-        if (isSundayBrunch()) {
+        if (isSunday()) {
             return 'bg-red-400';
         }
 

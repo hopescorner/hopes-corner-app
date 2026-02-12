@@ -1,3 +1,5 @@
+const SUNDAY_SERVICE_NAME = 'Sunday Brunch';
+
 export function getMealServiceInfo(date: Date = new Date()) {
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
@@ -15,10 +17,10 @@ export function getMealServiceInfo(date: Date = new Date()) {
 }
 
 export function getSundayServiceName(): string {
-    return 'Sunday Brunch';
+    return SUNDAY_SERVICE_NAME;
 }
 
-export function isSundayBrunch(date: Date = new Date()): boolean {
+export function isSunday(date: Date = new Date()): boolean {
     return date.getDay() === 0;
 }
 

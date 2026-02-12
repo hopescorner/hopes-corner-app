@@ -5,7 +5,7 @@ import {
     formatTimeRemaining,
     getMealServiceStatus,
     getSundayServiceName,
-    isSundayBrunch
+    isSunday
 } from '../mealServiceTime';
 
 describe('mealServiceTime utilities', () => {
@@ -75,40 +75,40 @@ describe('mealServiceTime utilities', () => {
         });
     });
 
-    describe('isSundayBrunch', () => {
+    describe('isSunday', () => {
         it('returns true for Sunday', () => {
             const sunday = new Date(2025, 0, 5); // January 5, 2025 is a Sunday
-            expect(isSundayBrunch(sunday)).toBe(true);
+            expect(isSunday(sunday)).toBe(true);
         });
 
         it('returns false for Monday', () => {
             const monday = new Date(2025, 0, 6);
-            expect(isSundayBrunch(monday)).toBe(false);
+            expect(isSunday(monday)).toBe(false);
         });
 
         it('returns false for Tuesday', () => {
             const tuesday = new Date(2025, 0, 7);
-            expect(isSundayBrunch(tuesday)).toBe(false);
+            expect(isSunday(tuesday)).toBe(false);
         });
 
         it('returns false for Wednesday', () => {
             const wednesday = new Date(2025, 0, 8);
-            expect(isSundayBrunch(wednesday)).toBe(false);
+            expect(isSunday(wednesday)).toBe(false);
         });
 
         it('returns false for Thursday', () => {
             const thursday = new Date(2025, 0, 9);
-            expect(isSundayBrunch(thursday)).toBe(false);
+            expect(isSunday(thursday)).toBe(false);
         });
 
         it('returns false for Friday', () => {
             const friday = new Date(2025, 0, 10);
-            expect(isSundayBrunch(friday)).toBe(false);
+            expect(isSunday(friday)).toBe(false);
         });
 
         it('returns false for Saturday', () => {
             const saturday = new Date(2025, 0, 11);
-            expect(isSundayBrunch(saturday)).toBe(false);
+            expect(isSunday(saturday)).toBe(false);
         });
     });
 

@@ -2,16 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import React from 'react';
 import { MealServiceTimer } from '../MealServiceTimer';
-import { getMealServiceStatus, isSundayBrunch } from '@/lib/utils/mealServiceTime';
+import { getMealServiceStatus, isSunday } from '@/lib/utils/mealServiceTime';
 
 // Mock the mealServiceTime utility
 vi.mock('@/lib/utils/mealServiceTime', () => ({
     getMealServiceStatus: vi.fn(),
-    isSundayBrunch: vi.fn(() => false),
+    isSunday: vi.fn(() => false),
 }));
 
 const mockGetMealServiceStatus = getMealServiceStatus as ReturnType<typeof vi.fn>;
-const mockIsSundayBrunch = isSundayBrunch as ReturnType<typeof vi.fn>;
+const mockIsSunday = isSunday as ReturnType<typeof vi.fn>;
 
 describe('MealServiceTimer Component', () => {
     beforeEach(() => {
@@ -483,11 +483,11 @@ describe('MealServiceTimer Component', () => {
 
     describe('Sunday Brunch Styling', () => {
         beforeEach(() => {
-            mockIsSundayBrunch.mockReturnValue(true);
+            mockIsSunday.mockReturnValue(true);
         });
 
         afterEach(() => {
-            mockIsSundayBrunch.mockReturnValue(false);
+            mockIsSunday.mockReturnValue(false);
         });
 
         it('renders with red styling for before-service on Sunday', () => {
