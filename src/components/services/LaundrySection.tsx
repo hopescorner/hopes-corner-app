@@ -326,99 +326,6 @@ export function LaundrySection() {
                 </div>
             )}
 
-            {isAdmin && (
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                    <p className="text-[11px] text-gray-500 mb-3" title="Entries added here save to the date currently selected above.">
-                        Entries save to selected date: {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
-                    <div className="flex flex-col xl:flex-row xl:items-end gap-3">
-                        <div className="flex-1">
-                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Add Individual Laundry Record</p>
-                            <select
-                                value={backfillGuestId}
-                                onChange={(event) => setBackfillGuestId(event.target.value)}
-                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
-                            >
-                                <option value="">Select guest</option>
-                                {selectableGuests.map((guest) => {
-                                    const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
-                                    return (
-                                        <option key={guest.id} value={guest.id}>
-                                            {displayName}
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                        </div>
-                        <div className="w-full xl:w-40">
-                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Type</p>
-                            <select
-                                value={backfillLaundryType}
-                                onChange={(event) => {
-                                    const laundryType = event.target.value as 'onsite' | 'offsite';
-                                    setBackfillLaundryType(laundryType);
-                                    if (laundryType === 'offsite') setBackfillSlotLabel('');
-                                }}
-                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
-                            >
-                                <option value="onsite">On-site</option>
-                                <option value="offsite">Off-site</option>
-                            </select>
-                        </div>
-                        {backfillLaundryType === 'onsite' && (
-                            <div className="w-full xl:w-52">
-                                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Slot</p>
-                                <select
-                                    value={backfillSlotLabel}
-                                    onChange={(event) => setBackfillSlotLabel(event.target.value)}
-                                    className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
-                                >
-                                    <option value="">Select slot</option>
-                                    {selectedDateLaundrySlots.map((slotLabel) => (
-                                        <option key={slotLabel} value={slotLabel}>{slotLabel}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
-                        <div className="w-full xl:w-44">
-                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Bag # (Optional)</p>
-                            <input
-                                value={backfillBagNumber}
-                                onChange={(event) => setBackfillBagNumber(event.target.value)}
-                                placeholder="Bag number"
-                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
-                            />
-                        </div>
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleAddLaundryRecord}
-                                disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
-                                className={cn(
-                                    "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
-                                    !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                                )}
-                            >
-                                {isAddingBackfill ? 'Saving...' : 'Add Laundry'}
-                            </button>
-                            <button
-                                onClick={handleAddCompletedLaundryRecord}
-                                disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
-                                className={cn(
-                                    "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
-                                    !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
-                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                )}
-                            >
-                                Add Completed
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* End Service Day Panel - Only show for today */}
             {!isViewingPast && (
                 <EndServiceDayPanel
@@ -569,6 +476,99 @@ export function LaundrySection() {
                     </DndContext>
                 )}
             </div>
+
+            {isAdmin && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                    <p className="text-[11px] text-gray-500 mb-3" title="Entries added here save to the date currently selected above.">
+                        Entries save to selected date: {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </p>
+                    <div className="flex flex-col xl:flex-row xl:items-end gap-3">
+                        <div className="flex-1">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Add Individual Laundry Record</p>
+                            <select
+                                value={backfillGuestId}
+                                onChange={(event) => setBackfillGuestId(event.target.value)}
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                            >
+                                <option value="">Select guest</option>
+                                {selectableGuests.map((guest) => {
+                                    const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
+                                    return (
+                                        <option key={guest.id} value={guest.id}>
+                                            {displayName}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+                        <div className="w-full xl:w-40">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Type</p>
+                            <select
+                                value={backfillLaundryType}
+                                onChange={(event) => {
+                                    const laundryType = event.target.value as 'onsite' | 'offsite';
+                                    setBackfillLaundryType(laundryType);
+                                    if (laundryType === 'offsite') setBackfillSlotLabel('');
+                                }}
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                            >
+                                <option value="onsite">On-site</option>
+                                <option value="offsite">Off-site</option>
+                            </select>
+                        </div>
+                        {backfillLaundryType === 'onsite' && (
+                            <div className="w-full xl:w-52">
+                                <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Slot</p>
+                                <select
+                                    value={backfillSlotLabel}
+                                    onChange={(event) => setBackfillSlotLabel(event.target.value)}
+                                    className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                                >
+                                    <option value="">Select slot</option>
+                                    {selectedDateLaundrySlots.map((slotLabel) => (
+                                        <option key={slotLabel} value={slotLabel}>{slotLabel}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+                        <div className="w-full xl:w-44">
+                            <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Bag # (Optional)</p>
+                            <input
+                                value={backfillBagNumber}
+                                onChange={(event) => setBackfillBagNumber(event.target.value)}
+                                placeholder="Bag number"
+                                className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                            />
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleAddLaundryRecord}
+                                disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
+                                className={cn(
+                                    "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                                    !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                )}
+                            >
+                                {isAddingBackfill ? 'Saving...' : 'Add Laundry'}
+                            </button>
+                            <button
+                                onClick={handleAddCompletedLaundryRecord}
+                                disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
+                                className={cn(
+                                    "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
+                                    !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
+                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                )}
+                            >
+                                Add Completed
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Off-site Laundry Kanban - only show if there are off-site records */}
             {offsiteLaundry.length > 0 && (
