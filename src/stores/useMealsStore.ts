@@ -520,17 +520,19 @@ export const useMealsStore = create<MealsState>()(
                         const todaysLunchBags = lunchBagRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
 
                         // Schedule Logic (from older app's automaticMealEntries.js)
-                        // Mon (1): 100 RV
+                        // Mon (1): 100 RV + 1 Lunch Bag
                         // Wed (3): 40 RV
-                        // Thu (4): 100 RV
+                        // Thu (4): 100 RV + 1 Lunch Bag
                         // Sat (6): 100 Lunch Bags, 100 RV, 50 Day Worker
 
                         if (dayOfWeek === 1) { // Mon
                             if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Mon)', `rv_${todayStr}`);
+                            if (todaysLunchBags.length === 0) await addBulkMealRecord('lunch_bag', 1, 'Automatic Entry (Mon)', `lunch_bag_rv_${todayStr}`);
                         } else if (dayOfWeek === 3) { // Wed
                             if (todaysRv.length === 0) await addBulkMealRecord('rv', 40, 'Automatic Entry (Wed)', `rv_${todayStr}`);
                         } else if (dayOfWeek === 4) { // Thu
                             if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Thu)', `rv_${todayStr}`);
+                            if (todaysLunchBags.length === 0) await addBulkMealRecord('lunch_bag', 1, 'Automatic Entry (Thu)', `lunch_bag_rv_${todayStr}`);
                         } else if (dayOfWeek === 6) { // Sat
                             if (todaysLunchBags.length === 0) await addBulkMealRecord('lunch_bag', 100, 'Automatic Entry (Sat)', `lunch_bag_${todayStr}`);
                             if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Sat)', `rv_${todayStr}`);
