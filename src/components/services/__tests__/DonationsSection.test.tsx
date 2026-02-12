@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { DonationsSection, groupDonationsByItem, getRecentItemNames } from '../DonationsSection';
-import { DonationRecord } from '@/types/database';
+import { DonationRecord } from '@/stores/useDonationsStore';
 
 // Mock the stores
 const mockDonationsStore = {
@@ -66,6 +66,7 @@ const createDonationRecord = (overrides: Partial<DonationRecord> = {}): Donation
     servings: 20,
     temperature: '165°F',
     donor: 'LinkedIn',
+    date: '2024-01-15T10:00:00Z',
     dateKey: '2024-01-15',
     createdAt: '2024-01-15T10:00:00Z',
     donatedAt: '2024-01-15T10:00:00Z',

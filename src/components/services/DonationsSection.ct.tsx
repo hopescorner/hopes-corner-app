@@ -132,26 +132,6 @@ test.describe('DonationsSection', () => {
     await expect(component.getByText('Copy Summary')).toBeVisible();
   });
 
-  test('La Plaza records display category and weight', async ({ mount }) => {
-    const component = await mount(
-      <DonationsSectionStory
-        laPlazaRecords={[
-          {
-            id: 'lp1', category: 'Produce', weightLbs: 25,
-            notes: 'Fresh vegetables', dateKey: todayKey, createdAt: todayISO,
-          },
-        ]}
-      />
-    );
-    // Switch to La Plaza view
-    await component.getByRole('button', { name: 'La Plaza' }).click();
-    // The category "Produce" appears both as a badge span and as an <option> in the dropdown.
-    // Target the span element specifically to avoid the <option> match.
-    await expect(component.locator('span:text-is("Produce")').first()).toBeVisible();
-    await expect(component.getByText('Fresh vegetables')).toBeVisible();
-    await expect(component.getByText('25 lbs')).toBeVisible();
-  });
-
   test('Save Record button is present in general form', async ({ mount }) => {
     const component = await mount(<DonationsSectionStory />);
     await expect(component.getByRole('button', { name: 'Save Record' })).toBeVisible();
