@@ -4,7 +4,7 @@ import {
     formatTime,
     formatTimeRemaining,
     getMealServiceStatus,
-    getMealServiceName,
+    getSundayServiceName,
     isSundayBrunch
 } from '../mealServiceTime';
 
@@ -69,40 +69,9 @@ describe('mealServiceTime utilities', () => {
         });
     });
 
-    describe('getMealServiceName', () => {
-        it('returns "Sunday Brunch" for Sunday', () => {
-            const sunday = new Date(2025, 0, 5); // January 5, 2025 is a Sunday
-            expect(getMealServiceName(sunday)).toBe('Sunday Brunch');
-        });
-
-        it('returns null for Monday', () => {
-            const monday = new Date(2025, 0, 6);
-            expect(getMealServiceName(monday)).toBeNull();
-        });
-
-        it('returns null for Tuesday', () => {
-            const tuesday = new Date(2025, 0, 7);
-            expect(getMealServiceName(tuesday)).toBeNull();
-        });
-
-        it('returns null for Wednesday', () => {
-            const wednesday = new Date(2025, 0, 8);
-            expect(getMealServiceName(wednesday)).toBeNull();
-        });
-
-        it('returns null for Thursday', () => {
-            const thursday = new Date(2025, 0, 9);
-            expect(getMealServiceName(thursday)).toBeNull();
-        });
-
-        it('returns null for Friday', () => {
-            const friday = new Date(2025, 0, 10);
-            expect(getMealServiceName(friday)).toBeNull();
-        });
-
-        it('returns null for Saturday', () => {
-            const saturday = new Date(2025, 0, 11);
-            expect(getMealServiceName(saturday)).toBeNull();
+    describe('getSundayServiceName', () => {
+        it('returns "Sunday Brunch"', () => {
+            expect(getSundayServiceName()).toBe('Sunday Brunch');
         });
     });
 

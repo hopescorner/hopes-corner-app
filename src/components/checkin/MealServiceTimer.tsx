@@ -37,9 +37,6 @@ export function MealServiceTimer() {
                     if ((status.timeRemaining || 0) <= 10) {
                         return 'text-red-700 bg-red-100 border-red-300';
                     }
-                    if ((status.timeRemaining || 0) <= 20) {
-                        return 'text-red-600 bg-red-50 border-red-200';
-                    }
                     return 'text-red-600 bg-red-50 border-red-200';
                 case 'ended':
                     return 'text-red-500 bg-red-50 border-red-200';

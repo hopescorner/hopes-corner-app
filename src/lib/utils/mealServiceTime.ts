@@ -14,12 +14,8 @@ export function getMealServiceInfo(date: Date = new Date()) {
     return serviceSchedule[dayOfWeek];
 }
 
-export function getMealServiceName(date: Date = new Date()): string | null {
-    const dayOfWeek = date.getDay();
-    if (dayOfWeek === 0) {
-        return 'Sunday Brunch';
-    }
-    return null;
+export function getSundayServiceName(): string {
+    return 'Sunday Brunch';
 }
 
 export function isSundayBrunch(date: Date = new Date()): boolean {
