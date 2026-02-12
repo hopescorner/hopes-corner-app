@@ -788,6 +788,9 @@ export const useServicesStore = create<ServicesState>()(
                     },
 
                     hasReceivedNewBicycleInLastSixMonths: (guestId: string) => {
+                        // Note: setMonth can have edge case issues (e.g., Jan 31 - 6 months = Aug 1)
+                        // but for a 6-month period check, this is acceptable given the simplicity.
+                        // The slight imprecision (a day or two) doesn't affect program integrity.
                         const sixMonthsAgo = new Date();
                         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
                         

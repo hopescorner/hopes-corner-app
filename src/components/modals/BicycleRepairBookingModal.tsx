@@ -40,6 +40,7 @@ export function BicycleRepairBookingModal() {
     const [notes, setNotes] = useState('');
     const [isPending, setIsPending] = useState(false);
     const [showWarning, setShowWarning] = useState(false);
+    const [lastBicycleDate, setLastBicycleDate] = useState<string | undefined>(undefined);
 
     if (!bicyclePickerGuest) return null;
 
@@ -70,11 +71,12 @@ export function BicycleRepairBookingModal() {
         }
 
         // Check if "New Bicycle" is selected and guest received one in the last 6 months
-        if (selectedRepairTypes.includes("New Bicycle")) {
-            const { hasReceived, lastBicycleDate } = hasReceivedNewBicycleInLastSixMonths(bicyclePickerGuest.id);
+        if (selectedRepairTypes.includes("New Bicycle") && !showWarning) {
+            const result = hasReceivedNewBicycleInLastSixMonths(bicyclePickerGuest.id);
             
-            if (hasReceived && !showWarning) {
-                // Show warning modal
+            if (result.hasReceived) {
+                // Store the date and show warning modal
+                setLastBicycleDate(result.lastBicycleDate);
                 setShowWarning(true);
                 return;
             }
@@ -96,12 +98,12 @@ export function BicycleRepairBookingModal() {
         } finally {
             setIsPending(false);
             setShowWarning(false);
+            setLastBicycleDate(undefined);
         }
     };
 
     // Warning modal for 6-month rule
     if (showWarning) {
-        const { lastBicycleDate } = hasReceivedNewBicycleInLastSixMonths(bicyclePickerGuest.id);
         const lastDate = lastBicycleDate ? new Date(lastBicycleDate).toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'long', 
