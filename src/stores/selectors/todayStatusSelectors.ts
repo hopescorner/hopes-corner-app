@@ -235,6 +235,8 @@ export function useTodayActionStatusMap(): ActionStatusMap {
             
             switch (action.type) {
                 case 'MEAL_ADDED':
+                case 'EXTRA_MEALS_ADDED':
+                    // Keep the first (most recent) meal-related action we encounter
                     if (!entry.mealActionId) entry.mealActionId = action.id;
                     break;
                 case 'SHOWER_BOOKED':
