@@ -159,13 +159,13 @@ describe('MonthlySummaryReport', () => {
             // February row should show 1 new guest (g3)
             const febRow = rows[1];
 
-            // Check the New Guests column (column index 6: month, mon, wed, sat, fri, unique, new)
+            // Check the New Guests column (column index 7: month, sun, mon, wed, sat, fri, unique, new)
             const janCells = janRow.querySelectorAll('td');
             const febCells = febRow.querySelectorAll('td');
             
-            // New Guests is the 7th column (0-indexed: 6)
-            expect(janCells[6]?.textContent).toBe('2'); // g1 and g2 are new in January
-            expect(febCells[6]?.textContent).toBe('1'); // g3 is new in February
+            // New Guests is the 8th column (0-indexed: 7)
+            expect(janCells[7]?.textContent).toBe('2'); // g1 and g2 are new in January
+            expect(febCells[7]?.textContent).toBe('1'); // g3 is new in February
         });
 
         it('does not count returning guests as new guests', () => {
@@ -204,7 +204,7 @@ describe('MonthlySummaryReport', () => {
             const janCells = janRow.querySelectorAll('td');
             
             // Only g2 is new in January 2025 (g1's first meal was in 2024)
-            expect(janCells[6]?.textContent).toBe('1');
+            expect(janCells[7]?.textContent).toBe('1');
         });
 
         it('counts new guests across all meal types', () => {

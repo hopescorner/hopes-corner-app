@@ -2,14 +2,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import React from 'react';
 import { MealServiceTimer } from '../MealServiceTimer';
-import { getMealServiceStatus } from '@/lib/utils/mealServiceTime';
+import { getMealServiceStatus, isSunday } from '@/lib/utils/mealServiceTime';
 
 // Mock the mealServiceTime utility
 vi.mock('@/lib/utils/mealServiceTime', () => ({
     getMealServiceStatus: vi.fn(),
+    isSunday: vi.fn(() => false),
 }));
 
 const mockGetMealServiceStatus = getMealServiceStatus as ReturnType<typeof vi.fn>;
+const mockIsSunday = isSunday as ReturnType<typeof vi.fn>;
 
 describe('MealServiceTimer Component', () => {
     beforeEach(() => {
@@ -476,6 +478,90 @@ describe('MealServiceTimer Component', () => {
 
             const progressFill = document.querySelector('.bg-red-400');
             expect(progressFill).not.toBeNull();
+        });
+    });
+
+    describe('Sunday Brunch Styling', () => {
+        beforeEach(() => {
+            mockIsSunday.mockReturnValue(true);
+        });
+
+        afterEach(() => {
+            mockIsSunday.mockReturnValue(false);
+        });
+
+        it('renders with red styling for before-service on Sunday', () => {
+            mockGetMealServiceStatus.mockReturnValue({
+                type: 'before-service',
+                message: 'Meal service starts in 30 min',
+                timeRemaining: 30,
+            });
+
+            const { container } = render(<MealServiceTimer />);
+
+            act(() => {
+                vi.advanceTimersByTime(0);
+            });
+
+            expect(screen.getByText('Meal service starts in 30 min')).toBeDefined();
+            const element = container.firstChild as HTMLElement;
+            expect(element.className).toContain('text-red-600');
+        });
+
+        it('renders with red styling during Sunday Brunch service', () => {
+            mockGetMealServiceStatus.mockReturnValue({
+                type: 'during-service',
+                message: '120 min remaining',
+                timeRemaining: 120,
+                totalDuration: 240,
+                elapsed: 120,
+            });
+
+            const { container } = render(<MealServiceTimer />);
+
+            act(() => {
+                vi.advanceTimersByTime(0);
+            });
+
+            expect(screen.getByText('120 min remaining')).toBeDefined();
+            const element = container.firstChild as HTMLElement;
+            expect(element.className).toContain('text-red-600');
+        });
+
+        it('progress bar is red for Sunday Brunch service', () => {
+            mockGetMealServiceStatus.mockReturnValue({
+                type: 'during-service',
+                message: '120 min remaining',
+                timeRemaining: 120,
+                totalDuration: 240,
+                elapsed: 120,
+            });
+
+            render(<MealServiceTimer />);
+
+            act(() => {
+                vi.advanceTimersByTime(0);
+            });
+
+            const progressFill = document.querySelector('.bg-red-400');
+            expect(progressFill).not.toBeNull();
+        });
+
+        it('renders with red styling when Sunday Brunch service ended', () => {
+            mockGetMealServiceStatus.mockReturnValue({
+                type: 'ended',
+                message: 'Meal service ended for today',
+                timeRemaining: 0,
+            });
+
+            const { container } = render(<MealServiceTimer />);
+
+            act(() => {
+                vi.advanceTimersByTime(0);
+            });
+
+            const element = container.firstChild as HTMLElement;
+            expect(element.className).toContain('text-red-500');
         });
     });
 });

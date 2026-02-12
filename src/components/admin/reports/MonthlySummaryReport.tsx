@@ -45,6 +45,16 @@ const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
         isNumeric: false,
     },
     {
+        key: 'sundayMeals',
+        label: 'Sunday',
+        description: 'Sunday Brunch meals served during the Sunday meal service (10am-2pm).',
+        align: 'right',
+        headerBg: 'bg-red-100',
+        cellBg: 'bg-red-50',
+        totalCellBg: 'bg-red-100',
+        isNumeric: true,
+    },
+    {
         key: 'mondayMeals',
         label: 'Monday',
         description: 'Hot guest meals served during the Monday dining service.',
@@ -117,7 +127,7 @@ const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
     {
         key: 'onsiteHotMeals',
         label: 'Onsite Hot Meals',
-        description: 'Guest meals served onsite (Mon/Wed/Fri/Sat) plus extra meals.',
+        description: 'Guest meals served onsite (Sun/Mon/Wed/Fri/Sat) plus extra meals.',
         align: 'right',
         headerBg: 'bg-white',
         cellBg: 'bg-white',
@@ -206,7 +216,7 @@ const MEAL_TABLE_GROUPS = [
         key: 'onsite',
         title: 'Onsite Operations',
         headerClass: 'bg-blue-50 text-blue-900',
-        columns: ['mondayMeals', 'wednesdayMeals', 'fridayMeals', 'saturdayMeals', 'uniqueGuests', 'newGuests', 'proxyPickups', 'onsiteHotMeals']
+        columns: ['sundayMeals', 'mondayMeals', 'wednesdayMeals', 'fridayMeals', 'saturdayMeals', 'uniqueGuests', 'newGuests', 'proxyPickups', 'onsiteHotMeals']
     },
     {
         key: 'outreach',
@@ -347,6 +357,7 @@ export default function MonthlySummaryReport() {
             const wednesdayMeals = sumQuantities(filterRecords(mealRecords, selectedYear, month, [3]));
             const fridayMeals = sumQuantities(filterRecords(mealRecords, selectedYear, month, [5]));
             const saturdayMeals = sumQuantities(filterRecords(mealRecords, selectedYear, month, [6]));
+            const sundayMeals = sumQuantities(filterRecords(mealRecords, selectedYear, month, [0]));
 
             const dayWorker = sumQuantities(filterRecords(dayWorkerMealRecords, selectedYear, month));
             const extra = sumQuantities(extraInMonth);
@@ -366,13 +377,13 @@ export default function MonthlySummaryReport() {
                 return sum;
             }, 0);
 
-            const totalHotMeals = mondayMeals + wednesdayMeals + saturdayMeals + fridayMeals +
+            const totalHotMeals = sundayMeals + mondayMeals + wednesdayMeals + saturdayMeals + fridayMeals +
                 dayWorker + extra + rvWedSat + rvMonThu + shelter + unitedEffort;
 
             const totalWithLunchBags = totalHotMeals + lunchBags;
 
-            const onsiteHotMeals = mondayMeals + wednesdayMeals + saturdayMeals + fridayMeals +
-                sumQuantities(filterRecords(extraMealRecords, selectedYear, month, [1, 3, 5, 6]));
+            const onsiteHotMeals = sundayMeals + mondayMeals + wednesdayMeals + saturdayMeals + fridayMeals +
+                sumQuantities(filterRecords(extraMealRecords, selectedYear, month, [0, 1, 3, 5, 6]));
 
             // Unique Guests
             const uniqueGuestIds = new Set(mealsInMonth.map(r => r.guestId).filter(Boolean));
@@ -389,7 +400,7 @@ export default function MonthlySummaryReport() {
 
             months.push({
                 month: monthName,
-                mondayMeals, wednesdayMeals, fridayMeals, saturdayMeals,
+                sundayMeals, mondayMeals, wednesdayMeals, fridayMeals, saturdayMeals,
                 uniqueGuests, newGuests, proxyPickups,
                 onsiteHotMeals,
                 dayWorkerMeals: dayWorker,
@@ -404,6 +415,7 @@ export default function MonthlySummaryReport() {
         // Totals row
         const totals = {
             month: 'Year to Date',
+            sundayMeals: months.reduce((s, m) => s + m.sundayMeals, 0),
             mondayMeals: months.reduce((s, m) => s + m.mondayMeals, 0),
             wednesdayMeals: months.reduce((s, m) => s + m.wednesdayMeals, 0),
             fridayMeals: months.reduce((s, m) => s + m.fridayMeals, 0),

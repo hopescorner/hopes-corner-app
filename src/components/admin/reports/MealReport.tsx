@@ -35,6 +35,7 @@ import { exportToCSV } from "@/lib/utils/csv";
 import { cn } from "@/lib/utils/cn";
 
 const DAYS_OF_WEEK = [
+    { value: 0, label: "Sunday", short: "Sun" },
     { value: 1, label: "Monday", short: "Mon" },
     { value: 3, label: "Wednesday", short: "Wed" },
     { value: 5, label: "Friday", short: "Fri" },

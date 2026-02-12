@@ -1,8 +1,10 @@
+const SUNDAY_SERVICE_NAME = 'Sunday Brunch';
+
 export function getMealServiceInfo(date: Date = new Date()) {
     const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 
     const serviceSchedule: Record<number, { startHour: number; startMinute: number; endHour: number; endMinute: number; } | null> = {
-        0: null, // Sunday - no service
+        0: { startHour: 10, startMinute: 0, endHour: 14, endMinute: 0 }, // Sunday Brunch
         1: { startHour: 8, startMinute: 0, endHour: 9, endMinute: 0 }, // Monday
         2: null, // Tuesday - no service
         3: { startHour: 8, startMinute: 0, endHour: 9, endMinute: 0 }, // Wednesday
@@ -12,6 +14,14 @@ export function getMealServiceInfo(date: Date = new Date()) {
     };
 
     return serviceSchedule[dayOfWeek];
+}
+
+export function getSundayServiceName(): string {
+    return SUNDAY_SERVICE_NAME;
+}
+
+export function isSunday(date: Date = new Date()): boolean {
+    return date.getDay() === 0;
 }
 
 export function formatTime(hour: number, minute: number): string {
