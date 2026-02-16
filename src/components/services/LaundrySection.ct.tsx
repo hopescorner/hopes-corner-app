@@ -9,11 +9,13 @@ const guests = [
 test.describe('LaundrySection', () => {
   test('staff can access historical backfill actions', async ({ mount }) => {
     const component = await mount(<LaundrySectionStory guests={guests} role="staff" />);
+    await component.getByRole('button', { name: /Add Laundry Record/ }).click();
     await expect(component.getByRole('button', { name: 'Add Completed' })).toBeVisible();
   });
 
   test('shows Add Completed action in admin backfill panel', async ({ mount }) => {
     const component = await mount(<LaundrySectionStory guests={guests} />);
+    await component.getByRole('button', { name: /Add Laundry Record/ }).click();
     await expect(component.getByRole('button', { name: 'Add Completed' })).toBeVisible();
   });
 
@@ -22,6 +24,7 @@ test.describe('LaundrySection', () => {
 
     await component.getByLabel('Previous day').click();
     await expect(component.getByText('Viewing Historical Data')).toBeVisible();
+    await component.getByRole('button', { name: /Add Laundry Record/ }).click();
 
     await component.locator('select').first().selectOption('g1');
     await component.locator('select').nth(1).selectOption('offsite');
