@@ -67,9 +67,7 @@ body:
         - ✅ Run production build: `npm run build`
         - ✅ Verify no regressions
         - ✅ Update documentation if applicable
-        - ✅ **Update version & changelog** in `src/lib/utils/appVersion.ts`:
-          - Bump `APP_VERSION` (use semantic versioning)
-          - Add new entry to `CHANGELOG` array with feature details (keep it minimal and non-technical)
+        - ✅ I understand this feature is not complete until `src/lib/utils/appVersion.ts` is updated by bumping `APP_VERSION` (semver) and adding a concise non-technical `CHANGELOG` entry for staff.
         - ✅ Share screenshot of new UI or feature
         
         ## Database Migration Requirements
