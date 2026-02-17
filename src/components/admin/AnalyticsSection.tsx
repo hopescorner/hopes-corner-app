@@ -313,17 +313,22 @@ export function AnalyticsSection() {
     }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isInRange, dateKeyOf, countBicycleServices]);
 
     // Calculate comparison metrics (previous period)
-    const comparison = useMemo(() => {
-        if (!showComparison) return null;
-
+    const prevPeriod = useMemo(() => {
         const { start, days } = dateRange;
-        const prevEnd = new Date(start);
+        const prevEnd = new Date(start + 'T12:00:00');
         prevEnd.setDate(prevEnd.getDate() - 1);
         const prevStart = new Date(prevEnd);
         prevStart.setDate(prevStart.getDate() - days + 1);
+        return {
+            start: prevStart.toISOString().split('T')[0],
+            end: prevEnd.toISOString().split('T')[0],
+        };
+    }, [dateRange]);
 
-        const pStart = prevStart.toISOString().split('T')[0];
-        const pEnd = prevEnd.toISOString().split('T')[0];
+    const comparison = useMemo(() => {
+        if (!showComparison) return null;
+
+        const { start: pStart, end: pEnd } = prevPeriod;
         const isRecordInPreviousRange = (record: { date?: string; dateKey?: string }) => isInRange(dateKeyOf(record), pStart, pEnd);
 
         const prevMeals = [
@@ -356,7 +361,7 @@ export function AnalyticsSection() {
             bicycles: metrics.bicycles - prevBicycles,
             bicycleServices: metrics.bicycleServices - prevBicycleServices,
         };
-    }, [dateRange, showComparison, metrics, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, isInRange, dateKeyOf]);
+    }, [dateRange, showComparison, metrics, prevPeriod, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, isInRange, dateKeyOf]);
 
     // Daily breakdown for trends
     const dailyData = useMemo(() => {
@@ -1095,9 +1100,11 @@ export function AnalyticsSection() {
                         />
                         Compare to previous period
                     </label>
-                    <span className="text-xs text-gray-400">
-                        {new Date(dateRange.start).toLocaleDateString()} — {new Date(dateRange.end).toLocaleDateString()}
-                    </span>
+                    {showComparison && (
+                        <span className="text-xs text-gray-400">
+                            {new Date(prevPeriod.start + 'T12:00:00').toLocaleDateString()} — {new Date(prevPeriod.end + 'T12:00:00').toLocaleDateString()}
+                        </span>
+                    )}
                 </div>
             </div>
 
