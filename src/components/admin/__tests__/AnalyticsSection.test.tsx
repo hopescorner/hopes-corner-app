@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { AnalyticsSection } from '../AnalyticsSection';
 import { useMealsStore } from '@/stores/useMealsStore';
@@ -61,7 +61,7 @@ vi.mock('recharts', () => ({
     PieChart: () => <div />,
     Pie: () => <div />,
     Cell: () => <div />,
-    Area: () => <div />,
+    Area: ({ dataKey }: any) => <div data-testid={`area-${dataKey}`} />,
 }));
 
 describe('AnalyticsSection Demographic Filters', () => {
@@ -469,5 +469,77 @@ describe('AnalyticsSection Multiple Filter Combinations', () => {
         expect(screen.getAllByText('Mountain View').length).toBeGreaterThan(0);
         const maleElements = screen.getAllByText('Male');
         expect(maleElements.length).toBeGreaterThan(0);
+    });
+});
+
+describe('AnalyticsSection Overview and Trends data', () => {
+    const today = new Date().toISOString().split('T')[0];
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+
+        vi.mocked(useMealsStore).mockImplementation((selector: any) => {
+            const state = {
+                mealRecords: [{ date: today, guestId: 'g1', count: 1 }],
+                rvMealRecords: [{ date: today, guestId: null, count: 2 }],
+                extraMealRecords: [{ date: today, guestId: null, count: 3 }],
+                dayWorkerMealRecords: [{ date: today, guestId: null, count: 4 }],
+                shelterMealRecords: [{ date: today, guestId: null, count: 5 }],
+                unitedEffortMealRecords: [{ date: today, guestId: null, count: 6 }],
+                lunchBagRecords: [{ date: today, guestId: null, count: 7 }],
+                holidayRecords: [],
+                haircutRecords: [{ date: today, guestId: 'g1' }],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = {
+                showerRecords: [],
+                laundryRecords: [],
+                bicycleRecords: [
+                    { date: today, guestId: 'g1', status: 'pending' },
+                    { date: today, guestId: 'g2', status: 'in_progress' },
+                    { date: today, guestId: 'g3', status: 'done' },
+                    { date: today, guestId: 'g4', status: 'cancelled' },
+                ],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useGuestsStore).mockImplementation((selector: any) => {
+            const state = {
+                guests: [
+                    { id: 'g1', location: 'Mountain View', age: 'Adult 18-59', gender: 'Male', housingStatus: 'Unhoused' },
+                    { id: 'g2', location: 'Palo Alto', age: 'Adult 18-59', gender: 'Female', housingStatus: 'Housed' },
+                    { id: 'g3', location: 'San Jose', age: 'Adult 18-59', gender: 'Male', housingStatus: 'Housed' },
+                    { id: 'g4', location: 'Unknown', age: 'Unknown', gender: 'Unknown', housingStatus: 'Unknown' },
+                ],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useDonationsStore).mockReturnValue({} as any);
+    });
+
+    it('calculates overview meals using all meal categories', () => {
+        render(<AnalyticsSection />);
+        expect(screen.getByText('28')).toBeDefined();
+    });
+
+    it('counts bicycles as non-cancelled records in overview', () => {
+        render(<AnalyticsSection />);
+        expect(screen.getAllByText('3').length).toBeGreaterThan(0);
+    });
+
+    it('renders bicycles and haircuts series in trends chart', async () => {
+        render(<AnalyticsSection />);
+
+        fireEvent.click(screen.getByText('Trends'));
+
+        await waitFor(() => {
+            expect(screen.getByTestId('area-bicycles')).toBeDefined();
+            expect(screen.getByTestId('area-haircuts')).toBeDefined();
+        });
     });
 });

@@ -43,13 +43,17 @@ test.describe('MealsSection', () => {
 
   test('displays stat card labels', async ({ mount }) => {
     const component = await mount(<MealsSectionStory />);
+    // Primary stat cards
     await expect(component.getByText('Total Meals')).toBeVisible();
     await expect(component.getByText('Guest Meals')).toBeVisible();
     await expect(component.getByText('Proxy Pickups')).toBeVisible();
-    await expect(component.getByText('RV Meals')).toBeVisible();
-    await expect(component.getByText('Day Worker')).toBeVisible();
     await expect(component.getByText('Lunch Bags')).toBeVisible();
-    await expect(component.getByText('Partner Orgs')).toBeVisible();
+    // Distribution details (compact stats)
+    await expect(component.getByText('Extra', { exact: true })).toBeVisible();
+    await expect(component.getByText('RV', { exact: true })).toBeVisible();
+    await expect(component.getByText('Day Worker', { exact: true })).toBeVisible();
+    await expect(component.getByText('Shelter', { exact: true })).toBeVisible();
+    await expect(component.getByText('United Effort', { exact: true })).toBeVisible();
   });
 
   test('highlights proxy pickups with handshake badge and picked-up-by text', async ({ mount }) => {

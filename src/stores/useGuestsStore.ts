@@ -84,6 +84,9 @@ export interface GuestRecordCounts {
     holidays: number;
     bicycleRepairs: number;
     itemsDistributed: number;
+    reminders: number;
+    warnings: number;
+    proxies: number;
     total: number;
 }
 
@@ -293,6 +296,7 @@ export const useGuestsStore = create<GuestsState>()(
                     // Cleanup related data in Supabase
                     await supabase.from('guest_proxies').delete().or(`guest_id.eq.${id},proxy_id.eq.${id}`);
                     await supabase.from('guest_warnings').delete().eq('guest_id', id);
+                    await supabase.from('guest_reminders').delete().eq('guest_id', id);
                     const { error } = await supabase.from('guests').delete().eq('id', id);
 
                     if (error) {
@@ -311,7 +315,10 @@ export const useGuestsStore = create<GuestsState>()(
                         haircutsResult,
                         holidaysResult,
                         bicycleResult,
-                        itemsResult
+                        itemsResult,
+                        remindersResult,
+                        warningsResult,
+                        proxiesResult,
                     ] = await Promise.all([
                         supabase.from('meal_attendance').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
                         supabase.from('shower_reservations').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
@@ -319,7 +326,10 @@ export const useGuestsStore = create<GuestsState>()(
                         supabase.from('haircut_visits').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
                         supabase.from('holiday_visits').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
                         supabase.from('bicycle_repairs').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
-                        supabase.from('items_distributed').select('id', { count: 'exact', head: true }).eq('guest_id', guestId)
+                        supabase.from('items_distributed').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
+                        supabase.from('guest_reminders').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
+                        supabase.from('guest_warnings').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
+                        supabase.from('guest_proxies').select('id', { count: 'exact', head: true }).or(`guest_id.eq.${guestId},proxy_id.eq.${guestId}`)
                     ]);
 
                     const counts = {
@@ -330,10 +340,14 @@ export const useGuestsStore = create<GuestsState>()(
                         holidays: holidaysResult.count || 0,
                         bicycleRepairs: bicycleResult.count || 0,
                         itemsDistributed: itemsResult.count || 0,
+                        reminders: remindersResult.count || 0,
+                        warnings: warningsResult.count || 0,
+                        proxies: proxiesResult.count || 0,
                         total: 0
                     };
                     counts.total = counts.meals + counts.showers + counts.laundry + 
-                                   counts.haircuts + counts.holidays + counts.bicycleRepairs + counts.itemsDistributed;
+                                   counts.haircuts + counts.holidays + counts.bicycleRepairs + counts.itemsDistributed +
+                                   counts.reminders + counts.warnings + counts.proxies;
                     
                     return counts;
                 },
@@ -351,6 +365,10 @@ export const useGuestsStore = create<GuestsState>()(
                             supabase.from('holiday_visits').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
                             supabase.from('bicycle_repairs').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
                             supabase.from('items_distributed').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
+                            supabase.from('guest_reminders').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
+                            supabase.from('guest_warnings').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
+                            supabase.from('guest_proxies').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
+                            supabase.from('guest_proxies').update({ proxy_id: toGuestId }).eq('proxy_id', fromGuestId),
                             // Also update meal pickups where this guest picked up meals for others
                             supabase.from('meal_attendance').update({ picked_up_by_guest_id: toGuestId }).eq('picked_up_by_guest_id', fromGuestId)
                         ]);
@@ -393,6 +411,7 @@ export const useGuestsStore = create<GuestsState>()(
                         // Cleanup related data in Supabase
                         await supabase.from('guest_proxies').delete().or(`guest_id.eq.${guestId},proxy_id.eq.${guestId}`);
                         await supabase.from('guest_warnings').delete().eq('guest_id', guestId);
+                        await supabase.from('guest_reminders').delete().eq('guest_id', guestId);
                         const { error } = await supabase.from('guests').delete().eq('id', guestId);
 
                         if (error) {

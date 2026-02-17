@@ -271,6 +271,19 @@ export default function MonthlySummaryReport() {
         return years;
     }, [currentYear]);
 
+    const upcomingMonthsLabel = useMemo(() => {
+        const firstUpcomingMonthIndex =
+            selectedYear < currentYear
+                ? 12
+                : selectedYear > currentYear
+                    ? 0
+                    : currentMonth + 1;
+
+        const upcomingMonths = MONTH_NAMES.slice(firstUpcomingMonthIndex);
+        if (upcomingMonths.length === 0) return '';
+        return upcomingMonths.join(', ');
+    }, [selectedYear, currentYear, currentMonth]);
+
     const getDayOfWeek = useCallback((dateStr: string) => {
         if (!dateStr) return null;
         // Parse "YYYY-MM-DD" in Pacific time correctly
@@ -1048,9 +1061,11 @@ export default function MonthlySummaryReport() {
                         </tbody>
                     </table>
                 </div>
-                <p className="text-xs text-gray-400 mt-4 text-center italic">
-                    Upcoming months (February, March, April, May, June, July, August, September, October, November, December) will populate as data is recorded.
-                </p>
+                {upcomingMonthsLabel && (
+                    <p className="text-xs text-gray-400 mt-4 text-center italic">
+                        Upcoming months ({upcomingMonthsLabel}) will populate as data is recorded.
+                    </p>
+                )}
             </div>
 
             {/* Summary Cards */}

@@ -208,6 +208,7 @@ export function AnalyticsSection() {
         const mealsByDay = new Map<string, number>();
         const showersDoneByDay = new Map<string, number>();
         const laundryDoneByDay = new Map<string, number>();
+        const haircutsByDay = new Map<string, number>();
         const bicyclesDoneByDay = new Map<string, number>();
 
         const addToMap = (map: Map<string, number>, day: string, delta: number) => {
@@ -215,7 +216,15 @@ export function AnalyticsSection() {
             map.set(day, (map.get(day) || 0) + delta);
         };
 
-        for (const r of [...mealRecords, ...rvMealRecords, ...extraMealRecords]) {
+        for (const r of [
+            ...mealRecords,
+            ...rvMealRecords,
+            ...extraMealRecords,
+            ...dayWorkerMealRecords,
+            ...shelterMealRecords,
+            ...unitedEffortMealRecords,
+            ...lunchBagRecords,
+        ]) {
             addToMap(mealsByDay, dateKeyOf(r), Number(r.count) || 0);
         }
         for (const r of showerRecords) {
@@ -226,55 +235,75 @@ export function AnalyticsSection() {
                 addToMap(laundryDoneByDay, dateKeyOf(r), 1);
             }
         }
+        for (const r of haircutRecords || []) {
+            addToMap(haircutsByDay, dateKeyOf(r), 1);
+        }
         for (const r of bicycleRecords) {
-            if (r.status === 'done') addToMap(bicyclesDoneByDay, dateKeyOf(r), 1);
+            if (r.status !== 'cancelled') addToMap(bicyclesDoneByDay, dateKeyOf(r), 1);
         }
 
-        return { mealsByDay, showersDoneByDay, laundryDoneByDay, bicyclesDoneByDay };
-    }, [mealRecords, rvMealRecords, extraMealRecords, showerRecords, laundryRecords, bicycleRecords, dateKeyOf]);
+        return { mealsByDay, showersDoneByDay, laundryDoneByDay, bicyclesDoneByDay, haircutsByDay };
+    }, [mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, dateKeyOf]);
 
     // Calculate metrics for the selected range
     const metrics = useMemo(() => {
         const { start, end } = dateRange;
+        const isRecordInRange = (record: { date?: string; dateKey?: string }) => isInRange(dateKeyOf(record), start, end);
 
-        const meals = [...mealRecords, ...rvMealRecords, ...extraMealRecords]
-            .filter(r => isInRange(r.date, start, end))
+        const meals = [
+            ...mealRecords,
+            ...rvMealRecords,
+            ...extraMealRecords,
+            ...dayWorkerMealRecords,
+            ...shelterMealRecords,
+            ...unitedEffortMealRecords,
+            ...lunchBagRecords,
+        ]
+            .filter(isRecordInRange)
             .reduce((sum, r) => sum + (r.count || 0), 0);
 
         const showers = showerRecords
-            .filter(r => isInRange(r.date, start, end) && r.status === 'done')
+            .filter(r => isRecordInRange(r) && r.status === 'done')
             .length;
 
         const laundry = laundryRecords
-            .filter(r => isInRange(r.date, start, end) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status))
+            .filter(r => isRecordInRange(r) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status))
             .length;
 
         const bicycles = bicycleRecords
-            .filter(r => isInRange(r.date, start, end) && r.status === 'done')
+            .filter(r => isRecordInRange(r) && r.status !== 'cancelled')
             .length;
 
         const haircuts = (haircutRecords || [])
-            .filter((r: { date: string }) => isInRange(r.date, start, end))
+            .filter((r: { date: string; dateKey?: string }) => isRecordInRange(r))
             .length;
 
         const holidays = (holidayRecords || [])
-            .filter((r: { date: string }) => isInRange(r.date, start, end))
+            .filter((r: { date: string; dateKey?: string }) => isRecordInRange(r))
             .length;
 
         // Get unique guest IDs from all services
         const guestIds = new Set<string>();
-        [...mealRecords, ...rvMealRecords, ...extraMealRecords]
-            .filter(r => isInRange(r.date, start, end))
+        [
+            ...mealRecords,
+            ...rvMealRecords,
+            ...extraMealRecords,
+            ...dayWorkerMealRecords,
+            ...shelterMealRecords,
+            ...unitedEffortMealRecords,
+            ...lunchBagRecords,
+        ]
+            .filter(isRecordInRange)
             .forEach(r => r.guestId && guestIds.add(r.guestId));
-        showerRecords.filter(r => isInRange(r.date, start, end) && r.status === 'done')
+        showerRecords.filter(r => isRecordInRange(r) && r.status === 'done')
             .forEach(r => guestIds.add(r.guestId));
-        laundryRecords.filter(r => isInRange(r.date, start, end))
+        laundryRecords.filter(r => isRecordInRange(r))
             .forEach(r => guestIds.add(r.guestId));
-        bicycleRecords.filter(r => isInRange(r.date, start, end))
+        bicycleRecords.filter(r => isRecordInRange(r) && r.status !== 'cancelled')
             .forEach(r => r.guestId && guestIds.add(r.guestId));
 
         return { meals, showers, laundry, bicycles, haircuts, holidays, uniqueGuests: guestIds.size };
-    }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isInRange]);
+    }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isInRange, dateKeyOf]);
 
     // Calculate comparison metrics (previous period)
     const comparison = useMemo(() => {
@@ -288,19 +317,28 @@ export function AnalyticsSection() {
 
         const pStart = prevStart.toISOString().split('T')[0];
         const pEnd = prevEnd.toISOString().split('T')[0];
+        const isRecordInPreviousRange = (record: { date?: string; dateKey?: string }) => isInRange(dateKeyOf(record), pStart, pEnd);
 
-        const prevMeals = [...mealRecords, ...rvMealRecords, ...extraMealRecords]
-            .filter(r => isInRange(r.date, pStart, pEnd))
+        const prevMeals = [
+            ...mealRecords,
+            ...rvMealRecords,
+            ...extraMealRecords,
+            ...dayWorkerMealRecords,
+            ...shelterMealRecords,
+            ...unitedEffortMealRecords,
+            ...lunchBagRecords,
+        ]
+            .filter(isRecordInPreviousRange)
             .reduce((sum, r) => sum + (r.count || 0), 0);
 
         const prevShowers = showerRecords
-            .filter(r => isInRange(r.date, pStart, pEnd) && r.status === 'done').length;
+            .filter(r => isRecordInPreviousRange(r) && r.status === 'done').length;
 
         const prevLaundry = laundryRecords
-            .filter(r => isInRange(r.date, pStart, pEnd) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status)).length;
+            .filter(r => isRecordInPreviousRange(r) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status)).length;
 
         const prevBicycles = bicycleRecords
-            .filter(r => isInRange(r.date, pStart, pEnd) && r.status === 'done').length;
+            .filter(r => isRecordInPreviousRange(r) && r.status !== 'cancelled').length;
 
         return {
             meals: metrics.meals - prevMeals,
@@ -308,11 +346,11 @@ export function AnalyticsSection() {
             laundry: metrics.laundry - prevLaundry,
             bicycles: metrics.bicycles - prevBicycles,
         };
-    }, [dateRange, showComparison, metrics, mealRecords, rvMealRecords, extraMealRecords, showerRecords, laundryRecords, bicycleRecords, isInRange]);
+    }, [dateRange, showComparison, metrics, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, isInRange, dateKeyOf]);
 
     // Daily breakdown for trends
     const dailyData = useMemo(() => {
-        const days: { date: string, fullDate: string, meals: number, showers: number, laundry: number, bicycles: number, hasNote: boolean }[] = [];
+        const days: { date: string, fullDate: string, meals: number, showers: number, laundry: number, bicycles: number, haircuts: number, hasNote: boolean }[] = [];
         const start = new Date(dateRange.start);
         const end = new Date(dateRange.end);
         const noteDates = new Set(
@@ -328,6 +366,7 @@ export function AnalyticsSection() {
             const dayShowers = dailyCountMaps.showersDoneByDay.get(dateStr) || 0;
             const dayLaundry = dailyCountMaps.laundryDoneByDay.get(dateStr) || 0;
             const dayBicycles = dailyCountMaps.bicyclesDoneByDay.get(dateStr) || 0;
+            const dayHaircuts = dailyCountMaps.haircutsByDay.get(dateStr) || 0;
 
             days.push({
                 date: `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${d.toLocaleDateString('en-US', { weekday: 'short' })})`,
@@ -336,6 +375,7 @@ export function AnalyticsSection() {
                 showers: dayShowers,
                 laundry: dayLaundry,
                 bicycles: dayBicycles,
+                haircuts: dayHaircuts,
                 hasNote: noteDates.has(dateStr)
             });
         }
@@ -352,10 +392,10 @@ export function AnalyticsSection() {
         const activeGuestIds = new Set<string>();
 
         // Collect guest IDs based on selected meal type filters
-        const addMealGuestIds = (records: { date: string; guestId: string }[]) => {
+        const addMealGuestIds = (records: Array<{ date?: string; dateKey?: string; guestId?: string }> = []) => {
             records
-                .filter(r => isInRange(r.date, dateRange.start, dateRange.end))
-                .forEach(r => r.guestId && activeGuestIds.add(r.guestId));
+                .filter((r) => isInRange(dateKeyOf(r), dateRange.start, dateRange.end))
+                .forEach((r) => r.guestId && activeGuestIds.add(r.guestId));
         };
 
         if (demoMealTypeFilters.guest) addMealGuestIds(mealRecords);
@@ -668,6 +708,14 @@ export function AnalyticsSection() {
                                         <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2} />
                                         <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                                     </linearGradient>
+                                    <linearGradient id="colorBicycles" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                                    </linearGradient>
+                                    <linearGradient id="colorHaircuts" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.2} />
+                                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                                    </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 600, fill: '#9ca3af' }} interval="preserveStartEnd" angle={-45} textAnchor="end" height={60} dy={10} />
@@ -682,6 +730,12 @@ export function AnalyticsSection() {
                                 )}
                                 {selectedPrograms.includes('laundry') && (
                                     <Area type="monotone" dataKey="laundry" stroke="#8b5cf6" strokeWidth={2} fillOpacity={1} fill="url(#colorLaundry)" />
+                                )}
+                                {selectedPrograms.includes('bicycles') && (
+                                    <Area type="monotone" dataKey="bicycles" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorBicycles)" />
+                                )}
+                                {selectedPrograms.includes('haircuts') && (
+                                    <Area type="monotone" dataKey="haircuts" stroke="#f59e0b" strokeWidth={2} fillOpacity={1} fill="url(#colorHaircuts)" />
                                 )}
                             </AreaChart>
                         </ResponsiveContainer>

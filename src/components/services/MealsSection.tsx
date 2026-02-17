@@ -507,16 +507,25 @@ export function MealsSection() {
                 )}
             </AnimatePresence>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" />
-                <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" />
-                <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" />
-                <StatCard label="Extra Meals" value={dayMetrics.extraCount} color="amber" />
-                <StatCard label="RV Meals" value={dayMetrics.rvCount} color="purple" />
-                <StatCard label="Day Worker" value={dayMetrics.dayWorkerCount} color="sky" />
-                <StatCard label="Lunch Bags" value={dayMetrics.lunchBagCount} color="amber" />
-                <StatCard label="Partner Orgs" value={dayMetrics.ueCount + dayMetrics.shelterCount} color="rose" />
+            {/* Service Summary */}
+            <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" />
+                    <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" />
+                    <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" />
+                    <StatCard label="Lunch Bags" value={dayMetrics.lunchBagCount} color="amber" />
+                </div>
+
+                <div className="border-t border-gray-100 pt-4">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Distribution Details</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                        <CompactStat label="Extra" value={dayMetrics.extraCount} color="amber" />
+                        <CompactStat label="RV" value={dayMetrics.rvCount} color="purple" />
+                        <CompactStat label="Day Worker" value={dayMetrics.dayWorkerCount} color="sky" />
+                        <CompactStat label="Shelter" value={dayMetrics.shelterCount} color="rose" />
+                        <CompactStat label="United Effort" value={dayMetrics.ueCount} color="rose" />
+                    </div>
+                </div>
             </div>
 
             {/* History List */}
@@ -653,9 +662,28 @@ function StatCard({ label, value, color }: { label: string, value: number, color
     };
 
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+        <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
             <p className={cn("text-2xl font-black tracking-tight", textColors[color])}>{value.toLocaleString()}</p>
+        </div>
+    );
+}
+
+function CompactStat({ label, value, color }: { label: string, value: number, color: 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose' }) {
+    const textColors: Record<string, string> = {
+        emerald: 'text-emerald-600',
+        blue: 'text-blue-600',
+        indigo: 'text-indigo-600',
+        purple: 'text-purple-600',
+        sky: 'text-sky-600',
+        amber: 'text-amber-600',
+        rose: 'text-rose-600',
+    };
+
+    return (
+        <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>
+            <span className={cn('text-sm font-black', textColors[color])}>{value.toLocaleString()}</span>
         </div>
     );
 }

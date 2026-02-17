@@ -117,6 +117,14 @@ describe('MonthlySummaryReport', () => {
         expect(monthTotalCell).toHaveClass('bg-gray-100');
     });
 
+    it('renders a dynamic upcoming months note for current year', () => {
+        render(<MonthlySummaryReport />);
+
+        const upcomingNote = screen.getByText(/Upcoming months/i);
+        expect(upcomingNote.textContent).toContain('will populate as data is recorded');
+        expect(upcomingNote.textContent).not.toContain('February, March, April, May, June, July, August, September, October, November, December');
+    });
+
     describe('New Guests calculation', () => {
         it('counts guests whose first meal is in the given month as new guests', () => {
             // Use 2025 to ensure both January and February rows are shown

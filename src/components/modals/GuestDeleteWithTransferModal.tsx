@@ -15,7 +15,10 @@ import {
     Scissors,
     Gift,
     Bike,
-    Package
+    Package,
+    Bell,
+    ShieldAlert,
+    Link2
 } from 'lucide-react';
 import { useGuestsStore, Guest, GuestRecordCounts } from '@/stores/useGuestsStore';
 import { flexibleNameSearch } from '@/lib/utils/flexibleNameSearch';
@@ -118,6 +121,9 @@ export function GuestDeleteWithTransferModal({
             { key: 'holidays', label: 'Holidays', count: recordCounts.holidays, icon: Gift },
             { key: 'bicycleRepairs', label: 'Bike Repairs', count: recordCounts.bicycleRepairs, icon: Bike },
             { key: 'itemsDistributed', label: 'Items', count: recordCounts.itemsDistributed, icon: Package },
+            { key: 'reminders', label: 'Reminders', count: recordCounts.reminders, icon: Bell },
+            { key: 'warnings', label: 'Warnings', count: recordCounts.warnings, icon: ShieldAlert },
+            { key: 'proxies', label: 'Proxy Links', count: recordCounts.proxies, icon: Link2 },
         ].filter(item => item.count > 0);
 
         if (items.length === 0) return null;

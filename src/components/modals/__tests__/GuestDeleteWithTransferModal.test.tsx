@@ -207,7 +207,10 @@ describe('GuestDeleteWithTransferModal', () => {
                 holidays: 1,
                 bicycleRepairs: 0,
                 itemsDistributed: 4,
-                total: 25,
+                reminders: 2,
+                warnings: 1,
+                proxies: 1,
+                total: 29,
             });
         });
 
@@ -221,7 +224,7 @@ describe('GuestDeleteWithTransferModal', () => {
             );
 
             await waitFor(() => {
-                expect(screen.getByText(/25 historical records/i)).toBeInTheDocument();
+                expect(screen.getByText(/29 historical records/i)).toBeInTheDocument();
             });
         });
 

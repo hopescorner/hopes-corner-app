@@ -89,6 +89,25 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
     const todayString = todayPacificDateString();
     const getRecordDate = (record: { date?: string | null; scheduledFor?: string | null }) =>
         record.date || record.scheduledFor || null;
+    const currentPacificMinutes = useMemo(() => {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Los_Angeles',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+        }).formatToParts(new Date());
+        const hour = Number(parts.find((part) => part.type === 'hour')?.value || 0);
+        const minute = Number(parts.find((part) => part.type === 'minute')?.value || 0);
+        return (hour * 60) + minute;
+    }, []);
+    const getSlotStartMinutes = (slot: string) => {
+        const [start] = slot.split(' - ');
+        const [hoursRaw, minutesRaw = '0'] = start.split(':');
+        const hours = Number(hoursRaw);
+        const minutes = Number(minutesRaw);
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+        return (hours * 60) + minutes;
+    };
 
     // Force re-render when record counts change (ensures reactivity)
     const showerRecordsLength = useShowerRecordsLength();
@@ -179,10 +198,12 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
         });
         for (const slot of allShowerSlots) {
             if (!slot || isSlotBlocked('shower', slot, todayString)) continue;
+            const slotStartMinutes = getSlotStartMinutes(slot);
+            if (slotStartMinutes !== null && slotStartMinutes <= currentPacificMinutes) continue;
             if ((slotCounts[slot] || 0) < 2) return slot;
         }
         return null;
-    }, [allShowerSlots, showerRecords, todayString, showerStats.available, isSlotBlocked, showerRecordsLength]);
+    }, [allShowerSlots, showerRecords, todayString, showerStats.available, isSlotBlocked, showerRecordsLength, currentPacificMinutes]);
 
     // Find next available laundry slot
     const nextAvailableLaundrySlot = useMemo(() => {
@@ -199,10 +220,12 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
         );
         for (const slot of allLaundrySlots) {
             if (!slot || isSlotBlocked('laundry', slot, todayString)) continue;
+            const slotStartMinutes = getSlotStartMinutes(slot);
+            if (slotStartMinutes !== null && slotStartMinutes <= currentPacificMinutes) continue;
             if (!bookedLaundrySlots.has(slot)) return slot;
         }
         return null;
-    }, [allLaundrySlots, laundryRecords, todayString, laundryStats.onsiteAvailable, isSlotBlocked, laundryRecordsLength]);
+    }, [allLaundrySlots, laundryRecords, todayString, laundryStats.onsiteAvailable, isSlotBlocked, laundryRecordsLength, currentPacificMinutes]);
 
     const nextShowerSlotLabel = nextAvailableShowerSlot
         ? `Next slot: ${formatSlotLabel(nextAvailableShowerSlot)}`
