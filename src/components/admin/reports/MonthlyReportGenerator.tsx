@@ -404,136 +404,268 @@ export default function MonthlyReportGenerator() {
             });
 
             const pageWidth = doc.internal.pageSize.getWidth();
-            const margin = 20;
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const margin = 18;
             const contentWidth = pageWidth - 2 * margin;
-            let yPosition = margin;
+            let yPosition = 0;
 
-            // Title
-            doc.setFontSize(20);
+            // --- Color constants (matching app UI) ---
+            const purple600 = [147, 51, 234] as const;   // #9333EA
+            const indigo600 = [79, 70, 229] as const;    // #4F46E5
+            const purple50 = [250, 245, 255] as const;   // #FAF5FF
+            const indigo50 = [238, 242, 255] as const;   // #EEF2FF
+            const blue600 = [37, 99, 235] as const;      // #2563EB
+            const cyan600 = [8, 145, 178] as const;      // #0891B2
+            const green600 = [22, 163, 74] as const;     // #16A34A
+            const pink600 = [219, 39, 119] as const;     // #DB2777
+            const orange600 = [234, 88, 12] as const;    // #EA580C
+            const gray50 = [249, 250, 251] as const;     // #F9FAFB
+            const gray400 = [156, 163, 175] as const;    // #9CA3AF
+            const gray600 = [75, 85, 99] as const;       // #4B5563
+            const gray900 = [17, 24, 39] as const;       // #111827
+
+            // Helper to draw a filled rounded rectangle
+            const drawRoundedRect = (x: number, y: number, w: number, h: number, r: number) => {
+                doc.roundedRect(x, y, w, h, r, r, 'F');
+            };
+
+            // Helper: draw a small colored circle as an icon indicator
+            const drawIconDot = (x: number, y: number, color: readonly [number, number, number]) => {
+                doc.setFillColor(...color);
+                doc.circle(x, y, 1.8, 'F');
+            };
+
+            // === HEADER BANNER (purple-to-indigo gradient simulated) ===
+            // Gradient simulation: left half purple, right half indigo, blended
+            doc.setFillColor(...purple600);
+            doc.rect(margin, margin, contentWidth / 2, 24, 'F');
+            doc.setFillColor(...indigo600);
+            doc.rect(margin + contentWidth / 2, margin, contentWidth / 2, 24, 'F');
+            // Round the corners by overlaying rounded rect (same color blended)
+            doc.setFillColor(113, 60, 232); // midpoint blend
+            drawRoundedRect(margin, margin, contentWidth, 24, 4);
+
+            // Header text
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
-            doc.text("Hope's Corner Monthly Report", pageWidth / 2, yPosition, { align: 'center' });
-            yPosition += 10;
-
-            // Subtitle with month/year
-            doc.setFontSize(14);
+            doc.text("Hope's Corner Report", margin + 8, margin + 10);
+            doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
-            doc.text(`${reportData.month} ${reportData.year}`, pageWidth / 2, yPosition, { align: 'center' });
-            yPosition += 15;
+            doc.setTextColor(220, 210, 255);
+            doc.text(`${reportData.month} ${reportData.year}`, margin + 8, margin + 18);
 
-            // Service Statistics Section
-            doc.setFontSize(14);
+            yPosition = margin + 32;
+
+            // === SERVICE STATISTICS SECTION ===
+            // Section header with icon dot
+            doc.setTextColor(...purple600);
+            drawIconDot(margin + 2, yPosition - 1.2, purple600);
+            doc.setFontSize(13);
             doc.setFont('helvetica', 'bold');
-            doc.text('Service Statistics', margin, yPosition);
+            doc.setTextColor(...gray900);
+            doc.text('Service Statistics', margin + 7, yPosition);
             yPosition += 8;
 
-            // Service stats table header
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            const col1X = margin;
-            const col2X = margin + contentWidth * 0.5;
-            const col3X = margin + contentWidth * 0.75;
+            // Table column positions
+            const serviceColX = margin;
+            const monthColX = margin + contentWidth * 0.55;
+            const ytdColX = margin + contentWidth * 0.78;
+            const monthColW = contentWidth * 0.22;
+            const ytdColW = contentWidth * 0.22;
+            const rowH = 7;
 
-            doc.text('Service', col1X, yPosition);
-            doc.text('Month', col2X, yPosition);
-            doc.text('YTD', col3X, yPosition);
-            yPosition += 2;
+            // Table header row
+            doc.setFillColor(245, 245, 250);
+            doc.rect(margin, yPosition - 4, contentWidth, rowH, 'F');
+            doc.setFillColor(...purple50);
+            doc.rect(monthColX, yPosition - 4, monthColW, rowH, 'F');
+            doc.setFillColor(...indigo50);
+            doc.rect(ytdColX, yPosition - 4, ytdColW, rowH, 'F');
+
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(...gray600);
+            doc.text('Service', serviceColX + 2, yPosition);
+            doc.text('Month', monthColX + monthColW - 2, yPosition, { align: 'right' });
+            doc.text('YTD', ytdColX + ytdColW - 2, yPosition, { align: 'right' });
+            yPosition += rowH;
 
             // Draw line under header
-            doc.setDrawColor(200);
-            doc.line(margin, yPosition, pageWidth - margin, yPosition);
-            yPosition += 6;
+            doc.setDrawColor(229, 231, 235);
+            doc.setLineWidth(0.3);
+            doc.line(margin, yPosition - 3, margin + contentWidth, yPosition - 3);
 
-            // Service stats rows
-            doc.setFont('helvetica', 'normal');
-            const statsRows = [
-                { label: 'Total Meals', month: reportData.monthStats.totalMeals, ytd: reportData.ytdStats.totalMeals, bold: true },
-                { label: '  On-Site Hot Meals', month: reportData.monthStats.onsiteHotMeals, ytd: reportData.ytdStats.onsiteHotMeals },
-                { label: '  Bag Lunch', month: reportData.monthStats.bagLunch, ytd: reportData.ytdStats.bagLunch },
-                { label: '  RV / Safe Park', month: reportData.monthStats.rvSafePark, ytd: reportData.ytdStats.rvSafePark },
-                { label: '  Day Worker', month: reportData.monthStats.dayWorker, ytd: reportData.ytdStats.dayWorker },
-                { label: 'Showers', month: reportData.monthStats.showers, ytd: reportData.ytdStats.showers, bold: true },
-                { label: 'Laundry', month: reportData.monthStats.laundry, ytd: reportData.ytdStats.laundry, bold: true },
-                { label: 'Bike Service', month: reportData.monthStats.bikeService, ytd: reportData.ytdStats.bikeService, bold: true },
-                { label: 'New Bicycles', month: reportData.monthStats.newBicycles, ytd: reportData.ytdStats.newBicycles, bold: true },
-                { label: 'Haircuts', month: reportData.monthStats.haircuts, ytd: reportData.ytdStats.haircuts, bold: true },
+            // Service stat rows with icons and colors
+            interface ServiceRow {
+                label: string;
+                month: number;
+                ytd: number;
+                bold: boolean;
+                indent?: boolean;
+                iconColor?: readonly [number, number, number];
+            }
+
+            const statsRows: ServiceRow[] = [
+                { label: 'Total Meals', month: reportData.monthStats.totalMeals, ytd: reportData.ytdStats.totalMeals, bold: true, iconColor: purple600 },
+                { label: 'On-Site Hot Meals', month: reportData.monthStats.onsiteHotMeals, ytd: reportData.ytdStats.onsiteHotMeals, bold: false, indent: true },
+                { label: 'Bag Lunch', month: reportData.monthStats.bagLunch, ytd: reportData.ytdStats.bagLunch, bold: false, indent: true },
+                { label: 'RV / Safe Park', month: reportData.monthStats.rvSafePark, ytd: reportData.ytdStats.rvSafePark, bold: false, indent: true },
+                { label: 'Day Worker', month: reportData.monthStats.dayWorker, ytd: reportData.ytdStats.dayWorker, bold: false, indent: true },
+                { label: 'Showers', month: reportData.monthStats.showers, ytd: reportData.ytdStats.showers, bold: true, iconColor: blue600 },
+                { label: 'Laundry', month: reportData.monthStats.laundry, ytd: reportData.ytdStats.laundry, bold: true, iconColor: cyan600 },
+                { label: 'Bike Service', month: reportData.monthStats.bikeService, ytd: reportData.ytdStats.bikeService, bold: true, iconColor: green600 },
+                { label: 'New Bicycles', month: reportData.monthStats.newBicycles, ytd: reportData.ytdStats.newBicycles, bold: true, iconColor: pink600 },
+                { label: 'Haircuts', month: reportData.monthStats.haircuts, ytd: reportData.ytdStats.haircuts, bold: true, iconColor: orange600 },
             ];
 
-            statsRows.forEach(row => {
+            statsRows.forEach((row, idx) => {
+                const rowY = yPosition - 4;
+
+                // Alternating subtle background for bold (main) rows
+                if (row.bold && row.label === 'Total Meals') {
+                    doc.setFillColor(250, 245, 255); // purple-50/50
+                    doc.rect(margin, rowY, contentWidth, rowH, 'F');
+                }
+
+                // Month and YTD column backgrounds
                 if (row.bold) {
+                    doc.setFillColor(...purple50);
+                    doc.rect(monthColX, rowY, monthColW, rowH, 'F');
+                    doc.setFillColor(...indigo50);
+                    doc.rect(ytdColX, rowY, ytdColW, rowH, 'F');
+                } else {
+                    doc.setFillColor(250, 245, 255, 0.3);
+                    doc.rect(monthColX, rowY, monthColW, rowH, 'F');
+                    doc.setFillColor(238, 242, 255, 0.3);
+                    doc.rect(ytdColX, rowY, ytdColW, rowH, 'F');
+                }
+
+                // Icon dot for main service rows
+                const textX = row.indent ? serviceColX + 12 : serviceColX + 2;
+                if (row.iconColor && row.bold) {
+                    drawIconDot(serviceColX + 4, yPosition - 1.2, row.iconColor);
                     doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(...gray900);
+                    doc.text(row.label, serviceColX + 9, yPosition);
                 } else {
                     doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(...gray600);
+                    doc.text(row.label, textX, yPosition);
                 }
-                doc.text(row.label, col1X, yPosition);
-                doc.text(formatNumber(row.month), col2X, yPosition);
-                doc.text(formatNumber(row.ytd), col3X, yPosition);
-                yPosition += 6;
+
+                // Month value
+                doc.setFont('helvetica', row.bold ? 'bold' : 'normal');
+                doc.setTextColor(...gray900);
+                doc.text(formatNumber(row.month), monthColX + monthColW - 2, yPosition, { align: 'right' });
+
+                // YTD value
+                doc.text(formatNumber(row.ytd), ytdColX + ytdColW - 2, yPosition, { align: 'right' });
+
+                // Bottom border
+                if (idx < statsRows.length - 1) {
+                    doc.setDrawColor(243, 244, 246);
+                    doc.setLineWidth(0.2);
+                    doc.line(margin, rowY + rowH, margin + contentWidth, rowY + rowH);
+                }
+
+                yPosition += rowH;
             });
 
             yPosition += 10;
 
-            // Demographics Section
-            doc.setFontSize(14);
+            // === GUEST DEMOGRAPHICS SECTION ===
+            drawIconDot(margin + 2, yPosition - 1.2, purple600);
+            doc.setFontSize(13);
             doc.setFont('helvetica', 'bold');
-            doc.text('Guest Demographics', margin, yPosition);
-            yPosition += 4;
+            doc.setTextColor(...gray900);
+            doc.text('Guest Demographics', margin + 7, yPosition);
+            yPosition += 5;
+
             doc.setFontSize(9);
-            doc.setFont('helvetica', 'italic');
-            doc.text(`Based on ${formatNumber(reportData.totalActiveGuests)} guests who received meals`, margin, yPosition);
-            yPosition += 10;
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(...gray400);
+            doc.text(`Based on ${formatNumber(reportData.totalActiveGuests)} guests who received meals in ${reportData.month}`, margin + 7, yPosition);
+            yPosition += 8;
 
-            // Housing Status
-            if (reportData.housingBreakdown.length > 0) {
-                doc.setFontSize(11);
-                doc.setFont('helvetica', 'bold');
-                doc.text('Housing Status', margin, yPosition);
-                yPosition += 6;
+            // Demographics columns layout (3 columns side-by-side)
+            const colW = (contentWidth - 8) / 3;
+            const colGap = 4;
+            const colPadding = 4;
+            const demographics = [
+                {
+                    title: 'Housing Status',
+                    iconColor: purple600,
+                    items: reportData.housingBreakdown,
+                },
+                {
+                    title: 'Top 5 Locations',
+                    iconColor: purple600,
+                    items: reportData.topLocations.map((item, idx) => ({ ...item, label: `${idx + 1}. ${item.label}` })),
+                },
+                {
+                    title: 'Age Groups',
+                    iconColor: purple600,
+                    items: reportData.ageBreakdown,
+                },
+            ];
 
+            const demoStartY = yPosition;
+
+            demographics.forEach((section, colIdx) => {
+                const colX = margin + colIdx * (colW + colGap);
+                let localY = demoStartY;
+
+                // Background card
+                doc.setFillColor(...gray50);
+                const cardH = 8 + (section.items.length > 0 ? section.items.length * 5.5 + 2 : 6);
+                drawRoundedRect(colX, localY - 3, colW, cardH, 3);
+
+                // Section title with icon dot
+                drawIconDot(colX + colPadding, localY - 0.5, section.iconColor);
                 doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                reportData.housingBreakdown.forEach(item => {
-                    doc.text(`${item.label}: ${formatNumber(item.count)} (${formatPercentage(item.percentage)})`, margin + 5, yPosition);
-                    yPosition += 5;
-                });
-                yPosition += 5;
-            }
-
-            // Top 5 Locations
-            if (reportData.topLocations.length > 0) {
-                doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
-                doc.text('Top 5 Locations', margin, yPosition);
-                yPosition += 6;
+                doc.setTextColor(...gray900);
+                doc.text(section.title, colX + colPadding + 5, localY + 1);
+                localY += 7;
 
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                reportData.topLocations.forEach((item, index) => {
-                    doc.text(`${index + 1}. ${item.label}: ${formatNumber(item.count)} (${formatPercentage(item.percentage)})`, margin + 5, yPosition);
-                    yPosition += 5;
-                });
-                yPosition += 5;
-            }
+                // Items
+                if (section.items.length > 0) {
+                    doc.setFontSize(8.5);
+                    section.items.forEach(item => {
+                        doc.setFont('helvetica', 'normal');
+                        doc.setTextColor(...gray600);
+                        const label = item.label.length > 20 ? item.label.substring(0, 18) + '…' : item.label;
+                        doc.text(label, colX + colPadding + 1, localY);
 
-            // Age Groups
-            if (reportData.ageBreakdown.length > 0) {
-                doc.setFontSize(11);
-                doc.setFont('helvetica', 'bold');
-                doc.text('Age Groups', margin, yPosition);
-                yPosition += 6;
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(...gray900);
+                        const valueText = `${formatNumber(item.count)}`;
+                        doc.text(valueText, colX + colW - colPadding - 14, localY, { align: 'right' });
 
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                reportData.ageBreakdown.forEach(item => {
-                    doc.text(`${item.label}: ${formatNumber(item.count)} (${formatPercentage(item.percentage)})`, margin + 5, yPosition);
-                    yPosition += 5;
-                });
-            }
+                        doc.setFont('helvetica', 'normal');
+                        doc.setTextColor(...gray400);
+                        doc.text(`(${formatPercentage(item.percentage)})`, colX + colW - colPadding - 1, localY, { align: 'right' });
+
+                        localY += 5.5;
+                    });
+                } else {
+                    doc.setFontSize(8.5);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(...gray400);
+                    doc.text('No data available', colX + colPadding + 1, localY);
+                }
+            });
 
             // Footer
-            yPosition = doc.internal.pageSize.getHeight() - 15;
-            doc.setFontSize(8);
-            doc.setFont('helvetica', 'italic');
-            doc.setTextColor(128);
+            const footerY = pageHeight - 12;
+            doc.setDrawColor(243, 244, 246);
+            doc.setLineWidth(0.3);
+            doc.line(margin, footerY - 4, pageWidth - margin, footerY - 4);
+
+            doc.setFontSize(7.5);
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(...gray400);
             const generatedDate = new Date(reportData.generatedAt).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
@@ -541,7 +673,13 @@ export default function MonthlyReportGenerator() {
                 hour: '2-digit',
                 minute: '2-digit',
             });
-            doc.text(`Generated on ${generatedDate}`, pageWidth / 2, yPosition, { align: 'center' });
+            const endDay = new Date(reportData.year, MONTH_NAMES.indexOf(reportData.month) + 1, 0).getDate();
+            doc.text(
+                `Report generated on ${generatedDate}  •  Data range: January 1, ${reportData.year} – ${reportData.month} ${endDay}, ${reportData.year}`,
+                pageWidth / 2,
+                footerY,
+                { align: 'center' }
+            );
 
             // Save PDF
             const filename = `hopes-corner-report-${reportData.year}-${String(monthOptions.find(opt => opt.label === `${reportData.month} ${reportData.year}`)?.month ?? 0 + 1).padStart(2, '0')}.pdf`;

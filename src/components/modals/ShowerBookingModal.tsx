@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { X, ShowerHead, Users, Clock, Loader2, Sparkles } from 'lucide-react';
+import { X, ShowerHead, Users, Clock, Loader2, Sparkles, Zap } from 'lucide-react';
 import { useModalStore } from '@/stores/useModalStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
@@ -192,6 +192,47 @@ export function ShowerBookingModal() {
                         </div>
                     ) : (
                         <div className="space-y-6">
+                            {/* Book Next Available */}
+                            <button
+                                onClick={() => nextAvailableSlot && handleBook(nextAvailableSlot.slotTime)}
+                                disabled={!nextAvailableSlot || isPending}
+                                className={cn(
+                                    'w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all active:scale-[0.98]',
+                                    nextAvailableSlot
+                                        ? 'bg-sky-50 border-sky-200 hover:border-sky-400 hover:shadow-lg hover:shadow-sky-100'
+                                        : 'bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed'
+                                )}
+                            >
+                                <div className={cn(
+                                    'w-11 h-11 rounded-xl flex items-center justify-center shrink-0',
+                                    nextAvailableSlot ? 'bg-sky-500 text-white shadow-md shadow-sky-200' : 'bg-gray-200 text-gray-400'
+                                )}>
+                                    <Zap size={22} />
+                                </div>
+                                <div className="text-left flex-1">
+                                    <h3 className="text-sm font-black text-gray-900">Book Next Available Slot</h3>
+                                    {nextAvailableSlot ? (
+                                        <p className="text-xs text-gray-500 font-medium mt-0.5">
+                                            Next open: <span className="text-sky-600 font-bold">{nextAvailableSlot.label}</span>
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-amber-600 font-bold mt-0.5">All slots are full for today</p>
+                                    )}
+                                </div>
+                                {nextAvailableSlot && !isPending && (
+                                    <div className="px-4 py-2 rounded-xl bg-sky-500 text-white text-xs font-black uppercase tracking-wider shadow-sm">
+                                        Book
+                                    </div>
+                                )}
+                                {isPending && <Loader2 size={18} className="animate-spin text-sky-500" />}
+                            </button>
+
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1 h-px bg-gray-200" />
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">or pick a time</span>
+                                <div className="flex-1 h-px bg-gray-200" />
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="md:col-span-2 space-y-4">
                                     <div className="flex items-center justify-between mb-2">
