@@ -66,6 +66,7 @@ export function BicycleSection() {
     // Drag state
     const [draggedItem, setDraggedItem] = useState<any>(null);
     const draggedItemRef = useRef<any>(null);
+    const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
 
     // Expanded cards state
     const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
@@ -160,8 +161,21 @@ export function BicycleSection() {
         e.dataTransfer.dropEffect = 'move';
     }, []);
 
+    const handleDragEnter = useCallback((e: React.DragEvent, columnId: string) => {
+        e.preventDefault();
+        setDragOverColumn(columnId);
+    }, []);
+
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        // Only clear if leaving the column itself, not entering a child
+        if (e.currentTarget && !e.currentTarget.contains(e.relatedTarget as Node)) {
+            setDragOverColumn(null);
+        }
+    }, []);
+
     const handleDrop = useCallback(async (e: React.DragEvent, newStatus: string) => {
         e.preventDefault();
+        setDragOverColumn(null);
         const item = draggedItemRef.current;
         if (item && item.status !== newStatus) {
             await handleStatusChange(item.id, newStatus);
@@ -173,6 +187,7 @@ export function BicycleSection() {
     const handleDragEnd = useCallback(() => {
         draggedItemRef.current = null;
         setDraggedItem(null);
+        setDragOverColumn(null);
     }, []);
 
     // Date navigation
@@ -277,12 +292,14 @@ export function BicycleSection() {
                             <div
                                 key={column.id}
                                 onDragOver={handleDragOver}
+                                onDragEnter={(e) => handleDragEnter(e, column.id)}
+                                onDragLeave={handleDragLeave}
                                 onDrop={(e) => handleDrop(e, column.id)}
                                 className={cn(
                                     "flex-shrink-0 w-72 lg:flex-1 lg:min-w-[280px] rounded-2xl border-2 p-4 min-h-[450px] flex flex-col transition-colors",
                                     column.bg,
                                     column.border,
-                                    draggedItem && draggedItem.status !== column.id && "border-opacity-75"
+                                    draggedItem && dragOverColumn === column.id && draggedItem.status !== column.id && "ring-2 ring-offset-2 ring-blue-200 bg-blue-50/40"
                                 )}
                             >
                                 {/* Column Header */}

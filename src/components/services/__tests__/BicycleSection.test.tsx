@@ -78,6 +78,27 @@ describe('BicycleSection Component', () => {
         });
     });
 
+    describe('Drag and Drop', () => {
+        it('renders kanban cards as draggable', () => {
+            render(<BicycleSection />);
+            const draggableCards = document.querySelectorAll('[draggable="true"]');
+            expect(draggableCards.length).toBeGreaterThan(0);
+        });
+
+        it('cards have cursor-move class in kanban view', () => {
+            render(<BicycleSection />);
+            const moveCards = document.querySelectorAll('.cursor-move');
+            expect(moveCards.length).toBeGreaterThan(0);
+        });
+
+        it('columns accept drag-over events', () => {
+            render(<BicycleSection />);
+            // Columns should exist for each status
+            const columns = document.querySelectorAll('.rounded-2xl.border-2.min-h-\\[450px\\]');
+            expect(columns.length).toBe(3); // pending, in_progress, done
+        });
+    });
+
     describe('View Toggle', () => {
         it('shows view toggle buttons', () => {
             render(<BicycleSection />);

@@ -775,6 +775,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
 
     return (
         <div
+            {...(!readOnly && dragListeners ? dragListeners : {})}
             className={cn(
                 "bg-white rounded-lg border-2 shadow-sm p-3 transition-all hover:shadow-md",
                 readOnly ? "cursor-default" : "cursor-grab active:cursor-grabbing",
@@ -783,16 +784,14 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
             )}
         >
             <motion.div
-                layout
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
             >
                 <div className="flex items-center justify-between gap-1.5 mb-2 min-h-[24px]">
-                    {!readOnly && dragListeners && (
+                    {!readOnly && (
                         <div
-                            {...dragListeners}
-                            className="flex-shrink-0 cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 touch-manipulation"
+                            className="flex-shrink-0 text-gray-300 hover:text-gray-500"
                             aria-label="Drag to reorder"
                         >
                             <GripVertical size={14} />

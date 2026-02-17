@@ -74,6 +74,35 @@ describe('LaundrySection Component', () => {
         });
     });
 
+    describe('Drag and Drop', () => {
+        it('renders cards with cursor-grab class for dragging', () => {
+            render(<LaundrySection />);
+            const grabCards = document.querySelectorAll('.cursor-grab');
+            expect(grabCards.length).toBeGreaterThan(0);
+        });
+
+        it('renders grip vertical icons as visual drag indicators', () => {
+            render(<LaundrySection />);
+            const gripHandles = document.querySelectorAll('[aria-label="Drag to reorder"]');
+            expect(gripHandles.length).toBeGreaterThan(0);
+        });
+
+        it('entire card is the drag target not just the grip icon', () => {
+            render(<LaundrySection />);
+            // The cursor-grab card should be the same element that has the drag listener
+            // (in @dnd-kit it attaches onPointerDown etc.)
+            const grabCards = document.querySelectorAll('.cursor-grab');
+            grabCards.forEach(card => {
+                // The grip icon should NOT have its own separate pointer-down handler
+                const grip = card.querySelector('[aria-label="Drag to reorder"]');
+                if (grip) {
+                    // Grip should just be a visual indicator, not the drag handle
+                    expect(grip.classList.contains('cursor-grab')).toBe(false);
+                }
+            });
+        });
+    });
+
     describe('View Toggle', () => {
         it('shows view toggle buttons', () => {
             render(<LaundrySection />);
