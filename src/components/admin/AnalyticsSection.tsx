@@ -239,7 +239,7 @@ export function AnalyticsSection() {
             addToMap(haircutsByDay, dateKeyOf(r), 1);
         }
         for (const r of bicycleRecords) {
-            if (r.status !== 'cancelled') addToMap(bicyclesDoneByDay, dateKeyOf(r), 1);
+            if (r.status === 'done') addToMap(bicyclesDoneByDay, dateKeyOf(r), 1);
         }
 
         return { mealsByDay, showersDoneByDay, laundryDoneByDay, bicyclesDoneByDay, haircutsByDay };
@@ -271,7 +271,7 @@ export function AnalyticsSection() {
             .length;
 
         const bicycles = bicycleRecords
-            .filter(r => isRecordInRange(r) && r.status !== 'cancelled')
+            .filter(r => isRecordInRange(r) && r.status === 'done')
             .length;
 
         const haircuts = (haircutRecords || [])
@@ -299,7 +299,7 @@ export function AnalyticsSection() {
             .forEach(r => guestIds.add(r.guestId));
         laundryRecords.filter(r => isRecordInRange(r))
             .forEach(r => guestIds.add(r.guestId));
-        bicycleRecords.filter(r => isRecordInRange(r) && r.status !== 'cancelled')
+        bicycleRecords.filter(r => isRecordInRange(r) && r.status === 'done')
             .forEach(r => r.guestId && guestIds.add(r.guestId));
 
         return { meals, showers, laundry, bicycles, haircuts, holidays, uniqueGuests: guestIds.size };
@@ -338,7 +338,7 @@ export function AnalyticsSection() {
             .filter(r => isRecordInPreviousRange(r) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status)).length;
 
         const prevBicycles = bicycleRecords
-            .filter(r => isRecordInPreviousRange(r) && r.status !== 'cancelled').length;
+            .filter(r => isRecordInPreviousRange(r) && r.status === 'done').length;
 
         return {
             meals: metrics.meals - prevMeals,

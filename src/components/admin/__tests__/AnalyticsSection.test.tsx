@@ -527,9 +527,10 @@ describe('AnalyticsSection Overview and Trends data', () => {
         expect(screen.getByText('28')).toBeDefined();
     });
 
-    it('counts bicycles as non-cancelled records in overview', () => {
+    it('counts only done bicycles in overview (matching dashboard logic)', () => {
         render(<AnalyticsSection />);
-        expect(screen.getAllByText('3').length).toBeGreaterThan(0);
+        // Only 'done' status bicycle records are counted (1 out of 4: pending, in_progress, done, cancelled)
+        expect(screen.getAllByText('1').length).toBeGreaterThan(0);
     });
 
     it('renders bicycles and haircuts series in trends chart', async () => {
