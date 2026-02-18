@@ -697,15 +697,19 @@ function PureGuestCard({
                         </div>
                     )}
 
-                    {/* Complete Check-in Button */}
+                    {/* Complete Check-in Button - separated from undo to prevent confusion */}
                     {hasServiceToday && !compact && (
-                        <button
-                            onClick={handleCompleteCheckIn}
-                            className="flex items-center justify-center h-10 px-3 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold transition-all active:scale-95"
-                            title="Complete check-in and search for next guest"
-                        >
-                            <UserCheck size={20} />
-                        </button>
+                        <>
+                            {/* Visual separator to distinguish from undo button */}
+                            <div className="w-px h-8 bg-gray-200 mx-1" aria-hidden="true"></div>
+                            <button
+                                onClick={handleCompleteCheckIn}
+                                className="flex items-center justify-center h-10 px-3 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold transition-all active:scale-95"
+                                title="Complete check-in and search for next guest"
+                            >
+                                <UserCheck size={20} />
+                            </button>
+                        </>
                     )}
 
                     <div className={cn(

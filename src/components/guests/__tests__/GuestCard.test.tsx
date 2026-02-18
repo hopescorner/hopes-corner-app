@@ -390,6 +390,83 @@ describe('GuestCard Component', () => {
         });
     });
 
+    describe('Complete Check-in Button Separation', () => {
+        it('shows visual separator between undo and complete check-in buttons when service is present', () => {
+            const mealStatusMap = new Map([
+                ['g1', {
+                    hasMeal: true,
+                    mealRecord: { id: 'meal-1', count: 1 },
+                    mealCount: 1,
+                    extraMealCount: 0,
+                    totalMeals: 1,
+                }],
+            ]);
+            const actionStatusMap = new Map([
+                ['g1', {
+                    mealActionId: 'action-1',
+                }],
+            ]);
+            const { container } = render(
+                <GuestCard 
+                    guest={baseGuest} 
+                    mealStatusMap={mealStatusMap}
+                    actionStatusMap={actionStatusMap}
+                />
+            );
+            
+            // Check that visual separator exists
+            const separator = container.querySelector('.w-px.h-8.bg-gray-200');
+            expect(separator).toBeDefined();
+            expect(separator?.getAttribute('aria-hidden')).toBe('true');
+        });
+
+        it('does not show separator when no service today', () => {
+            const { container } = render(<GuestCard guest={baseGuest} />);
+            
+            // The separator should not exist when there's no service
+            const separators = container.querySelectorAll('.w-px.h-8.bg-gray-200');
+            // May have other separators, but none related to complete check-in
+            expect(separators.length).toBe(0);
+        });
+
+        it('complete check-in button is visually separated from undo button', async () => {
+            const mealStatusMap = new Map([
+                ['g1', {
+                    hasMeal: true,
+                    mealRecord: { id: 'meal-1', count: 1 },
+                    mealCount: 1,
+                    extraMealCount: 0,
+                    totalMeals: 1,
+                }],
+            ]);
+            const actionStatusMap = new Map([
+                ['g1', {
+                    mealActionId: 'action-1',
+                }],
+            ]);
+            
+            const { container } = render(
+                <GuestCard 
+                    guest={baseGuest} 
+                    mealStatusMap={mealStatusMap}
+                    actionStatusMap={actionStatusMap}
+                />
+            );
+            
+            // Find the complete check-in button (has UserCheck icon and blue background)
+            const completeButton = container.querySelector('.bg-blue-100.hover\\:bg-blue-200');
+            expect(completeButton).toBeDefined();
+            
+            // Verify the separator is a sibling before the complete button
+            const parent = completeButton?.parentElement;
+            expect(parent).toBeDefined();
+            
+            // The separator should be in the same parent container
+            const separator = parent?.querySelector('.w-px.h-8.bg-gray-200');
+            expect(separator).toBeDefined();
+        });
+    });
+
     describe('Shower and Laundry Time Display', () => {
         it('displays shower badge with booking time when time is provided', () => {
             const serviceStatusMap = new Map([

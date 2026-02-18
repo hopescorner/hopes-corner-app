@@ -29,6 +29,15 @@ vi.mock('@/stores/useItemsStore', () => ({
     }),
 }));
 
+// Mock the services store
+const mockUpdateShowerStatus = vi.fn();
+
+vi.mock('@/stores/useServicesStore', () => ({
+    useServicesStore: () => ({
+        updateShowerStatus: mockUpdateShowerStatus,
+    }),
+}));
+
 // Mock WaiverBadge
 vi.mock('@/components/ui/WaiverBadge', () => ({
     WaiverBadge: () => <div data-testid="waiver-badge">Waiver Badge</div>,
@@ -304,6 +313,90 @@ describe('ShowerDetailModal', () => {
             // Only one undo button should be visible (for today's item)
             const undoButtons = screen.queryAllByTitle('Undo - remove this item');
             expect(undoButtons.length).toBe(1);
+        });
+    });
+
+    describe('Mark as Done functionality', () => {
+        it('shows Mark as Done button when shower is not done', () => {
+            render(<ShowerDetailModal {...defaultProps} />);
+            expect(screen.getByText('Mark as Done')).toBeDefined();
+        });
+
+        it('does NOT show Mark as Done button when shower is already done', () => {
+            const doneRecord = { ...mockRecord, status: 'done' };
+            render(<ShowerDetailModal {...defaultProps} record={doneRecord} />);
+            expect(screen.queryByText('Mark as Done')).toBeNull();
+        });
+
+        it('calls updateShowerStatus when Mark as Done is clicked', async () => {
+            mockUpdateShowerStatus.mockResolvedValue(true);
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            const markDoneButton = screen.getByText('Mark as Done').closest('button');
+            expect(markDoneButton).toBeDefined();
+            
+            fireEvent.click(markDoneButton!);
+            
+            await waitFor(() => {
+                expect(mockUpdateShowerStatus).toHaveBeenCalledWith('shower-1', 'done');
+            });
+        });
+
+        it('shows success toast when marked as done successfully', async () => {
+            const toast = await import('react-hot-toast');
+            mockUpdateShowerStatus.mockResolvedValue(true);
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            const markDoneButton = screen.getByText('Mark as Done').closest('button');
+            fireEvent.click(markDoneButton!);
+
+            await waitFor(() => {
+                expect(toast.default.success).toHaveBeenCalledWith(expect.stringContaining('Shower marked as done'));
+            });
+        });
+
+        it('shows error toast when marking as done fails', async () => {
+            const toast = await import('react-hot-toast');
+            mockUpdateShowerStatus.mockResolvedValue(false);
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            const markDoneButton = screen.getByText('Mark as Done').closest('button');
+            fireEvent.click(markDoneButton!);
+
+            await waitFor(() => {
+                expect(toast.default.error).toHaveBeenCalledWith('Failed to update shower status');
+            });
+        });
+
+        it('disables button while marking as done', async () => {
+            mockUpdateShowerStatus.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(true), 100)));
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            const markDoneButton = screen.getByText('Mark as Done').closest('button') as HTMLButtonElement;
+            expect(markDoneButton).toBeDefined();
+            
+            fireEvent.click(markDoneButton!);
+            
+            // Button should be disabled while processing
+            expect(markDoneButton?.disabled).toBe(true);
+        });
+
+        it('shows different status badge colors for done vs awaiting', () => {
+            const { rerender } = render(<ShowerDetailModal {...defaultProps} />);
+            
+            // Awaiting status should have sky colors
+            const awaitingBadge = screen.getByText('awaiting');
+            expect(awaitingBadge?.className).toContain('bg-sky-100');
+            expect(awaitingBadge?.className).toContain('text-sky-700');
+
+            // Rerender with done status
+            const doneRecord = { ...mockRecord, status: 'done' };
+            rerender(<ShowerDetailModal {...defaultProps} record={doneRecord} />);
+            
+            // Done status should have emerald colors
+            const doneBadge = screen.getByText('done');
+            expect(doneBadge?.className).toContain('bg-emerald-100');
+            expect(doneBadge?.className).toContain('text-emerald-700');
         });
     });
 });
