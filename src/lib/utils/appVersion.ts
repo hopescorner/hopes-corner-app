@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.2.1';
+export const APP_VERSION = '0.3.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,32 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.3.0',
+        date: 'February 20, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'App Update Prompt',
+                description: 'A banner now appears when a new version of the app is available, prompting users to refresh instead of serving stale cached content.',
+            },
+            {
+                type: 'feature',
+                title: 'Donor Grouping in Donations',
+                description: 'Donations are now grouped by donor with collapsible cards showing totals for weight, trays, and servings at a glance.',
+            },
+            {
+                type: 'feature',
+                title: 'Meal Activity Log Filters & Batch Delete',
+                description: 'Filter the activity log by meal type and batch-delete all lunch bag entries for the day with one click.',
+            },
+            {
+                type: 'fix',
+                title: 'Friday Lunch Bag Skip',
+                description: 'Lunch bags are no longer auto-added on Fridays, matching the real-world schedule.',
+            },
+        ],
+    },
     {
         version: '0.2.1',
         date: 'February 19, 2026',

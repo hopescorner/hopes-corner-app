@@ -25,15 +25,23 @@ self.addEventListener('install', (event) => {
     self.skipWaiting();
 });
 
-// Activate event - clean up old caches
+// Activate event - clean up old caches and notify clients
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
+            const oldCaches = cacheNames.filter((name) => name !== CACHE_NAME);
             return Promise.all(
-                cacheNames
-                    .filter((name) => name !== CACHE_NAME)
-                    .map((name) => caches.delete(name))
-            );
+                oldCaches.map((name) => caches.delete(name))
+            ).then(() => {
+                // Notify all clients that a new version is active
+                if (oldCaches.length > 0) {
+                    self.clients.matchAll({ type: 'window' }).then((clients) => {
+                        clients.forEach((client) => {
+                            client.postMessage({ type: 'SW_UPDATED' });
+                        });
+                    });
+                }
+            });
         })
     );
     // Take control of all clients immediately
