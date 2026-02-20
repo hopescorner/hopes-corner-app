@@ -50,8 +50,8 @@ export default function DashboardPage() {
     useEffect(() => {
         loadSettings();
         // Reports require full history; override operational default window.
-        ensureMealsLoaded({ since: '1970-01-01T00:00:00.000Z' });
-        ensureServicesLoaded({ since: '1970-01-01T00:00:00.000Z' });
+        ensureMealsLoaded({ force: true, since: '1970-01-01T00:00:00.000Z' });
+        ensureServicesLoaded({ force: true, since: '1970-01-01T00:00:00.000Z' });
         ensureGuestsLoaded();
     }, [loadSettings, ensureMealsLoaded, ensureServicesLoaded, ensureGuestsLoaded]);
 

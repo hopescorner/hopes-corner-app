@@ -560,7 +560,12 @@ export const useMealsStore = create<MealsState>()(
                     // Load from Supabase
                     ensureLoaded: async ({ force = false, since }: { force?: boolean; since?: string } = {}) => {
                         if (!force && get().isLoaded) return;
-                        if (get().isLoading) return;
+                        if (get().isLoading) {
+                            if (!force) return;
+                            while (get().isLoading) {
+                                await new Promise((resolve) => setTimeout(resolve, 25));
+                            }
+                        }
 
                         set((state) => {
                             state.isLoading = true;
