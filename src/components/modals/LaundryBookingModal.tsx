@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { X, WashingMachine, Clock, Loader2, Package, Zap } from 'lucide-react';
+import { X, WashingMachine, Clock, Loader2, Package } from 'lucide-react';
 import { useModalStore } from '@/stores/useModalStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
@@ -38,19 +38,14 @@ export function LaundryBookingModal() {
     const today = todayPacificDateString();
     const allSlots = generateLaundrySlots();
 
-    // Only consider today's records when determining slot availability.
-    // Past-day records (e.g. "done" from Monday) must NOT block today's slots.
-    const todayLaundryRecords = useMemo(() => {
-        return (laundryRecords || []).filter(
-            (r) => pacificDateStringFrom(r.date) === today
-        );
-    }, [laundryRecords, today]);
-
     const slotsWithStatus = useMemo(() => {
         if (!laundryPickerGuest) return [];
         return allSlots.map((slotLabel) => {
-            const isBooked = todayLaundryRecords.some(
-                (r) => r.time === slotLabel && r.laundryType === 'onsite'
+            const isBooked = (laundryRecords || []).some(
+                (r) =>
+                    r.time === slotLabel &&
+                    r.laundryType === 'onsite' &&
+                    pacificDateStringFrom(r.date) === today
             );
             const isBlocked = isSlotBlocked('laundry', slotLabel, today);
 
@@ -60,7 +55,7 @@ export function LaundryBookingModal() {
                 isBlocked
             };
         });
-    }, [allSlots, todayLaundryRecords, laundryPickerGuest, isSlotBlocked]);
+    }, [allSlots, laundryRecords, laundryPickerGuest, isSlotBlocked, today]);
 
     const nextAvailableSlot = useMemo(() => {
         return slotsWithStatus.find(s => !s.isBooked && !s.isBlocked);
@@ -120,9 +115,6 @@ export function LaundryBookingModal() {
                 <div className="flex-1 overflow-y-auto p-6">
                     {/* Guest Reminders */}
                     <ServiceCardReminder guestId={laundryPickerGuest.id} serviceType="laundry" />
-                    <p className="text-[11px] text-gray-500 mt-3 mb-4" title="Bookings from this modal save to this service date.">
-                        Entries save to service date: {new Date(`${today}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </p>
                     
                     {isCheckinRole ? (
                         <div className="space-y-8">
@@ -150,17 +142,22 @@ export function LaundryBookingModal() {
                                             {washType === 'onsite' ? <Clock size={48} /> : <Package size={48} />}
                                         </div>
 
-                                        <div className="space-y-1">
+                                        <div className="space-y-2">
                                             <h3 className="text-xl font-black text-gray-900">
                                                 {washType === 'onsite' ? 'Next On-site Slot' : 'Off-site Laundry'}
                                             </h3>
                                             {washType === 'onsite' ? (
                                                 nextAvailableSlot ? (
-                                                    <p className="text-gray-600 font-medium">
-                                                        Next available at <span className="text-indigo-600 font-bold">{formatSlotLabel(nextAvailableSlot.label)}</span>
-                                                    </p>
+                                                    <>
+                                                        <p className="text-gray-500 text-sm font-medium">
+                                                            Next available at
+                                                        </p>
+                                                        <p className="text-3xl font-black text-indigo-600 tracking-tight">
+                                                            {formatSlotLabel(nextAvailableSlot.label)}
+                                                        </p>
+                                                    </>
                                                 ) : (
-                                                    <p className="text-amber-600 font-bold">On-site is fully booked</p>
+                                                    <p className="text-lg text-amber-600 font-bold">On-site is fully booked</p>
                                                 )
                                             ) : (
                                                 <p className="text-gray-600 font-medium">No specific time required</p>
@@ -240,51 +237,6 @@ export function LaundryBookingModal() {
                                     </button>
                                 ))}
                             </div>
-
-                            {washType === 'onsite' && (
-                                <>
-                                    {/* Book Next Available */}
-                                    <button
-                                        onClick={() => nextAvailableSlot && handleBook(nextAvailableSlot.label)}
-                                        disabled={!nextAvailableSlot || isPending}
-                                        className={cn(
-                                            'w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all active:scale-[0.98]',
-                                            nextAvailableSlot
-                                                ? 'bg-indigo-50 border-indigo-200 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-100'
-                                                : 'bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed'
-                                        )}
-                                    >
-                                        <div className={cn(
-                                            'w-11 h-11 rounded-xl flex items-center justify-center shrink-0',
-                                            nextAvailableSlot ? 'bg-indigo-500 text-white shadow-md shadow-indigo-200' : 'bg-gray-200 text-gray-400'
-                                        )}>
-                                            <Zap size={22} />
-                                        </div>
-                                        <div className="text-left flex-1">
-                                            <h3 className="text-sm font-black text-gray-900">Book Next Available Slot</h3>
-                                            {nextAvailableSlot ? (
-                                                <p className="text-xs text-gray-500 font-medium mt-0.5">
-                                                    Next open: <span className="text-indigo-600 font-bold">{formatSlotLabel(nextAvailableSlot.label)}</span>
-                                                </p>
-                                            ) : (
-                                                <p className="text-xs text-amber-600 font-bold mt-0.5">All on-site slots are booked</p>
-                                            )}
-                                        </div>
-                                        {nextAvailableSlot && !isPending && (
-                                            <div className="px-4 py-2 rounded-xl bg-indigo-500 text-white text-xs font-black uppercase tracking-wider shadow-sm">
-                                                Book
-                                            </div>
-                                        )}
-                                        {isPending && <Loader2 size={18} className="animate-spin text-indigo-500" />}
-                                    </button>
-
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-1 h-px bg-gray-200" />
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">or pick a slot</span>
-                                        <div className="flex-1 h-px bg-gray-200" />
-                                    </div>
-                                </>
-                            )}
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-6">

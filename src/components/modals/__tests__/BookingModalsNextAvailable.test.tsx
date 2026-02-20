@@ -4,10 +4,12 @@ import React from 'react';
 import { ShowerBookingModal } from '../ShowerBookingModal';
 import { LaundryBookingModal } from '../LaundryBookingModal';
 
-// Mock next-auth/react — staff role so we see the slot grid + next available
+let mockRole: 'checkin' | 'staff' = 'checkin';
+
+// Mock next-auth/react
 vi.mock('next-auth/react', () => ({
     useSession: vi.fn(() => ({
-        data: { user: { role: 'staff' } },
+        data: { user: { role: mockRole } },
         status: 'authenticated',
     })),
 }));
@@ -97,93 +99,92 @@ vi.mock('@/components/ui/ReminderIndicator', () => ({
 describe('ShowerBookingModal — Book Next Available', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockRole = 'checkin';
     });
 
-    it('renders "Book Next Available Slot" button for staff', () => {
+    it('renders quick-book button for check-in role', () => {
         render(<ShowerBookingModal />);
-        expect(screen.getByText('Book Next Available Slot')).toBeDefined();
+        expect(screen.getByText('Confirm Booking')).toBeDefined();
     });
 
     it('shows the next open slot time', () => {
         render(<ShowerBookingModal />);
-        // With empty showerRecords all slots are open, first slot should be shown
-        expect(screen.getByText(/Next open:/)).toBeDefined();
+        expect(screen.getByText(/The next available shower is at/i)).toBeDefined();
     });
 
-    it('shows "or pick a time" divider', () => {
+    it('shows the quick-book title', () => {
         render(<ShowerBookingModal />);
-        expect(screen.getByText('or pick a time')).toBeDefined();
+        expect(screen.getByText('Book Next Slot')).toBeDefined();
     });
 
-    it('shows the manual slot grid below the quick-book button', () => {
+    it('does not show manual slot grid for check-in role', () => {
         render(<ShowerBookingModal />);
-        expect(screen.getByText('Select an available time')).toBeDefined();
-        expect(screen.getByText('2 GUESTS PER SLOT')).toBeDefined();
+        expect(screen.queryByText('Select an available time')).toBeNull();
     });
 
-    it('shows "Book" badge on the next-available button when a slot exists', () => {
+    it('shows fairness guidance for check-in role', () => {
         render(<ShowerBookingModal />);
-        // The "Book" badge is inside the quick-book button
-        expect(screen.getByText('Book')).toBeDefined();
+        expect(screen.getByText(/only book the next available slot/i)).toBeDefined();
     });
 
     it('calls handleBook when clicking the next-available button', async () => {
         mockAddShowerRecord.mockResolvedValueOnce({ id: 'r1' });
         render(<ShowerBookingModal />);
 
-        const bookButton = screen.getByText('Book Next Available Slot').closest('button')!;
+        const bookButton = screen.getByRole('button', { name: /confirm booking/i });
         fireEvent.click(bookButton);
 
         // Should have attempted to book
         expect(mockAddShowerRecord).toHaveBeenCalledWith('g1', expect.any(String));
     });
 
-    it('still shows the waitlist option', () => {
+    it('does not show waitlist option in check-in quick-book flow', () => {
         render(<ShowerBookingModal />);
-        expect(screen.getByText('Add to Waitlist')).toBeDefined();
+        expect(screen.queryByText('Add to Waitlist')).toBeNull();
     });
 });
 
 describe('LaundryBookingModal — Book Next Available', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockRole = 'checkin';
     });
 
-    it('renders "Book Next Available Slot" button for staff in onsite mode', () => {
+    it('renders quick-book button for check-in role in onsite mode', () => {
         render(<LaundryBookingModal />);
-        expect(screen.getByText('Book Next Available Slot')).toBeDefined();
+        expect(screen.getByText('Confirm Booking')).toBeDefined();
     });
 
     it('shows the next open slot time for onsite', () => {
         render(<LaundryBookingModal />);
-        expect(screen.getByText(/Next open:/)).toBeDefined();
+        expect(screen.getByText(/Next available at/i)).toBeDefined();
     });
 
-    it('shows "or pick a slot" divider in onsite mode', () => {
+    it('shows onsite quick-book title', () => {
         render(<LaundryBookingModal />);
-        expect(screen.getByText('or pick a slot')).toBeDefined();
+        expect(screen.getByText('Next On-site Slot')).toBeDefined();
     });
 
-    it('shows the manual slot list below the quick-book button', () => {
+    it('does not show manual slot list for check-in role', () => {
         render(<LaundryBookingModal />);
-        expect(screen.getByText('Select an available slot')).toBeDefined();
+        expect(screen.queryByText('Select an available slot')).toBeNull();
     });
 
-    it('hides next-available button when switching to offsite mode', () => {
+    it('hides onsite next-available copy when switching to offsite mode', () => {
         render(<LaundryBookingModal />);
         // Switch to offsite
-        const offsiteTab = screen.getByText('offsite Service');
+        const offsiteTab = screen.getByRole('button', { name: /offsite service/i });
         fireEvent.click(offsiteTab);
 
-        // The next-available button should not be present in offsite mode
-        expect(screen.queryByText('Book Next Available Slot')).toBeNull();
+        expect(screen.queryByText('Next On-site Slot')).toBeNull();
+        expect(screen.getByText('Book Off-site')).toBeDefined();
     });
 
     it('calls handleBook when clicking the next-available button', async () => {
         mockAddLaundryRecord.mockResolvedValueOnce({ id: 'r1' });
         render(<LaundryBookingModal />);
 
-        const bookButton = screen.getByText('Book Next Available Slot').closest('button')!;
+        const bookButton = screen.getByRole('button', { name: /confirm booking/i });
         fireEvent.click(bookButton);
 
         // Should have attempted to book with onsite type and slot label
@@ -193,7 +194,7 @@ describe('LaundryBookingModal — Book Next Available', () => {
     it('does not count past-day laundry records as booked slots', async () => {
         // Set up laundry records from a past date occupying a slot
         const { useServicesStore } = await import('@/stores/useServicesStore');
-        (useServicesStore as any).mockReturnValue({
+        (useServicesStore as any).mockReturnValueOnce({
             showerRecords: [],
             laundryRecords: [
                 { id: 'past-1', guestId: 'g2', time: '07:30 - 08:30', laundryType: 'onsite', status: 'done', date: '2020-01-01', createdAt: '2020-01-01T07:30:00Z' },
@@ -206,9 +207,8 @@ describe('LaundryBookingModal — Book Next Available', () => {
         render(<LaundryBookingModal />);
 
         // The first slot (07:30 - 08:30) should still be available since the record is from 2020
-        expect(screen.getByText('Book Next Available Slot')).toBeDefined();
-        expect(screen.getByText(/Next open:/)).toBeDefined();
-        // Should NOT say "All on-site slots are booked"
-        expect(screen.queryByText('All on-site slots are booked')).toBeNull();
+        expect(screen.getByText('Confirm Booking')).toBeDefined();
+        expect(screen.getByText(/Next available at/i)).toBeDefined();
+        expect(screen.getByText('7:30 AM - 8:30 AM')).toBeDefined();
     });
 });
