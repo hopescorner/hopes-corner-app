@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'hopes-corner-v1';
+const CACHE_NAME = 'hopes-corner-v2';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
