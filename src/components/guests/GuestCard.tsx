@@ -848,10 +848,6 @@ function PureGuestCard({
 
                             {/* Actions */}
                             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
-                                <button className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
-                                    <Link2 size={14} />
-                                    Link Guest
-                                </button>
                                 {todayHaircut ? (
                                     <div className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg">
                                         <Check size={14} />
