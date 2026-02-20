@@ -85,9 +85,11 @@ function resetBall(): Ball {
 // --- Component ---
 interface PinballGameProps {
   onClose: () => void;
+  /** Backdrop dismiss grace period in ms (prevents accidental close from trigger taps). 0 = instant. */
+  graceMs?: number;
 }
 
-export function PinballGame({ onClose }: PinballGameProps) {
+export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
   const keysRef = useRef<Set<string>>(new Set());
@@ -99,17 +101,22 @@ export function PinballGame({ onClose }: PinballGameProps) {
   const ballsLeftRef = useRef(3);
   const [gameOver, setGameOver] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
-  const openedAtRef = useRef(0);
+  const [canDismiss, setCanDismiss] = useState(graceMs <= 0);
+  const [leftActive, setLeftActive] = useState(false);
+  const [rightActive, setRightActive] = useState(false);
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
-  // Capture open time on mount
+  // After graceMs, allow backdrop dismiss (prevents momentum taps from the trigger)
   useEffect(() => {
-    openedAtRef.current = Date.now();
-  }, []);
+    if (graceMs <= 0) return;
+    const timer = setTimeout(() => setCanDismiss(true), graceMs);
+    return () => clearTimeout(timer);
+  }, [graceMs]);
 
-  // Ignore clicks for 500ms after open so momentum taps from the trigger don't dismiss
+  // Backdrop dismiss — only after grace period
   const safeClose = useCallback(() => {
-    if (Date.now() - openedAtRef.current > 500) onClose();
-  }, [onClose]);
+    if (canDismiss) onClose();
+  }, [canDismiss, onClose]);
 
   // Escape to close
   useEffect(() => {
@@ -142,20 +149,17 @@ export function PinballGame({ onClose }: PinballGameProps) {
     };
   }, []);
 
-  // Touch input zones for mobile
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    for (let i = 0; i < e.touches.length; i++) {
-      const touch = e.touches[i];
-      const rect = (e.target as HTMLElement).getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      if (x < rect.width / 2) touchRef.current.left = true;
-      else touchRef.current.right = true;
-    }
+  // Touch input — full-overlay side zones for iPad/mobile
+  const handleSideTouchStart = useCallback((side: 'left' | 'right') => {
+    touchRef.current[side] = true;
+    if (side === 'left') setLeftActive(true);
+    else setRightActive(true);
   }, []);
 
-  const handleTouchEnd = useCallback(() => {
-    touchRef.current.left = false;
-    touchRef.current.right = false;
+  const handleSideTouchEnd = useCallback((side: 'left' | 'right') => {
+    touchRef.current[side] = false;
+    if (side === 'left') setLeftActive(false);
+    else setRightActive(false);
   }, []);
 
   // Restart game
@@ -429,37 +433,74 @@ export function PinballGame({ onClose }: PinballGameProps) {
       className="fixed inset-0 z-[9999] flex items-center justify-center"
       data-testid="pinball-overlay"
     >
-      {/* Backdrop */}
+      {/* Backdrop — NOT clickable on touch devices (side zones handle input) */}
       <motion.div
         className="absolute inset-0 bg-black/80"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={safeClose}
+        onClick={isTouchDevice ? undefined : safeClose}
         data-testid="pinball-backdrop"
       />
 
+      {/* Full-screen touch zones for iPad/mobile — span entire left/right halves */}
+      {isTouchDevice && !gameOver && (
+        <>
+          <div
+            className="absolute left-0 top-0 w-1/2 h-full z-20"
+            data-testid="pinball-touch-left"
+            onTouchStart={(e) => { e.preventDefault(); handleSideTouchStart('left'); }}
+            onTouchEnd={() => handleSideTouchEnd('left')}
+            onTouchCancel={() => handleSideTouchEnd('left')}
+          />
+          <div
+            className="absolute right-0 top-0 w-1/2 h-full z-20"
+            data-testid="pinball-touch-right"
+            onTouchStart={(e) => { e.preventDefault(); handleSideTouchStart('right'); }}
+            onTouchEnd={() => handleSideTouchEnd('right')}
+            onTouchCancel={() => handleSideTouchEnd('right')}
+          />
+        </>
+      )}
+
+      {/* Visual flipper indicators for touch (glow on sides) */}
+      {isTouchDevice && !gameOver && (
+        <>
+          <div
+            className={`absolute left-0 top-0 w-8 h-full z-10 transition-opacity duration-100 pointer-events-none ${
+              leftActive ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{ background: 'linear-gradient(to right, rgba(249,115,22,0.3), transparent)' }}
+          />
+          <div
+            className={`absolute right-0 top-0 w-8 h-full z-10 transition-opacity duration-100 pointer-events-none ${
+              rightActive ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{ background: 'linear-gradient(to left, rgba(249,115,22,0.3), transparent)' }}
+          />
+        </>
+      )}
+
       {/* Game container */}
       <motion.div
-        className="relative z-10 rounded-2xl shadow-2xl overflow-hidden bg-slate-900 border border-slate-700"
+        className="relative z-30 rounded-2xl shadow-2xl overflow-hidden bg-slate-900 border border-slate-700"
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
         transition={{ duration: 0.2 }}
       >
-        {/* Close button */}
-        <button
-          onClick={safeClose}
-          className="absolute top-2 right-2 z-20 p-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
-          aria-label="Close pinball game"
-          data-testid="pinball-close"
-        >
-          <X size={16} />
-        </button>
-
-        {/* Title */}
-        <div className="text-center py-2 bg-slate-800/60">
+        {/* Close bar — large touch target for quick dismiss */}
+        <div className="flex items-center justify-between px-3 py-2 bg-slate-800/80">
           <span className="text-xs font-bold tracking-widest text-emerald-400 uppercase">Pinball</span>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-500 active:bg-red-400 text-white text-xs font-semibold transition-colors"
+            aria-label="Close pinball game"
+            data-testid="pinball-close"
+          >
+            <X size={14} />
+            <span>{isTouchDevice ? 'Close' : 'ESC'}</span>
+          </button>
         </div>
 
         {/* Canvas */}
@@ -469,13 +510,15 @@ export function PinballGame({ onClose }: PinballGameProps) {
           height={HEIGHT}
           className="block touch-none"
           data-testid="pinball-canvas"
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
         />
 
-        {/* Controls hint */}
+        {/* Controls hint — adapts to input method */}
         <div className="text-center py-2 bg-slate-800/60">
-          <span className="text-[10px] text-slate-500">← → or tap sides &middot; ESC to close</span>
+          <span className="text-[10px] text-slate-500">
+            {isTouchDevice
+              ? 'Tap left/right side of screen to flip'
+              : '← → or Z / to flip \u00B7 ESC to close'}
+          </span>
         </div>
 
         {/* Game Over overlay */}

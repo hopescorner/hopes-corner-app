@@ -46,6 +46,7 @@ export default function DashboardPage() {
     const [isPreparingReports, setIsPreparingReports] = useState(false);
     const firstTabSwitchMarkRef = useRef(false);
     const preloadingYearRef = useRef<number | null>(null);
+    const reportModulesReadyRef = useRef(false);
     const prefersReducedMotion = useReducedMotion();
     const markPerf = useCallback((name: string) => {
         if (typeof performance === 'undefined') return;
@@ -60,6 +61,17 @@ export default function DashboardPage() {
         return Array.from(years).filter((year) => year >= REPORT_BASELINE_YEAR).sort((a, b) => b - a);
     }, [currentYear]);
 
+    const preloadReportModules = useCallback(async () => {
+        if (reportModulesReadyRef.current) return;
+        await Promise.all([
+            import('@/components/admin/reports/MonthlyReportGenerator'),
+            import('@/components/admin/reports/MealReport'),
+            import('@/components/admin/reports/MonthlySummaryReport'),
+            import('@/components/admin/DataExportSection'),
+        ]);
+        reportModulesReadyRef.current = true;
+    }, []);
+
     const preloadReportsForYear = useCallback(async (year: number) => {
         if (loadedReportYears.has(year)) return;
         if (preloadingYearRef.current === year) return;
@@ -73,6 +85,7 @@ export default function DashboardPage() {
             await Promise.all([
                 ensureMealsLoaded({ force: true, since }),
                 ensureServicesLoaded({ force: true, since }),
+                preloadReportModules(),
             ]);
             setLoadedReportYears((prev) => {
                 const next = new Set(prev);
@@ -83,7 +96,7 @@ export default function DashboardPage() {
             preloadingYearRef.current = null;
             setIsPreparingReports(false);
         }
-    }, [ensureMealsLoaded, ensureServicesLoaded, loadedReportYears]);
+    }, [ensureMealsLoaded, ensureServicesLoaded, loadedReportYears, preloadReportModules]);
 
     useEffect(() => {
         loadSettings();
