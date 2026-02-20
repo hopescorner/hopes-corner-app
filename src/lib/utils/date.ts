@@ -96,3 +96,38 @@ export const formatDateForDisplay = (dateValue: string | Date, options: Intl.Dat
     // For other values, use standard Date parsing
     return new Date(dateValue).toLocaleDateString(undefined, options);
 };
+
+/**
+ * Parses a date string (YYYY-MM-DD or ISO timestamp) into { year, month, day, dayOfWeek }
+ * using Pacific timezone for ISO timestamps, or direct parsing for YYYY-MM-DD strings.
+ * This avoids day-shifting bugs where new Date(isoString).getDay() differs across timezones.
+ *
+ * YYYY-MM-DD strings are treated as Pacific dates (no timezone conversion needed).
+ * ISO timestamps (contain 'T') are converted to Pacific via pacificDateStringFrom.
+ */
+export const parsePacificDateParts = (dateStr: string): { year: number; month: number; day: number; dayOfWeek: number } | null => {
+    if (!dateStr) return null;
+
+    let y: number, m: number, d: number;
+
+    // YYYY-MM-DD strings are already Pacific dates — parse directly to avoid
+    // new Date("YYYY-MM-DD") interpreting them as UTC midnight and shifting back.
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        [y, m, d] = dateStr.split('-').map(Number);
+    } else {
+        // ISO timestamp — convert to Pacific YYYY-MM-DD first
+        const pacificStr = pacificDateStringFrom(dateStr);
+        [y, m, d] = pacificStr.split('-').map(Number);
+    }
+
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
+
+    // Create a local Date from the components to get dayOfWeek
+    const localDate = new Date(y, m - 1, d);
+    return {
+        year: y,
+        month: m - 1, // 0-indexed to match Date.getMonth()
+        day: d,
+        dayOfWeek: localDate.getDay(),
+    };
+};

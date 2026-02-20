@@ -22,6 +22,7 @@ import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { cn } from '@/lib/utils/cn';
+import { parsePacificDateParts } from '@/lib/utils/date';
 
 // Types
 interface MonthOption {
@@ -35,6 +36,8 @@ interface ServiceStats {
     totalMeals: number;
     onsiteHotMeals: number;
     bagLunch: number;
+    rvMeals: number;
+    shelter: number;
     rvSafePark: number;
     dayWorker: number;
     showers: number;
@@ -150,11 +153,17 @@ export default function MonthlyReportGenerator() {
 
     // Calculate service statistics for a date range
     const calculateServiceStats = useCallback((startDate: Date, endDate: Date): ServiceStats => {
-        // Helper to check if date is in range
+        // Helper to check if a record's date falls within the range.
+        // Uses parsePacificDateParts to correctly handle ISO timestamps — avoids
+        // day-shifting bugs where new Date("2026-01-01") is interpreted as UTC midnight.
         const inRange = (dateStr: string | null | undefined) => {
             if (!dateStr) return false;
-            const date = new Date(dateStr);
-            return date >= startDate && date <= endDate;
+            const parts = parsePacificDateParts(dateStr);
+            if (!parts) return false;
+            // Reconstruct a local Date at noon from Pacific date parts for comparison
+            // against the local-time start/end boundaries.
+            const pacificDate = new Date(parts.year, parts.month, parts.day, 12, 0, 0, 0);
+            return pacificDate >= startDate && pacificDate <= endDate;
         };
 
         // Meals - filter by date field and sum counts
@@ -198,6 +207,8 @@ export default function MonthlyReportGenerator() {
             totalMeals,
             onsiteHotMeals,
             bagLunch: lunchBags,
+            rvMeals,
+            shelter: shelterMeals,
             rvSafePark: rvMeals + shelterMeals,
             dayWorker: dayWorkerMeals,
             showers: completedShowers,
@@ -511,6 +522,8 @@ export default function MonthlyReportGenerator() {
                 { label: 'On-Site Hot Meals', month: reportData.monthStats.onsiteHotMeals, ytd: reportData.ytdStats.onsiteHotMeals, bold: false, indent: true },
                 { label: 'Bag Lunch', month: reportData.monthStats.bagLunch, ytd: reportData.ytdStats.bagLunch, bold: false, indent: true },
                 { label: 'RV / Safe Park', month: reportData.monthStats.rvSafePark, ytd: reportData.ytdStats.rvSafePark, bold: false, indent: true },
+                { label: '    RV Meals', month: reportData.monthStats.rvMeals, ytd: reportData.ytdStats.rvMeals, bold: false, indent: true },
+                { label: '    Shelter', month: reportData.monthStats.shelter, ytd: reportData.ytdStats.shelter, bold: false, indent: true },
                 { label: 'Day Worker', month: reportData.monthStats.dayWorker, ytd: reportData.ytdStats.dayWorker, bold: false, indent: true },
                 { label: 'Showers', month: reportData.monthStats.showers, ytd: reportData.ytdStats.showers, bold: true, iconColor: blue600 },
                 { label: 'Laundry', month: reportData.monthStats.laundry, ytd: reportData.ytdStats.laundry, bold: true, iconColor: cyan600 },
@@ -836,6 +849,16 @@ export default function MonthlyReportGenerator() {
                                         <td className="py-2.5 px-4 pl-10 text-gray-600">RV / Safe Park</td>
                                         <td className="text-right py-2.5 px-4 text-gray-700 bg-purple-50/30">{formatNumber(reportData.monthStats.rvSafePark)}</td>
                                         <td className="text-right py-2.5 px-4 text-gray-700 bg-indigo-50/30">{formatNumber(reportData.ytdStats.rvSafePark)}</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-50">
+                                        <td className="py-2 px-4 pl-14 text-gray-500 text-sm">RV Meals</td>
+                                        <td className="text-right py-2 px-4 text-gray-500 text-sm bg-purple-50/20">{formatNumber(reportData.monthStats.rvMeals)}</td>
+                                        <td className="text-right py-2 px-4 text-gray-500 text-sm bg-indigo-50/20">{formatNumber(reportData.ytdStats.rvMeals)}</td>
+                                    </tr>
+                                    <tr className="border-b border-gray-50">
+                                        <td className="py-2 px-4 pl-14 text-gray-500 text-sm">Shelter</td>
+                                        <td className="text-right py-2 px-4 text-gray-500 text-sm bg-purple-50/20">{formatNumber(reportData.monthStats.shelter)}</td>
+                                        <td className="text-right py-2 px-4 text-gray-500 text-sm bg-indigo-50/20">{formatNumber(reportData.ytdStats.shelter)}</td>
                                     </tr>
                                     <tr className="border-b border-gray-100">
                                         <td className="py-2.5 px-4 pl-10 text-gray-600">Day Worker</td>
