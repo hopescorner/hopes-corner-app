@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { SlotBlockManager } from '../SlotBlockManager';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
+import { useServicesStore } from '@/stores/useServicesStore';
+import toast from 'react-hot-toast';
 
 // Mock stores
 const mockFetchBlockedSlots = vi.fn(() => Promise.resolve());
@@ -151,5 +153,153 @@ describe('SlotBlockManager — day-aware slot generation', () => {
 
         expect(screen.getByText(/Monday/i)).toBeDefined();
         expect(screen.getByText(/January/i)).toBeDefined();
+    });
+});
+
+describe('SlotBlockManager — toggle interactions and booking warnings', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.setSystemTime(new Date(2025, 0, 6, 9, 0)); // Monday
+        // Reset mock implementations that may have been overridden by previous tests
+        mockIsSlotBlocked.mockImplementation((..._args: unknown[]) => false);
+        mockBlockSlot.mockImplementation(() => Promise.resolve());
+        mockUnblockSlot.mockImplementation(() => Promise.resolve());
+        vi.mocked(useServicesStore).mockReturnValue({
+            showerRecords: [],
+            laundryRecords: [],
+        } as any);
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('calls blockSlot when clicking an open slot', async () => {
+        mockBlockSlot.mockResolvedValueOnce(undefined);
+        await renderLoaded(<SlotBlockManager serviceType="shower" />);
+
+        const slotButtons = screen.getAllByRole('button').filter(b =>
+            b.textContent?.includes('Open')
+        );
+        expect(slotButtons.length).toBeGreaterThan(0);
+
+        await act(async () => {
+            fireEvent.click(slotButtons[0]);
+        });
+
+        expect(mockBlockSlot).toHaveBeenCalledWith('shower', expect.any(String), expect.any(String));
+    });
+
+    it('calls unblockSlot when clicking a blocked slot', async () => {
+        mockIsSlotBlocked.mockImplementation((...args: unknown[]) => (args[1] as string) === '07:30');
+        mockUnblockSlot.mockResolvedValueOnce(undefined);
+
+        await renderLoaded(<SlotBlockManager serviceType="shower" />);
+
+        const blockedButtons = screen.getAllByRole('button').filter(b =>
+            b.textContent?.includes('Blocked') && !b.textContent?.includes('Has Bookings')
+        );
+        expect(blockedButtons.length).toBeGreaterThanOrEqual(1);
+
+        await act(async () => {
+            fireEvent.click(blockedButtons[0]);
+        });
+
+        expect(mockUnblockSlot).toHaveBeenCalledWith('shower', '07:30', expect.any(String));
+    });
+
+    it('shows booking count badge when a slot has active bookings', async () => {
+        // Override useServicesStore to return a shower record matching 07:30 on today's date
+        vi.mocked(useServicesStore).mockReturnValue({
+            showerRecords: [
+                { id: 's1', guestId: 'g1', date: '2025-01-06', status: 'booked', time: '07:30' },
+            ],
+            laundryRecords: [],
+        } as any);
+
+        await renderLoaded(<SlotBlockManager serviceType="shower" />);
+
+        // Should show booking count badge "1"
+        expect(screen.getByTitle('1 active bookings')).toBeDefined();
+    });
+
+    it('shows confirm dialog when blocking a slot with bookings', async () => {
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+        mockBlockSlot.mockResolvedValueOnce(undefined);
+
+        vi.mocked(useServicesStore).mockReturnValue({
+            showerRecords: [
+                { id: 's1', guestId: 'g1', date: '2025-01-06', status: 'booked', time: '07:30' },
+            ],
+            laundryRecords: [],
+        } as any);
+
+        await renderLoaded(<SlotBlockManager serviceType="shower" />);
+
+        // Find the 07:30 slot button (first one, which has a booking)
+        const allButtons = screen.getAllByRole('button');
+        const slotButton = allButtons.find(b =>
+            b.textContent?.includes('7:30') && b.textContent?.includes('Open')
+        );
+
+        if (slotButton) {
+            await act(async () => {
+                fireEvent.click(slotButton);
+            });
+
+            expect(confirmSpy).toHaveBeenCalledWith(
+                expect.stringContaining('active bookings')
+            );
+        }
+
+        confirmSpy.mockRestore();
+    });
+
+    it('does not block slot when confirm dialog is cancelled', async () => {
+        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+        vi.mocked(useServicesStore).mockReturnValue({
+            showerRecords: [
+                { id: 's1', guestId: 'g1', date: '2025-01-06', status: 'booked', time: '07:30' },
+            ],
+            laundryRecords: [],
+        } as any);
+
+        await renderLoaded(<SlotBlockManager serviceType="shower" />);
+
+        const allButtons = screen.getAllByRole('button');
+        const slotButton = allButtons.find(b =>
+            b.textContent?.includes('7:30') && b.textContent?.includes('Open')
+        );
+
+        if (slotButton) {
+            await act(async () => {
+                fireEvent.click(slotButton);
+            });
+
+            expect(mockBlockSlot).not.toHaveBeenCalled();
+        }
+
+        confirmSpy.mockRestore();
+    });
+
+    it('shows error toast when blockSlot fails', async () => {
+        mockBlockSlot.mockRejectedValueOnce(new Error('network'));
+
+        await renderLoaded(<SlotBlockManager serviceType="shower" />);
+
+        const slotButtons = screen.getAllByRole('button').filter(b =>
+            b.textContent?.includes('Open')
+        );
+        expect(slotButtons.length).toBeGreaterThan(0);
+
+        await act(async () => {
+            fireEvent.click(slotButtons[0]);
+        });
+
+        await waitFor(() => {
+            expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Failed to update slot status');
+        });
     });
 });

@@ -5,6 +5,7 @@ import { ServiceStatusOverview } from '../ServiceStatusOverview';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
+import { useSession } from 'next-auth/react';
 
 // Mock next-auth
 vi.mock('next-auth/react', () => ({
@@ -114,9 +115,9 @@ describe('ServiceStatusOverview', () => {
     it('shows next available slot time for showers', () => {
         render(<ServiceStatusOverview />);
 
-        // With time-based slot filtering, this may show a next slot or the fallback status text
-        const slotOrFallback = screen.queryAllByText(/Next slot:|Waitlist only|Fully booked today|No remaining slots today/i);
-        expect(slotOrFallback.length).toBeGreaterThan(0);
+        // With no bookings and slots available, should always show a next slot
+        const nextSlotLabels = screen.queryAllByText(/Next:|Waitlist only|No more onsite slots/i);
+        expect(nextSlotLabels.length).toBeGreaterThan(0);
     });
 
     it('calculates shower statistics correctly with bookings', () => {
@@ -220,6 +221,169 @@ describe('ServiceStatusOverview', () => {
         // Yesterday's record shouldn't affect today's count
         const availableLabels = screen.getAllByText('Available');
         expect(availableLabels.length).toBeGreaterThan(0);
+    });
+
+    it('excludes cancelled records from booked count', () => {
+        // Add 2 booked + 1 cancelled for same slot
+        mockShowerRecords.push(
+            { id: '1', guestId: 'g1', date: '2026-01-22', status: 'booked', time: '07:30' },
+            { id: '2', guestId: 'g2', date: '2026-01-22', status: 'booked', time: '07:30' },
+            { id: '3', guestId: 'g3', date: '2026-01-22', status: 'cancelled', time: '08:00' }
+        );
+
+        render(<ServiceStatusOverview />);
+
+        // Cancelled record should NOT reduce available count
+        // 6 slots × 2 = 12, minus 2 booked = 10 available (cancelled not counted)
+        expect(screen.getByText('10')).toBeDefined();
+    });
+
+    it('always finds next slot when available > 0 (no time filtering)', () => {
+        // Book some but not all slots
+        mockShowerRecords.push(
+            { id: '1', guestId: 'g1', date: '2026-01-22', status: 'booked', time: '07:30' },
+            { id: '2', guestId: 'g2', date: '2026-01-22', status: 'booked', time: '07:30' }
+        );
+
+        render(<ServiceStatusOverview />);
+
+        // With available slots, should always show "Next:" — never a fallback message
+        expect(screen.getByText(/Next: 08:00/)).toBeDefined();
+    });
+
+    it('shows "Waitlist only" when all shower slots are booked', () => {
+        for (let i = 0; i < 12; i++) {
+            mockShowerRecords.push({
+                id: `shower-${i}`,
+                guestId: `guest-${i}`,
+                date: '2026-01-22',
+                status: 'booked',
+                time: ['07:30', '08:00', '08:30', '09:00', '09:30', '10:00'][Math.floor(i / 2)],
+            });
+        }
+
+        render(<ServiceStatusOverview />);
+
+        expect(screen.getByText('Waitlist only')).toBeDefined();
+    });
+
+    it('shows "No more onsite slots" when all laundry slots are booked', () => {
+        for (let i = 0; i < 5; i++) {
+            mockLaundryRecords.push({
+                id: `laundry-${i}`,
+                guestId: `guest-${i}`,
+                date: '2026-01-22',
+                status: 'waiting',
+                laundryType: 'onsite',
+            });
+        }
+
+        render(<ServiceStatusOverview />);
+
+        expect(screen.getByText('No more onsite slots')).toBeDefined();
+    });
+});
+
+describe('ServiceStatusOverview — blocked slots', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockShowerRecords.length = 0;
+        mockLaundryRecords.length = 0;
+    });
+
+    it('reduces shower capacity when a shower slot is blocked', () => {
+        // Mock 1 blocked shower slot for today → capacity goes from 12 to 10
+        vi.mocked(useBlockedSlotsStore).mockReturnValue({
+            blockedSlots: [
+                { serviceType: 'shower', slotLabel: '08:00', date: '2026-01-22' },
+            ],
+            isSlotBlocked: vi.fn((type: string, slot: string, date: string) =>
+                type === 'shower' && slot === '08:00' && date === '2026-01-22'
+            ),
+        });
+
+        render(<ServiceStatusOverview />);
+        // 6 slots × 2 = 12, minus 1 blocked × 2 = 10 available
+        expect(screen.getByText('10')).toBeDefined();
+    });
+
+    it('reduces laundry capacity when a laundry slot is blocked', () => {
+        vi.mocked(useBlockedSlotsStore).mockReturnValue({
+            blockedSlots: [
+                { serviceType: 'laundry', slotLabel: '07:30 - 08:30', date: '2026-01-22' },
+            ],
+            isSlotBlocked: vi.fn((type: string, slot: string, date: string) =>
+                type === 'laundry' && slot === '07:30 - 08:30' && date === '2026-01-22'
+            ),
+        });
+
+        render(<ServiceStatusOverview />);
+        // maxOnsiteLaundrySlots=5 minus 1 blocked = 4 available
+        expect(screen.getByText('4')).toBeDefined();
+    });
+
+    it('skips blocked slots when finding the next available shower slot', () => {
+        vi.mocked(useBlockedSlotsStore).mockReturnValue({
+            blockedSlots: [
+                { serviceType: 'shower', slotLabel: '07:30', date: '2026-01-22' },
+            ],
+            isSlotBlocked: vi.fn((type: string, slot: string, date: string) =>
+                type === 'shower' && slot === '07:30' && date === '2026-01-22'
+            ),
+        });
+
+        render(<ServiceStatusOverview />);
+        // First unblocked slot is 08:00
+        expect(screen.getByText(/Next: 08:00/)).toBeDefined();
+    });
+
+    it('skips blocked slots when finding the next available laundry slot', () => {
+        vi.mocked(useBlockedSlotsStore).mockReturnValue({
+            blockedSlots: [
+                { serviceType: 'laundry', slotLabel: '07:30 - 08:30', date: '2026-01-22' },
+            ],
+            isSlotBlocked: vi.fn((type: string, slot: string, date: string) =>
+                type === 'laundry' && slot === '07:30 - 08:30' && date === '2026-01-22'
+            ),
+        });
+
+        render(<ServiceStatusOverview />);
+        // First unblocked slot is the second one
+        expect(screen.getByText(/Next: 08:30 - 09:30/)).toBeDefined();
+    });
+});
+
+describe('ServiceStatusOverview — checkin role renders non-clickable cards', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockShowerRecords.length = 0;
+        mockLaundryRecords.length = 0;
+
+        // Override useSession to return checkin role
+        vi.mocked(useSession).mockReturnValue({
+            data: { user: { role: 'checkin' } },
+            status: 'authenticated',
+        } as any);
+    });
+
+    afterEach(() => {
+        // Restore admin role for other test suites
+        vi.mocked(useSession).mockReturnValue({
+            data: { user: { role: 'admin' } },
+            status: 'authenticated',
+        } as any);
+    });
+
+    it('does not render clickable links for checkin role', () => {
+        render(<ServiceStatusOverview />);
+        const links = screen.queryAllByRole('link');
+        expect(links.length).toBe(0);
+    });
+
+    it('still renders shower and laundry cards', () => {
+        render(<ServiceStatusOverview />);
+        expect(screen.getByText('Showers')).toBeDefined();
+        expect(screen.getByText('Laundry')).toBeDefined();
     });
 });
 
