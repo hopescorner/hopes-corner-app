@@ -229,11 +229,11 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
 
     const nextShowerSlotLabel = nextAvailableShowerSlot
         ? `Next slot: ${formatSlotLabel(nextAvailableShowerSlot)}`
-        : 'Waitlist only';
+        : (showerStats.available === 0 ? 'Waitlist only' : 'No remaining slots today');
 
     const nextLaundrySlotLabel = nextAvailableLaundrySlot
         ? `Next slot: ${formatSlotLabel(nextAvailableLaundrySlot)}`
-        : 'Fully booked today';
+        : (laundryStats.onsiteAvailable === 0 ? 'Fully booked today' : 'No remaining slots today');
 
     const { data: session } = useSession();
     const role = session?.user?.role as UserRole;

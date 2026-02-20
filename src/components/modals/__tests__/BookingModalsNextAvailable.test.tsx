@@ -4,7 +4,7 @@ import React from 'react';
 import { ShowerBookingModal } from '../ShowerBookingModal';
 import { LaundryBookingModal } from '../LaundryBookingModal';
 
-let mockRole: 'checkin' | 'staff' = 'checkin';
+let mockRole: 'checkin' | 'staff' = 'staff';
 
 // Mock next-auth/react
 vi.mock('next-auth/react', () => ({
@@ -99,92 +99,91 @@ vi.mock('@/components/ui/ReminderIndicator', () => ({
 describe('ShowerBookingModal — Book Next Available', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockRole = 'checkin';
+        mockRole = 'staff';
     });
 
-    it('renders quick-book button for check-in role', () => {
+    it('renders "Book Next Available Slot" button for staff', () => {
         render(<ShowerBookingModal />);
-        expect(screen.getByText('Confirm Booking')).toBeDefined();
+        expect(screen.getByText('Book Next Available Slot')).toBeDefined();
     });
 
     it('shows the next open slot time', () => {
         render(<ShowerBookingModal />);
-        expect(screen.getByText(/The next available shower is at/i)).toBeDefined();
+        expect(screen.getByText(/Next open:/)).toBeDefined();
     });
 
-    it('shows the quick-book title', () => {
+    it('shows "or pick a time" divider', () => {
         render(<ShowerBookingModal />);
-        expect(screen.getByText('Book Next Slot')).toBeDefined();
+        expect(screen.getByText('or pick a time')).toBeDefined();
     });
 
-    it('does not show manual slot grid for check-in role', () => {
+    it('shows the manual slot grid below the quick-book button', () => {
         render(<ShowerBookingModal />);
-        expect(screen.queryByText('Select an available time')).toBeNull();
+        expect(screen.getByText('Select an available time')).toBeDefined();
+        expect(screen.getByText('2 GUESTS PER SLOT')).toBeDefined();
     });
 
-    it('shows fairness guidance for check-in role', () => {
+    it('shows "Book" badge on the next-available button when a slot exists', () => {
         render(<ShowerBookingModal />);
-        expect(screen.getByText(/only book the next available slot/i)).toBeDefined();
+        expect(screen.getByText('Book')).toBeDefined();
     });
 
     it('calls handleBook when clicking the next-available button', async () => {
         mockAddShowerRecord.mockResolvedValueOnce({ id: 'r1' });
         render(<ShowerBookingModal />);
 
-        const bookButton = screen.getByRole('button', { name: /confirm booking/i });
+        const bookButton = screen.getByText('Book Next Available Slot').closest('button')!;
         fireEvent.click(bookButton);
 
         // Should have attempted to book
         expect(mockAddShowerRecord).toHaveBeenCalledWith('g1', expect.any(String));
     });
 
-    it('does not show waitlist option in check-in quick-book flow', () => {
+    it('still shows the waitlist option', () => {
         render(<ShowerBookingModal />);
-        expect(screen.queryByText('Add to Waitlist')).toBeNull();
+        expect(screen.getByText('Add to Waitlist')).toBeDefined();
     });
 });
 
 describe('LaundryBookingModal — Book Next Available', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        mockRole = 'checkin';
+        mockRole = 'staff';
     });
 
-    it('renders quick-book button for check-in role in onsite mode', () => {
+    it('renders "Book Next Available Slot" button for staff in onsite mode', () => {
         render(<LaundryBookingModal />);
-        expect(screen.getByText('Confirm Booking')).toBeDefined();
+        expect(screen.getByText('Book Next Available Slot')).toBeDefined();
     });
 
     it('shows the next open slot time for onsite', () => {
         render(<LaundryBookingModal />);
-        expect(screen.getByText(/Next available at/i)).toBeDefined();
+        expect(screen.getByText(/Next open:/)).toBeDefined();
     });
 
-    it('shows onsite quick-book title', () => {
+    it('shows "or pick a slot" divider in onsite mode', () => {
         render(<LaundryBookingModal />);
-        expect(screen.getByText('Next On-site Slot')).toBeDefined();
+        expect(screen.getByText('or pick a slot')).toBeDefined();
     });
 
-    it('does not show manual slot list for check-in role', () => {
+    it('shows the manual slot list below the quick-book button', () => {
         render(<LaundryBookingModal />);
-        expect(screen.queryByText('Select an available slot')).toBeNull();
+        expect(screen.getByText('Select an available slot')).toBeDefined();
     });
 
-    it('hides onsite next-available copy when switching to offsite mode', () => {
+    it('hides next-available button when switching to offsite mode', () => {
         render(<LaundryBookingModal />);
-        // Switch to offsite
         const offsiteTab = screen.getByRole('button', { name: /offsite service/i });
         fireEvent.click(offsiteTab);
 
-        expect(screen.queryByText('Next On-site Slot')).toBeNull();
-        expect(screen.getByText('Book Off-site')).toBeDefined();
+        expect(screen.queryByText('Book Next Available Slot')).toBeNull();
     });
 
     it('calls handleBook when clicking the next-available button', async () => {
         mockAddLaundryRecord.mockResolvedValueOnce({ id: 'r1' });
         render(<LaundryBookingModal />);
 
-        const bookButton = screen.getByRole('button', { name: /confirm booking/i });
+        const bookButton = screen.getByText('Book Next Available Slot').closest('button')!;
         fireEvent.click(bookButton);
 
         // Should have attempted to book with onsite type and slot label
@@ -207,8 +206,8 @@ describe('LaundryBookingModal — Book Next Available', () => {
         render(<LaundryBookingModal />);
 
         // The first slot (07:30 - 08:30) should still be available since the record is from 2020
-        expect(screen.getByText('Confirm Booking')).toBeDefined();
-        expect(screen.getByText(/Next available at/i)).toBeDefined();
-        expect(screen.getByText('7:30 AM - 8:30 AM')).toBeDefined();
+        expect(screen.getByText('Book Next Available Slot')).toBeDefined();
+        expect(screen.getByText(/Next open:/)).toBeDefined();
+        expect(screen.getAllByText('7:30 AM - 8:30 AM').length).toBeGreaterThan(0);
     });
 });

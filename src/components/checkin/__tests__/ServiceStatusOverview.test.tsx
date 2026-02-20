@@ -115,7 +115,7 @@ describe('ServiceStatusOverview', () => {
         render(<ServiceStatusOverview />);
 
         // With time-based slot filtering, this may show a next slot or the fallback status text
-        const slotOrFallback = screen.queryAllByText(/Next slot:|Waitlist only|Fully booked today/i);
+        const slotOrFallback = screen.queryAllByText(/Next slot:|Waitlist only|Fully booked today|No remaining slots today/i);
         expect(slotOrFallback.length).toBeGreaterThan(0);
     });
 
