@@ -98,6 +98,51 @@ export interface QuickSelectItem {
     donor: string;
 }
 
+// Interface for donor-level grouping
+export interface DonorGroup {
+    donor: string;
+    entries: DonationRecord[];
+    itemGroups: GroupedDonation[];
+    totalWeight: number;
+    totalTrays: number;
+    totalServings: number;
+}
+
+// Group donations by donor, then by type+itemName within each donor
+export const groupDonationsByDonor = (records: DonationRecord[]): DonorGroup[] => {
+    const donorMap = new Map<string, DonationRecord[]>();
+
+    for (const record of records) {
+        const donorKey = (record.donor || '').trim().toLowerCase() || '__no_donor__';
+        if (!donorMap.has(donorKey)) {
+            donorMap.set(donorKey, []);
+        }
+        donorMap.get(donorKey)!.push(record);
+    }
+
+    const groups: DonorGroup[] = [];
+    for (const [, donorRecords] of donorMap) {
+        const displayDonor = donorRecords[0].donor?.trim() || '';
+        const itemGroups = groupDonationsByItem(donorRecords);
+
+        groups.push({
+            donor: displayDonor,
+            entries: donorRecords,
+            itemGroups,
+            totalWeight: donorRecords.reduce((sum, r) => sum + (Number(r.weightLbs) || 0), 0),
+            totalTrays: donorRecords.reduce((sum, r) => sum + (Number(r.trays) || 0), 0),
+            totalServings: donorRecords.reduce((sum, r) => sum + (Number(r.servings) || 0), 0),
+        });
+    }
+
+    // Sort: named donors first (alphabetically), then unnamed
+    return groups.sort((a, b) => {
+        if (!a.donor && b.donor) return 1;
+        if (a.donor && !b.donor) return -1;
+        return a.donor.localeCompare(b.donor);
+    });
+};
+
 // Get unique recent item names (with most-recent donor) for quick selection
 export const getRecentItemNames = (records: DonationRecord[], limit = 5): QuickSelectItem[] => {
     const seen = new Set<string>();
@@ -250,6 +295,67 @@ const GroupedDonationCard = ({
     );
 };
 
+// Donor Group Card Component — groups all items from the same donor
+const DonorGroupCard = ({
+    donorGroup,
+    onEdit,
+    onDelete
+}: {
+    donorGroup: DonorGroup;
+    onEdit: (record: DonationRecord) => void;
+    onDelete: (id: string) => void;
+}) => {
+    const [isExpanded, setIsExpanded] = useState(true);
+    const donorLabel = donorGroup.donor || 'Unknown Donor';
+
+    return (
+        <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            {/* Donor Header */}
+            <div
+                className="px-5 py-4 flex justify-between items-center cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-100"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center font-black text-sm uppercase">
+                        {donorLabel.charAt(0)}
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-gray-900 text-base">{donorLabel}</h4>
+                        <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
+                            <span>{donorGroup.entries.length} item{donorGroup.entries.length !== 1 ? 's' : ''}</span>
+                            <span className="font-semibold">{donorGroup.totalWeight.toFixed(1)} lbs</span>
+                            {donorGroup.totalTrays > 0 && <span>{donorGroup.totalTrays} trays</span>}
+                            {donorGroup.totalServings > 0 && (
+                                <span className="text-emerald-600 font-semibold">~{donorGroup.totalServings} servings</span>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <button
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400"
+                    aria-label={isExpanded ? 'Collapse donor group' : 'Expand donor group'}
+                >
+                    {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                </button>
+            </div>
+
+            {/* Donor Items */}
+            {isExpanded && (
+                <div className="p-3 space-y-2 bg-gray-50/30">
+                    {donorGroup.itemGroups.map((group) => (
+                        <GroupedDonationCard
+                            key={group.key}
+                            group={group}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+};
+
 // Quick Select Buttons Component
 const QuickSelectItems = ({
     recentItems,
@@ -319,6 +425,11 @@ export const DonationsSection = () => {
         return groupDonationsByItem(displayedRecords as DonationRecord[]);
     }, [displayedRecords]);
 
+    // Donor-grouped records for the list view
+    const donorGroupedRecords = useMemo(() => {
+        return groupDonationsByDonor(displayedRecords as DonationRecord[]);
+    }, [displayedRecords]);
+
     // Recent item names for quick select (from all records, not just today)
     const recentItemNames = useMemo(() => {
         return getRecentItemNames(donationRecords, 5);
@@ -330,9 +441,10 @@ export const DonationsSection = () => {
             totalWeight: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.weightLbs) || 0), 0),
             totalTrays: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.trays) || 0), 0),
             totalServings: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.servings) || 0), 0),
-            uniqueItems: groupedRecords.length
+            uniqueItems: groupedRecords.length,
+            uniqueDonors: donorGroupedRecords.length
         };
-    }, [displayedRecords, groupedRecords]);
+    }, [displayedRecords, groupedRecords, donorGroupedRecords]);
 
     // Helpers
     const shiftDate = (offset: number) => {
@@ -500,6 +612,10 @@ export const DonationsSection = () => {
                         <p className="text-2xl font-bold text-gray-900">{dailyTotals.uniqueItems}</p>
                         <p className="text-xs font-medium text-gray-500 uppercase">unique items</p>
                     </div>
+                    <div className="text-center">
+                        <p className="text-2xl font-bold text-gray-900">{dailyTotals.uniqueDonors}</p>
+                        <p className="text-xs font-medium text-gray-500 uppercase">donors</p>
+                    </div>
                 </div>
             )}
 
@@ -630,7 +746,7 @@ export const DonationsSection = () => {
                         </div>
                     )}
 
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                         {displayedRecords.length === 0 ? (
                             <div className="text-center py-12 bg-white rounded-2xl border border-gray-200 border-dashed">
                                 <Plus size={32} className="mx-auto text-gray-300 mb-2" />
@@ -638,11 +754,11 @@ export const DonationsSection = () => {
                                 <p className="text-xs text-gray-300 mt-1">Add donations using the form on the left</p>
                             </div>
                         ) : (
-                            // Grouped view for general donations
-                            groupedRecords.map((group) => (
-                                <GroupedDonationCard
-                                    key={group.key}
-                                    group={group}
+                            // Donor-grouped view
+                            donorGroupedRecords.map((donorGroup) => (
+                                <DonorGroupCard
+                                    key={donorGroup.donor || '__unknown__'}
+                                    donorGroup={donorGroup}
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}
                                 />

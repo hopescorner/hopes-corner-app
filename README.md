@@ -1,19 +1,23 @@
 # Hope's Corner Check-in App
 
-Check-in and service management app for Hope's Corner.
+A check-in and service management application for Hope's Corner.
 
-## Scripts
+## Run
 
-- Dev: `npm run dev`
-- Test: `npm test`
-- Lint: `npm run lint`
+- `npm run dev`
+- `npm test`
+- `npm run lint`
 
-## Supabase Roles (checkin, staff, admin, board)
+## Supabase User Setup
 
-1. In Supabase Auth, create users (or invite) and note their `user.id`.
-2. In the `profiles` table, insert/update each user with `id = user.id` and `role` set to `checkin`, `staff`, `admin`, or `board`.
-3. Refresh the session in the app to apply the new role.
+Roles: `checkin`, `staff`, `admin`, `board`.
 
-##  Architecture diagrams, detailed documentation, and links to source code
+1. In Supabase Auth, create or invite users and copy each `user.id`.
+2. In the `profiles` table, insert or update each user:
+   - `id = user.id`
+   - `role = checkin | staff | admin | board`
+3. Ask users to sign out and sign back in to refresh role-based access.
 
-It can be found [here](https://deepwiki.com/hopescorner/hopes-corner-app)
+## Docs
+
+[Wiki](https://deepwiki.com/hopescorner/hopes-corner-app)

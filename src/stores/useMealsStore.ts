@@ -13,7 +13,7 @@ import {
     mapHolidayRow,
     mapHaircutRow,
 } from '@/lib/utils/mappers';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, parsePacificDateParts } from '@/lib/utils/date';
 
 export interface MealRecord {
     id: string;
@@ -138,16 +138,20 @@ export const useMealsStore = create<MealsState>()(
                             state.mealRecords.push(mapped);
                         });
 
-                        // Auto-add lunch bag
-                        try {
-                            await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
-                            // If proxy pickup, add another? Logic from old app:
-                            // "If proxy pickup (different guest picked up), add additional lunch bag for the proxy guest"
-                            if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
-                                await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', undefined, targetDate);
+                        // Auto-add lunch bag (skip Fridays — no lunch bags on Fridays)
+                        const dateParts = parsePacificDateParts(targetDate);
+                        const isFriday = dateParts?.dayOfWeek === 5;
+                        if (!isFriday) {
+                            try {
+                                await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
+                                // If proxy pickup, add another? Logic from old app:
+                                // "If proxy pickup (different guest picked up), add additional lunch bag for the proxy guest"
+                                if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+                                    await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', undefined, targetDate);
+                                }
+                            } catch (err) {
+                                console.error('Failed to auto-add lunch bag', err);
                             }
-                        } catch (err) {
-                            console.error('Failed to auto-add lunch bag', err);
                         }
 
                         return mapped;

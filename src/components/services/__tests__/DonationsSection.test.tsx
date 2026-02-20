@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
-import { DonationsSection, groupDonationsByItem, getRecentItemNames, QuickSelectItem } from '../DonationsSection';
+import { DonationsSection, groupDonationsByItem, groupDonationsByDonor, getRecentItemNames, QuickSelectItem, DonorGroup } from '../DonationsSection';
 import { DonationRecord } from '@/stores/useDonationsStore';
 
 // Mock the stores
@@ -163,6 +163,105 @@ describe('groupDonationsByItem', () => {
         expect(fishGroup.totalWeight).toBeCloseTo(8.0, 1);
         expect(fishGroup.totalTrays).toBe(4);
         expect(fishGroup.totalServings).toBe(33);
+    });
+});
+
+describe('groupDonationsByDonor', () => {
+    it('groups records by donor name', () => {
+        const records: DonationRecord[] = [
+            createDonationRecord({ donor: 'LinkedIn', itemName: 'Chicken', weightLbs: 5 }),
+            createDonationRecord({ donor: 'LinkedIn', itemName: 'Rice', weightLbs: 3 }),
+            createDonationRecord({ donor: 'Waymo', itemName: 'Pasta', weightLbs: 4 }),
+        ];
+
+        const groups = groupDonationsByDonor(records);
+
+        expect(groups).toHaveLength(2);
+        const linkedin = groups.find(g => g.donor === 'LinkedIn')!;
+        const waymo = groups.find(g => g.donor === 'Waymo')!;
+
+        expect(linkedin.entries).toHaveLength(2);
+        expect(linkedin.totalWeight).toBe(8);
+        expect(linkedin.itemGroups).toHaveLength(2); // Chicken + Rice
+
+        expect(waymo.entries).toHaveLength(1);
+        expect(waymo.totalWeight).toBe(4);
+    });
+
+    it('groups donors case-insensitively', () => {
+        const records: DonationRecord[] = [
+            createDonationRecord({ donor: 'LinkedIn', weightLbs: 5 }),
+            createDonationRecord({ donor: 'linkedin', weightLbs: 3 }),
+            createDonationRecord({ donor: 'LINKEDIN', weightLbs: 2 }),
+        ];
+
+        const groups = groupDonationsByDonor(records);
+
+        expect(groups).toHaveLength(1);
+        expect(groups[0].entries).toHaveLength(3);
+        expect(groups[0].totalWeight).toBe(10);
+    });
+
+    it('puts records with no donor in a separate group', () => {
+        const records: DonationRecord[] = [
+            createDonationRecord({ donor: 'LinkedIn', weightLbs: 5 }),
+            createDonationRecord({ donor: '', weightLbs: 3 }),
+            createDonationRecord({ donor: '  ', weightLbs: 2 }),
+        ];
+
+        const groups = groupDonationsByDonor(records);
+
+        expect(groups).toHaveLength(2);
+        // Named donors sort before unknown
+        expect(groups[0].donor).toBe('LinkedIn');
+        expect(groups[1].donor).toBe('');
+    });
+
+    it('sorts named donors alphabetically, unknown last', () => {
+        const records: DonationRecord[] = [
+            createDonationRecord({ donor: 'Waymo', weightLbs: 5 }),
+            createDonationRecord({ donor: '', weightLbs: 3 }),
+            createDonationRecord({ donor: 'Anonymous', weightLbs: 2 }),
+            createDonationRecord({ donor: 'LinkedIn', weightLbs: 4 }),
+        ];
+
+        const groups = groupDonationsByDonor(records);
+
+        expect(groups.map(g => g.donor)).toEqual(['Anonymous', 'LinkedIn', 'Waymo', '']);
+    });
+
+    it('computes item subgroups within each donor', () => {
+        const records: DonationRecord[] = [
+            createDonationRecord({ donor: 'LinkedIn', type: 'Protein', itemName: 'Chicken', weightLbs: 5 }),
+            createDonationRecord({ donor: 'LinkedIn', type: 'Protein', itemName: 'Chicken', weightLbs: 3 }),
+            createDonationRecord({ donor: 'LinkedIn', type: 'Carbs', itemName: 'Rice', weightLbs: 4 }),
+        ];
+
+        const groups = groupDonationsByDonor(records);
+
+        expect(groups).toHaveLength(1);
+        expect(groups[0].itemGroups).toHaveLength(2);
+
+        const chickenGroup = groups[0].itemGroups.find(g => g.itemName.toLowerCase() === 'chicken');
+        expect(chickenGroup!.entries).toHaveLength(2);
+        expect(chickenGroup!.totalWeight).toBe(8);
+    });
+
+    it('returns empty array for empty input', () => {
+        expect(groupDonationsByDonor([])).toHaveLength(0);
+    });
+
+    it('calculates cumulative totals including trays and servings', () => {
+        const records: DonationRecord[] = [
+            createDonationRecord({ donor: 'Waymo', weightLbs: 5.5, trays: 2, servings: 20 }),
+            createDonationRecord({ donor: 'Waymo', weightLbs: 3.5, trays: 1, servings: 15 }),
+        ];
+
+        const groups = groupDonationsByDonor(records);
+
+        expect(groups[0].totalWeight).toBeCloseTo(9.0, 1);
+        expect(groups[0].totalTrays).toBe(3);
+        expect(groups[0].totalServings).toBe(35);
     });
 });
 
@@ -449,7 +548,7 @@ describe('DonationsSection Component', () => {
         it('expands grouped card to show individual entries', async () => {
             mockDonationsStore.donationRecords = [
                 createDonationRecord({ id: '1', itemName: 'Chicken', weightLbs: 5, donor: 'LinkedIn' }),
-                createDonationRecord({ id: '2', itemName: 'Chicken', weightLbs: 3, donor: 'Waymo' })
+                createDonationRecord({ id: '2', itemName: 'Chicken', weightLbs: 3, donor: 'LinkedIn' })
             ];
 
             await act(async () => {
@@ -463,8 +562,9 @@ describe('DonationsSection Component', () => {
                 fireEvent.click(expandButton);
             });
 
-            expect(screen.getByText(/LinkedIn/)).toBeInTheDocument();
-            expect(screen.getByText(/Waymo/)).toBeInTheDocument();
+            // Expanded entries show individual weights
+            expect(screen.getByText('5.0 lbs')).toBeInTheDocument();
+            expect(screen.getByText('3.0 lbs')).toBeInTheDocument();
         });
 
         it('shows edit/delete buttons for single entry groups', async () => {
@@ -498,16 +598,16 @@ describe('DonationsSection Component', () => {
 
         it('toggles expansion on header click for multi-entry groups', async () => {
             mockDonationsStore.donationRecords = [
-                createDonationRecord({ id: '1', itemName: 'Grouped', donor: 'Donor A' }),
-                createDonationRecord({ id: '2', itemName: 'Grouped', donor: 'Donor B' })
+                createDonationRecord({ id: '1', itemName: 'Grouped', weightLbs: 7, donor: 'SameDonor' }),
+                createDonationRecord({ id: '2', itemName: 'Grouped', weightLbs: 4, donor: 'SameDonor' })
             ];
 
             await act(async () => {
                 render(<DonationsSection />);
             });
 
-            // Initially collapsed
-            expect(screen.queryByText(/Donor A/)).not.toBeInTheDocument();
+            // Initially collapsed (multi-entry item group starts collapsed)
+            expect(screen.queryByText('7.0 lbs')).not.toBeInTheDocument();
 
             // Click to expand
             const expandButton = screen.getByLabelText('Expand entries');
@@ -515,9 +615,9 @@ describe('DonationsSection Component', () => {
                 fireEvent.click(expandButton);
             });
 
-            // Now expanded
-            expect(screen.getByText(/Donor A/)).toBeInTheDocument();
-            expect(screen.getByText(/Donor B/)).toBeInTheDocument();
+            // Now expanded — individual entry weights visible
+            expect(screen.getByText('7.0 lbs')).toBeInTheDocument();
+            expect(screen.getByText('4.0 lbs')).toBeInTheDocument();
 
             // Click to collapse
             const collapseButton = screen.getByLabelText('Collapse entries');
@@ -526,7 +626,7 @@ describe('DonationsSection Component', () => {
             });
 
             // Collapsed again
-            expect(screen.queryByText(/Donor A/)).not.toBeInTheDocument();
+            expect(screen.queryByText('7.0 lbs')).not.toBeInTheDocument();
         });
     });
 

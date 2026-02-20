@@ -77,7 +77,7 @@ test.describe('DonationsSection', () => {
     await expect(component.getByRole('heading', { name: 'Chicken Breast' })).toBeVisible();
     await expect(component.getByText('10.0 lbs total')).toBeVisible();
     await expect(component.getByText('2 trays total')).toBeVisible();
-    await expect(component.getByText('~40 servings')).toBeVisible();
+    await expect(component.getByText('~40 servings').first()).toBeVisible();
   });
 
   test('shows daily summary with totals', async ({ mount }) => {
@@ -106,7 +106,8 @@ test.describe('DonationsSection', () => {
     await expect(summarySection.getByText('4')).toBeVisible();
     await expect(summarySection.getByText('trays', { exact: true })).toBeVisible();
     // Unique items: 2
-    await expect(summarySection.getByText('2', { exact: true })).toBeVisible();
+    const uniqueItemsStat = summarySection.locator('div.text-center').filter({ hasText: 'unique items' });
+    await expect(uniqueItemsStat.locator('p').first()).toContainText('2');
     await expect(summarySection.getByText('unique items')).toBeVisible();
   });
 
@@ -161,17 +162,17 @@ test.describe('DonationsSection', () => {
           },
           {
             id: 'd2', type: 'Protein', itemName: 'Chicken', trays: 1,
-            weightLbs: 5, servings: 20, donor: 'LinkedIn', date: todayISO,
+            weightLbs: 5, servings: 20, donor: 'Waymo', date: todayISO,
             dateKey: todayKey, donatedAt: todayISO, createdAt: todayISO,
           },
         ]}
       />
     );
-    // Should show "2 entries" badge since they're grouped
+    // Should show "2 entries" badge since they're grouped under same donor
     await expect(component.getByText('2 entries')).toBeVisible();
     // Should show combined totals: 15 lbs, 3 trays, 60 servings
     await expect(component.getByText('15.0 lbs total')).toBeVisible();
     await expect(component.getByText('3 trays total')).toBeVisible();
-    await expect(component.getByText('~60 servings')).toBeVisible();
+    await expect(component.getByText('~60 servings').first()).toBeVisible();
   });
 });

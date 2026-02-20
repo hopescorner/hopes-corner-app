@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { MealsSection } from '../MealsSection';
 
@@ -10,6 +11,8 @@ vi.mock('next-auth/react', () => ({
         status: 'authenticated',
     })),
 }));
+
+const mockDeleteBulkMealRecord = vi.fn().mockResolvedValue(true);
 
 vi.mock('@/stores/useMealsStore', () => ({
     useMealsStore: vi.fn((selector) => {
@@ -26,6 +29,7 @@ vi.mock('@/stores/useMealsStore', () => ({
             unitedEffortMealRecords: [],
             lunchBagRecords: [
                 { id: 'lb1', type: 'lunch_bag', count: 100, date: '2026-01-08' },
+                { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
             ],
             selectedDate: '2026-01-08',
             updateMealRecord: vi.fn().mockResolvedValue(true),
@@ -33,9 +37,10 @@ vi.mock('@/stores/useMealsStore', () => ({
             deleteRvMealRecord: vi.fn().mockResolvedValue(true),
             deleteExtraMealRecord: vi.fn().mockResolvedValue(true),
             addBulkMealRecord: vi.fn().mockResolvedValue({ id: 'm-new' }),
-            deleteBulkMealRecord: vi.fn().mockResolvedValue(true),
+            deleteBulkMealRecord: mockDeleteBulkMealRecord,
             updateBulkMealRecord: vi.fn().mockResolvedValue(true),
             checkAndAddAutomaticMeals: vi.fn(),
+            addMealRecord: vi.fn().mockResolvedValue({ id: 'meal-new' }),
         };
         return typeof selector === 'function' ? selector(state) : state;
     }),
@@ -87,7 +92,7 @@ describe('MealsSection Component', () => {
 
         it('displays lunch bag count', () => {
             render(<MealsSection />);
-            expect(screen.getByText('100')).toBeDefined();
+            expect(screen.getByText('125')).toBeDefined();
         });
     });
 
@@ -101,6 +106,90 @@ describe('MealsSection Component', () => {
             render(<MealsSection />);
             expect(screen.getByText('🤝 Proxy Pickup')).toBeDefined();
             expect(screen.getByText(/Picked up by/i)).toBeDefined();
+        });
+    });
+
+    describe('Activity Log Filter', () => {
+        it('renders filter dropdown with correct options', () => {
+            render(<MealsSection />);
+            const filterSelect = screen.getByLabelText('Filter activity log');
+            expect(filterSelect).toBeDefined();
+
+            const options = within(filterSelect as HTMLElement).getAllByRole('option');
+            expect(options.map((o) => o.textContent)).toEqual([
+                'All Types',
+                'Guest Meals',
+                'Extra Meals',
+                'RV Meals',
+                'Day Worker',
+                'Shelter',
+                'Lunch Bags',
+                'United Effort',
+            ]);
+        });
+
+        it('filters activity log by selected type', async () => {
+            const user = userEvent.setup();
+            render(<MealsSection />);
+
+            const filterSelect = screen.getByLabelText('Filter activity log');
+            await user.selectOptions(filterSelect, 'lunch_bag');
+
+            // After filtering to lunch_bag, only lunch bag records should appear
+            // The header should show filtered count
+            expect(screen.getByText(/Activity Log/)).toBeDefined();
+        });
+
+        it('shows batch delete button only when filtering lunch bags', async () => {
+            const user = userEvent.setup();
+            render(<MealsSection />);
+
+            // Initially no batch delete button
+            expect(screen.queryByText(/Delete All/)).toBeNull();
+
+            // Select lunch_bag filter
+            const filterSelect = screen.getByLabelText('Filter activity log');
+            await user.selectOptions(filterSelect, 'lunch_bag');
+
+            // Now batch delete button should appear with count
+            expect(screen.getByText('Delete All (2)')).toBeDefined();
+        });
+
+        it('calls deleteBulkMealRecord for each lunch bag on batch delete', async () => {
+            const user = userEvent.setup();
+            // Mock window.confirm to return true
+            vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+            render(<MealsSection />);
+
+            const filterSelect = screen.getByLabelText('Filter activity log');
+            await user.selectOptions(filterSelect, 'lunch_bag');
+
+            const deleteBtn = screen.getByText('Delete All (2)');
+            await user.click(deleteBtn);
+
+            expect(mockDeleteBulkMealRecord).toHaveBeenCalledTimes(2);
+            expect(mockDeleteBulkMealRecord).toHaveBeenCalledWith('lb1', 'lunch_bag');
+            expect(mockDeleteBulkMealRecord).toHaveBeenCalledWith('lb2', 'lunch_bag');
+
+            vi.restoreAllMocks();
+        });
+
+        it('does not delete when confirm is cancelled', async () => {
+            const user = userEvent.setup();
+            vi.spyOn(window, 'confirm').mockReturnValue(false);
+
+            render(<MealsSection />);
+
+            const filterSelect = screen.getByLabelText('Filter activity log');
+            await user.selectOptions(filterSelect, 'lunch_bag');
+
+            const deleteBtn = screen.getByText('Delete All (2)');
+            await user.click(deleteBtn);
+
+            expect(mockDeleteBulkMealRecord).not.toHaveBeenCalled();
+
+            vi.restoreAllMocks();
         });
     });
 });

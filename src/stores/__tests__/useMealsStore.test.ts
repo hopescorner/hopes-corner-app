@@ -27,6 +27,12 @@ vi.mock('@/lib/utils/date', () => ({
     pacificDateStringFrom: vi.fn((d: any) => '2025-01-06'),
     formatTimeInPacific: () => '12:00 PM',
     formatPacificTimeString: (timeStr: string) => timeStr,
+    parsePacificDateParts: vi.fn((dateStr: string) => {
+        if (!dateStr) return null;
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const localDate = new Date(y, m - 1, d);
+        return { year: y, month: m - 1, day: d, dayOfWeek: localDate.getDay() };
+    }),
 }));
 
 vi.mock('@/lib/utils/mappers', () => ({
@@ -393,6 +399,72 @@ describe('useMealsStore', () => {
                     quantity: 1,
                     served_on: '2025-01-04',
                 }));
+            });
+
+            it('does NOT auto-add lunch bag on Friday', async () => {
+                // 2025-01-10 is a Friday (dayOfWeek === 5)
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-10');
+
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: { id: 'meal-fri', guest_id: 'g1', quantity: 1, meal_type: 'guest', served_on: '2025-01-10' },
+                    error: null,
+                });
+
+                await useMealsStore.getState().addMealRecord('g1', 1);
+
+                expect(useMealsStore.getState().mealRecords).toHaveLength(1);
+                // No lunch bags should have been added
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
+            });
+
+            it('auto-adds lunch bag on non-Friday weekdays', async () => {
+                // 2025-01-06 is a Monday (dayOfWeek === 1)
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-06');
+
+                // First call: addMealRecord insert
+                mockSupabase.single
+                    .mockResolvedValueOnce({
+                        data: { id: 'meal-mon', guest_id: 'g1', quantity: 1, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    })
+                    // Second call: auto-add lunch bag (addBulkMealRecord)
+                    .mockResolvedValueOnce({
+                        data: { id: 'lb-auto', quantity: 1, meal_type: 'lunch_bag', served_on: '2025-01-06' },
+                        error: null,
+                    });
+
+                await useMealsStore.getState().addMealRecord('g1', 1);
+
+                expect(useMealsStore.getState().mealRecords).toHaveLength(1);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(1);
+            });
+
+            it('does NOT auto-add lunch bag on Friday even with proxy pickup', async () => {
+                // 2025-01-10 is a Friday
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-10');
+
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: { id: 'meal-fri-proxy', guest_id: 'g1', quantity: 1, meal_type: 'guest', served_on: '2025-01-10', picked_up_by_guest_id: 'g2' },
+                    error: null,
+                });
+
+                await useMealsStore.getState().addMealRecord('g1', 1, 'g2');
+
+                expect(useMealsStore.getState().mealRecords).toHaveLength(1);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
+            });
+
+            it('does NOT auto-add lunch bag for explicit Friday date param', async () => {
+                // Using serviceDate param targeting a Friday
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: { id: 'meal-fri-explicit', guest_id: 'g1', quantity: 1, meal_type: 'guest', served_on: '2025-01-10' },
+                    error: null,
+                });
+
+                await useMealsStore.getState().addMealRecord('g1', 1, null, '2025-01-10');
+
+                expect(useMealsStore.getState().mealRecords).toHaveLength(1);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
             });
         });
 
