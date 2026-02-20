@@ -3,14 +3,22 @@ import {
     getMealServiceInfo,
     formatTime,
     formatTimeRemaining,
-    getMealServiceStatus
+    getMealServiceStatus,
+    getSundayServiceName,
+    isSunday
 } from '../mealServiceTime';
 
 describe('mealServiceTime utilities', () => {
     describe('getMealServiceInfo', () => {
-        it('returns null for Sunday (no service)', () => {
+        it('returns Sunday Brunch schedule (10:00 - 14:00)', () => {
             const sunday = new Date(2025, 0, 5); // January 5, 2025 is a Sunday
-            expect(getMealServiceInfo(sunday)).toBeNull();
+            const service = getMealServiceInfo(sunday);
+            
+            expect(service).not.toBeNull();
+            expect(service?.startHour).toBe(10);
+            expect(service?.startMinute).toBe(0);
+            expect(service?.endHour).toBe(14);
+            expect(service?.endMinute).toBe(0);
         });
 
         it('returns null for Tuesday (no service)', () => {
@@ -61,6 +69,49 @@ describe('mealServiceTime utilities', () => {
         });
     });
 
+    describe('getSundayServiceName', () => {
+        it('returns "Sunday Brunch"', () => {
+            expect(getSundayServiceName()).toBe('Sunday Brunch');
+        });
+    });
+
+    describe('isSunday', () => {
+        it('returns true for Sunday', () => {
+            const sunday = new Date(2025, 0, 5); // January 5, 2025 is a Sunday
+            expect(isSunday(sunday)).toBe(true);
+        });
+
+        it('returns false for Monday', () => {
+            const monday = new Date(2025, 0, 6);
+            expect(isSunday(monday)).toBe(false);
+        });
+
+        it('returns false for Tuesday', () => {
+            const tuesday = new Date(2025, 0, 7);
+            expect(isSunday(tuesday)).toBe(false);
+        });
+
+        it('returns false for Wednesday', () => {
+            const wednesday = new Date(2025, 0, 8);
+            expect(isSunday(wednesday)).toBe(false);
+        });
+
+        it('returns false for Thursday', () => {
+            const thursday = new Date(2025, 0, 9);
+            expect(isSunday(thursday)).toBe(false);
+        });
+
+        it('returns false for Friday', () => {
+            const friday = new Date(2025, 0, 10);
+            expect(isSunday(friday)).toBe(false);
+        });
+
+        it('returns false for Saturday', () => {
+            const saturday = new Date(2025, 0, 11);
+            expect(isSunday(saturday)).toBe(false);
+        });
+    });
+
     describe('formatTime', () => {
         it('formats morning time correctly', () => {
             expect(formatTime(8, 0)).toBe('8:00 AM');
@@ -108,10 +159,43 @@ describe('mealServiceTime utilities', () => {
     });
 
     describe('getMealServiceStatus', () => {
-        describe('no-service days', () => {
-            it('returns no-service for Sunday', () => {
-                const sunday = new Date(2025, 0, 5, 9, 0);
+        describe('Sunday Brunch service', () => {
+            it('returns during-service for Sunday Brunch window', () => {
+                const sunday = new Date(2025, 0, 5, 12, 0); // Sunday at noon
                 const status = getMealServiceStatus(sunday);
+
+                expect(status.type).toBe('during-service');
+                expect(status.message).toContain('remaining');
+            });
+
+            it('returns before-service before Sunday Brunch start', () => {
+                const sunday = new Date(2025, 0, 5, 9, 0); // Sunday at 9 AM
+                const status = getMealServiceStatus(sunday);
+
+                expect(status.type).toBe('before-service');
+                expect(status.timeRemaining).toBe(60); // 60 minutes until 10:00
+            });
+
+            it('returns ended after Sunday Brunch ends', () => {
+                const sunday = new Date(2025, 0, 5, 15, 0); // Sunday at 3 PM
+                const status = getMealServiceStatus(sunday);
+
+                expect(status.type).toBe('ended');
+            });
+        });
+
+        describe('no-service days', () => {
+            it('returns no-service for Tuesday', () => {
+                const tuesday = new Date(2025, 0, 7, 9, 0);
+                const status = getMealServiceStatus(tuesday);
+
+                expect(status.type).toBe('no-service');
+                expect(status.message).toBeNull();
+            });
+
+            it('returns no-service for Thursday', () => {
+                const thursday = new Date(2025, 0, 9, 9, 0);
+                const status = getMealServiceStatus(thursday);
 
                 expect(status.type).toBe('no-service');
                 expect(status.message).toBeNull();
