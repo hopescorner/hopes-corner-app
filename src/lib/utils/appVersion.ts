@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.4.0';
+export const APP_VERSION = '0.5.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,42 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.0',
+        date: 'February 21, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Extra Meal Confirmation',
+                description: 'Extra meals now require a confirmation step and have their own dedicated section, reducing accidental entries.',
+            },
+            {
+                type: 'feature',
+                title: 'Refreshed Login Page',
+                description: 'The login page now features animated illustrations and an updated design for a friendlier first impression.',
+            },
+            {
+                type: 'improvement',
+                title: 'Sorted Service Views',
+                description: 'Showers are sorted by slot time and laundry/service Kanban lists are sorted chronologically so the oldest entries appear first.',
+            },
+            {
+                type: 'improvement',
+                title: 'Shower Auto-Disable on Completion',
+                description: 'Shower action buttons are now automatically disabled once a reservation is marked as done, preventing accidental status changes.',
+            },
+            {
+                type: 'fix',
+                title: 'Laundry Kanban Drag & Drop',
+                description: 'Fixed an issue where stale records could prevent laundry items from being moved between status columns in the Kanban view.',
+            },
+            {
+                type: 'fix',
+                title: 'Test Stability Improvements',
+                description: 'Resolved flaky test failures with deterministic slot helpers and improved mocking strategies.',
+            },
+        ],
+    },
     {
         version: '0.4.0',
         date: 'February 20, 2026',
