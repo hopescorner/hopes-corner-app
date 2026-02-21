@@ -50,25 +50,39 @@ export function ShowersSection() {
         []
     );
 
+    // Sort showers earliest to latest by slot time, then by createdAt
+    const sortByTime = useCallback((a: any, b: any) => {
+        const parseSlotMinutes = (t: string | null | undefined): number => {
+            if (!t) return Number.POSITIVE_INFINITY;
+            const [h, m] = String(t).split(':');
+            return parseInt(h, 10) * 60 + parseInt(m || '0', 10);
+        };
+        const timeDiff = parseSlotMinutes(a.time) - parseSlotMinutes(b.time);
+        if (timeDiff !== 0) return timeDiff;
+        const aCreated = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bCreated = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return aCreated - bCreated;
+    }, []);
+
     const selectedDateRecords = useMemo(() => {
         return showerRecords.filter((r) => getRecordDateKey(r) === selectedDate);
     }, [showerRecords, selectedDate, getRecordDateKey]);
 
     const activeShowers = useMemo(
-        () => selectedDateRecords.filter((r) => r.status === 'booked' || r.status === 'awaiting'),
-        [selectedDateRecords]
+        () => selectedDateRecords.filter((r) => r.status === 'booked' || r.status === 'awaiting').sort(sortByTime),
+        [selectedDateRecords, sortByTime]
     );
     const completedShowers = useMemo(
-        () => selectedDateRecords.filter((r) => r.status === 'done'),
-        [selectedDateRecords]
+        () => selectedDateRecords.filter((r) => r.status === 'done').sort(sortByTime),
+        [selectedDateRecords, sortByTime]
     );
     const waitlistedShowers = useMemo(
-        () => selectedDateRecords.filter((r) => r.status === 'waitlisted'),
-        [selectedDateRecords]
+        () => selectedDateRecords.filter((r) => r.status === 'waitlisted').sort(sortByTime),
+        [selectedDateRecords, sortByTime]
     );
     const cancelledShowers = useMemo(
-        () => selectedDateRecords.filter((r) => r.status === 'cancelled' || r.status === 'no_show'),
-        [selectedDateRecords]
+        () => selectedDateRecords.filter((r) => r.status === 'cancelled' || r.status === 'no_show').sort(sortByTime),
+        [selectedDateRecords, sortByTime]
     );
 
     const pendingShowers = useMemo(() => {
