@@ -76,62 +76,66 @@ export default function AnimatedGuest({ className = '' }: { className?: string }
 
                 <g transform="translate(10, 10)">
                     {/* Body */}
-                    <path d="M60 180 L60 110 Q100 70 140 110 L140 180 Z" fill="#0ea5e9" /> {/* Sky 500 Shirt */}
+                    <rect x="60" y="104" width="80" height="76" fill="#0ea5e9" /> {/* Sky 500 Shirt */}
 
                     {/* Head */}
-                    <circle cx="100" cy="80" r="22" fill="#fcd34d" /> {/* Face */}
+                    <rect x="76" y="56" width="48" height="48" fill="#fcd34d" /> {/* Face */}
 
                     {/* Hair */}
-                    <path d="M78 80 C75 60, 125 60, 122 80 C110 50, 90 50, 78 80 Z" fill="#78350f" />
+                    <rect x="72" y="48" width="56" height="16" fill="#78350f" />
+                    <rect x="72" y="64" width="8" height="24" fill="#78350f" />
+                    <rect x="120" y="64" width="8" height="24" fill="#78350f" />
 
                     {/* Face details */}
-                    <circle cx="92" cy="75" r="2.5" fill="#4b5563" />
-                    <circle cx="108" cy="75" r="2.5" fill="#4b5563" />
+                    <rect x="86" y="72" width="6" height="6" fill="#4b5563" />
+                    <rect x="108" y="72" width="6" height="6" fill="#4b5563" />
 
                     {/* Cheeks */}
-                    <circle cx="85" cy="82" r="4" fill="#fbbf24" opacity="0.5" />
-                    <circle cx="115" cy="82" r="4" fill="#fbbf24" opacity="0.5" />
+                    <rect x="80" y="82" width="6" height="6" fill="#fbbf24" opacity="0.5" />
+                    <rect x="114" y="82" width="6" height="6" fill="#fbbf24" opacity="0.5" />
 
                     {/* Mouth animated wrapper */}
                     <g className="mouth">
-                        <path d="M92 90 Q100 98 108 90" stroke="#4b5563" strokeWidth="2.5" fill="none" strokeLinecap="round" />
-                        <path d="M96 92 Q100 96 104 92" stroke="#dc2626" strokeWidth="1" fill="#dc2626" opacity="0.8" />
+                        <rect x="92" y="88" width="16" height="6" fill="#4b5563" />
+                        <rect x="94" y="90" width="12" height="4" fill="#dc2626" opacity="0.8" />
                     </g>
 
                     {/* Table */}
-                    <rect x="20" y="160" width="160" height="15" fill="#92400e" rx="4" />
+                    <rect x="20" y="160" width="160" height="15" fill="#92400e" rx="0" />
                     <rect x="40" y="175" width="10" height="15" fill="#78350f" />
                     <rect x="150" y="175" width="10" height="15" fill="#78350f" />
 
                     {/* Plate */}
-                    <ellipse cx="100" cy="155" rx="35" ry="8" fill="#e5e7eb" />
-                    <ellipse cx="100" cy="155" rx="25" ry="5" fill="#ffffff" />
+                    <rect x="65" y="152" width="70" height="8" fill="#e5e7eb" rx="2" />
+                    <rect x="70" y="150" width="60" height="4" fill="#ffffff" />
 
                     {/* Food on plate */}
-                    <ellipse cx="90" cy="152" rx="12" ry="4" fill="#b45309" />
-                    <circle cx="110" cy="153" r="4" fill="#10b981" />
-                    <circle cx="105" cy="152" r="3" fill="#10b981" />
+                    <rect x="80" y="146" width="16" height="8" fill="#b45309" />
+                    <rect x="105" y="146" width="10" height="8" fill="#10b981" />
+                    <rect x="115" y="148" width="8" height="6" fill="#10b981" opacity="0.8" />
 
                     {/* Eating Arm wrapper */}
                     <g className="eating-arm">
                         {/* Fork */}
-                        <line x1="108" y1="120" x2="115" y2="148" stroke="#9ca3af" strokeWidth="2" strokeLinecap="round" />
-                        <path d="M103 118 Q108 123 113 118" stroke="#9ca3af" strokeWidth="1.5" fill="none" />
-                        <line x1="104" y1="118" x2="105" y2="122" stroke="#9ca3af" strokeWidth="1.5" />
-                        <line x1="108" y1="118" x2="108" y2="122" stroke="#9ca3af" strokeWidth="1.5" />
-                        <line x1="112" y1="118" x2="111" y2="122" stroke="#9ca3af" strokeWidth="1.5" />
+                        <g transform="translate(-2, 5)">
+                            <line x1="110" y1="120" x2="110" y2="140" stroke="#9ca3af" strokeWidth="4" strokeLinecap="square" />
+                            <rect x="102" y="112" width="16" height="8" fill="none" stroke="#9ca3af" strokeWidth="3" />
+                            <rect x="102" y="106" width="4" height="6" fill="#9ca3af" />
+                            <rect x="108" y="106" width="4" height="6" fill="#9ca3af" />
+                            <rect x="114" y="106" width="4" height="6" fill="#9ca3af" />
 
-                        {/* Food on Fork */}
-                        <circle cx="108" cy="118" r="3" fill="#b45309" className="food" />
+                            {/* Food on Fork */}
+                            <rect x="104" y="100" width="10" height="8" fill="#b45309" className="food" />
+                        </g>
 
                         {/* Arm */}
-                        <path d="M125 125 L135 145 L112 145" stroke="#0ea5e9" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                        <circle cx="112" cy="145" r="5" fill="#fcd34d" /> {/* Hand */}
+                        <path d="M140 110 L140 145 L115 145" stroke="#0ea5e9" strokeWidth="16" strokeLinecap="square" strokeLinejoin="miter" fill="none" />
+                        <rect x="105" y="138" width="14" height="14" fill="#fcd34d" /> {/* Hand */}
                     </g>
 
                     {/* Other Arm holding knife or resting */}
-                    <path d="M75 125 L65 150 L80 152" stroke="#0ea5e9" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-                    <circle cx="80" cy="152" r="5" fill="#fcd34d" />
+                    <path d="M60 110 L60 150 L80 150" stroke="#0ea5e9" strokeWidth="16" strokeLinecap="square" strokeLinejoin="miter" fill="none" />
+                    <rect x="80" y="143" width="14" height="14" fill="#fcd34d" />
                 </g>
             </g>
 

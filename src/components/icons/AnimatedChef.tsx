@@ -95,13 +95,13 @@ export default function AnimatedChef({ className = '' }: { className?: string })
                 <rect x="130" y="20" width="60" height="70" fill="#e0f2fe" stroke="#cbd5e1" strokeWidth="4" />
                 <line x1="160" y1="20" x2="160" y2="90" stroke="#cbd5e1" strokeWidth="4" />
                 <line x1="130" y1="55" x2="190" y2="55" stroke="#cbd5e1" strokeWidth="4" />
-                <circle cx="170" cy="35" r="8" fill="#fef08a" />
+                <rect x="162" y="27" width="16" height="16" fill="#fef08a" />
 
                 {/* Cabinet */}
                 <rect x="10" y="10" width="70" height="70" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="2" />
                 <line x1="45" y1="10" x2="45" y2="80" stroke="#cbd5e1" strokeWidth="2" />
-                <circle cx="38" cy="45" r="3" fill="#94a3b8" />
-                <circle cx="52" cy="45" r="3" fill="#94a3b8" />
+                <rect x="36" y="42" width="6" height="6" fill="#94a3b8" />
+                <rect x="48" y="42" width="6" height="6" fill="#94a3b8" />
 
                 {/* Countertop */}
                 <rect x="0" y="180" width="200" height="20" fill="#475569" />
@@ -109,43 +109,45 @@ export default function AnimatedChef({ className = '' }: { className?: string })
 
                 <g transform="translate(10, 20)">
                     {/* Body */}
-                    <path d="M40 160 L40 100 Q80 70 120 100 L120 160 Z" fill="#059669" /> {/* Emerald 600 */}
-                    <path d="M50 160 L50 110 Q80 95 110 110 L110 160 Z" fill="#ffffff" opacity="0.9" /> {/* Apron */}
+                    <rect x="45" y="100" width="70" height="60" fill="#059669" /> {/* Emerald 600 */}
+                    <rect x="55" y="110" width="50" height="50" fill="#ffffff" opacity="0.9" /> {/* Apron */}
 
                     {/* Head */}
-                    <circle cx="80" cy="80" r="20" fill="#fcd34d" /> {/* Face */}
+                    <rect x="60" y="60" width="40" height="40" fill="#fcd34d" /> {/* Face */}
 
                     {/* Chef Hat */}
-                    <path d="M65 65 C60 50, 75 40, 80 50 C85 40, 100 50, 95 65 Z" fill="#ffffff" />
-                    <rect x="68" y="60" width="24" height="15" fill="#ffffff" />
+                    <rect x="50" y="35" width="60" height="15" fill="#ffffff" />
+                    <rect x="55" y="25" width="50" height="10" fill="#e5e7eb" />
+                    <rect x="65" y="50" width="30" height="10" fill="#ffffff" />
 
                     {/* Face details */}
-                    <circle cx="75" cy="78" r="2" fill="#4b5563" />
-                    <circle cx="85" cy="78" r="2" fill="#4b5563" />
-                    <path d="M75 85 Q80 90 85 85" stroke="#4b5563" strokeWidth="2" fill="none" />
+                    <rect x="66" y="72" width="8" height="8" fill="#4b5563" />
+                    <rect x="86" y="72" width="8" height="8" fill="#4b5563" />
+                    <rect x="74" y="86" width="12" height="4" fill="#4b5563" />
 
                     {/* Arm and Pan Wrapper */}
                     <g className="arm">
                         {/* Arm */}
-                        <path d="M95 105 L120 115 L125 110" stroke="#059669" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                        <line x1="95" y1="105" x2="115" y2="114" stroke="#059669" strokeWidth="14" strokeLinecap="square" />
+                        <rect x="110" y="108" width="12" height="12" fill="#fcd34d" /> {/* Hand */}
 
                         {/* Pan Wrapper to apply pan movement */}
                         <g className="pan">
-                            <line x1="120" y1="115" x2="135" y2="105" stroke="#4b5563" strokeWidth="4" strokeLinecap="round" />
-                            <path d="M130 105 Q145 115 160 105 L155 100 L135 100 Z" fill="#374151" />
+                            <line x1="120" y1="114" x2="135" y2="108" stroke="#4b5563" strokeWidth="6" strokeLinecap="square" />
+                            <rect x="133" y="100" width="28" height="10" fill="#374151" />
 
                             {/* Food Flipping */}
                             <g className="flip-item">
-                                <ellipse cx="145" cy="98" rx="8" ry="3" fill="#fbbf24" />
+                                <rect x="142" y="95" width="12" height="5" fill="#fbbf24" />
                             </g>
                         </g>
                     </g>
 
                     {/* Steam container fixed relative to the pan's general area */}
                     <g>
-                        <path className="steam-1" d="M140 85 Q145 75 140 65" stroke="#9ca3af" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0" />
-                        <path className="steam-2" d="M150 85 Q145 75 150 65" stroke="#9ca3af" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0" />
-                        <path className="steam-3" d="M145 90 Q150 80 145 70" stroke="#9ca3af" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0" />
+                        <rect className="steam-1" x="140" y="80" width="6" height="6" fill="#9ca3af" opacity="0" />
+                        <rect className="steam-2" x="150" y="75" width="6" height="6" fill="#9ca3af" opacity="0" />
+                        <rect className="steam-3" x="145" y="85" width="6" height="6" fill="#9ca3af" opacity="0" />
                     </g>
                 </g>
             </g>
