@@ -4,7 +4,7 @@ import React from 'react';
 import { ShowerBookingModal } from '../ShowerBookingModal';
 import { LaundryBookingModal } from '../LaundryBookingModal';
 import { useServicesStore } from '@/stores/useServicesStore';
-import { generateShowerSlots, generateLaundrySlots } from '@/lib/utils/serviceSlots';
+import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
 
 let mockRole: 'checkin' | 'staff' = 'staff';
 
@@ -214,15 +214,15 @@ describe('LaundryBookingModal — Book Next Available', () => {
     it('does not count past-day laundry records as booked slots', () => {
         // Push a past-date laundry record into the shared array
         mockLaundryRecords.push(
-            { id: 'past-1', guestId: 'g2', time: '07:30 - 08:30', laundryType: 'onsite', status: 'done', date: '2020-01-01', createdAt: '2020-01-01T07:30:00Z' },
+            { id: 'past-1', guestId: 'g2', time: generateLaundrySlots()[0], laundryType: 'onsite', status: 'done', date: '2020-01-01', createdAt: '2020-01-01T07:30:00Z' },
         );
 
         render(<LaundryBookingModal />);
 
-        // The first slot (07:30 - 08:30) should still be available since the record is from 2020
+        // The first slot should still be available since the record is from 2020
         expect(screen.getByText('Book Next Available Slot')).toBeDefined();
         expect(screen.getByText(/Next open:/)).toBeDefined();
-        expect(screen.getAllByText('7:30 AM - 8:30 AM').length).toBeGreaterThan(0);
+        expect(screen.getAllByText(formatSlotLabel(generateLaundrySlots()[0])).length).toBeGreaterThan(0);
     });
 
     it('displays next open time prominently with large text for readability', () => {
@@ -298,14 +298,14 @@ describe('ShowerBookingModal — Blocked Slots in Staff Grid', () => {
     });
 
     it('shows "Blocked" badge for blocked slots in the grid', () => {
-        mockIsSlotBlocked.mockImplementation((...args: any[]) => args[1] === '08:00');
+        mockIsSlotBlocked.mockImplementation((...args: any[]) => args[1] === generateShowerSlots()[0]);
 
         render(<ShowerBookingModal />);
         expect(screen.getByText('Blocked')).toBeDefined();
     });
 
     it('disables blocked slot buttons', () => {
-        mockIsSlotBlocked.mockImplementation((...args: any[]) => args[1] === '08:00');
+        mockIsSlotBlocked.mockImplementation((...args: any[]) => args[1] === generateShowerSlots()[0]);
 
         render(<ShowerBookingModal />);
         const blockedButtons = screen.getAllByRole('button').filter(b =>
@@ -407,8 +407,9 @@ describe('LaundryBookingModal — Staff Offsite & Blocked Slots', () => {
     });
 
     it('shows "Blocked" indicator for blocked laundry slots in staff grid', () => {
+        const blockedSlot = generateLaundrySlots()[0];
         mockIsSlotBlocked.mockImplementation((...args: any[]) =>
-            args[1] === '07:30 - 08:30'
+            args[1] === blockedSlot
         );
 
         render(<LaundryBookingModal />);
@@ -416,16 +417,17 @@ describe('LaundryBookingModal — Staff Offsite & Blocked Slots', () => {
     });
 
     it('disables blocked laundry slot buttons', () => {
+        const blockedSlot = generateLaundrySlots()[0];
         mockIsSlotBlocked.mockImplementation((...args: any[]) =>
-            args[1] === '07:30 - 08:30'
+            args[1] === blockedSlot
         );
 
         render(<LaundryBookingModal />);
-        const blockedButtons = screen.getAllByRole('button').filter(b =>
-            b.textContent?.includes('Blocked')
-        );
-        expect(blockedButtons.length).toBeGreaterThanOrEqual(1);
-        expect(blockedButtons[0]).toBeDisabled();
+        const blockedButton = screen.getByRole('button', {
+            name: new RegExp(formatSlotLabel(blockedSlot), 'i')
+        });
+        expect(blockedButton).toBeDisabled();
+        expect(screen.getByText('Blocked')).toBeDefined();
     });
 
     it('shows "All on-site slots are booked" when all onsite slots are taken in staff view', () => {

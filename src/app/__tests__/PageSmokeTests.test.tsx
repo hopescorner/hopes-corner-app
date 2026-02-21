@@ -40,6 +40,12 @@ vi.mock('../(protected)/check-in/page', () => ({
     default: () => <div>Find or Add Guests</div>,
 }));
 
+// Mock admin components to prevent async import leaks during test teardown
+vi.mock('@/components/admin/reports/MonthlyReportGenerator', () => ({ default: () => null }));
+vi.mock('@/components/admin/reports/MealReport', () => ({ MealReport: () => null }));
+vi.mock('@/components/admin/reports/MonthlySummaryReport', () => ({ default: () => null }));
+vi.mock('@/components/admin/DataExportSection', () => ({ DataExportSection: () => null }));
+
 // Mock next-auth/react
 vi.mock('next-auth/react', () => ({
     useSession: () => ({ data: { user: { role: 'admin', name: 'Admin' } }, status: 'authenticated' }),
@@ -49,6 +55,17 @@ vi.mock('next-auth/react', () => ({
 // Mock auth from config (for server components)
 vi.mock('@/lib/auth/config', () => ({
     auth: vi.fn(async () => ({ user: { role: 'admin', name: 'Admin' } })),
+}));
+
+// Mock Supabase client to prevent unhandled fetches
+vi.mock('@/lib/supabase/client', () => ({
+    createClient: vi.fn(() => ({
+        from: vi.fn(() => ({
+            select: vi.fn(() => ({
+                order: vi.fn(() => ({ data: [], error: null }))
+            }))
+        }))
+    }))
 }));
 
 // Mock stores
@@ -71,7 +88,7 @@ vi.mock('@/stores/useServicesStore', () => ({
             return typeof selector === 'function' ? selector(state) : state;
         }),
         {
-            subscribe: vi.fn(() => () => {}),
+            subscribe: vi.fn(() => () => { }),
             getState: vi.fn(() => ({
                 showerRecords: mockShowerRecords,
                 laundryRecords: mockLaundryRecords,
@@ -177,7 +194,7 @@ vi.mock('@/stores/useDailyNotesStore', () => ({
         isLoaded: true,
         ensureLoaded: vi.fn(() => Promise.resolve()),
         loadFromSupabase: vi.fn(() => Promise.resolve()),
-        subscribeToRealtime: vi.fn(() => () => {}),
+        subscribeToRealtime: vi.fn(() => () => { }),
         addOrUpdateNote: vi.fn(() => Promise.resolve()),
         deleteNote: vi.fn(() => Promise.resolve()),
         getNotesForDate: vi.fn(() => []),
