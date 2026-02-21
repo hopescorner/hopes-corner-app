@@ -2,6 +2,7 @@
 
 import { useState, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
     User,
@@ -192,12 +193,15 @@ function PureGuestCard({
         );
         const extraCount = todayExtras.reduce((sum, r) => sum + (r.count || 1), 0);
         const baseCount = todayRecord?.count || 0;
+        const total = baseCount + extraCount;
         return {
             hasMeal: !!todayRecord,
             mealRecord: todayRecord,
             mealCount: baseCount,
             extraMealCount: extraCount,
-            totalMeals: baseCount + extraCount,
+            totalMeals: total,
+            hasReachedMealLimit: total >= MAX_TOTAL_MEALS_PER_DAY,
+            hasReachedExtraMealLimit: extraCount >= MAX_EXTRA_MEALS_PER_DAY,
         };
     }, [mealRecords, extraMealRecords, guest.id, today]);
 
@@ -263,6 +267,8 @@ function PureGuestCard({
     const baseMealCount = mealStatus.mealCount;
     const extraMealsCount = mealStatus.extraMealCount;
     const totalMeals = mealStatus.totalMeals;
+    const hasReachedMealLimit = mealStatus.hasReachedMealLimit;
+    const hasReachedExtraMealLimit = mealStatus.hasReachedExtraMealLimit;
 
     const todayShower = serviceStatus.hasShower;
     const todayLaundry = serviceStatus.hasLaundry;
@@ -304,7 +310,7 @@ function PureGuestCard({
 
     const handleExtraMealAdd = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (isPending || isBannedFromMeals) return;
+        if (isPending || isBannedFromMeals || hasReachedMealLimit || hasReachedExtraMealLimit) return;
 
         // Require explicit confirmation to prevent accidental extra meal additions
         const confirmed = window.confirm(
@@ -639,15 +645,24 @@ function PureGuestCard({
                                             </button>
                                         )}
                                     </div>
-                                    <button
-                                        onClick={handleExtraMealAdd}
-                                        disabled={isPending}
-                                        className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-orange-50 border-2 border-dashed border-orange-300 text-orange-600 font-bold text-xs hover:bg-orange-100 hover:border-orange-400 transition-all active:scale-95 disabled:opacity-50"
-                                        title="Add extra meal (requires confirmation)"
-                                    >
-                                        <Plus size={14} />
-                                        <span>Extra</span>
-                                    </button>
+                                    {hasReachedMealLimit || hasReachedExtraMealLimit ? (
+                                        <div
+                                            className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-xs cursor-not-allowed"
+                                            title={`Daily meal limit reached (${totalMeals}/${4})`}
+                                        >
+                                            <span>Limit</span>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={handleExtraMealAdd}
+                                            disabled={isPending}
+                                            className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-orange-50 border-2 border-dashed border-orange-300 text-orange-600 font-bold text-xs hover:bg-orange-100 hover:border-orange-400 transition-all active:scale-95 disabled:opacity-50"
+                                            title="Add extra meal (requires confirmation)"
+                                        >
+                                            <Plus size={14} />
+                                            <span>Extra</span>
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -846,17 +861,23 @@ function PureGuestCard({
                             {todayMeal && (
                                 <div className="mt-2 pt-2 border-t border-dashed border-orange-200">
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500 mb-1.5">Extra Meals</p>
-                                    <button
-                                        onClick={handleExtraMealAdd}
-                                        disabled={isPending || isBannedFromMeals}
-                                        className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-orange-50 border-2 border-dashed border-orange-300 text-orange-700 font-bold text-sm hover:bg-orange-100 hover:border-orange-400 transition-all disabled:opacity-50"
-                                    >
-                                        <Plus size={16} />
-                                        <span>Add Extra Meal</span>
-                                        {extraMealsCount > 0 && (
-                                            <span className="ml-1 px-1.5 py-0.5 bg-orange-200 rounded-full text-[10px] font-black">{extraMealsCount} added</span>
-                                        )}
-                                    </button>
+                                    {hasReachedMealLimit || hasReachedExtraMealLimit ? (
+                                        <div className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-gray-50 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm">
+                                            <span>Daily meal limit reached ({totalMeals}/{4})</span>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={handleExtraMealAdd}
+                                            disabled={isPending || isBannedFromMeals}
+                                            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-orange-50 border-2 border-dashed border-orange-300 text-orange-700 font-bold text-sm hover:bg-orange-100 hover:border-orange-400 transition-all disabled:opacity-50"
+                                        >
+                                            <Plus size={16} />
+                                            <span>Add Extra Meal</span>
+                                            {extraMealsCount > 0 && (
+                                                <span className="ml-1 px-1.5 py-0.5 bg-orange-200 rounded-full text-[10px] font-black">{extraMealsCount} added</span>
+                                            )}
+                                        </button>
+                                    )}
                                 </div>
                             )}
 
@@ -1114,7 +1135,7 @@ const mealSnapshot = (props: GuestCardProps) => {
     const id = props.guest?.id;
     if (!id) return '';
     const s = props.mealStatusMap?.get(id) || defaultMealStatus;
-    return `${s.hasMeal}-${s.mealCount}-${s.extraMealCount}-${s.totalMeals}`;
+    return `${s.hasMeal}-${s.mealCount}-${s.extraMealCount}-${s.totalMeals}-${s.hasReachedMealLimit}-${s.hasReachedExtraMealLimit}`;
 };
 
 const serviceSnapshot = (props: GuestCardProps) => {

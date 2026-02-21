@@ -14,6 +14,7 @@ import {
     mapHaircutRow,
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom, parsePacificDateParts } from '@/lib/utils/date';
+import { MAX_BASE_MEALS_PER_DAY, MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
 
 const OPERATIONAL_WINDOW_DAYS = 45;
 
@@ -88,6 +89,9 @@ interface MealsState {
     // Automation
     checkAndAddAutomaticMeals: () => Promise<void>;
 
+    /** Returns today's base meal count, extra meal count, and total for a specific guest. */
+    getTodayMealCountsForGuest: (guestId: string, serviceDate?: string) => { baseMeals: number; extraMeals: number; totalMeals: number };
+
     ensureLoaded: (options?: { force?: boolean; since?: string }) => Promise<void>;
     loadFromSupabase: () => Promise<void>;
     clearMealRecords: () => void;
@@ -122,11 +126,43 @@ export const useMealsStore = create<MealsState>()(
                     isLoading: false,
                     lastLoadedAt: undefined,
 
+                    // Helper: count today's meals for a guest
+                    getTodayMealCountsForGuest: (guestId: string, serviceDate?: string) => {
+                        const targetDate = serviceDate || todayPacificDateString();
+                        const { mealRecords, extraMealRecords } = get();
+                        const dateKey = (r: any) => r?.dateKey || pacificDateStringFrom(r.date);
+
+                        let baseMeals = 0;
+                        for (const r of mealRecords) {
+                            if (r.guestId === guestId && dateKey(r) === targetDate) {
+                                baseMeals += r.count || 1;
+                            }
+                        }
+
+                        let extraMeals = 0;
+                        for (const r of extraMealRecords) {
+                            if (r.guestId === guestId && dateKey(r) === targetDate) {
+                                extraMeals += r.count || 1;
+                            }
+                        }
+
+                        return { baseMeals, extraMeals, totalMeals: baseMeals + extraMeals };
+                    },
+
                     // Meal Actions
                     addMealRecord: async (guestId: string, quantity = 1, pickedUpByGuestId: string | null = null, serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
 
                         const targetDate = serviceDate || todayPacificDateString();
+
+                        // Enforce daily meal limit
+                        const { baseMeals, totalMeals } = get().getTodayMealCountsForGuest(guestId, targetDate);
+                        if (baseMeals + quantity > MAX_BASE_MEALS_PER_DAY) {
+                            throw new Error(`Guest already has ${baseMeals} base meal${baseMeals !== 1 ? 's' : ''} today (max ${MAX_BASE_MEALS_PER_DAY})`);
+                        }
+                        if (totalMeals + quantity > MAX_TOTAL_MEALS_PER_DAY) {
+                            throw new Error(`Guest already has ${totalMeals} total meal${totalMeals !== 1 ? 's' : ''} today (max ${MAX_TOTAL_MEALS_PER_DAY})`);
+                        }
                         const supabase = createClient();
 
                         const payload: any = {
@@ -250,8 +286,18 @@ export const useMealsStore = create<MealsState>()(
 
                     // Extra Meal Actions
                     addExtraMealRecord: async (guestId: string, quantity = 1) => {
-                        const supabase = createClient();
                         const todayStr = todayPacificDateString();
+
+                        // Enforce daily meal limit
+                        const { extraMeals, totalMeals } = get().getTodayMealCountsForGuest(guestId, todayStr);
+                        if (extraMeals + quantity > MAX_EXTRA_MEALS_PER_DAY) {
+                            throw new Error(`Guest already has ${extraMeals} extra meal${extraMeals !== 1 ? 's' : ''} today (max ${MAX_EXTRA_MEALS_PER_DAY})`);
+                        }
+                        if (totalMeals + quantity > MAX_TOTAL_MEALS_PER_DAY) {
+                            throw new Error(`Guest has reached the daily meal limit of ${MAX_TOTAL_MEALS_PER_DAY}`);
+                        }
+
+                        const supabase = createClient();
 
                         const payload = {
                             guest_id: guestId,

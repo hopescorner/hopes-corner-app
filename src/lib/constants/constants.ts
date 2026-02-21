@@ -37,3 +37,12 @@ export const BICYCLE_REPAIR_STATUS = {
   IN_PROGRESS: "in_progress",
   DONE: "done",
 };
+
+/** Maximum number of base (non-extra) meals a guest can receive per service day. */
+export const MAX_BASE_MEALS_PER_DAY = 2;
+
+/** Maximum number of extra meals a guest can receive per service day. */
+export const MAX_EXTRA_MEALS_PER_DAY = 2;
+
+/** Maximum total meals (base + extra) a guest can receive per service day. */
+export const MAX_TOTAL_MEALS_PER_DAY = MAX_BASE_MEALS_PER_DAY + MAX_EXTRA_MEALS_PER_DAY;

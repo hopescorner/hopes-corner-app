@@ -501,7 +501,7 @@ describe('useMealsStore', () => {
 
         describe('addExtraMealRecord', () => {
             it('adds extra meal record', async () => {
-                await useMealsStore.getState().addExtraMealRecord('g1', 5);
+                await useMealsStore.getState().addExtraMealRecord('g1', 1);
                 expect(useMealsStore.getState().extraMealRecords).toHaveLength(1);
             });
         });
@@ -650,6 +650,202 @@ describe('useMealsStore', () => {
         it('handles DB insert error in addMealRecord', async () => {
             mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'DB Error' } });
             await expect(useMealsStore.getState().addMealRecord('g1', 1)).rejects.toThrow();
+        });
+    });
+
+    describe('meal limit enforcement', () => {
+        beforeEach(() => {
+            // Ensure pacificDateStringFrom returns correct date for our test records
+            vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-06');
+        });
+
+        describe('getTodayMealCountsForGuest', () => {
+            it('returns zero counts when guest has no meals', () => {
+                const counts = useMealsStore.getState().getTodayMealCountsForGuest('g1');
+                expect(counts).toEqual({ baseMeals: 0, extraMeals: 0, totalMeals: 0 });
+            });
+
+            it('counts base meals for today', () => {
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'm1', guestId: 'g1', count: 2, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+                const counts = useMealsStore.getState().getTodayMealCountsForGuest('g1');
+                expect(counts.baseMeals).toBe(2);
+                expect(counts.totalMeals).toBe(2);
+            });
+
+            it('counts extra meals for today', () => {
+                useMealsStore.setState({
+                    extraMealRecords: [
+                        createMockMealRecord({ id: 'e1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                        createMockMealRecord({ id: 'e2', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+                const counts = useMealsStore.getState().getTodayMealCountsForGuest('g1');
+                expect(counts.extraMeals).toBe(2);
+                expect(counts.totalMeals).toBe(2);
+            });
+
+            it('counts both base and extra meals', () => {
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'm1', guestId: 'g1', count: 2, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                    extraMealRecords: [
+                        createMockMealRecord({ id: 'e1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+                const counts = useMealsStore.getState().getTodayMealCountsForGuest('g1');
+                expect(counts).toEqual({ baseMeals: 2, extraMeals: 1, totalMeals: 3 });
+            });
+
+            it('does not count other guests meals', () => {
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'm1', guestId: 'g2', count: 2, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+                const counts = useMealsStore.getState().getTodayMealCountsForGuest('g1');
+                expect(counts.baseMeals).toBe(0);
+            });
+        });
+
+        describe('addMealRecord limits', () => {
+            it('blocks adding base meals when base limit is reached', async () => {
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'm1', guestId: 'g1', count: 2, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+                await expect(
+                    useMealsStore.getState().addMealRecord('g1', 1)
+                ).rejects.toThrow(/already has 2 base meal/);
+            });
+
+            it('blocks adding 2 base meals when 1 already exists', async () => {
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'm1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+                await expect(
+                    useMealsStore.getState().addMealRecord('g1', 2)
+                ).rejects.toThrow(/already has 1 base meal/);
+            });
+
+            it('allows adding base meals when under limit', async () => {
+                // Need to mock 2 supabase calls: addMealRecord + auto lunch bag
+                mockSupabase.single
+                    .mockResolvedValueOnce({
+                        data: { id: 'new-meal', guest_id: 'g1', quantity: 1, served_on: '2025-01-06', meal_type: 'guest' },
+                        error: null,
+                    })
+                    .mockResolvedValueOnce({
+                        data: { id: 'lb1', guest_id: null, quantity: 1, served_on: '2025-01-06', meal_type: 'lunch_bag' },
+                        error: null,
+                    });
+
+                const record = await useMealsStore.getState().addMealRecord('g1', 1);
+                expect(record.id).toBe('new-meal');
+            });
+
+            it('allows base meal when approaching but not exceeding total limit', async () => {
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'm1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                    extraMealRecords: [
+                        createMockMealRecord({ id: 'e1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                        createMockMealRecord({ id: 'e2', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+
+                // 1 base + 2 extra = 3 total, adding 1 base → 2 base, 4 total (at limit, allowed)
+                mockSupabase.single
+                    .mockResolvedValueOnce({
+                        data: { id: 'new-meal', guest_id: 'g1', quantity: 1, served_on: '2025-01-06', meal_type: 'guest' },
+                        error: null,
+                    })
+                    .mockResolvedValueOnce({
+                        data: { id: 'lb1', guest_id: null, quantity: 1, served_on: '2025-01-06', meal_type: 'lunch_bag' },
+                        error: null,
+                    });
+
+                const record = await useMealsStore.getState().addMealRecord('g1', 1);
+                expect(record.id).toBe('new-meal');
+            });
+        });
+
+        describe('addExtraMealRecord limits', () => {
+            it('blocks extra meals when extra limit is reached', async () => {
+                useMealsStore.setState({
+                    extraMealRecords: [
+                        createMockMealRecord({ id: 'e1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                        createMockMealRecord({ id: 'e2', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+                await expect(
+                    useMealsStore.getState().addExtraMealRecord('g1', 1)
+                ).rejects.toThrow(/already has 2 extra meal/);
+            });
+
+            it('blocks extra meals when at total limit via extra limit', async () => {
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'm1', guestId: 'g1', count: 2, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                    extraMealRecords: [
+                        createMockMealRecord({ id: 'e1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                        createMockMealRecord({ id: 'e2', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+                // 2 base + 2 extra = 4 total (at limit). Extra limit (2) also hit.
+                await expect(
+                    useMealsStore.getState().addExtraMealRecord('g1', 1)
+                ).rejects.toThrow(/already has 2 extra meal/);
+            });
+
+            it('allows extra meals when under both limits', async () => {
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'm1', guestId: 'g1', count: 2, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                    extraMealRecords: [
+                        createMockMealRecord({ id: 'e1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: { id: 'new-extra', guest_id: 'g1', quantity: 1, served_on: '2025-01-06', meal_type: 'extra' },
+                    error: null,
+                });
+
+                const record = await useMealsStore.getState().addExtraMealRecord('g1', 1);
+                expect(record.id).toBe('new-extra');
+            });
+
+            it('allows different guest to add meals independently', async () => {
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'm1', guestId: 'g1', count: 2, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                    extraMealRecords: [
+                        createMockMealRecord({ id: 'e1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                        createMockMealRecord({ id: 'e2', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: { id: 'new-extra-g2', guest_id: 'g2', quantity: 1, served_on: '2025-01-06', meal_type: 'extra' },
+                    error: null,
+                });
+
+                // g1 is at limit, but g2 should be fine
+                const record = await useMealsStore.getState().addExtraMealRecord('g2', 1);
+                expect(record.id).toBe('new-extra-g2');
+            });
         });
     });
 });

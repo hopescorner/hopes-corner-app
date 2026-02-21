@@ -92,6 +92,8 @@ vi.mock('@/stores/selectors/todayStatusSelectors', () => ({
         mealCount: 0,
         extraMealCount: 0,
         totalMeals: 0,
+        hasReachedMealLimit: false,
+        hasReachedExtraMealLimit: false,
     },
     defaultServiceStatus: {
         hasShower: false,

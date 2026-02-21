@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { MAX_BASE_MEALS_PER_DAY, MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
 
 describe('Meals logic', () => {
     describe('Automatic Meals logic', () => {
@@ -34,21 +35,45 @@ describe('Meals logic', () => {
     });
 
     describe('Meal Selection logic', () => {
-        it('prevents logging more than max meals per guest', () => {
-            const maxMeals = 2;
+        it('defines correct meal limits', () => {
+            expect(MAX_BASE_MEALS_PER_DAY).toBe(2);
+            expect(MAX_EXTRA_MEALS_PER_DAY).toBe(2);
+            expect(MAX_TOTAL_MEALS_PER_DAY).toBe(4);
+        });
+
+        it('prevents logging more than max base meals per guest', () => {
             let currentMeals = 1;
-            const canAdd = currentMeals < maxMeals;
-            expect(canAdd).toBe(true);
+            expect(currentMeals < MAX_BASE_MEALS_PER_DAY).toBe(true);
 
             currentMeals = 2;
-            const canAddFull = currentMeals < maxMeals;
-            expect(canAddFull).toBe(false);
+            expect(currentMeals < MAX_BASE_MEALS_PER_DAY).toBe(false);
+        });
+
+        it('prevents logging more than max extra meals per guest', () => {
+            let currentExtras = 1;
+            expect(currentExtras < MAX_EXTRA_MEALS_PER_DAY).toBe(true);
+
+            currentExtras = 2;
+            expect(currentExtras < MAX_EXTRA_MEALS_PER_DAY).toBe(false);
+        });
+
+        it('enforces total meal limit of 4 (2 base + 2 extra)', () => {
+            const baseMeals = 2;
+            const extraMeals = 2;
+            const totalMeals = baseMeals + extraMeals;
+            expect(totalMeals >= MAX_TOTAL_MEALS_PER_DAY).toBe(true);
+        });
+
+        it('allows extra meals when under total limit', () => {
+            const baseMeals = 2;
+            const extraMeals = 1;
+            const totalMeals = baseMeals + extraMeals;
+            expect(totalMeals < MAX_TOTAL_MEALS_PER_DAY).toBe(true);
         });
 
         it('calculates remaining meals allowed', () => {
-            const max = 2;
             const current = 1;
-            expect(max - current).toBe(1);
+            expect(MAX_BASE_MEALS_PER_DAY - current).toBe(1);
         });
     });
 
