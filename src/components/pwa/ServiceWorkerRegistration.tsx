@@ -1,28 +1,54 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { APP_VERSION } from '@/lib/utils/appVersion';
+
+/** How often to poll /api/version (5 minutes) */
+const VERSION_POLL_INTERVAL = 5 * 60 * 1000;
 
 export function ServiceWorkerRegistration() {
     const [updateAvailable, setUpdateAvailable] = useState(false);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     const handleRefresh = useCallback(() => {
         window.location.reload();
     }, []);
 
     useEffect(() => {
+        // ── Version polling (works regardless of SW) ──────────────
+        // Fetches /api/version and compares with the client-side
+        // APP_VERSION constant. This catches every new deployment
+        // even when the service-worker byte-comparison misses it.
+        const checkForNewVersion = async () => {
+            try {
+                const res = await fetch('/api/version', { cache: 'no-store' });
+                if (!res.ok) return;
+                const { version } = await res.json();
+                if (version && version !== APP_VERSION) {
+                    setUpdateAvailable(true);
+                }
+            } catch {
+                // Network error — skip silently
+            }
+        };
+
+        // Start polling after a short initial delay
+        const initialTimer = setTimeout(checkForNewVersion, 10_000);
+        intervalRef.current = setInterval(checkForNewVersion, VERSION_POLL_INTERVAL);
+
+        // ── Service Worker registration ───────────────────────────
         if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-            // Register service worker after page load
             window.addEventListener('load', () => {
                 navigator.serviceWorker
                     .register('/sw.js')
                     .then((registration) => {
                         console.log('[SW] Service Worker registered with scope:', registration.scope);
 
-                        // Check for updates periodically
+                        // Check for updates every hour
                         setInterval(() => {
                             registration.update();
-                        }, 60 * 60 * 1000); // Check every hour
+                        }, 60 * 60 * 1000);
 
                         // Detect a waiting service worker (new version ready)
                         if (registration.waiting) {
@@ -34,7 +60,8 @@ export function ServiceWorkerRegistration() {
                             const newWorker = registration.installing;
                             if (newWorker) {
                                 newWorker.addEventListener('statechange', () => {
-                                    if (newWorker.state === 'activated') {
+                                    // 'installed' means a new SW is waiting (or will skipWaiting)
+                                    if (newWorker.state === 'installed' || newWorker.state === 'activated') {
                                         setUpdateAvailable(true);
                                     }
                                 });
@@ -59,6 +86,11 @@ export function ServiceWorkerRegistration() {
                 setUpdateAvailable(true);
             });
         }
+
+        return () => {
+            clearTimeout(initialTimer);
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
     }, []);
 
     if (!updateAvailable) return null;

@@ -18,6 +18,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
+import { useRemindersStore } from '@/stores/useRemindersStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
@@ -90,13 +91,15 @@ export default function ServicesPage() {
         }))
     );
     const ensureDonationsLoaded = useDonationsStore((s) => s.ensureLoaded);
+    const ensureRemindersLoaded = useRemindersStore((s) => s.ensureLoaded);
 
     useEffect(() => {
         ensureServicesLoaded();
         ensureGuestsLoaded();
         ensureMealsLoaded();
         ensureDonationsLoaded();
-    }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded]);
+        ensureRemindersLoaded();
+    }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded, ensureRemindersLoaded]);
 
     const today = useMemo(() => pacificDateStringFrom(new Date().toISOString()), []);
 

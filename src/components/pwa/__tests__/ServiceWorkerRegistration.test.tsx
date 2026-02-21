@@ -4,15 +4,22 @@ import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { ServiceWorkerRegistration } from '../ServiceWorkerRegistration';
 
+// Mock APP_VERSION
+vi.mock('@/lib/utils/appVersion', () => ({
+    APP_VERSION: '1.0.0',
+}));
+
 describe('ServiceWorkerRegistration Component', () => {
     const originalEnv = process.env;
     let swMessageListeners: Map<string, ((...args: any[]) => void)[]>;
     let registrationResult: any;
     let addEventListenerSpy: ReturnType<typeof vi.spyOn>;
     let reloadMock: ReturnType<typeof vi.fn>;
+    let fetchMock: ReturnType<typeof vi.fn>;
 
     beforeEach(() => {
         vi.resetModules();
+        vi.useFakeTimers();
         process.env = { ...originalEnv };
         swMessageListeners = new Map();
 
@@ -37,6 +44,13 @@ describe('ServiceWorkerRegistration Component', () => {
             configurable: true,
         });
 
+        // Mock fetch — default returns same version (no update)
+        fetchMock = vi.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ version: '1.0.0' }),
+        });
+        global.fetch = fetchMock;
+
         Object.defineProperty(global, 'navigator', {
             value: {
                 serviceWorker: {
@@ -57,6 +71,7 @@ describe('ServiceWorkerRegistration Component', () => {
     afterEach(() => {
         process.env = originalEnv;
         addEventListenerSpy.mockRestore();
+        vi.useRealTimers();
     });
 
     it('registers service worker in production', () => {
@@ -85,7 +100,6 @@ describe('ServiceWorkerRegistration Component', () => {
     });
 
     it('checks for updates periodically', async () => {
-        vi.useFakeTimers();
         process.env.NODE_ENV = 'production';
         const updateMock = vi.fn();
         registrationResult.update = updateMock;
@@ -97,11 +111,11 @@ describe('ServiceWorkerRegistration Component', () => {
             await Promise.resolve();
         });
 
-        vi.advanceTimersByTime(61 * 60 * 1000);
+        await act(async () => {
+            vi.advanceTimersByTime(61 * 60 * 1000);
+        });
 
         expect(updateMock).toHaveBeenCalled();
-
-        vi.useRealTimers();
     });
 
     it('shows update banner when SW_UPDATED message received', async () => {
@@ -159,7 +173,6 @@ describe('ServiceWorkerRegistration Component', () => {
 
     it('reloads page when Refresh Now is clicked', async () => {
         process.env.NODE_ENV = 'production';
-        const user = userEvent.setup();
 
         render(<ServiceWorkerRegistration />);
 
@@ -174,7 +187,9 @@ describe('ServiceWorkerRegistration Component', () => {
         });
 
         const refreshBtn = screen.getByRole('button', { name: 'Refresh Now' });
-        await user.click(refreshBtn);
+        act(() => {
+            refreshBtn.click();
+        });
 
         expect(reloadMock).toHaveBeenCalled();
     });
@@ -256,9 +271,89 @@ describe('ServiceWorkerRegistration Component', () => {
         });
 
         await act(async () => {
-            await new Promise(r => setTimeout(r, 10));
+            vi.advanceTimersByTime(10);
+            await Promise.resolve();
         });
 
         expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    // ── Version polling tests ──────────────────────────────────
+
+    it('shows update banner when /api/version returns a newer version', async () => {
+        process.env.NODE_ENV = 'development'; // skip SW registration to isolate polling
+
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ version: '2.0.0' }), // different from mocked '1.0.0'
+        });
+
+        render(<ServiceWorkerRegistration />);
+
+        // Trigger the 10s initial delay
+        await act(async () => {
+            vi.advanceTimersByTime(11_000);
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(fetchMock).toHaveBeenCalledWith('/api/version', { cache: 'no-store' });
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+
+    it('does not show update banner when server version matches', async () => {
+        process.env.NODE_ENV = 'development';
+
+        fetchMock.mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve({ version: '1.0.0' }), // same as client
+        });
+
+        render(<ServiceWorkerRegistration />);
+
+        await act(async () => {
+            vi.advanceTimersByTime(11_000);
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('handles fetch failure gracefully during version polling', async () => {
+        process.env.NODE_ENV = 'development';
+
+        fetchMock.mockRejectedValue(new Error('Network error'));
+
+        render(<ServiceWorkerRegistration />);
+
+        await act(async () => {
+            vi.advanceTimersByTime(11_000);
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        // Should not crash and should not show banner
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('polls periodically at VERSION_POLL_INTERVAL', async () => {
+        process.env.NODE_ENV = 'development';
+
+        render(<ServiceWorkerRegistration />);
+
+        // Initial check at 10s
+        await act(async () => {
+            vi.advanceTimersByTime(11_000);
+            await Promise.resolve();
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+
+        // Next check at 5 minutes
+        await act(async () => {
+            vi.advanceTimersByTime(5 * 60 * 1000);
+            await Promise.resolve();
+        });
+        expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 });

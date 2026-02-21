@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.0';
+export const APP_VERSION = '0.5.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.1',
+        date: 'February 21, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Guest Reminders on Services Page',
+                description: 'Reminders now load automatically on the Services page, so notes like "no extra shirt this week" appear in the shower and laundry sections without visiting Check-In first.',
+            },
+            {
+                type: 'fix',
+                title: 'App Update Notifications',
+                description: 'The "new version available" banner now reliably appears after every deployment. A background version check catches updates even when the service worker cache stays the same.',
+            },
+        ],
+    },
     {
         version: '0.5.0',
         date: 'February 21, 2026',

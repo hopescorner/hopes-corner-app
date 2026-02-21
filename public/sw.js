@@ -1,6 +1,8 @@
 /// <reference lib="webworker" />
 
-const CACHE_NAME = 'hopes-corner-v2';
+// IMPORTANT: Update this version when APP_VERSION changes in src/lib/utils/appVersion.ts
+const APP_VERSION = '0.5.1';
+const CACHE_NAME = `hopes-corner-v${APP_VERSION}`;
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
@@ -17,11 +19,11 @@ const PRECACHE_ASSETS = [
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            console.log('[SW] Precaching assets');
+            console.log('[SW] Precaching assets for version', APP_VERSION);
             return cache.addAll(PRECACHE_ASSETS);
         })
     );
-    // Activate immediately
+    // Activate immediately so the new version takes over
     self.skipWaiting();
 });
 
@@ -33,14 +35,16 @@ self.addEventListener('activate', (event) => {
             return Promise.all(
                 oldCaches.map((name) => caches.delete(name))
             ).then(() => {
-                // Notify all clients that a new version is active
-                if (oldCaches.length > 0) {
-                    self.clients.matchAll({ type: 'window' }).then((clients) => {
-                        clients.forEach((client) => {
-                            client.postMessage({ type: 'SW_UPDATED' });
+                // Always notify all clients that a new SW activated
+                // (covers both cache-name changes and fresh installs)
+                self.clients.matchAll({ type: 'window' }).then((clients) => {
+                    clients.forEach((client) => {
+                        client.postMessage({
+                            type: 'SW_UPDATED',
+                            version: APP_VERSION,
                         });
                     });
-                }
+                });
             });
         })
     );
