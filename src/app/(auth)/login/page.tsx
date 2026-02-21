@@ -162,8 +162,8 @@ export default function LoginPage() {
             <div className="w-full max-w-md relative z-10">
                 {/* Logo and Title */}
                 <div className="text-center mb-8">
-                    <div className="flex justify-center items-end gap-4 mb-4">
-                        <div className="w-16 h-16 lg:hidden opacity-80">
+                    <div className="flex justify-center items-center gap-4 mb-6">
+                        <div className="w-20 h-20 lg:hidden hover:scale-105 transition-transform">
                             <AnimatedChef />
                         </div>
                         <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-emerald-100 shadow-sm border border-emerald-200">
@@ -175,7 +175,7 @@ export default function LoginPage() {
                                 className="w-12 h-12"
                             />
                         </div>
-                        <div className="w-16 h-16 lg:hidden opacity-80">
+                        <div className="w-20 h-20 lg:hidden hover:scale-105 transition-transform">
                             <AnimatedGuest />
                         </div>
                     </div>
