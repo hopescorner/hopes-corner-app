@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { X, Bike, Star, AlertCircle, CheckCircle, Loader2, ClipboardList, Info } from 'lucide-react';
 import { useModalStore } from '@/stores/useModalStore';
 import { useServicesStore } from '@/stores/useServicesStore';
+import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
 import { cn } from '@/lib/utils/cn';
@@ -34,6 +35,7 @@ const REPAIR_TYPES = [
 export function BicycleRepairBookingModal() {
     const { bicyclePickerGuest, setBicyclePickerGuest } = useModalStore();
     const { addBicycleRecord } = useServicesStore();
+    const { guests } = useGuestsStore();
     const { addAction } = useActionHistoryStore();
 
     const [selectedRepairTypes, setSelectedRepairTypes] = useState<string[]>([]);
@@ -42,7 +44,11 @@ export function BicycleRepairBookingModal() {
 
     if (!bicyclePickerGuest) return null;
 
-    const bikeDescription = bicyclePickerGuest.bicycleDescription?.trim();
+    // Look up the fresh guest from the store so edits (e.g. adding a bicycle
+    // description) are reflected without reopening the modal.
+    const guest = (guests || []).find((g) => g.id === bicyclePickerGuest.id) || bicyclePickerGuest;
+
+    const bikeDescription = guest.bicycleDescription?.trim();
 
     const toggleRepairType = (type: string) => {
         setSelectedRepairTypes((prev) =>
@@ -70,13 +76,13 @@ export function BicycleRepairBookingModal() {
 
         setIsPending(true);
         try {
-            const record = await addBicycleRecord(bicyclePickerGuest.id, {
+            const record = await addBicycleRecord(guest.id, {
                 repairTypes: selectedRepairTypes,
                 notes,
             });
             if (record && record.id) {
-                addAction('BICYCLE_LOGGED', { recordId: record.id, guestId: bicyclePickerGuest.id });
-                toast.success(`Bicycle repair logged for ${bicyclePickerGuest.preferredName || bicyclePickerGuest.firstName}`);
+                addAction('BICYCLE_LOGGED', { recordId: record.id, guestId: guest.id });
+                toast.success(`Bicycle repair logged for ${guest.preferredName || guest.firstName}`);
             }
             setBicyclePickerGuest(null);
         } catch (error: any) {
@@ -103,7 +109,7 @@ export function BicycleRepairBookingModal() {
                         <div>
                             <h2 className="text-2xl font-black text-gray-900 tracking-tight">Bicycle Repair</h2>
                             <p className="text-sm text-gray-500 font-medium">
-                                Logging for <span className="text-amber-600 font-bold">{bicyclePickerGuest.preferredName || bicyclePickerGuest.name}</span>
+                                Logging for <span className="text-amber-600 font-bold">{guest.preferredName || guest.name}</span>
                             </p>
                         </div>
                     </div>
@@ -118,7 +124,7 @@ export function BicycleRepairBookingModal() {
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
                     {/* Guest Reminders */}
-                    <ServiceCardReminder guestId={bicyclePickerGuest.id} serviceType="bicycle" />
+                    <ServiceCardReminder guestId={guest.id} serviceType="bicycle" />
                     
                     {/* Bike Info Banner */}
                     {bikeDescription ? (
