@@ -355,6 +355,32 @@ describe('ShowerDetailModal', () => {
             });
         });
 
+        it('closes the modal after marking as done successfully', async () => {
+            mockUpdateShowerStatus.mockResolvedValue(true);
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            const markDoneButton = screen.getByText('Mark as Done').closest('button');
+            fireEvent.click(markDoneButton!);
+
+            await waitFor(() => {
+                expect(defaultProps.onClose).toHaveBeenCalled();
+            });
+        });
+
+        it('does NOT close the modal when marking as done fails', async () => {
+            mockUpdateShowerStatus.mockResolvedValue(false);
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            const markDoneButton = screen.getByText('Mark as Done').closest('button');
+            fireEvent.click(markDoneButton!);
+
+            await waitFor(() => {
+                expect(mockUpdateShowerStatus).toHaveBeenCalledWith('shower-1', 'done');
+            });
+
+            expect(defaultProps.onClose).not.toHaveBeenCalled();
+        });
+
         it('shows error toast when marking as done fails', async () => {
             const toast = await import('react-hot-toast');
             mockUpdateShowerStatus.mockResolvedValue(false);

@@ -99,6 +99,7 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
             const success = await updateShowerStatus(record.id, 'done');
             if (success) {
                 toast.success(`Shower marked as done for ${guest.preferredName || guest.firstName || 'Guest'}`);
+                onClose();
             } else {
                 toast.error('Failed to update shower status');
             }
