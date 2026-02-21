@@ -400,7 +400,7 @@ describe('ShowerDetailModal', () => {
         });
     });
 
-    describe('Disabled When Done', () => {
+    describe('Amenities When Done', () => {
         const doneRecord = { ...mockRecord, status: 'done' };
 
         it('shows "Shower Completed" banner instead of "Mark as Done" button when done', () => {
@@ -409,7 +409,7 @@ describe('ShowerDetailModal', () => {
             expect(screen.queryByText('Mark as Done')).toBeNull();
         });
 
-        it('disables all amenity item buttons when shower is done', () => {
+        it('keeps amenity item buttons enabled when shower is done', () => {
             mockCheckAvailability.mockReturnValue({ available: true });
             render(<ShowerDetailModal {...defaultProps} record={doneRecord} />);
 
@@ -417,14 +417,14 @@ describe('ShowerDetailModal', () => {
             const jacketButton = screen.getByText('Jacket').closest('button') as HTMLButtonElement;
             const tentButton = screen.getByText('Tent').closest('button') as HTMLButtonElement;
 
-            expect(tshirtButton?.disabled).toBe(true);
-            expect(jacketButton?.disabled).toBe(true);
-            expect(tentButton?.disabled).toBe(true);
+            expect(tshirtButton?.disabled).toBe(false);
+            expect(jacketButton?.disabled).toBe(false);
+            expect(tentButton?.disabled).toBe(false);
         });
 
-        it('shows "Disabled — shower complete" label in amenities header when done', () => {
+        it('does not show "Disabled" label when shower is done', () => {
             render(<ShowerDetailModal {...defaultProps} record={doneRecord} />);
-            expect(screen.getByText('Disabled — shower complete')).toBeDefined();
+            expect(screen.queryByText('Disabled — shower complete')).toBeNull();
         });
 
         it('does not show "Disabled" label when shower is not done', () => {
@@ -440,14 +440,17 @@ describe('ShowerDetailModal', () => {
             expect(tshirtButton?.disabled).toBe(false);
         });
 
-        it('does not call giveItem when amenity is clicked in done state', () => {
+        it('calls giveItem when amenity is clicked in done state', async () => {
             mockCheckAvailability.mockReturnValue({ available: true });
+            mockGiveItem.mockResolvedValue({ id: 'item-1' });
             render(<ShowerDetailModal {...defaultProps} record={doneRecord} />);
 
             const tshirtButton = screen.getByText('T-Shirt').closest('button') as HTMLButtonElement;
             fireEvent.click(tshirtButton!);
 
-            expect(mockGiveItem).not.toHaveBeenCalled();
+            await waitFor(() => {
+                expect(mockGiveItem).toHaveBeenCalledWith('guest-1', 'tshirt');
+            });
         });
     });
 });
