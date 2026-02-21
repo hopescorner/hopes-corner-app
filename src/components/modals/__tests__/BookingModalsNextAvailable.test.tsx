@@ -4,7 +4,7 @@ import React from 'react';
 import { ShowerBookingModal } from '../ShowerBookingModal';
 import { LaundryBookingModal } from '../LaundryBookingModal';
 import { useServicesStore } from '@/stores/useServicesStore';
-import { generateShowerSlots, generateLaundrySlots } from '@/lib/utils/serviceSlots';
+import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
 
 let mockRole: 'checkin' | 'staff' = 'staff';
 
@@ -407,8 +407,9 @@ describe('LaundryBookingModal — Staff Offsite & Blocked Slots', () => {
     });
 
     it('shows "Blocked" indicator for blocked laundry slots in staff grid', () => {
+        const blockedSlot = generateLaundrySlots()[0];
         mockIsSlotBlocked.mockImplementation((...args: any[]) =>
-            args[1] === '07:30 - 08:30'
+            args[1] === blockedSlot
         );
 
         render(<LaundryBookingModal />);
@@ -416,16 +417,17 @@ describe('LaundryBookingModal — Staff Offsite & Blocked Slots', () => {
     });
 
     it('disables blocked laundry slot buttons', () => {
+        const blockedSlot = generateLaundrySlots()[0];
         mockIsSlotBlocked.mockImplementation((...args: any[]) =>
-            args[1] === '07:30 - 08:30'
+            args[1] === blockedSlot
         );
 
         render(<LaundryBookingModal />);
-        const blockedButtons = screen.getAllByRole('button').filter(b =>
-            b.textContent?.includes('Blocked')
-        );
-        expect(blockedButtons.length).toBeGreaterThanOrEqual(1);
-        expect(blockedButtons[0]).toBeDisabled();
+        const blockedButton = screen.getByRole('button', {
+            name: new RegExp(formatSlotLabel(blockedSlot), 'i')
+        });
+        expect(blockedButton).toBeDisabled();
+        expect(screen.getByText('Blocked')).toBeDefined();
     });
 
     it('shows "All on-site slots are booked" when all onsite slots are taken in staff view', () => {
