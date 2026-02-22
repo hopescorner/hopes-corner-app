@@ -273,3 +273,65 @@ describe('parsePacificDateParts', () => {
         expect(parsePacificDateParts('')).toBeNull();
     });
 });
+
+// ──────── Service-day average for current month ────────
+
+describe('Unique guests per service day — current month cap', () => {
+    const serviceDays = [1, 3, 5, 6]; // Mon, Wed, Fri, Sat
+
+    /**
+     * Mirror the validDaysCount logic from MealReport.
+     * For the current month, only count service days up to `today`
+     * (not the entire month), so the average isn't diluted.
+     */
+    function countServiceDays(
+        year: number,
+        month: number, // 0-based
+        selectedDays: number[],
+        isCurrentMonth: boolean,
+        todayDate: number, // day-of-month for "now"
+    ) {
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const lastCountableDay = isCurrentMonth
+            ? Math.min(daysInMonth, todayDate)
+            : daysInMonth;
+        let count = 0;
+        for (let day = 1; day <= lastCountableDay; day++) {
+            const d = new Date(year, month, day);
+            if (selectedDays.includes(d.getDay())) count++;
+        }
+        return count;
+    }
+
+    it('past month counts all service days in the full month', () => {
+        // January 2026 has 31 days
+        const count = countServiceDays(2026, 0, serviceDays, false, 15);
+        // Mon(5,12,19,26)=4 + Wed(7,14,21,28)=4 + Fri(2,9,16,23,30)=5 + Sat(3,10,17,24,31)=5 = 18
+        expect(count).toBe(18);
+    });
+
+    it('current month only counts service days up to today', () => {
+        // February 2026, today is the 15th
+        const count = countServiceDays(2026, 1, serviceDays, true, 15);
+        // Feb 1-15 service days: Mon(2,9)=2 + Wed(4,11)=2 + Fri(6,13)=2 + Sat(7,14)=2 = 8
+        expect(count).toBe(8);
+    });
+
+    it('current month on last day equals full-month count', () => {
+        // February 2026 has 28 days, today is the 28th
+        const full = countServiceDays(2026, 1, serviceDays, false, 28);
+        const current = countServiceDays(2026, 1, serviceDays, true, 28);
+        expect(current).toBe(full);
+    });
+
+    it('average is higher when only elapsed service days are counted', () => {
+        const uniqueGuests = 200;
+        // Feb 2026, today is the 14th (2 weeks in)
+        const elapsedDays = countServiceDays(2026, 1, serviceDays, true, 14);
+        const fullMonthDays = countServiceDays(2026, 1, serviceDays, false, 14);
+        const avgElapsed = uniqueGuests / elapsedDays;
+        const avgFull = uniqueGuests / fullMonthDays;
+        // Elapsed avg should be ≥ full-month avg (fewer days → higher per-day number)
+        expect(avgElapsed).toBeGreaterThanOrEqual(avgFull);
+    });
+});

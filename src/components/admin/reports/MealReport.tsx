@@ -163,9 +163,15 @@ export const MealReport = () => {
             const monthLabel = `${monthNames[targetMonth]} ${targetYear}`;
 
             const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
+            const isCurrentMonth = monthOffset === 0;
+            const now = new Date();
+            // For the current month, only count service days up to today
+            const lastCountableDay = isCurrentMonth
+                ? Math.min(daysInMonth, now.getDate())
+                : daysInMonth;
             let validDaysCount = 0;
 
-            for (let day = 1; day <= daysInMonth; day++) {
+            for (let day = 1; day <= lastCountableDay; day++) {
                 const date = new Date(targetYear, targetMonth, day);
                 if (selectedDays.includes(date.getDay())) validDaysCount++;
             }
