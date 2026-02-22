@@ -43,6 +43,16 @@ export const CHANGELOG: ChangelogEntry[] = [
                 title: 'Bicycle Undo Fix',
                 description: 'Fixed a bug where undoing a bicycle booking would attempt to delete the record twice.',
             },
+            {
+                type: 'fix',
+                title: 'Chart Tooltip Fix',
+                description: 'Chart tooltips on mobile are now fully opaque and no longer hidden behind other elements.',
+            },
+            {
+                type: 'improvement',
+                title: 'Mobile-Optimized Charts',
+                description: 'All graphs now scale gracefully on smaller screens with reduced margins, compact labels, and stacked pie-chart layouts.',
+            },
         ],
     },
     {
