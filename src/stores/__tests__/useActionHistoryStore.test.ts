@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useActionHistoryStore } from '../useActionHistoryStore';
+import { MAX_ACTION_HISTORY, useActionHistoryStore } from '../useActionHistoryStore';
 import { useMealsStore } from '../useMealsStore';
 import { useServicesStore } from '../useServicesStore';
 
@@ -122,6 +122,17 @@ describe('useActionHistoryStore', () => {
             expect(state.actionHistory.length).toBe(3);
             expect(state.actionHistory[0].type).toBe('LAUNDRY_BOOKED'); // Most recent first
             expect(state.actionHistory[2].type).toBe('MEAL_ADDED'); // Oldest last
+        });
+
+        it('caps history size to MAX_ACTION_HISTORY', () => {
+            const { addAction } = useActionHistoryStore.getState();
+            for (let i = 0; i < MAX_ACTION_HISTORY + 25; i++) {
+                addAction('MEAL_ADDED', { recordId: `r-${i}`, guestId: 'g1' });
+            }
+
+            const state = useActionHistoryStore.getState();
+            expect(state.actionHistory.length).toBe(MAX_ACTION_HISTORY);
+            expect(state.actionHistory[0].data.recordId).toBe(`r-${MAX_ACTION_HISTORY + 24}`);
         });
     });
 

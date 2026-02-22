@@ -18,6 +18,14 @@ import {
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 
+const OPERATIONAL_WINDOW_DAYS = 45;
+
+const getOperationalSince = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - OPERATIONAL_WINDOW_DAYS);
+    return d.toISOString();
+};
+
 interface ShowerRecord {
     id: string;
     guestId: string;
@@ -87,6 +95,9 @@ interface ServicesState {
     bicycleRecords: BicycleRecord[];
     haircutRecords: HaircutRecord[];
     holidayRecords: HolidayRecord[];
+    isLoaded: boolean;
+    isLoading: boolean;
+    lastLoadedAt?: string;
 
     addShowerRecord: (guestId: string, time?: string, serviceDate?: string, initialStatus?: 'booked' | 'done') => Promise<ShowerRecord | Partial<ShowerRecord>>;
     addShowerWaitlist: (guestId: string, serviceDate?: string) => Promise<ShowerRecord | Partial<ShowerRecord>>;
@@ -106,6 +117,7 @@ interface ServicesState {
     deleteHaircutRecord: (recordId: string) => Promise<void>;
     addHolidayRecord: (guestId: string) => Promise<HolidayRecord | Partial<HolidayRecord>>;
     deleteHolidayRecord: (recordId: string) => Promise<void>;
+    ensureLoaded: (options?: { force?: boolean; since?: string }) => Promise<void>;
     loadFromSupabase: () => Promise<void>;
     clearServiceRecords: () => void;
     getTodayShowers: () => ShowerRecord[];
@@ -127,6 +139,9 @@ export const useServicesStore = create<ServicesState>()(
                     bicycleRecords: [],
                     haircutRecords: [],
                     holidayRecords: [],
+                    isLoaded: false,
+                    isLoading: false,
+                    lastLoadedAt: undefined,
 
                     // Shower Actions
                     addShowerRecord: async (guestId: string, time: string | null = null, serviceDate?: string, initialStatus: 'booked' | 'done' = 'booked') => {
@@ -694,20 +709,35 @@ export const useServicesStore = create<ServicesState>()(
                     },
 
                     // Load from Supabase
-                    loadFromSupabase: async () => {
+                    ensureLoaded: async ({ force = false, since }: { force?: boolean; since?: string } = {}) => {
+                        if (!force && get().isLoaded) return;
+                        if (get().isLoading) {
+                            if (!force) return;
+                            while (get().isLoading) {
+                                await new Promise((resolve) => setTimeout(resolve, 25));
+                            }
+                        }
+
+                        set((state) => {
+                            state.isLoading = true;
+                        });
+
                         const supabase = createClient();
                         try {
+                            const effectiveSince = since || getOperationalSince();
                             const [showerRows, laundryRows, bicycleRows, haircutRows, holidayRows] = await Promise.all([
-                                getCachedShowerRecords(),
-                                getCachedLaundryRecords(),
-                                getCachedBicycleRecords(),
+                                getCachedShowerRecords({ since: effectiveSince, pageSize: 500 }),
+                                getCachedLaundryRecords({ since: effectiveSince, pageSize: 500 }),
+                                getCachedBicycleRecords({ since: effectiveSince, pageSize: 500 }),
                                 // Haircuts and holidays still use direct queries (not in cached)
                                 fetchAllPaginated(supabase, {
                                     table: 'haircut_visits',
                                     select: 'id,guest_id,served_at,service_date,created_at',
                                     orderBy: 'created_at',
                                     ascending: false,
-                                    pageSize: 1000,
+                                    pageSize: 500,
+                                    sinceColumn: 'created_at',
+                                    sinceValue: effectiveSince,
                                     mapper: mapHaircutRow,
                                 }),
                                 fetchAllPaginated(supabase, {
@@ -715,7 +745,9 @@ export const useServicesStore = create<ServicesState>()(
                                     select: 'id,guest_id,served_at,visit_date,created_at',
                                     orderBy: 'created_at',
                                     ascending: false,
-                                    pageSize: 1000,
+                                    pageSize: 500,
+                                    sinceColumn: 'created_at',
+                                    sinceValue: effectiveSince,
                                     mapper: mapHolidayRow,
                                 }),
                             ]);
@@ -726,10 +758,20 @@ export const useServicesStore = create<ServicesState>()(
                                 state.bicycleRecords = (bicycleRows || []) as any;
                                 state.haircutRecords = (haircutRows || []) as any;
                                 state.holidayRecords = (holidayRows || []) as any;
+                                state.isLoaded = true;
+                                state.lastLoadedAt = new Date().toISOString();
                             });
                         } catch (error) {
                             console.error('Failed to load service records from Supabase:', error);
+                        } finally {
+                            set((state) => {
+                                state.isLoading = false;
+                            });
                         }
+                    },
+
+                    loadFromSupabase: async () => {
+                        await get().ensureLoaded({ force: true });
                     },
 
                     clearServiceRecords: () => {
@@ -788,6 +830,7 @@ export const useServicesStore = create<ServicesState>()(
                 })),
                 {
                     name: 'hopes-corner-services',
+                    partialize: () => ({}),
                 }
             )
         ),

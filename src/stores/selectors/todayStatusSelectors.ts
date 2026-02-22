@@ -12,6 +12,7 @@ import { useMealsStore, MealRecord } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
 
 export interface TodayMealStatus {
     hasMeal: boolean;
@@ -19,6 +20,10 @@ export interface TodayMealStatus {
     mealCount: number;
     extraMealCount: number;
     totalMeals: number;
+    /** Whether the guest has reached the daily meal limit (base + extra). */
+    hasReachedMealLimit: boolean;
+    /** Whether the guest has reached the daily extra meal limit. */
+    hasReachedExtraMealLimit: boolean;
 }
 
 export interface TodayServiceStatus {
@@ -36,6 +41,7 @@ export interface TodayServiceStatus {
 
 export interface TodayGuestActions {
     mealActionId?: string;
+    extraMealActionId?: string;
     showerActionId?: string;
     laundryActionId?: string;
     bicycleActionId?: string;
@@ -94,13 +100,17 @@ export function useTodayMealStatusMap(): MealStatusMap {
                 if (existing) {
                     existing.mealCount += record.count || 1;
                     existing.totalMeals += record.count || 1;
+                    existing.hasReachedMealLimit = existing.totalMeals >= MAX_TOTAL_MEALS_PER_DAY;
                 } else {
+                    const count = record.count || 1;
                     map.set(record.guestId, {
                         hasMeal: true,
                         mealRecord: record,
-                        mealCount: record.count || 1,
+                        mealCount: count,
                         extraMealCount: 0,
-                        totalMeals: record.count || 1,
+                        totalMeals: count,
+                        hasReachedMealLimit: count >= MAX_TOTAL_MEALS_PER_DAY,
+                        hasReachedExtraMealLimit: false,
                     });
                 }
             }
@@ -114,12 +124,16 @@ export function useTodayMealStatusMap(): MealStatusMap {
                 if (existing) {
                     existing.extraMealCount += count;
                     existing.totalMeals += count;
+                    existing.hasReachedMealLimit = existing.totalMeals >= MAX_TOTAL_MEALS_PER_DAY;
+                    existing.hasReachedExtraMealLimit = existing.extraMealCount >= MAX_EXTRA_MEALS_PER_DAY;
                 } else {
                     map.set(record.guestId, {
                         hasMeal: false,
                         mealCount: 0,
                         extraMealCount: count,
                         totalMeals: count,
+                        hasReachedMealLimit: count >= MAX_TOTAL_MEALS_PER_DAY,
+                        hasReachedExtraMealLimit: count >= MAX_EXTRA_MEALS_PER_DAY,
                     });
                 }
             }
@@ -237,6 +251,9 @@ export function useTodayActionStatusMap(): ActionStatusMap {
                 case 'MEAL_ADDED':
                     if (!entry.mealActionId) entry.mealActionId = action.id;
                     break;
+                case 'EXTRA_MEALS_ADDED':
+                    if (!entry.extraMealActionId) entry.extraMealActionId = action.id;
+                    break;
                 case 'SHOWER_BOOKED':
                     if (!entry.showerActionId) entry.showerActionId = action.id;
                     break;
@@ -280,6 +297,8 @@ export const defaultMealStatus: TodayMealStatus = {
     mealCount: 0,
     extraMealCount: 0,
     totalMeals: 0,
+    hasReachedMealLimit: false,
+    hasReachedExtraMealLimit: false,
 };
 
 export const defaultServiceStatus: TodayServiceStatus = {

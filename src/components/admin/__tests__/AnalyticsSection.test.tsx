@@ -8,6 +8,7 @@ import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
 import { useModalStore } from '@/stores/useModalStore';
+import { todayPacificDateString } from '@/lib/utils/date';
 
 // Mock stores
 vi.mock('@/stores/useMealsStore', () => ({
@@ -65,7 +66,7 @@ vi.mock('recharts', () => ({
 }));
 
 describe('AnalyticsSection Demographic Filters', () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayPacificDateString();
 
     const mockGuests = [
         { id: 'g1', location: 'Mountain View', age: 'Adult 18-59', gender: 'Male', housingStatus: 'Unhoused' },
@@ -251,7 +252,7 @@ describe('AnalyticsSection Demographic Filters', () => {
 });
 
 describe('AnalyticsSection Meal Type Filters', () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayPacificDateString();
 
     const mockGuests = [
         { id: 'g1', location: 'Mountain View', age: 'Adult 18-59', gender: 'Male', housingStatus: 'Unhoused' },
@@ -358,7 +359,7 @@ describe('AnalyticsSection Meal Type Filters', () => {
 });
 
 describe('AnalyticsSection Multiple Filter Combinations', () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayPacificDateString();
 
     it('handles combination of demographic filters and meal type filters', () => {
         const mockGuests = [
@@ -473,7 +474,7 @@ describe('AnalyticsSection Multiple Filter Combinations', () => {
 });
 
 describe('AnalyticsSection Overview and Trends data', () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayPacificDateString();
 
     beforeEach(() => {
         vi.clearAllMocks();
@@ -571,7 +572,7 @@ describe('AnalyticsSection Overview and Trends data', () => {
 });
 
 describe('AnalyticsSection Demographics program-aware filtering', () => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayPacificDateString();
 
     const mockGuests = [
         { id: 'g1', location: 'Mountain View', age: 'Adult 18-59', gender: 'Male', housingStatus: 'Unhoused' },
@@ -658,5 +659,70 @@ describe('AnalyticsSection Demographics program-aware filtering', () => {
 
         // Only showers selected: g1 and g2 have done shower records
         expect(screen.getByText(/2 active guests/i)).toBeDefined();
+    });
+});
+
+describe('AnalyticsSection Trends chart — Pacific timezone alignment', () => {
+    const today = todayPacificDateString();
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+
+        vi.mocked(useMealsStore).mockImplementation((selector: any) => {
+            const state = {
+                mealRecords: [{ date: today, dateKey: today, guestId: 'g1', count: 5 }],
+                rvMealRecords: [],
+                extraMealRecords: [],
+                dayWorkerMealRecords: [],
+                shelterMealRecords: [],
+                unitedEffortMealRecords: [],
+                lunchBagRecords: [],
+                holidayRecords: [],
+                haircutRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = {
+                showerRecords: [{ date: today, dateKey: today, guestId: 'g1', status: 'done' }],
+                laundryRecords: [],
+                bicycleRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useGuestsStore).mockImplementation((selector: any) => {
+            const state = { guests: [{ id: 'g1', location: 'Mountain View', age: 'Adult 18-59', gender: 'Male', housingStatus: 'Unhoused' }] };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useDonationsStore).mockReturnValue({} as any);
+    });
+
+    it('displays today date range using Pacific timezone in the overview', () => {
+        render(<AnalyticsSection />);
+
+        // Click "Today" preset
+        fireEvent.click(screen.getByText('Today'));
+
+        // The Unique Guests card shows "1 day from M/D/YYYY to M/D/YYYY"
+        const todayFormatted = new Date(today + 'T12:00:00').toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
+        expect(screen.getByText(new RegExp(`1 day.*${todayFormatted.replace('/', '\\/')}`))).toBeDefined();
+    });
+
+    it('counts today meals under the correct Pacific day', async () => {
+        render(<AnalyticsSection />);
+
+        // Overview should show today's meal count
+        expect(screen.getByText('5')).toBeDefined();
+    });
+
+    it('uses Pacific date string for date range computation', () => {
+        render(<AnalyticsSection />);
+
+        // The "Unique Guests Served" card shows the date range — verify it includes today
+        const todayFormatted = new Date(today + 'T12:00:00').toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' });
+        expect(screen.getByText(new RegExp(todayFormatted))).toBeDefined();
     });
 });

@@ -94,6 +94,9 @@ interface GuestsState {
     guests: Guest[];
     guestProxies: GuestProxy[];
     warnings: GuestWarning[];
+    isLoaded: boolean;
+    isLoading: boolean;
+    lastLoadedAt?: string;
 
     syncGuests: (externalGuests: Guest[]) => void;
     addGuest: (guest: any) => Promise<Guest>;
@@ -104,6 +107,7 @@ interface GuestsState {
     removeGuest: (id: string) => Promise<void>;
     banGuest: (guestId: string, options: any) => Promise<boolean>;
     clearGuestBan: (guestId: string) => Promise<boolean>;
+    ensureLoaded: (options?: { force?: boolean; since?: string }) => Promise<void>;
     loadFromSupabase: () => Promise<void>;
     loadGuestWarningsFromSupabase: () => Promise<void>;
     loadGuestProxiesFromSupabase: () => Promise<void>;
@@ -128,6 +132,9 @@ export const useGuestsStore = create<GuestsState>()(
                 guests: [],
                 guestProxies: [],
                 warnings: [],
+                isLoaded: false,
+                isLoading: false,
+                lastLoadedAt: undefined,
 
                 syncGuests: (externalGuests) => {
                     set((state) => {
@@ -512,7 +519,14 @@ export const useGuestsStore = create<GuestsState>()(
                     return true;
                 },
 
-                loadFromSupabase: async () => {
+                ensureLoaded: async ({ force = false }: { force?: boolean; since?: string } = {}) => {
+                    if (!force && get().isLoaded) return;
+                    if (get().isLoading) return;
+
+                    set((state) => {
+                        state.isLoading = true;
+                    });
+
                     try {
                         // Use cached query to prevent duplicate fetches
                         const guestsData = await getCachedGuests();
@@ -522,11 +536,21 @@ export const useGuestsStore = create<GuestsState>()(
                                 ...g,
                                 housingStatus: normalizeHousingStatus(g.housingStatus),
                             })) as any;
+                            state.isLoaded = true;
+                            state.lastLoadedAt = new Date().toISOString();
                         });
                         clearSearchIndexCache();
                     } catch (error) {
                         console.error('Failed to load guests from Supabase:', error);
+                    } finally {
+                        set((state) => {
+                            state.isLoading = false;
+                        });
                     }
+                },
+
+                loadFromSupabase: async () => {
+                    await get().ensureLoaded({ force: true });
                 },
 
                 loadGuestWarningsFromSupabase: async () => {
@@ -678,6 +702,7 @@ export const useGuestsStore = create<GuestsState>()(
             })),
             {
                 name: 'hopes-corner-guests-v2',
+                partialize: () => ({}),
             }
         ),
         { name: 'GuestsStore' }

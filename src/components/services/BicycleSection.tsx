@@ -85,11 +85,16 @@ export function BicycleSection() {
         );
     }, [bicycleRecords, viewDate]);
 
-    // Group records by status
+    // Group records by status, sorted earliest to latest
+    const sortByTime = (a: any, b: any) => {
+        const priorityDiff = (a.priority || 0) - (b.priority || 0);
+        if (priorityDiff !== 0) return priorityDiff;
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+    };
     const groupedRecords = useMemo(() => ({
-        [BICYCLE_REPAIR_STATUS.PENDING]: dateFilteredRecords.filter(r => r.status === BICYCLE_REPAIR_STATUS.PENDING),
-        [BICYCLE_REPAIR_STATUS.IN_PROGRESS]: dateFilteredRecords.filter(r => r.status === BICYCLE_REPAIR_STATUS.IN_PROGRESS),
-        [BICYCLE_REPAIR_STATUS.DONE]: dateFilteredRecords.filter(r => r.status === BICYCLE_REPAIR_STATUS.DONE),
+        [BICYCLE_REPAIR_STATUS.PENDING]: dateFilteredRecords.filter(r => r.status === BICYCLE_REPAIR_STATUS.PENDING).sort(sortByTime),
+        [BICYCLE_REPAIR_STATUS.IN_PROGRESS]: dateFilteredRecords.filter(r => r.status === BICYCLE_REPAIR_STATUS.IN_PROGRESS).sort(sortByTime),
+        [BICYCLE_REPAIR_STATUS.DONE]: dateFilteredRecords.filter(r => r.status === BICYCLE_REPAIR_STATUS.DONE).sort(sortByTime),
     }), [dateFilteredRecords]);
 
     // Get guest details

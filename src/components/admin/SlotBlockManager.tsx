@@ -97,7 +97,7 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
         }
     };
 
-    const slots = serviceType === 'shower' ? generateShowerSlots() : generateLaundrySlots();
+    const slots = serviceType === 'shower' ? generateShowerSlots(selectedDate) : generateLaundrySlots(selectedDate);
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-full">

@@ -257,8 +257,14 @@ export function LaundrySection() {
     const handleStatusChange = useCallback(async (record: any, newStatus: string) => {
         if (!record || isViewingPast) return;
 
+        // Always read the freshest record from the store to avoid stale closure data
+        // (e.g. bag number saved on the card but drag handler still has old reference)
+        const freshRecord = useServicesStore.getState().laundryRecords.find(
+            (r: any) => r.id === record.id
+        ) || record;
+
         // Check if we need to prompt for bag number
-        if (requiresBagPrompt(record, newStatus)) {
+        if (requiresBagPrompt(freshRecord, newStatus)) {
             const manualBag = window.prompt('A bag number is required before moving out of waiting. Enter one to continue.');
             const trimmedBag = (manualBag || '').trim();
             if (!trimmedBag) {
@@ -474,7 +480,17 @@ export function LaundrySection() {
                     >
                     <div className="flex gap-4 overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide">
                         {STATUS_COLUMNS.map((column) => {
-                            const columnRecords = onsiteLaundry.filter(r => r.status === column.id);
+                            const columnRecords = onsiteLaundry.filter(r => r.status === column.id).sort((a, b) => {
+                                const parseSlot = (slot: string | null | undefined): number => {
+                                    if (!slot) return Number.POSITIVE_INFINITY;
+                                    const [start] = String(slot).split(' - ');
+                                    const [h, m] = String(start).split(':');
+                                    return parseInt(h, 10) * 60 + parseInt(m, 10);
+                                };
+                                const timeDiff = parseSlot(a.time) - parseSlot(b.time);
+                                if (timeDiff !== 0) return timeDiff;
+                                return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+                            });
                             const Icon = column.icon;
 
                             return (
@@ -681,7 +697,7 @@ export function LaundrySection() {
                                 column.id === 'pending'
                                     ? (r.status === 'pending' || r.status === 'waiting')
                                     : r.status === column.id
-                            );
+                            ).sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
                             const Icon = column.icon;
 
                             return (

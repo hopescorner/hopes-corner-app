@@ -2,6 +2,17 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import React from 'react';
 
+// Mock next/dynamic to avoid async chunk loader side effects in smoke tests
+vi.mock('next/dynamic', () => ({
+    default: (loader: unknown, options?: { loading?: React.ComponentType }) => {
+        const MockDynamicComponent = () => {
+            const Loading = options?.loading;
+            return Loading ? <Loading /> : null;
+        };
+        return MockDynamicComponent;
+    },
+}));
+
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
     useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
@@ -9,6 +20,31 @@ vi.mock('next/navigation', () => ({
     useSearchParams: () => new URLSearchParams(),
     redirect: vi.fn(),
 }));
+
+// Keep check-in smoke test lightweight and deterministic
+vi.mock('@tanstack/react-virtual', () => ({
+    useWindowVirtualizer: () => ({
+        getTotalSize: () => 0,
+        getVirtualItems: () => [],
+        scrollToIndex: vi.fn(),
+        measure: vi.fn(),
+        measureElement: vi.fn(),
+    }),
+}));
+
+vi.mock('@/components/checkin/MealServiceTimer', () => ({ MealServiceTimer: () => null }));
+vi.mock('@/components/checkin/TodayStats', () => ({ TodayStats: () => null }));
+vi.mock('@/components/checkin/ServiceStatusOverview', () => ({ ServiceStatusOverview: () => null }));
+vi.mock('@/components/checkin/DailyNotesSection', () => ({ DailyNotesSection: () => null }));
+vi.mock('../(protected)/check-in/page', () => ({
+    default: () => <div>Find or Add Guests</div>,
+}));
+
+// Mock admin components to prevent async import leaks during test teardown
+vi.mock('@/components/admin/reports/MonthlyReportGenerator', () => ({ default: () => null }));
+vi.mock('@/components/admin/reports/MealReport', () => ({ MealReport: () => null }));
+vi.mock('@/components/admin/reports/MonthlySummaryReport', () => ({ default: () => null }));
+vi.mock('@/components/admin/DataExportSection', () => ({ DataExportSection: () => null }));
 
 // Mock next-auth/react
 vi.mock('next-auth/react', () => ({
@@ -19,6 +55,17 @@ vi.mock('next-auth/react', () => ({
 // Mock auth from config (for server components)
 vi.mock('@/lib/auth/config', () => ({
     auth: vi.fn(async () => ({ user: { role: 'admin', name: 'Admin' } })),
+}));
+
+// Mock Supabase client to prevent unhandled fetches
+vi.mock('@/lib/supabase/client', () => ({
+    createClient: vi.fn(() => ({
+        from: vi.fn(() => ({
+            select: vi.fn(() => ({
+                order: vi.fn(() => ({ data: [], error: null }))
+            }))
+        }))
+    }))
 }));
 
 // Mock stores
@@ -35,12 +82,13 @@ vi.mock('@/stores/useServicesStore', () => ({
                 haircutRecords: [],
                 holidayRecords: [],
                 fetchTodaysRecords: vi.fn(),
+                ensureLoaded: vi.fn(),
                 loadFromSupabase: vi.fn(),
             };
             return typeof selector === 'function' ? selector(state) : state;
         }),
         {
-            subscribe: vi.fn(() => () => {}),
+            subscribe: vi.fn(() => () => { }),
             getState: vi.fn(() => ({
                 showerRecords: mockShowerRecords,
                 laundryRecords: mockLaundryRecords,
@@ -61,6 +109,7 @@ vi.mock('@/stores/useMealsStore', () => ({
             lunchBagRecords: [],
             holidayRecords: [],
             haircutRecords: [],
+            ensureLoaded: vi.fn(),
             loadFromSupabase: vi.fn(),
         };
         return typeof selector === 'function' ? selector(state) : state;
@@ -74,6 +123,7 @@ vi.mock('@/stores/useGuestsStore', () => ({
             warnings: [],
             guestProxies: [],
             searchGuests: vi.fn(),
+            ensureLoaded: vi.fn(),
             loadFromSupabase: vi.fn(),
             loadGuestWarningsFromSupabase: vi.fn(),
             loadGuestProxiesFromSupabase: vi.fn(),
@@ -110,7 +160,8 @@ vi.mock('@/stores/useBlockedSlotsStore', () => ({
 vi.mock('@/stores/useDonationsStore', () => ({
     useDonationsStore: vi.fn((selector) => {
         const state = {
-            donations: [],
+            donationRecords: [],
+            ensureLoaded: vi.fn(),
             loadFromSupabase: vi.fn(),
         };
         return typeof selector === 'function' ? selector(state) : state;
@@ -140,8 +191,10 @@ vi.mock('@/stores/useDailyNotesStore', () => ({
     useDailyNotesStore: vi.fn(() => ({
         notes: [],
         isLoading: false,
+        isLoaded: true,
+        ensureLoaded: vi.fn(() => Promise.resolve()),
         loadFromSupabase: vi.fn(() => Promise.resolve()),
-        subscribeToRealtime: vi.fn(() => () => {}),
+        subscribeToRealtime: vi.fn(() => () => { }),
         addOrUpdateNote: vi.fn(() => Promise.resolve()),
         deleteNote: vi.fn(() => Promise.resolve()),
         getNotesForDate: vi.fn(() => []),
@@ -166,6 +219,8 @@ vi.mock('@/stores/selectors/todayStatusSelectors', () => ({
         mealCount: 0,
         extraMealCount: 0,
         totalMeals: 0,
+        hasReachedMealLimit: false,
+        hasReachedExtraMealLimit: false,
     },
     defaultServiceStatus: {
         hasShower: false,

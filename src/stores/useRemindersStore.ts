@@ -22,8 +22,10 @@ export interface GuestReminder {
 interface RemindersState {
     reminders: GuestReminder[];
     isLoading: boolean;
+    isLoaded: boolean;
 
     // Core actions
+    ensureLoaded: () => Promise<void>;
     loadFromSupabase: () => Promise<void>;
     addReminder: (guestId: string, options: {
         message: string;
@@ -46,6 +48,13 @@ export const useRemindersStore = create<RemindersState>()(
             // State
             reminders: [],
             isLoading: false,
+            isLoaded: false,
+
+            // Ensure loaded (idempotent)
+            ensureLoaded: async () => {
+                if (get().isLoaded || get().isLoading) return;
+                await get().loadFromSupabase();
+            },
 
             // Load all reminders from Supabase
             loadFromSupabase: async () => {
@@ -66,6 +75,7 @@ export const useRemindersStore = create<RemindersState>()(
                     const mapped = (data || []).map(mapGuestReminderRow);
                     set((state) => {
                         state.reminders = mapped as GuestReminder[];
+                        state.isLoaded = true;
                     });
                 } catch (error) {
                     console.error('Error loading reminders:', error);

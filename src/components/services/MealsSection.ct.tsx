@@ -45,15 +45,16 @@ test.describe('MealsSection', () => {
     const component = await mount(<MealsSectionStory />);
     // Primary stat cards
     await expect(component.getByText('Total Meals')).toBeVisible();
-    await expect(component.getByText('Guest Meals')).toBeVisible();
+    await expect(component.getByRole('paragraph').filter({ hasText: 'Guest Meals' })).toBeVisible();
     await expect(component.getByText('Proxy Pickups')).toBeVisible();
-    await expect(component.getByText('Lunch Bags')).toBeVisible();
-    // Distribution details (compact stats)
+    await expect(component.getByRole('paragraph').filter({ hasText: 'Lunch Bags' })).toBeVisible();
+    // Distribution details (compact stats) — scope to stats section to avoid filter dropdown collisions
+    const distributionSection = component.locator('.border-t').first();
     await expect(component.getByText('Extra', { exact: true })).toBeVisible();
     await expect(component.getByText('RV', { exact: true })).toBeVisible();
-    await expect(component.getByText('Day Worker', { exact: true })).toBeVisible();
-    await expect(component.getByText('Shelter', { exact: true })).toBeVisible();
-    await expect(component.getByText('United Effort', { exact: true })).toBeVisible();
+    await expect(distributionSection.getByText('Day Worker', { exact: true })).toBeVisible();
+    await expect(distributionSection.getByText('Shelter', { exact: true })).toBeVisible();
+    await expect(distributionSection.getByText('United Effort', { exact: true })).toBeVisible();
   });
 
   test('highlights proxy pickups with handshake badge and picked-up-by text', async ({ mount }) => {

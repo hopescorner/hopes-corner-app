@@ -20,8 +20,11 @@ export interface DailyNote {
 interface DailyNotesState {
     notes: DailyNote[];
     isLoading: boolean;
+    isLoaded: boolean;
+    lastLoadedAt?: string;
 
     // CRUD operations
+    ensureLoaded: (options?: { force?: boolean; since?: string }) => Promise<void>;
     loadFromSupabase: () => Promise<void>;
     addOrUpdateNote: (
         noteDate: string,
@@ -48,17 +51,23 @@ export const useDailyNotesStore = create<DailyNotesState>()(
             immer((set, get) => ({
                 notes: [],
                 isLoading: false,
+                isLoaded: false,
+                lastLoadedAt: undefined,
 
                 // Load all notes from Supabase
-                loadFromSupabase: async () => {
+                ensureLoaded: async ({ force = false, since }: { force?: boolean; since?: string } = {}) => {
+                    if (!force && get().isLoaded) return;
+                    if (get().isLoading) return;
+
                     const supabase = createClient();
                     set((state) => { state.isLoading = true; });
 
                     try {
-                        const { data, error } = await supabase
+                        const query = supabase
                             .from('daily_notes')
                             .select('*')
                             .order('note_date', { ascending: false });
+                        const { data, error } = since ? await query.gte('note_date', since) : await query;
 
                         if (error) {
                             console.error('Failed to load daily notes from Supabase:', error);
@@ -68,12 +77,18 @@ export const useDailyNotesStore = create<DailyNotesState>()(
                         const mapped = (data || []).map(mapDailyNoteRow) as DailyNote[];
                         set((state) => {
                             state.notes = mapped;
+                            state.isLoaded = true;
+                            state.lastLoadedAt = new Date().toISOString();
                         });
                     } catch (error) {
                         console.error('Error loading daily notes:', error);
                     } finally {
                         set((state) => { state.isLoading = false; });
                     }
+                },
+
+                loadFromSupabase: async () => {
+                    await get().ensureLoaded({ force: true });
                 },
 
                 // Add or update a note (upsert on note_date + service_type)

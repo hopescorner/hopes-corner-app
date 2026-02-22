@@ -5,6 +5,8 @@ import { useServicesStore } from './useServicesStore';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 
+export const MAX_ACTION_HISTORY = 300;
+
 export type ActionType =
     | 'MEAL_ADDED'
     | 'EXTRA_MEALS_ADDED'
@@ -47,7 +49,7 @@ export const useActionHistoryStore = create<ActionHistoryState>()(
                     data,
                 };
                 set((state) => ({
-                    actionHistory: [newAction, ...state.actionHistory],
+                    actionHistory: [newAction, ...state.actionHistory].slice(0, MAX_ACTION_HISTORY),
                 }));
             },
 
@@ -96,7 +98,6 @@ export const useActionHistoryStore = create<ActionHistoryState>()(
                         }
                         case 'BICYCLE_LOGGED': {
                             const { deleteBicycleRecord } = useServicesStore.getState();
-                            await deleteBicycleRecord(action.data.recordId);
                             await deleteBicycleRecord(action.data.recordId);
                             break;
                         }

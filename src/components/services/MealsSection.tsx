@@ -47,6 +47,8 @@ export function MealsSection() {
     const [individualGuestId, setIndividualGuestId] = useState('');
     const [individualMealCount, setIndividualMealCount] = useState(1);
     const [isPendingIndividual, setIsPendingIndividual] = useState(false);
+    const [activityFilter, setActivityFilter] = useState<string>('all');
+    const [isBatchDeleting, setIsBatchDeleting] = useState(false);
 
     const {
         mealRecords,
@@ -155,6 +157,31 @@ export function MealsSection() {
             .filter((r) => (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate)
             .sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
     }, [selectedDate, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords]);
+
+    const filteredHistory = useMemo(() => {
+        if (activityFilter === 'all') return history;
+        return history.filter((r) => r.type === activityFilter);
+    }, [history, activityFilter]);
+
+    const handleBatchDeleteLunchBags = async () => {
+        const lunchBagItems = history.filter((r) => r.type === 'lunch_bag');
+        if (lunchBagItems.length === 0) {
+            toast.error('No lunch bag records to delete');
+            return;
+        }
+        if (!confirm(`Delete all ${lunchBagItems.length} lunch bag record${lunchBagItems.length > 1 ? 's' : ''} for this date?`)) return;
+
+        setIsBatchDeleting(true);
+        try {
+            await Promise.all(lunchBagItems.map((r) => deleteBulkMealRecord(r.id, 'lunch_bag')));
+            toast.success(`Deleted ${lunchBagItems.length} lunch bag record${lunchBagItems.length > 1 ? 's' : ''}`);
+        } catch (error) {
+            console.error('Failed to batch delete lunch bags:', error);
+            toast.error('Failed to delete some lunch bag records');
+        } finally {
+            setIsBatchDeleting(false);
+        }
+    };
 
     const handleEdit = (record: any) => {
         setEditingId(record.id);
@@ -530,15 +557,50 @@ export function MealsSection() {
 
             {/* History List */}
             <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-8 border-b border-gray-50 flex items-center justify-between">
+                <div className="p-8 border-b border-gray-50 flex items-center justify-between flex-wrap gap-3">
                     <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <History size={16} /> Activity Log ({history.length})
+                        <History size={16} /> Activity Log ({filteredHistory.length}{activityFilter !== 'all' ? ` of ${history.length}` : ''})
                     </h3>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-100 px-2 py-1">
+                            <Filter size={12} className="text-gray-400" />
+                            <select
+                                value={activityFilter}
+                                onChange={(e) => setActivityFilter(e.target.value)}
+                                className="text-xs font-bold text-gray-700 bg-transparent border-none outline-none cursor-pointer pr-1"
+                                aria-label="Filter activity log"
+                            >
+                                <option value="all">All Types</option>
+                                <option value="guest">Guest Meals</option>
+                                <option value="extra">Extra Meals</option>
+                                <option value="rv">RV Meals</option>
+                                <option value="day_worker">Day Worker</option>
+                                <option value="shelter">Shelter</option>
+                                <option value="lunch_bag">Lunch Bags</option>
+                                <option value="united_effort">United Effort</option>
+                            </select>
+                        </div>
+                        {activityFilter === 'lunch_bag' && filteredHistory.length > 0 && (
+                            <button
+                                onClick={handleBatchDeleteLunchBags}
+                                disabled={isBatchDeleting}
+                                className={cn(
+                                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                                    isBatchDeleting
+                                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                        : "bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200"
+                                )}
+                            >
+                                <Trash2 size={12} />
+                                {isBatchDeleting ? 'Deleting...' : `Delete All (${filteredHistory.length})`}
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
                     <AnimatePresence mode="popLayout">
-                        {history.map((record) => {
+                        {filteredHistory.map((record) => {
                             const Icon = getRecordIcon(record.type);
                             const isEditing = editingId === record.id;
 
@@ -638,10 +700,12 @@ export function MealsSection() {
                         })}
                     </AnimatePresence>
 
-                    {history.length === 0 && (
+                    {filteredHistory.length === 0 && (
                         <div className="py-20 text-center opacity-40">
                             <Utensils size={48} className="mx-auto mb-4" />
-                            <p className="font-black text-sm uppercase tracking-widest">No meals logged for this date</p>
+                            <p className="font-black text-sm uppercase tracking-widest">
+                                {activityFilter !== 'all' ? `No ${activityFilter.replace('_', ' ')} records for this date` : 'No meals logged for this date'}
+                            </p>
                         </div>
                     )}
                 </div>

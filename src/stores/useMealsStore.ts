@@ -13,7 +13,16 @@ import {
     mapHolidayRow,
     mapHaircutRow,
 } from '@/lib/utils/mappers';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, parsePacificDateParts } from '@/lib/utils/date';
+import { MAX_BASE_MEALS_PER_DAY, MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
+
+const OPERATIONAL_WINDOW_DAYS = 45;
+
+const getOperationalSince = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - OPERATIONAL_WINDOW_DAYS);
+    return d.toISOString();
+};
 
 export interface MealRecord {
     id: string;
@@ -56,6 +65,9 @@ interface MealsState {
     lunchBagRecords: MealRecord[];
     holidayRecords: HolidayRecord[];
     haircutRecords: HaircutRecord[];
+    isLoaded: boolean;
+    isLoading: boolean;
+    lastLoadedAt?: string;
 
     addMealRecord: (guestId: string, quantity?: number, pickedUpByGuestId?: string | null, serviceDate?: string) => Promise<MealRecord>;
     deleteMealRecord: (recordId: string) => Promise<void>;
@@ -77,6 +89,10 @@ interface MealsState {
     // Automation
     checkAndAddAutomaticMeals: () => Promise<void>;
 
+    /** Returns today's base meal count, extra meal count, and total for a specific guest. */
+    getTodayMealCountsForGuest: (guestId: string, serviceDate?: string) => { baseMeals: number; extraMeals: number; totalMeals: number };
+
+    ensureLoaded: (options?: { force?: boolean; since?: string }) => Promise<void>;
     loadFromSupabase: () => Promise<void>;
     clearMealRecords: () => void;
     // Getters for specific days are useful helpers
@@ -106,12 +122,47 @@ export const useMealsStore = create<MealsState>()(
                     lunchBagRecords: [],
                     holidayRecords: [],
                     haircutRecords: [],
+                    isLoaded: false,
+                    isLoading: false,
+                    lastLoadedAt: undefined,
+
+                    // Helper: count today's meals for a guest
+                    getTodayMealCountsForGuest: (guestId: string, serviceDate?: string) => {
+                        const targetDate = serviceDate || todayPacificDateString();
+                        const { mealRecords, extraMealRecords } = get();
+                        const dateKey = (r: any) => r?.dateKey || pacificDateStringFrom(r.date);
+
+                        let baseMeals = 0;
+                        for (const r of mealRecords) {
+                            if (r.guestId === guestId && dateKey(r) === targetDate) {
+                                baseMeals += r.count || 1;
+                            }
+                        }
+
+                        let extraMeals = 0;
+                        for (const r of extraMealRecords) {
+                            if (r.guestId === guestId && dateKey(r) === targetDate) {
+                                extraMeals += r.count || 1;
+                            }
+                        }
+
+                        return { baseMeals, extraMeals, totalMeals: baseMeals + extraMeals };
+                    },
 
                     // Meal Actions
                     addMealRecord: async (guestId: string, quantity = 1, pickedUpByGuestId: string | null = null, serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
 
                         const targetDate = serviceDate || todayPacificDateString();
+
+                        // Enforce daily meal limit
+                        const { baseMeals, totalMeals } = get().getTodayMealCountsForGuest(guestId, targetDate);
+                        if (baseMeals + quantity > MAX_BASE_MEALS_PER_DAY) {
+                            throw new Error(`Guest already has ${baseMeals} base meal${baseMeals !== 1 ? 's' : ''} today (max ${MAX_BASE_MEALS_PER_DAY})`);
+                        }
+                        if (totalMeals + quantity > MAX_TOTAL_MEALS_PER_DAY) {
+                            throw new Error(`Guest already has ${totalMeals} total meal${totalMeals !== 1 ? 's' : ''} today (max ${MAX_TOTAL_MEALS_PER_DAY})`);
+                        }
                         const supabase = createClient();
 
                         const payload: any = {
@@ -138,16 +189,20 @@ export const useMealsStore = create<MealsState>()(
                             state.mealRecords.push(mapped);
                         });
 
-                        // Auto-add lunch bag
-                        try {
-                            await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
-                            // If proxy pickup, add another? Logic from old app:
-                            // "If proxy pickup (different guest picked up), add additional lunch bag for the proxy guest"
-                            if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
-                                await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', undefined, targetDate);
+                        // Auto-add lunch bag (skip Fridays — no lunch bags on Fridays)
+                        const dateParts = parsePacificDateParts(targetDate);
+                        const isFriday = dateParts?.dayOfWeek === 5;
+                        if (!isFriday) {
+                            try {
+                                await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
+                                // If proxy pickup, add another? Logic from old app:
+                                // "If proxy pickup (different guest picked up), add additional lunch bag for the proxy guest"
+                                if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+                                    await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', undefined, targetDate);
+                                }
+                            } catch (err) {
+                                console.error('Failed to auto-add lunch bag', err);
                             }
-                        } catch (err) {
-                            console.error('Failed to auto-add lunch bag', err);
                         }
 
                         return mapped;
@@ -231,8 +286,18 @@ export const useMealsStore = create<MealsState>()(
 
                     // Extra Meal Actions
                     addExtraMealRecord: async (guestId: string, quantity = 1) => {
-                        const supabase = createClient();
                         const todayStr = todayPacificDateString();
+
+                        // Enforce daily meal limit
+                        const { extraMeals, totalMeals } = get().getTodayMealCountsForGuest(guestId, todayStr);
+                        if (extraMeals + quantity > MAX_EXTRA_MEALS_PER_DAY) {
+                            throw new Error(`Guest already has ${extraMeals} extra meal${extraMeals !== 1 ? 's' : ''} today (max ${MAX_EXTRA_MEALS_PER_DAY})`);
+                        }
+                        if (totalMeals + quantity > MAX_TOTAL_MEALS_PER_DAY) {
+                            throw new Error(`Guest has reached the daily meal limit of ${MAX_TOTAL_MEALS_PER_DAY}`);
+                        }
+
+                        const supabase = createClient();
 
                         const payload = {
                             guest_id: guestId,
@@ -539,13 +604,26 @@ export const useMealsStore = create<MealsState>()(
                     },
 
                     // Load from Supabase
-                    loadFromSupabase: async () => {
+                    ensureLoaded: async ({ force = false, since }: { force?: boolean; since?: string } = {}) => {
+                        if (!force && get().isLoaded) return;
+                        if (get().isLoading) {
+                            if (!force) return;
+                            while (get().isLoading) {
+                                await new Promise((resolve) => setTimeout(resolve, 25));
+                            }
+                        }
+
+                        set((state) => {
+                            state.isLoading = true;
+                        });
+
                         try {
+                            const effectiveSince = since || getOperationalSince();
                             // Use cached queries to prevent duplicate fetches in parallel loads
                             const [mealRows, holidayRows, haircutRows] = await Promise.all([
-                                getCachedMealRecords(),
-                                getCachedHolidayRecords(),
-                                getCachedHaircutRecords(),
+                                getCachedMealRecords({ since: effectiveSince, pageSize: 500 }),
+                                getCachedHolidayRecords({ since: effectiveSince, pageSize: 500 }),
+                                getCachedHaircutRecords({ since: effectiveSince, pageSize: 500 }),
                             ]);
 
                             set((state) => {
@@ -562,10 +640,20 @@ export const useMealsStore = create<MealsState>()(
 
                                 state.holidayRecords = (holidayRows || []) as any;
                                 state.haircutRecords = (haircutRows || []) as any;
+                                state.isLoaded = true;
+                                state.lastLoadedAt = new Date().toISOString();
                             });
                         } catch (error) {
                             console.error('Failed to load meal records from Supabase:', error);
+                        } finally {
+                            set((state) => {
+                                state.isLoading = false;
+                            });
                         }
+                    },
+
+                    loadFromSupabase: async () => {
+                        await get().ensureLoaded({ force: true });
                     },
 
                     clearMealRecords: () => {
@@ -601,6 +689,7 @@ export const useMealsStore = create<MealsState>()(
                 })),
                 {
                     name: 'hopes-corner-meals',
+                    partialize: () => ({}),
                 }
             )
         ),

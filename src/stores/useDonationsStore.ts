@@ -24,12 +24,16 @@ export interface DonationRecord {
 
 interface DonationsState {
     donationRecords: DonationRecord[];
+    isLoaded: boolean;
+    isLoading: boolean;
+    lastLoadedAt?: string;
 
     // Actions
     addDonation: (donation: Partial<Donation>) => Promise<DonationRecord>;
     updateDonation: (id: string, updates: Partial<Donation>) => Promise<DonationRecord>;
     deleteDonation: (id: string) => Promise<void>;
 
+    ensureLoaded: (options?: { force?: boolean; since?: string }) => Promise<void>;
     loadFromSupabase: () => Promise<void>;
     getRecentDonations: (limit?: number) => DonationRecord[];
 }
@@ -40,6 +44,9 @@ export const useDonationsStore = create<DonationsState>()(
             persist(
                 immer((set, get) => ({
                     donationRecords: [],
+                    isLoaded: false,
+                    isLoading: false,
+                    lastLoadedAt: undefined,
 
                     addDonation: async (donation) => {
                         const supabase = createClient();
@@ -106,26 +113,52 @@ export const useDonationsStore = create<DonationsState>()(
                         });
                     },
 
-                    loadFromSupabase: async () => {
-                        const supabase = createClient();
-                        const { data: donations } = await supabase
-                            .from('donations')
-                            .select('*')
-                            .order('donated_at', { ascending: false })
-                            .limit(2000); // Reasonable limit for recent history
+                    ensureLoaded: async ({ force = false, since }: { force?: boolean; since?: string } = {}) => {
+                        if (!force && get().isLoaded) return;
+                        if (get().isLoading) return;
 
                         set((state) => {
-                            if (donations) state.donationRecords = donations.map(mapDonationRow);
+                            state.isLoading = true;
                         });
+
+                        const supabase = createClient();
+                        try {
+                            const query = supabase
+                                .from('donations')
+                                .select('*')
+                                .order('donated_at', { ascending: false })
+                                .limit(2000);
+
+                            const { data: donations } = since
+                                ? await query.gte('donated_at', since)
+                                : await query;
+
+                            set((state) => {
+                                if (donations) state.donationRecords = donations.map(mapDonationRow);
+                                state.isLoaded = true;
+                                state.lastLoadedAt = new Date().toISOString();
+                            });
+                        } finally {
+                            set((state) => {
+                                state.isLoading = false;
+                            });
+                        }
+                    },
+
+                    loadFromSupabase: async () => {
+                        await get().ensureLoaded({ force: true });
                     },
 
                     getRecentDonations: (limit = 5) => {
-                        return get().donationRecords
+                        return [...get().donationRecords]
                             .sort((a, b) => new Date(b.donated_at || b.created_at).getTime() - new Date(a.donated_at || a.created_at).getTime())
                             .slice(0, limit);
                     }
                 })),
-                { name: 'DonationsStore' }
+                {
+                    name: 'DonationsStore',
+                    partialize: () => ({}),
+                }
             )
         ),
         { name: 'DonationsStore' }

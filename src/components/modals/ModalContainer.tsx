@@ -1,11 +1,13 @@
 'use client';
 
 import { AnimatePresence } from 'framer-motion';
+import dynamic from 'next/dynamic';
 import { useModalStore } from '@/stores/useModalStore';
-import { ShowerBookingModal } from '@/components/modals/ShowerBookingModal';
-import { LaundryBookingModal } from '@/components/modals/LaundryBookingModal';
-import { BicycleRepairBookingModal } from '@/components/modals/BicycleRepairBookingModal';
-import { DailyNoteModal } from '@/components/modals/DailyNoteModal';
+
+const ShowerBookingModal = dynamic(() => import('@/components/modals/ShowerBookingModal').then((m) => m.ShowerBookingModal));
+const LaundryBookingModal = dynamic(() => import('@/components/modals/LaundryBookingModal').then((m) => m.LaundryBookingModal));
+const BicycleRepairBookingModal = dynamic(() => import('@/components/modals/BicycleRepairBookingModal').then((m) => m.BicycleRepairBookingModal));
+const DailyNoteModal = dynamic(() => import('@/components/modals/DailyNoteModal').then((m) => m.DailyNoteModal));
 
 export function ModalContainer() {
     const { showerPickerGuest, laundryPickerGuest, bicyclePickerGuest, notePickerContext } = useModalStore();

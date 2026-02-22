@@ -68,6 +68,7 @@ body:
         - ✅ Verify no regressions
         - ✅ Update documentation if applicable
         - ✅ I understand this feature is not complete until `src/lib/utils/appVersion.ts` is updated by bumping `APP_VERSION` (semver) and adding a concise non-technical `CHANGELOG` entry for staff.
+        - ✅ When `APP_VERSION` is bumped, also update `APP_VERSION` in `public/sw.js` to match so the service worker cache name stays in sync.
         - ✅ Share screenshot of new UI or feature
         
         ## Database Migration Requirements

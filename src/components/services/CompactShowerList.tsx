@@ -14,17 +14,18 @@ interface Props {
     records: any[];
     onGuestClick?: (guestId: string, recordId: string) => void;
     readOnly?: boolean;
+    waitlistQueueMap?: Map<string, number>;
 }
 
-const ShowerListRow = memo(({ record, guestName, onGuestClick, readOnly = false }: {
+const ShowerListRow = memo(({ record, guestName, onGuestClick, readOnly = false, queuePosition }: {
     record: any;
     guestName: string;
     onGuestClick?: (guestId: string, recordId: string) => void;
     readOnly?: boolean;
+    queuePosition?: number;
 }) => {
     const [isUpdating, setIsUpdating] = useState(false);
     const updateShowerStatus = useServicesStore((s) => s.updateShowerStatus);
-    const deleteShowerRecord = useServicesStore((s) => s.deleteShowerRecord);
 
     const handleStatusUpdate = useCallback(async (e: React.MouseEvent, newStatus: string) => {
         e.stopPropagation();
@@ -46,14 +47,18 @@ const ShowerListRow = memo(({ record, guestName, onGuestClick, readOnly = false 
         if (!window.confirm('Are you sure you want to cancel this shower?')) return;
         setIsUpdating(true);
         try {
-            await deleteShowerRecord(record.id);
-            toast.success('Shower cancelled');
+            const success = await updateShowerStatus(record.id, 'cancelled');
+            if (success) {
+                toast.success('Shower cancelled');
+            } else {
+                toast.error('Failed to cancel shower');
+            }
         } catch {
             toast.error('Failed to cancel shower');
         } finally {
             setIsUpdating(false);
         }
-    }, [record.id, readOnly, deleteShowerRecord]);
+    }, [record.id, readOnly, updateShowerStatus]);
 
     const isActive = record.status !== 'done' && record.status !== 'cancelled' && record.status !== 'no_show';
     const isDone = record.status === 'done';
@@ -70,9 +75,12 @@ const ShowerListRow = memo(({ record, guestName, onGuestClick, readOnly = false 
             <div className="flex items-center gap-3 min-w-0">
                 <div className={cn(
                     "w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm",
-                    record.status === 'done' ? 'bg-emerald-500' : 'bg-sky-500'
+                    record.status === 'done' ? 'bg-emerald-500' :
+                    record.status === 'waitlisted' ? 'bg-amber-500' : 'bg-sky-500'
                 )}>
-                    {record.status === 'waitlisted' ? <Clock size={14} /> : (
+                    {queuePosition != null ? (
+                        <span className="text-xs font-black">#{queuePosition}</span>
+                    ) : record.status === 'waitlisted' ? <Clock size={14} /> : (
                         record.time ? record.time.split(':')[0] : <User size={14} />
                     )}
                 </div>
@@ -89,7 +97,7 @@ const ShowerListRow = memo(({ record, guestName, onGuestClick, readOnly = false 
                         )}
                         {record.status === 'waitlisted' && (
                             <span className="text-amber-600 font-medium flex items-center gap-1">
-                                <AlertCircle size={10} /> Waitlisted
+                                <AlertCircle size={10} /> {queuePosition != null ? `Queue #${queuePosition}` : 'Waitlisted'}
                             </span>
                         )}
                     </div>
@@ -164,7 +172,7 @@ const ShowerListRow = memo(({ record, guestName, onGuestClick, readOnly = false 
 });
 ShowerListRow.displayName = "ShowerListRow";
 
-const CompactShowerList = memo(({ records, onGuestClick, readOnly = false }: Props) => {
+const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitlistQueueMap }: Props) => {
     const guests = useGuestsStore((s) => s.guests);
 
     const guestMap = useMemo(() => {
@@ -200,6 +208,7 @@ const CompactShowerList = memo(({ records, onGuestClick, readOnly = false }: Pro
                             guestName={guestName}
                             onGuestClick={onGuestClick}
                             readOnly={readOnly}
+                            queuePosition={waitlistQueueMap?.get(record.id)}
                         />
                     );
                 })}

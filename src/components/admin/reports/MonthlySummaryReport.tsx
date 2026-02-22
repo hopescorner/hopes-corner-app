@@ -11,7 +11,7 @@ import {
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
-import { pacificDateStringFrom } from '@/lib/utils/date';
+import { pacificDateStringFrom, parsePacificDateParts } from '@/lib/utils/date';
 
 const MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -156,6 +156,26 @@ const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
         isNumeric: true,
     },
     {
+        key: 'rvOther',
+        label: 'RV Other',
+        description: 'Meals delivered to RV community on days other than Mon/Thu/Wed/Sat.',
+        align: 'right',
+        headerBg: 'bg-orange-50',
+        cellBg: 'bg-orange-50/30',
+        totalCellBg: 'bg-orange-50',
+        isNumeric: true,
+    },
+    {
+        key: 'shelter',
+        label: 'Shelter',
+        description: 'Support meals sent to shelter guests.',
+        align: 'right',
+        headerBg: 'bg-orange-50',
+        cellBg: 'bg-orange-50/30',
+        totalCellBg: 'bg-orange-50',
+        isNumeric: true,
+    },
+    {
         key: 'extraMeals',
         label: 'Extra Meals',
         description: 'Additional hot meals plated beyond scheduled count (volunteers, seconds).',
@@ -212,7 +232,7 @@ const MEAL_TABLE_GROUPS = [
         key: 'outreach',
         title: 'Outreach & Partners',
         headerClass: 'bg-orange-50 text-orange-900',
-        columns: ['dayWorkerMeals', 'rvWedSat', 'rvMonThu']
+        columns: ['dayWorkerMeals', 'rvWedSat', 'rvMonThu', 'rvOther', 'shelter']
     },
     {
         key: 'production',
@@ -284,32 +304,14 @@ export default function MonthlySummaryReport() {
         return upcomingMonths.join(', ');
     }, [selectedYear, currentYear, currentMonth]);
 
-    const getDayOfWeek = useCallback((dateStr: string) => {
-        if (!dateStr) return null;
-        // Parse "YYYY-MM-DD" in Pacific time correctly
-        // We can just use new Date(dateStr) if it's ISO YYYY-MM-DD, 
-        // but `pacificDateStringFrom` returns YYYY-MM-DD.
-        // `new Date("2023-01-01")` is UTC usually. 
-        // Ideally we split and create date.
-        const [y, m, d] = dateStr.split('-').map(Number);
-        const date = new Date(y, m - 1, d);
-        return date.getDay();
-    }, []);
-
     const filterRecords = useCallback((records: any[], year: number, month: number, days?: number[]) => {
         return (records || []).filter(r => {
             if (!r.date) return false;
-            // r.date is ISO timestamp usually in Supabase, let's convert to date object
-            const d = new Date(r.date);
-            // This relies on the browser's timezone unless we handle timezone carefully.
-            // The old app used `new Date(record.date)` directly.
-            if (d.getFullYear() !== year || d.getMonth() !== month) return false;
-
+            const parts = parsePacificDateParts(r.date);
+            if (!parts) return false;
+            if (parts.year !== year || parts.month !== month) return false;
             if (days) {
-                // We need to double check if typical ISO string works for getDay() matches local
-                // If the app is used in Pacific time, this is "okay". 
-                // Better to rely on the stored date string if it's strictly YYYY-MM-DD
-                return days.includes(d.getDay());
+                return days.includes(parts.dayOfWeek);
             }
             return true;
         });
@@ -332,9 +334,9 @@ export default function MonthlySummaryReport() {
 
         allMealRecords.forEach((record: any) => {
             if (!record?.guestId || !record?.date) return;
-            const d = new Date(record.date);
-            const year = d.getFullYear();
-            const month = d.getMonth();
+            const parts = parsePacificDateParts(record.date);
+            if (!parts) return;
+            const { year, month } = parts;
 
             const existing = firstMealMap.get(record.guestId);
             if (!existing || year < existing.year || (year === existing.year && month < existing.month)) {
@@ -366,6 +368,8 @@ export default function MonthlySummaryReport() {
 
             const rvWedSat = sumQuantities(filterRecords(rvMealRecords, selectedYear, month, [3, 6]));
             const rvMonThu = sumQuantities(filterRecords(rvMealRecords, selectedYear, month, [1, 4]));
+            const rvAllDays = sumQuantities(filterRecords(rvMealRecords, selectedYear, month));
+            const rvOther = rvAllDays - rvWedSat - rvMonThu;
 
             const lunchBags = sumQuantities(filterRecords(lunchBagRecords, selectedYear, month));
             const shelter = sumQuantities(filterRecords(shelterMealRecords, selectedYear, month));
@@ -380,7 +384,7 @@ export default function MonthlySummaryReport() {
             }, 0);
 
             const totalHotMeals = mondayMeals + wednesdayMeals + saturdayMeals + fridayMeals +
-                dayWorker + extra + rvWedSat + rvMonThu + shelter + unitedEffort;
+                dayWorker + extra + rvWedSat + rvMonThu + rvOther + shelter + unitedEffort;
 
             const totalWithLunchBags = totalHotMeals + lunchBags;
 
@@ -406,7 +410,8 @@ export default function MonthlySummaryReport() {
                 uniqueGuests, newGuests, proxyPickups,
                 onsiteHotMeals,
                 dayWorkerMeals: dayWorker,
-                rvWedSat, rvMonThu,
+                rvWedSat, rvMonThu, rvOther,
+                shelter,
                 extraMeals: extra,
                 lunchBags,
                 totalHotMeals,
@@ -435,6 +440,8 @@ export default function MonthlySummaryReport() {
             dayWorkerMeals: months.reduce((s, m) => s + m.dayWorkerMeals, 0),
             rvWedSat: months.reduce((s, m) => s + m.rvWedSat, 0),
             rvMonThu: months.reduce((s, m) => s + m.rvMonThu, 0),
+            rvOther: months.reduce((s, m) => s + m.rvOther, 0),
+            shelter: months.reduce((s, m) => s + m.shelter, 0),
             extraMeals: months.reduce((s, m) => s + m.extraMeals, 0),
             lunchBags: months.reduce((s, m) => s + m.lunchBags, 0),
             totalHotMeals: months.reduce((s, m) => s + m.totalHotMeals, 0),

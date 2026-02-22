@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import {
     ClipboardList,
     BarChart3,
@@ -17,13 +18,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
-import { OverviewSection } from '@/components/services/OverviewSection';
-import { ShowersSection } from '@/components/services/ShowersSection';
-import { LaundrySection } from '@/components/services/LaundrySection';
-import { BicycleSection } from '@/components/services/BicycleSection';
-import { TimelineSection } from '@/components/services/TimelineSection';
-import { MealsSection } from '@/components/services/MealsSection';
-import { DonationsSection } from '@/components/services/DonationsSection';
+import { useRemindersStore } from '@/stores/useRemindersStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
@@ -40,34 +35,53 @@ const TABS = [
 
 import { useSearchParams, useRouter } from 'next/navigation';
 
+const TabSkeleton = () => <div className="h-80 w-full animate-pulse rounded-2xl bg-gray-100" />;
+const OverviewSection = dynamic(() => import('@/components/services/OverviewSection').then((m) => m.OverviewSection), { loading: TabSkeleton });
+const ShowersSection = dynamic(() => import('@/components/services/ShowersSection').then((m) => m.ShowersSection), { loading: TabSkeleton });
+const LaundrySection = dynamic(() => import('@/components/services/LaundrySection').then((m) => m.LaundrySection), { loading: TabSkeleton });
+const BicycleSection = dynamic(() => import('@/components/services/BicycleSection').then((m) => m.BicycleSection), { loading: TabSkeleton });
+const TimelineSection = dynamic(() => import('@/components/services/TimelineSection').then((m) => m.TimelineSection), { loading: TabSkeleton });
+const MealsSection = dynamic(() => import('@/components/services/MealsSection').then((m) => m.MealsSection), { loading: TabSkeleton });
+const DonationsSection = dynamic(() => import('@/components/services/DonationsSection').then((m) => m.DonationsSection), { loading: TabSkeleton });
+
 export default function ServicesPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const prefersReducedMotion = useReducedMotion();
+    const firstTabSwitchMarkRef = useRef(false);
+
+    const markPerf = useCallback((name: string) => {
+        if (typeof performance === 'undefined') return;
+        performance.mark(name);
+    }, []);
 
     // Use URL as source of truth for active tab
     const activeTab = searchParams.get('tab') || 'overview';
 
     const setActiveTab = (tabId: string) => {
+        if (!firstTabSwitchMarkRef.current) {
+            firstTabSwitchMarkRef.current = true;
+            markPerf('services:first-tab-switch');
+        }
         const params = new URLSearchParams(searchParams.toString());
         params.set('tab', tabId);
         router.push(`?${params.toString()}`, { scroll: false });
     };
 
-    const { loadFromSupabase: loadServices, showerRecords, laundryRecords, bicycleRecords } = useServicesStore(
+    const { ensureLoaded: ensureServicesLoaded, showerRecords, laundryRecords, bicycleRecords } = useServicesStore(
         useShallow((s) => ({
-            loadFromSupabase: s.loadFromSupabase,
+            ensureLoaded: s.ensureLoaded,
             showerRecords: s.showerRecords,
             laundryRecords: s.laundryRecords,
             bicycleRecords: s.bicycleRecords,
         }))
     );
-    const { loadFromSupabase: loadGuests, guests } = useGuestsStore(
-        useShallow((s) => ({ loadFromSupabase: s.loadFromSupabase, guests: s.guests }))
+    const { ensureLoaded: ensureGuestsLoaded, guests } = useGuestsStore(
+        useShallow((s) => ({ ensureLoaded: s.ensureLoaded, guests: s.guests }))
     );
-    const { loadFromSupabase: loadMeals, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, shelterMealRecords } = useMealsStore(
+    const { ensureLoaded: ensureMealsLoaded, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, shelterMealRecords } = useMealsStore(
         useShallow((s) => ({
-            loadFromSupabase: s.loadFromSupabase,
+            ensureLoaded: s.ensureLoaded,
             mealRecords: s.mealRecords,
             rvMealRecords: s.rvMealRecords,
             extraMealRecords: s.extraMealRecords,
@@ -76,14 +90,16 @@ export default function ServicesPage() {
             shelterMealRecords: s.shelterMealRecords,
         }))
     );
-    const loadDonations = useDonationsStore((s) => s.loadFromSupabase);
+    const ensureDonationsLoaded = useDonationsStore((s) => s.ensureLoaded);
+    const ensureRemindersLoaded = useRemindersStore((s) => s.ensureLoaded);
 
     useEffect(() => {
-        loadServices();
-        loadGuests();
-        loadMeals();
-        loadDonations();
-    }, [loadServices, loadGuests, loadMeals, loadDonations]);
+        ensureServicesLoaded();
+        ensureGuestsLoaded();
+        ensureMealsLoaded();
+        ensureDonationsLoaded();
+        ensureRemindersLoaded();
+    }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded, ensureRemindersLoaded]);
 
     const today = useMemo(() => pacificDateStringFrom(new Date().toISOString()), []);
 
@@ -97,56 +113,84 @@ export default function ServicesPage() {
         return pacificDateStringFrom(sunday.toISOString());
     }, []);
 
-    // Compute metrics for the overview
     const metrics = useMemo(() => {
         const dateKeyOf = (r: any) => r?.dateKey || pacificDateStringFrom(r.date);
+        const uniqueGuests = new Set<string>();
+        const laundryCompletedStatuses = new Set(['done', 'picked_up', 'returned', 'offsite_picked_up']);
+        const laundryActiveStatuses = new Set(['waiting', 'washer', 'dryer']);
 
-        const sumCountForToday = (records: any[]) =>
-            records.filter(r => dateKeyOf(r) === today).reduce((sum, r) => sum + (r.count || 0), 0);
+        let mealsToday = 0;
+        const addMealCount = (records: any[]) => {
+            for (const record of records) {
+                if (dateKeyOf(record) !== today) continue;
+                mealsToday += record.count || 0;
+                if (record.guestId) uniqueGuests.add(record.guestId);
+            }
+        };
+        addMealCount(mealRecords);
+        addMealCount(rvMealRecords);
+        addMealCount(extraMealRecords);
+        addMealCount(unitedEffortMealRecords);
+        addMealCount(dayWorkerMealRecords);
+        addMealCount(shelterMealRecords);
 
-        // Meals served today: all types EXCLUDING lunch bags
-        const mealsToday = (
-            sumCountForToday(mealRecords) +
-            sumCountForToday(rvMealRecords) +
-            sumCountForToday(extraMealRecords) +
-            sumCountForToday(unitedEffortMealRecords) +
-            sumCountForToday(dayWorkerMealRecords) +
-            sumCountForToday(shelterMealRecords)
-        );
-        
-        const uniqueGuestsToday = new Set([
-            ...mealRecords.filter(r => dateKeyOf(r) === today).map(r => r.guestId),
-            ...showerRecords.filter(r => dateKeyOf(r) === today).map(r => r.guestId),
-            ...laundryRecords.filter(r => dateKeyOf(r) === today).map(r => r.guestId),
-            ...bicycleRecords.filter(r => dateKeyOf(r) === today).map(r => r.guestId),
-        ]).size;
+        let showersDone = 0;
+        let showersActive = 0;
+        let showerWaitlist = 0;
+        let timelineShowers = 0;
+        for (const record of showerRecords) {
+            const dateKey = dateKeyOf(record);
+            if (dateKey !== today) continue;
+            timelineShowers += 1;
+            if (record.guestId) uniqueGuests.add(record.guestId);
+            if (record.status === 'done') showersDone += 1;
+            else if (record.status === 'waitlisted') showerWaitlist += 1;
+            else if (record.status === 'booked' || record.status === 'awaiting') showersActive += 1;
+        }
 
-        // Bicycle metrics - only show today's pending repairs
-        const bicyclesPending = bicycleRecords.filter(r => dateKeyOf(r) === today && r.status === 'pending').length;
-        const bicyclesCompletedThisWeek = bicycleRecords.filter(r => 
-            dateKeyOf(r) >= startOfWeek && r.status === 'done'
-        ).length;
+        let laundryTotal = 0;
+        let laundryActive = 0;
+        let laundryDone = 0;
+        let timelineLaundry = 0;
+        for (const record of laundryRecords) {
+            if (dateKeyOf(record) !== today) continue;
+            timelineLaundry += 1;
+            if (record.guestId) uniqueGuests.add(record.guestId);
+            if (laundryCompletedStatuses.has(record.status)) laundryTotal += 1;
+            if (laundryActiveStatuses.has(record.status)) laundryActive += 1;
+            if (record.status === 'done') laundryDone += 1;
+        }
 
-        // Laundry completed statuses
-        const laundryCompletedStatuses = ['done', 'picked_up', 'returned', 'offsite_picked_up'];
+        let bicyclesPending = 0;
+        let bicyclesCompletedThisWeek = 0;
+        for (const record of bicycleRecords) {
+            const dateKey = dateKeyOf(record);
+            if (dateKey === today && record.guestId) uniqueGuests.add(record.guestId);
+            if (dateKey === today && record.status === 'pending') bicyclesPending += 1;
+            if (dateKey >= startOfWeek && record.status === 'done') bicyclesCompletedThisWeek += 1;
+        }
+
+        let housed = 0;
+        let unsheltered = 0;
+        for (const guest of guests) {
+            if (guest.housingStatus === 'Housed') housed += 1;
+            if (guest.housingStatus === 'Unsheltered') unsheltered += 1;
+        }
 
         return {
             totalGuests: guests.length,
-            housingStatusSummary: `${guests.filter(g => g.housingStatus === 'Housed').length} housed · ${guests.filter(g => g.housingStatus === 'Unsheltered').length} unsheltered`,
+            housingStatusSummary: `${housed} housed · ${unsheltered} unsheltered`,
             mealsToday,
-            uniqueGuestsToday,
-            showersDone: showerRecords.filter(r => dateKeyOf(r) === today && r.status === 'done').length,
-            showersActive: showerRecords.filter(r => dateKeyOf(r) === today && (r.status === 'booked' || r.status === 'awaiting')).length,
-            showerWaitlist: showerRecords.filter(r => dateKeyOf(r) === today && r.status === 'waitlisted').length,
-            laundryTotal: laundryRecords.filter(r => dateKeyOf(r) === today && laundryCompletedStatuses.includes(r.status)).length,
-            laundryActive: laundryRecords.filter(r => dateKeyOf(r) === today && ['waiting', 'washer', 'dryer'].includes(r.status)).length,
-            laundryDone: laundryRecords.filter(r => dateKeyOf(r) === today && r.status === 'done').length,
+            uniqueGuestsToday: uniqueGuests.size,
+            showersDone,
+            showersActive,
+            showerWaitlist,
+            laundryTotal,
+            laundryActive,
+            laundryDone,
             bicyclesPending,
             bicyclesCompletedThisWeek,
-            timelineCount: (
-                showerRecords.filter(r => dateKeyOf(r) === today).length +
-                laundryRecords.filter(r => dateKeyOf(r) === today).length
-            )
+            timelineCount: timelineShowers + timelineLaundry,
         };
     }, [guests, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, shelterMealRecords, showerRecords, laundryRecords, bicycleRecords, today, startOfWeek]);
 

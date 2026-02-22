@@ -22,6 +22,7 @@ import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { cn } from '@/lib/utils/cn';
+import { parsePacificDateParts } from '@/lib/utils/date';
 
 // Types
 interface MonthOption {
@@ -35,6 +36,8 @@ interface ServiceStats {
     totalMeals: number;
     onsiteHotMeals: number;
     bagLunch: number;
+    rvMeals: number;
+    shelter: number;
     rvSafePark: number;
     dayWorker: number;
     showers: number;
@@ -150,11 +153,17 @@ export default function MonthlyReportGenerator() {
 
     // Calculate service statistics for a date range
     const calculateServiceStats = useCallback((startDate: Date, endDate: Date): ServiceStats => {
-        // Helper to check if date is in range
+        // Helper to check if a record's date falls within the range.
+        // Uses parsePacificDateParts to correctly handle ISO timestamps — avoids
+        // day-shifting bugs where new Date("2026-01-01") is interpreted as UTC midnight.
         const inRange = (dateStr: string | null | undefined) => {
             if (!dateStr) return false;
-            const date = new Date(dateStr);
-            return date >= startDate && date <= endDate;
+            const parts = parsePacificDateParts(dateStr);
+            if (!parts) return false;
+            // Reconstruct a local Date at noon from Pacific date parts for comparison
+            // against the local-time start/end boundaries.
+            const pacificDate = new Date(parts.year, parts.month, parts.day, 12, 0, 0, 0);
+            return pacificDate >= startDate && pacificDate <= endDate;
         };
 
         // Meals - filter by date field and sum counts
@@ -198,6 +207,8 @@ export default function MonthlyReportGenerator() {
             totalMeals,
             onsiteHotMeals,
             bagLunch: lunchBags,
+            rvMeals,
+            shelter: shelterMeals,
             rvSafePark: rvMeals + shelterMeals,
             dayWorker: dayWorkerMeals,
             showers: completedShowers,
@@ -475,25 +486,18 @@ export default function MonthlyReportGenerator() {
             const ytdColW = contentWidth * 0.22;
             const rowH = 7;
 
-            // Table header row
-            doc.setFillColor(245, 245, 250);
-            doc.rect(margin, yPosition - 4, contentWidth, rowH, 'F');
-            doc.setFillColor(...purple50);
-            doc.rect(monthColX, yPosition - 4, monthColW, rowH, 'F');
-            doc.setFillColor(...indigo50);
-            doc.rect(ytdColX, yPosition - 4, ytdColW, rowH, 'F');
-
-            doc.setFontSize(9);
+            // Table header row - clean with strong bottom border
+            doc.setFontSize(8);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(...gray600);
-            doc.text('Service', serviceColX + 2, yPosition);
-            doc.text('Month', monthColX + monthColW - 2, yPosition, { align: 'right' });
+            doc.text('SERVICE', serviceColX + 4, yPosition);
+            doc.text('MONTH', monthColX + monthColW - 2, yPosition, { align: 'right' });
             doc.text('YTD', ytdColX + ytdColW - 2, yPosition, { align: 'right' });
             yPosition += rowH;
 
-            // Draw line under header
-            doc.setDrawColor(229, 231, 235);
-            doc.setLineWidth(0.3);
+            // Strong line under header
+            doc.setDrawColor(209, 213, 219); // gray-300
+            doc.setLineWidth(0.5);
             doc.line(margin, yPosition - 3, margin + contentWidth, yPosition - 3);
 
             // Service stat rows with icons and colors
@@ -511,6 +515,8 @@ export default function MonthlyReportGenerator() {
                 { label: 'On-Site Hot Meals', month: reportData.monthStats.onsiteHotMeals, ytd: reportData.ytdStats.onsiteHotMeals, bold: false, indent: true },
                 { label: 'Bag Lunch', month: reportData.monthStats.bagLunch, ytd: reportData.ytdStats.bagLunch, bold: false, indent: true },
                 { label: 'RV / Safe Park', month: reportData.monthStats.rvSafePark, ytd: reportData.ytdStats.rvSafePark, bold: false, indent: true },
+                { label: '    RV Meals', month: reportData.monthStats.rvMeals, ytd: reportData.ytdStats.rvMeals, bold: false, indent: true },
+                { label: '    Shelter', month: reportData.monthStats.shelter, ytd: reportData.ytdStats.shelter, bold: false, indent: true },
                 { label: 'Day Worker', month: reportData.monthStats.dayWorker, ytd: reportData.ytdStats.dayWorker, bold: false, indent: true },
                 { label: 'Showers', month: reportData.monthStats.showers, ytd: reportData.ytdStats.showers, bold: true, iconColor: blue600 },
                 { label: 'Laundry', month: reportData.monthStats.laundry, ytd: reportData.ytdStats.laundry, bold: true, iconColor: cyan600 },
@@ -521,33 +527,34 @@ export default function MonthlyReportGenerator() {
 
             statsRows.forEach((row, idx) => {
                 const rowY = yPosition - 4;
+                const accentWidth = 1.5;
 
-                // Alternating subtle background for bold (main) rows
-                if (row.bold && row.label === 'Total Meals') {
-                    doc.setFillColor(250, 245, 255); // purple-50/50
+                // Colored left accent bar + subtle category background for bold rows
+                if (row.bold && row.iconColor) {
+                    // Subtle tinted background
+                    const [r, g, b] = row.iconColor;
+                    doc.setFillColor(
+                        Math.round(255 - (255 - r) * 0.06),
+                        Math.round(255 - (255 - g) * 0.06),
+                        Math.round(255 - (255 - b) * 0.06)
+                    );
                     doc.rect(margin, rowY, contentWidth, rowH, 'F');
-                }
-
-                // Month and YTD column backgrounds
-                if (row.bold) {
-                    doc.setFillColor(...purple50);
-                    doc.rect(monthColX, rowY, monthColW, rowH, 'F');
-                    doc.setFillColor(...indigo50);
-                    doc.rect(ytdColX, rowY, ytdColW, rowH, 'F');
-                } else {
-                    doc.setFillColor(250, 245, 255, 0.3);
-                    doc.rect(monthColX, rowY, monthColW, rowH, 'F');
-                    doc.setFillColor(238, 242, 255, 0.3);
-                    doc.rect(ytdColX, rowY, ytdColW, rowH, 'F');
+                    // Left accent bar
+                    doc.setFillColor(...row.iconColor);
+                    doc.rect(margin, rowY, accentWidth, rowH, 'F');
+                } else if (row.indent) {
+                    // Lighter accent for sub-rows (inherit parent purple)
+                    doc.setFillColor(230, 210, 255); // light purple
+                    doc.rect(margin, rowY, accentWidth, rowH, 'F');
                 }
 
                 // Icon dot for main service rows
-                const textX = row.indent ? serviceColX + 12 : serviceColX + 2;
+                const textX = row.indent ? serviceColX + 12 : serviceColX + 4;
                 if (row.iconColor && row.bold) {
-                    drawIconDot(serviceColX + 4, yPosition - 1.2, row.iconColor);
+                    drawIconDot(serviceColX + 6, yPosition - 1.2, row.iconColor);
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(...gray900);
-                    doc.text(row.label, serviceColX + 9, yPosition);
+                    doc.text(row.label, serviceColX + 11, yPosition);
                 } else {
                     doc.setFont('helvetica', 'normal');
                     doc.setTextColor(...gray600);
@@ -562,10 +569,17 @@ export default function MonthlyReportGenerator() {
                 // YTD value
                 doc.text(formatNumber(row.ytd), ytdColX + ytdColW - 2, yPosition, { align: 'right' });
 
-                // Bottom border
+                // Bottom border - thicker after the last sub-item, thin otherwise
+                const isLastMealSub = row.label === 'Day Worker';
+                const isBoldRow = row.bold;
                 if (idx < statsRows.length - 1) {
-                    doc.setDrawColor(243, 244, 246);
-                    doc.setLineWidth(0.2);
+                    if (isLastMealSub || isBoldRow) {
+                        doc.setDrawColor(209, 213, 219); // gray-300
+                        doc.setLineWidth(0.35);
+                    } else {
+                        doc.setDrawColor(243, 244, 246); // gray-100
+                        doc.setLineWidth(0.2);
+                    }
                     doc.line(margin, rowY + rowH, margin + contentWidth, rowY + rowH);
                 }
 
@@ -805,82 +819,103 @@ export default function MonthlyReportGenerator() {
                         </h3>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full">
+                            <table className="w-full border-collapse">
                                 <thead>
-                                    <tr className="border-b border-gray-200">
-                                        <th className="text-left py-3 px-4 text-sm font-bold text-gray-700">Service</th>
-                                        <th className="text-right py-3 px-4 text-sm font-bold text-gray-700 bg-purple-50">Month</th>
-                                        <th className="text-right py-3 px-4 text-sm font-bold text-gray-700 bg-indigo-50">YTD</th>
+                                    <tr className="border-b-2 border-gray-200">
+                                        <th className="text-left py-3 px-4 text-sm font-bold text-gray-700 uppercase tracking-wide">Service</th>
+                                        <th className="text-right py-3 px-4 text-sm font-bold text-gray-700 uppercase tracking-wide">Month</th>
+                                        <th className="text-right py-3 px-4 text-sm font-bold text-gray-700 uppercase tracking-wide">YTD</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr className="bg-purple-50/50 border-b border-gray-100">
+                                    {/* Meals section */}
+                                    <tr className="border-l-4 border-l-purple-500 bg-purple-50/40">
                                         <td className="py-3 px-4 font-bold text-gray-900 flex items-center gap-2">
                                             <Utensils size={16} className="text-purple-600" />
                                             Total Meals
                                         </td>
-                                        <td className="text-right py-3 px-4 font-bold text-gray-900 bg-purple-50">{formatNumber(reportData.monthStats.totalMeals)}</td>
-                                        <td className="text-right py-3 px-4 font-bold text-gray-900 bg-indigo-50">{formatNumber(reportData.ytdStats.totalMeals)}</td>
+                                        <td className="text-right py-3 px-4 font-bold text-gray-900">{formatNumber(reportData.monthStats.totalMeals)}</td>
+                                        <td className="text-right py-3 px-4 font-bold text-gray-900">{formatNumber(reportData.ytdStats.totalMeals)}</td>
                                     </tr>
-                                    <tr className="border-b border-gray-50">
+                                    <tr className="border-l-4 border-l-purple-200 border-b border-gray-100">
                                         <td className="py-2.5 px-4 pl-10 text-gray-600">On-Site Hot Meals</td>
-                                        <td className="text-right py-2.5 px-4 text-gray-700 bg-purple-50/30">{formatNumber(reportData.monthStats.onsiteHotMeals)}</td>
-                                        <td className="text-right py-2.5 px-4 text-gray-700 bg-indigo-50/30">{formatNumber(reportData.ytdStats.onsiteHotMeals)}</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.monthStats.onsiteHotMeals)}</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.ytdStats.onsiteHotMeals)}</td>
                                     </tr>
-                                    <tr className="border-b border-gray-50">
+                                    <tr className="border-l-4 border-l-purple-200 border-b border-gray-100">
                                         <td className="py-2.5 px-4 pl-10 text-gray-600">Bag Lunch</td>
-                                        <td className="text-right py-2.5 px-4 text-gray-700 bg-purple-50/30">{formatNumber(reportData.monthStats.bagLunch)}</td>
-                                        <td className="text-right py-2.5 px-4 text-gray-700 bg-indigo-50/30">{formatNumber(reportData.ytdStats.bagLunch)}</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.monthStats.bagLunch)}</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.ytdStats.bagLunch)}</td>
                                     </tr>
-                                    <tr className="border-b border-gray-50">
+                                    <tr className="border-l-4 border-l-purple-200 border-b border-gray-100">
                                         <td className="py-2.5 px-4 pl-10 text-gray-600">RV / Safe Park</td>
-                                        <td className="text-right py-2.5 px-4 text-gray-700 bg-purple-50/30">{formatNumber(reportData.monthStats.rvSafePark)}</td>
-                                        <td className="text-right py-2.5 px-4 text-gray-700 bg-indigo-50/30">{formatNumber(reportData.ytdStats.rvSafePark)}</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.monthStats.rvSafePark)}</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.ytdStats.rvSafePark)}</td>
                                     </tr>
-                                    <tr className="border-b border-gray-100">
+                                    <tr className="border-l-4 border-l-purple-100 border-b border-gray-100">
+                                        <td className="py-2 px-4 pl-14 text-gray-500 text-sm">RV Meals</td>
+                                        <td className="text-right py-2 px-4 text-gray-500 text-sm">{formatNumber(reportData.monthStats.rvMeals)}</td>
+                                        <td className="text-right py-2 px-4 text-gray-500 text-sm">{formatNumber(reportData.ytdStats.rvMeals)}</td>
+                                    </tr>
+                                    <tr className="border-l-4 border-l-purple-100 border-b border-gray-100">
+                                        <td className="py-2 px-4 pl-14 text-gray-500 text-sm">Shelter</td>
+                                        <td className="text-right py-2 px-4 text-gray-500 text-sm">{formatNumber(reportData.monthStats.shelter)}</td>
+                                        <td className="text-right py-2 px-4 text-gray-500 text-sm">{formatNumber(reportData.ytdStats.shelter)}</td>
+                                    </tr>
+                                    <tr className="border-l-4 border-l-purple-200 border-b-2 border-b-gray-200">
                                         <td className="py-2.5 px-4 pl-10 text-gray-600">Day Worker</td>
-                                        <td className="text-right py-2.5 px-4 text-gray-700 bg-purple-50/30">{formatNumber(reportData.monthStats.dayWorker)}</td>
-                                        <td className="text-right py-2.5 px-4 text-gray-700 bg-indigo-50/30">{formatNumber(reportData.ytdStats.dayWorker)}</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.monthStats.dayWorker)}</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.ytdStats.dayWorker)}</td>
                                     </tr>
-                                    <tr className="border-b border-gray-100">
+
+                                    {/* Showers */}
+                                    <tr className="border-l-4 border-l-blue-500 bg-blue-50/40 border-b-2 border-b-gray-200">
                                         <td className="py-3 px-4 font-semibold text-gray-900 flex items-center gap-2">
                                             <ShowerHead size={16} className="text-blue-600" />
                                             Showers
                                         </td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-purple-50">{formatNumber(reportData.monthStats.showers)}</td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-indigo-50">{formatNumber(reportData.ytdStats.showers)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.monthStats.showers)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.ytdStats.showers)}</td>
                                     </tr>
-                                    <tr className="border-b border-gray-100">
+
+                                    {/* Laundry */}
+                                    <tr className="border-l-4 border-l-cyan-500 bg-cyan-50/40 border-b-2 border-b-gray-200">
                                         <td className="py-3 px-4 font-semibold text-gray-900 flex items-center gap-2">
                                             <Shirt size={16} className="text-cyan-600" />
                                             Laundry
                                         </td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-purple-50">{formatNumber(reportData.monthStats.laundry)}</td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-indigo-50">{formatNumber(reportData.ytdStats.laundry)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.monthStats.laundry)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.ytdStats.laundry)}</td>
                                     </tr>
-                                    <tr className="border-b border-gray-100">
+
+                                    {/* Bike Service */}
+                                    <tr className="border-l-4 border-l-green-500 bg-green-50/40 border-b-2 border-b-gray-200">
                                         <td className="py-3 px-4 font-semibold text-gray-900 flex items-center gap-2">
                                             <Bike size={16} className="text-green-600" />
                                             Bike Service
                                         </td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-purple-50">{formatNumber(reportData.monthStats.bikeService)}</td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-indigo-50">{formatNumber(reportData.ytdStats.bikeService)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.monthStats.bikeService)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.ytdStats.bikeService)}</td>
                                     </tr>
-                                    <tr className="border-b border-gray-100">
+
+                                    {/* New Bicycles */}
+                                    <tr className="border-l-4 border-l-pink-500 bg-pink-50/40 border-b-2 border-b-gray-200">
                                         <td className="py-3 px-4 font-semibold text-gray-900 flex items-center gap-2">
                                             <Gift size={16} className="text-pink-600" />
                                             New Bicycles
                                         </td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-purple-50">{formatNumber(reportData.monthStats.newBicycles)}</td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-indigo-50">{formatNumber(reportData.ytdStats.newBicycles)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.monthStats.newBicycles)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.ytdStats.newBicycles)}</td>
                                     </tr>
-                                    <tr>
+
+                                    {/* Haircuts */}
+                                    <tr className="border-l-4 border-l-orange-500 bg-orange-50/40">
                                         <td className="py-3 px-4 font-semibold text-gray-900 flex items-center gap-2">
                                             <Scissors size={16} className="text-orange-600" />
                                             Haircuts
                                         </td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-purple-50">{formatNumber(reportData.monthStats.haircuts)}</td>
-                                        <td className="text-right py-3 px-4 font-semibold text-gray-900 bg-indigo-50">{formatNumber(reportData.ytdStats.haircuts)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.monthStats.haircuts)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.ytdStats.haircuts)}</td>
                                     </tr>
                                 </tbody>
                             </table>

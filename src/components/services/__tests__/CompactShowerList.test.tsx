@@ -170,11 +170,33 @@ describe('CompactShowerList Component', () => {
     });
 
     describe('Waitlisted Status Display', () => {
-        it('shows clock icon for waitlisted records', () => {
+        it('shows clock icon for waitlisted records without queue position', () => {
             const records = [{ id: 'r1', guestId: 'g1', time: null, status: 'waitlisted' }];
-            const { container } = render(<CompactShowerList records={records} />);
+            render(<CompactShowerList records={records} />);
 
-            // Should show clock icon and waitlisted label
+            // Without waitlistQueueMap, shows generic "Waitlisted" label
+            expect(screen.getByText('Waitlisted')).toBeDefined();
+        });
+
+        it('shows queue position number when waitlistQueueMap is provided', () => {
+            const records = [
+                { id: 'r1', guestId: 'g1', time: null, status: 'waitlisted' },
+                { id: 'r2', guestId: 'g2', time: null, status: 'waitlisted' },
+            ];
+            const waitlistQueueMap = new Map([['r1', 1], ['r2', 2]]);
+            render(<CompactShowerList records={records} waitlistQueueMap={waitlistQueueMap} />);
+
+            expect(screen.getByText('#1')).toBeDefined();
+            expect(screen.getByText('#2')).toBeDefined();
+            expect(screen.getByText('Queue #1')).toBeDefined();
+            expect(screen.getByText('Queue #2')).toBeDefined();
+        });
+
+        it('shows "Waitlisted" when record is not in waitlistQueueMap', () => {
+            const records = [{ id: 'r1', guestId: 'g1', time: null, status: 'waitlisted' }];
+            const waitlistQueueMap = new Map<string, number>();
+            render(<CompactShowerList records={records} waitlistQueueMap={waitlistQueueMap} />);
+
             expect(screen.getByText('Waitlisted')).toBeDefined();
         });
     });
@@ -241,7 +263,7 @@ describe('CompactShowerList Component', () => {
             });
         });
 
-        it('calls deleteShowerRecord when Cancel button is clicked and confirmed', async () => {
+        it('calls updateShowerStatus with cancelled when Cancel button is clicked and confirmed', async () => {
             vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
             const records = [{ id: 'r1', guestId: 'g1', time: '09:00', status: 'booked' }];
             render(<CompactShowerList records={records} />);
@@ -249,18 +271,18 @@ describe('CompactShowerList Component', () => {
             fireEvent.click(screen.getByLabelText('Cancel shower'));
 
             await waitFor(() => {
-                expect(mockDeleteShowerRecord).toHaveBeenCalledWith('r1');
+                expect(mockUpdateShowerStatus).toHaveBeenCalledWith('r1', 'cancelled');
             });
         });
 
-        it('does not call deleteShowerRecord when Cancel is declined', async () => {
+        it('does not call updateShowerStatus when Cancel is declined', async () => {
             vi.spyOn(window, 'confirm').mockReturnValueOnce(false);
             const records = [{ id: 'r1', guestId: 'g1', time: '09:00', status: 'booked' }];
             render(<CompactShowerList records={records} />);
 
             fireEvent.click(screen.getByLabelText('Cancel shower'));
 
-            expect(mockDeleteShowerRecord).not.toHaveBeenCalled();
+            expect(mockUpdateShowerStatus).not.toHaveBeenCalledWith('r1', 'cancelled');
         });
 
         it('hides action buttons when readOnly is true', () => {

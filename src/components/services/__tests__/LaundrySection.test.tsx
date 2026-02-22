@@ -1,7 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { LaundrySection } from '../LaundrySection';
+
+const defaultLaundryRecords = [
+    { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '1', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
+    { id: 'l2', guestId: 'g2', status: 'washer', time: '10:00-10:30', bagNumber: '2', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T10:00:00Z' },
+];
+
+const defaultStoreData = {
+    laundryRecords: defaultLaundryRecords,
+    addLaundryRecord: vi.fn().mockResolvedValue({ id: 'l3' }),
+    updateLaundryStatus: vi.fn().mockResolvedValue(true),
+    updateLaundryBagNumber: vi.fn().mockResolvedValue(true),
+    cancelMultipleLaundry: vi.fn().mockResolvedValue(true),
+    loadFromSupabase: vi.fn().mockResolvedValue(undefined),
+};
+
+// Use vi.hoisted so the mock ref is available inside vi.mock factory
+const { mockUseServicesStore } = vi.hoisted(() => {
+    const fn: any = vi.fn();
+    fn.getState = vi.fn();
+    return { mockUseServicesStore: fn };
+});
 
 // Mock dependencies
 vi.mock('next-auth/react', () => ({
@@ -12,17 +33,7 @@ vi.mock('next-auth/react', () => ({
 }));
 
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: vi.fn(() => ({
-        laundryRecords: [
-            { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '1', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
-            { id: 'l2', guestId: 'g2', status: 'washer', time: '10:00-10:30', bagNumber: '2', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T10:00:00Z' },
-        ],
-        addLaundryRecord: vi.fn().mockResolvedValue({ id: 'l3' }),
-        updateLaundryStatus: vi.fn().mockResolvedValue(true),
-        updateLaundryBagNumber: vi.fn().mockResolvedValue(true),
-        cancelMultipleLaundry: vi.fn().mockResolvedValue(true),
-        loadFromSupabase: vi.fn().mockResolvedValue(undefined),
-    })),
+    useServicesStore: mockUseServicesStore,
 }));
 
 vi.mock('@/stores/useGuestsStore', () => ({
@@ -58,6 +69,8 @@ vi.mock('../admin/SlotBlockModal', () => ({
 describe('LaundrySection Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockUseServicesStore.mockReturnValue({ ...defaultStoreData });
+        mockUseServicesStore.getState.mockReturnValue({ ...defaultStoreData });
     });
 
     describe('Rendering', () => {
@@ -133,19 +146,14 @@ describe('LaundrySection Component', () => {
         });
 
         it('shows legacy section when past-day records have active status', async () => {
-            const { useServicesStore } = await import('@/stores/useServicesStore');
-            (useServicesStore as any).mockReturnValue({
-                laundryRecords: [
-                    { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '1', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
-                    // Past-day record that is still "done" and needs pickup
-                    { id: 'l-legacy', guestId: 'g2', status: 'done', time: '10:00-10:30', bagNumber: '5', date: '2026-01-07', laundryType: 'onsite', createdAt: '2026-01-07T10:00:00Z' },
-                ],
-                addLaundryRecord: vi.fn().mockResolvedValue({ id: 'l3' }),
-                updateLaundryStatus: vi.fn().mockResolvedValue(true),
-                updateLaundryBagNumber: vi.fn().mockResolvedValue(true),
-                cancelMultipleLaundry: vi.fn().mockResolvedValue(true),
-                loadFromSupabase: vi.fn().mockResolvedValue(undefined),
-            });
+            const legacyRecords = [
+                { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '1', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
+                // Past-day record that is still "done" and needs pickup
+                { id: 'l-legacy', guestId: 'g2', status: 'done', time: '10:00-10:30', bagNumber: '5', date: '2026-01-07', laundryType: 'onsite', createdAt: '2026-01-07T10:00:00Z' },
+            ];
+            const legacyStoreData = { ...defaultStoreData, laundryRecords: legacyRecords };
+            mockUseServicesStore.mockReturnValue(legacyStoreData);
+            mockUseServicesStore.getState.mockReturnValue(legacyStoreData);
 
             render(<LaundrySection />);
             expect(screen.getByTestId('legacy-laundry-section')).toBeDefined();
@@ -153,22 +161,106 @@ describe('LaundrySection Component', () => {
         });
 
         it('does not show legacy section for past-day records that are picked up', async () => {
-            const { useServicesStore } = await import('@/stores/useServicesStore');
-            (useServicesStore as any).mockReturnValue({
-                laundryRecords: [
-                    { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '1', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
-                    // Past-day record that has been picked up — should not appear in legacy
-                    { id: 'l-old', guestId: 'g2', status: 'picked_up', time: '10:00-10:30', bagNumber: '5', date: '2026-01-07', laundryType: 'onsite', createdAt: '2026-01-07T10:00:00Z' },
-                ],
-                addLaundryRecord: vi.fn().mockResolvedValue({ id: 'l3' }),
-                updateLaundryStatus: vi.fn().mockResolvedValue(true),
-                updateLaundryBagNumber: vi.fn().mockResolvedValue(true),
-                cancelMultipleLaundry: vi.fn().mockResolvedValue(true),
-                loadFromSupabase: vi.fn().mockResolvedValue(undefined),
-            });
+            const pickedUpRecords = [
+                { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '1', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
+                // Past-day record that has been picked up — should not appear in legacy
+                { id: 'l-old', guestId: 'g2', status: 'picked_up', time: '10:00-10:30', bagNumber: '5', date: '2026-01-07', laundryType: 'onsite', createdAt: '2026-01-07T10:00:00Z' },
+            ];
+            const pickedUpStoreData = { ...defaultStoreData, laundryRecords: pickedUpRecords };
+            mockUseServicesStore.mockReturnValue(pickedUpStoreData);
+            mockUseServicesStore.getState.mockReturnValue(pickedUpStoreData);
 
             render(<LaundrySection />);
             expect(screen.queryByTestId('legacy-laundry-section')).toBeNull();
+        });
+    });
+
+    describe('Bag Number Validation in Kanban', () => {
+        it('does not prompt for bag number when record already has one (status dropdown)', async () => {
+            // Record in "waiting" with bag number already set
+            const records = [
+                { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: 'B42', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
+            ];
+            const storeData = { ...defaultStoreData, laundryRecords: records };
+            mockUseServicesStore.mockReturnValue(storeData);
+            mockUseServicesStore.getState.mockReturnValue(storeData);
+
+            const promptSpy = vi.spyOn(window, 'prompt');
+            render(<LaundrySection />);
+
+            // Expand the card to access the status dropdown
+            const expandBtn = screen.getByLabelText('Expand laundry details');
+            fireEvent.click(expandBtn);
+
+            // Change status from waiting to washer via dropdown
+            const dropdown = screen.getByDisplayValue('Waiting');
+            fireEvent.change(dropdown, { target: { value: 'washer' } });
+
+            await waitFor(() => {
+                expect(promptSpy).not.toHaveBeenCalled();
+                expect(storeData.updateLaundryStatus).toHaveBeenCalledWith('l1', 'washer');
+            });
+
+            promptSpy.mockRestore();
+        });
+
+        it('reads fresh record from store getState to avoid stale closures', async () => {
+            // Simulate stale closure: hook-level record has NO bag number
+            const staleRecords = [
+                { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
+            ];
+            // But getState returns the FRESH record with a bag number
+            const freshRecords = [
+                { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: 'B99', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
+            ];
+            const staleStoreData = { ...defaultStoreData, laundryRecords: staleRecords };
+            const freshStoreData = { ...defaultStoreData, laundryRecords: freshRecords };
+            mockUseServicesStore.mockReturnValue(staleStoreData);
+            mockUseServicesStore.getState.mockReturnValue(freshStoreData);
+
+            const promptSpy = vi.spyOn(window, 'prompt');
+            render(<LaundrySection />);
+
+            // Expand card and change status
+            const expandBtn = screen.getByLabelText('Expand laundry details');
+            fireEvent.click(expandBtn);
+
+            const dropdown = screen.getByDisplayValue('Waiting');
+            fireEvent.change(dropdown, { target: { value: 'washer' } });
+
+            await waitFor(() => {
+                // Should NOT prompt because getState() has the fresh record with bag number
+                expect(promptSpy).not.toHaveBeenCalled();
+                expect(freshStoreData.updateLaundryStatus).toHaveBeenCalledWith('l1', 'washer');
+            });
+
+            promptSpy.mockRestore();
+        });
+
+        it('prompts for bag number when record has no bag number', async () => {
+            const records = [
+                { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
+            ];
+            const storeData = { ...defaultStoreData, laundryRecords: records };
+            mockUseServicesStore.mockReturnValue(storeData);
+            mockUseServicesStore.getState.mockReturnValue(storeData);
+
+            const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('B77');
+            render(<LaundrySection />);
+
+            // Expand card and change status
+            const expandBtn = screen.getByLabelText('Expand laundry details');
+            fireEvent.click(expandBtn);
+
+            const dropdown = screen.getByDisplayValue('Waiting');
+            fireEvent.change(dropdown, { target: { value: 'washer' } });
+
+            await waitFor(() => {
+                expect(promptSpy).toHaveBeenCalled();
+                expect(storeData.updateLaundryBagNumber).toHaveBeenCalledWith('l1', 'B77');
+            });
+
+            promptSpy.mockRestore();
         });
     });
 });

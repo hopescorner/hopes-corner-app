@@ -50,25 +50,43 @@ export function ShowersSection() {
         []
     );
 
+    // Sort showers earliest to latest by slot time, then by createdAt
+    const sortByTime = useCallback((a: any, b: any) => {
+        const parseSlotMinutes = (t: string | null | undefined): number => {
+            if (!t) return Number.POSITIVE_INFINITY;
+            const [h, m] = String(t).split(':');
+            return parseInt(h, 10) * 60 + parseInt(m || '0', 10);
+        };
+        const timeDiff = parseSlotMinutes(a.time) - parseSlotMinutes(b.time);
+        if (timeDiff !== 0) return timeDiff;
+        const aCreated = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bCreated = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return aCreated - bCreated;
+    }, []);
+
     const selectedDateRecords = useMemo(() => {
         return showerRecords.filter((r) => getRecordDateKey(r) === selectedDate);
     }, [showerRecords, selectedDate, getRecordDateKey]);
 
     const activeShowers = useMemo(
-        () => selectedDateRecords.filter((r) => r.status === 'booked' || r.status === 'awaiting'),
-        [selectedDateRecords]
+        () => selectedDateRecords.filter((r) => r.status === 'booked' || r.status === 'awaiting').sort(sortByTime),
+        [selectedDateRecords, sortByTime]
     );
     const completedShowers = useMemo(
-        () => selectedDateRecords.filter((r) => r.status === 'done'),
-        [selectedDateRecords]
+        () => selectedDateRecords.filter((r) => r.status === 'done').sort(sortByTime),
+        [selectedDateRecords, sortByTime]
     );
     const waitlistedShowers = useMemo(
-        () => selectedDateRecords.filter((r) => r.status === 'waitlisted'),
+        () => selectedDateRecords.filter((r) => r.status === 'waitlisted').sort((a, b) => {
+            const aCreated = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+            const bCreated = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            return aCreated - bCreated;
+        }),
         [selectedDateRecords]
     );
     const cancelledShowers = useMemo(
-        () => selectedDateRecords.filter((r) => r.status === 'cancelled' || r.status === 'no_show'),
-        [selectedDateRecords]
+        () => selectedDateRecords.filter((r) => r.status === 'cancelled' || r.status === 'no_show').sort(sortByTime),
+        [selectedDateRecords, sortByTime]
     );
 
     const pendingShowers = useMemo(() => {
@@ -104,6 +122,13 @@ export function ShowersSection() {
                 return cancelledShowers;
         }
     }, [activeTab, activeShowers, completedShowers, waitlistedShowers, cancelledShowers]);
+
+    // Build a map of waitlist record ID → queue position (1-based)
+    const waitlistQueueMap = useMemo(() => {
+        const map = new Map<string, number>();
+        waitlistedShowers.forEach((r, i) => map.set(r.id, i + 1));
+        return map;
+    }, [waitlistedShowers]);
 
     const handleEndShowerDay = async () => {
         if (pendingShowers.length === 0) {
@@ -404,6 +429,7 @@ export function ShowersSection() {
                     records={currentList}
                     onGuestClick={handleGuestClick}
                     readOnly={isViewingPast}
+                    waitlistQueueMap={activeTab === 'waitlist' ? waitlistQueueMap : undefined}
                 />
             ) : (
                 /* Grid of Shower Cards */
@@ -417,6 +443,7 @@ export function ShowersSection() {
                                     guest={guests.find(g => g.id === record.guestId)}
                                     onClick={() => handleGuestClick(record.guestId, record.id)}
                                     readOnly={isViewingPast}
+                                    queuePosition={activeTab === 'waitlist' ? waitlistQueueMap.get(record.id) : undefined}
                                 />
                             ))
                         ) : (
@@ -453,9 +480,8 @@ export function ShowersSection() {
     );
 }
 
-function ShowerListItem({ record, guest, onClick, readOnly = false }: { record: any, guest: any, onClick?: () => void, readOnly?: boolean }) {
+function ShowerListItem({ record, guest, onClick, readOnly = false, queuePosition }: { record: any, guest: any, onClick?: () => void, readOnly?: boolean, queuePosition?: number }) {
     const [isUpdating, setIsUpdating] = useState(false);
-    const deleteShowerRecord = useServicesStore((s) => s.deleteShowerRecord);
     const updateShowerStatus = useServicesStore((s) => s.updateShowerStatus);
 
     const handleCancel = async () => {
@@ -463,8 +489,12 @@ function ShowerListItem({ record, guest, onClick, readOnly = false }: { record: 
         if (!window.confirm('Are you sure you want to cancel this shower?')) return;
         setIsUpdating(true);
         try {
-            await deleteShowerRecord(record.id);
-            toast.success('Shower cancelled');
+            const success = await updateShowerStatus(record.id, 'cancelled');
+            if (success) {
+                toast.success('Shower cancelled');
+            } else {
+                toast.error('Failed to cancel shower');
+            }
         } catch (error) {
             toast.error('Failed to cancel shower');
         } finally {
@@ -508,9 +538,14 @@ function ShowerListItem({ record, guest, onClick, readOnly = false }: { record: 
                     <div className={cn(
                         "w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-sky-100",
                         record.status === 'done' ? 'bg-emerald-500' : 
-                        (record.status === 'cancelled' || record.status === 'no_show') ? 'bg-gray-400' : 'bg-sky-500'
+                        (record.status === 'cancelled' || record.status === 'no_show') ? 'bg-gray-400' :
+                        record.status === 'waitlisted' ? 'bg-amber-500' : 'bg-sky-500'
                     )}>
-                        <User size={20} />
+                        {queuePosition != null ? (
+                            <span className="text-sm font-black">#{queuePosition}</span>
+                        ) : (
+                            <User size={20} />
+                        )}
                     </div>
                     <div>
                         <h4 className={cn(
@@ -521,7 +556,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false }: { record: 
                         </h4>
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
                             <Clock size={12} />
-                            {record.time ? formatSlotLabel(record.time) : (record.status === 'waitlisted' ? 'Waitlisted' : 'No time')}
+                            {record.time ? formatSlotLabel(record.time) : (record.status === 'waitlisted' ? (queuePosition != null ? `Queue #${queuePosition}` : 'Waitlisted') : 'No time')}
                         </div>
                     </div>
                 </div>

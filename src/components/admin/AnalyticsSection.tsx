@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import {
     XAxis,
     YAxis,
@@ -40,6 +41,7 @@ import { useDailyNotesStore, DailyNote } from '@/stores/useDailyNotesStore';
 import { useModalStore } from '@/stores/useModalStore';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
+import { pacificDateStringFrom, todayPacificDateString } from '@/lib/utils/date';
 import {
     HOUSING_STATUSES,
     AGE_GROUPS,
@@ -138,6 +140,7 @@ export function AnalyticsSection() {
     const openNoteModal = useModalStore((s) => s.openNoteModal);
 
     const [isMounted, setIsMounted] = useState(false);
+    const mobile = useIsMobile();
     const [activeView, setActiveView] = useState('overview');
     const [selectedPreset, setSelectedPreset] = useState('thisMonth');
     const [selectedPrograms, setSelectedPrograms] = useState(['meals', 'showers', 'laundry', 'bicycles', 'haircuts', 'holidays']);
@@ -153,8 +156,8 @@ export function AnalyticsSection() {
     // Custom date range state
     const today = new Date();
     const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const [customStartDate, setCustomStartDate] = useState(firstOfMonth.toISOString().split('T')[0]);
-    const [customEndDate, setCustomEndDate] = useState(today.toISOString().split('T')[0]);
+    const [customStartDate, setCustomStartDate] = useState(pacificDateStringFrom(firstOfMonth));
+    const [customEndDate, setCustomEndDate] = useState(todayPacificDateString());
 
     useEffect(() => {
         const timer = setTimeout(() => setIsMounted(true), 0);
@@ -169,28 +172,31 @@ export function AnalyticsSection() {
     // Calculate date range based on preset or custom dates
     const dateRange = useMemo(() => {
         const todayDate = new Date();
+        const todayStr = todayPacificDateString();
         const preset = TIME_PRESETS.find(p => p.id === selectedPreset);
-        let startDate: Date;
-        let endDate: Date = todayDate;
+        let startStr: string;
+        let endStr: string = todayStr;
 
         if (preset?.id === 'custom') {
-            // Use custom dates
-            startDate = new Date(customStartDate);
-            endDate = new Date(customEndDate);
+            // Custom dates are already YYYY-MM-DD strings from the date inputs
+            startStr = customStartDate;
+            endStr = customEndDate;
         } else if (preset?.id === 'thisMonth') {
-            startDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1);
+            startStr = pacificDateStringFrom(new Date(todayDate.getFullYear(), todayDate.getMonth(), 1));
         } else if (preset?.id === 'today') {
-            startDate = new Date(todayDate);
+            startStr = todayStr;
         } else {
-            startDate = new Date(todayDate);
+            const startDate = new Date(todayDate);
             startDate.setDate(startDate.getDate() - (preset?.days || 30));
+            startStr = pacificDateStringFrom(startDate);
         }
 
-        return {
-            start: startDate.toISOString().split('T')[0],
-            end: endDate.toISOString().split('T')[0],
-            days: Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
-        };
+        // Calculate day count from the YYYY-MM-DD strings
+        const s = new Date(startStr + 'T12:00:00');
+        const e = new Date(endStr + 'T12:00:00');
+        const dayCount = Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+        return { start: startStr, end: endStr, days: dayCount };
     }, [selectedPreset, customStartDate, customEndDate]);
 
     // Helper to check if date is in range
@@ -320,8 +326,8 @@ export function AnalyticsSection() {
         const prevStart = new Date(prevEnd);
         prevStart.setDate(prevStart.getDate() - days + 1);
         return {
-            start: prevStart.toISOString().split('T')[0],
-            end: prevEnd.toISOString().split('T')[0],
+            start: pacificDateStringFrom(prevStart),
+            end: pacificDateStringFrom(prevEnd),
         };
     }, [dateRange]);
 
@@ -366,8 +372,10 @@ export function AnalyticsSection() {
     // Daily breakdown for trends
     const dailyData = useMemo(() => {
         const days: { date: string, fullDate: string, meals: number, showers: number, laundry: number, bicycles: number, haircuts: number, hasNote: boolean }[] = [];
-        const start = new Date(dateRange.start);
-        const end = new Date(dateRange.end);
+        // Use T12:00:00 so the Date stays on the correct calendar day in Pacific time
+        const start = new Date(dateRange.start + 'T12:00:00');
+        const end = new Date(dateRange.end + 'T12:00:00');
+        const tz = 'America/Los_Angeles';
         const noteDates = new Set(
             (notes || [])
                 .filter((n) => n.noteDate >= dateRange.start && n.noteDate <= dateRange.end)
@@ -375,7 +383,7 @@ export function AnalyticsSection() {
         );
 
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-            const dateStr = d.toISOString().split('T')[0];
+            const dateStr = pacificDateStringFrom(d);
 
             const dayMeals = dailyCountMaps.mealsByDay.get(dateStr) || 0;
             const dayShowers = dailyCountMaps.showersDoneByDay.get(dateStr) || 0;
@@ -384,7 +392,7 @@ export function AnalyticsSection() {
             const dayHaircuts = dailyCountMaps.haircutsByDay.get(dateStr) || 0;
 
             days.push({
-                date: `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${d.toLocaleDateString('en-US', { weekday: 'short' })})`,
+                date: `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: tz })} (${d.toLocaleDateString('en-US', { weekday: 'short', timeZone: tz })})`,
                 fullDate: dateStr,
                 meals: dayMeals,
                 showers: dayShowers,
@@ -630,7 +638,7 @@ export function AnalyticsSection() {
                     </div>
                 </div>
                 <p className="text-indigo-200 text-sm mt-2">
-                    {dateRange.days} day{dateRange.days !== 1 ? 's' : ''} from {new Date(dateRange.start).toLocaleDateString()} to {new Date(dateRange.end).toLocaleDateString()}
+                    {dateRange.days} day{dateRange.days !== 1 ? 's' : ''} from {new Date(dateRange.start + 'T12:00:00').toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })} to {new Date(dateRange.end + 'T12:00:00').toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })}
                 </p>
             </div>
 
@@ -652,7 +660,7 @@ export function AnalyticsSection() {
                             >
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="text-xs font-bold text-amber-600">
-                                        {new Date(note.noteDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                        {new Date(note.noteDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/Los_Angeles' })}
                                     </span>
                                     <span className={cn(
                                         "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
@@ -754,10 +762,10 @@ export function AnalyticsSection() {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 600, fill: '#9ca3af' }} interval="preserveStartEnd" angle={-45} textAnchor="end" height={60} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 600, fill: '#9ca3af' }} />
-                                <Tooltip content={<CustomChartTooltip />} />
-                                <Legend />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: mobile ? 8 : 10, fontWeight: 600, fill: '#9ca3af' }} interval={mobile ? 'equidistantPreserveStart' : 'preserveStartEnd'} angle={-45} textAnchor="end" height={mobile ? 45 : 60} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: mobile ? 8 : 10, fontWeight: 600, fill: '#9ca3af' }} width={mobile ? 25 : 40} />
+                                <Tooltip content={<CustomChartTooltip />} wrapperStyle={{ zIndex: 50 }} />
+                                {!mobile && <Legend />}
                                 {selectedPrograms.includes('meals') && (
                                     <Area type="monotone" dataKey="meals" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorMeals)" />
                                 )}
@@ -1079,7 +1087,7 @@ export function AnalyticsSection() {
                                 value={customEndDate}
                                 onChange={(e) => setCustomEndDate(e.target.value)}
                                 min={customStartDate}
-                                max={new Date().toISOString().split('T')[0]}
+                                max={todayPacificDateString()}
                                 className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
@@ -1102,7 +1110,7 @@ export function AnalyticsSection() {
                     </label>
                     {showComparison && (
                         <span className="text-xs text-gray-400">
-                            {new Date(prevPeriod.start + 'T12:00:00').toLocaleDateString()} — {new Date(prevPeriod.end + 'T12:00:00').toLocaleDateString()}
+                            {new Date(prevPeriod.start + 'T12:00:00').toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })} — {new Date(prevPeriod.end + 'T12:00:00').toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })}
                         </span>
                     )}
                 </div>

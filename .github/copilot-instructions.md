@@ -66,6 +66,7 @@ For user-visible feature work, update `src/lib/utils/appVersion.ts`:
 
 - Bump `APP_VERSION` using semantic versioning.
 - Add a concise, non-technical `CHANGELOG` entry.
+- Also update `APP_VERSION` in `public/sw.js` to match so the service worker cache name stays in sync.
 
 ## PR/task output expectations
 

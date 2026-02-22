@@ -2,6 +2,7 @@
 
 import { useState, useMemo, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
     User,
@@ -192,12 +193,15 @@ function PureGuestCard({
         );
         const extraCount = todayExtras.reduce((sum, r) => sum + (r.count || 1), 0);
         const baseCount = todayRecord?.count || 0;
+        const total = baseCount + extraCount;
         return {
             hasMeal: !!todayRecord,
             mealRecord: todayRecord,
             mealCount: baseCount,
             extraMealCount: extraCount,
-            totalMeals: baseCount + extraCount,
+            totalMeals: total,
+            hasReachedMealLimit: total >= MAX_TOTAL_MEALS_PER_DAY,
+            hasReachedExtraMealLimit: extraCount >= MAX_EXTRA_MEALS_PER_DAY,
         };
     }, [mealRecords, extraMealRecords, guest.id, today]);
 
@@ -237,6 +241,7 @@ function PureGuestCard({
         const actions = getActionsForGuestToday(guest.id);
         return {
             mealActionId: actions.find(a => a.type === 'MEAL_ADDED' && pacificDateStringFrom(a.timestamp) === today)?.id,
+            extraMealActionId: actions.find(a => a.type === 'EXTRA_MEALS_ADDED' && pacificDateStringFrom(a.timestamp) === today)?.id,
             showerActionId: actions.find(a => a.type === 'SHOWER_BOOKED' && pacificDateStringFrom(a.timestamp) === today)?.id,
             laundryActionId: actions.find(a => a.type === 'LAUNDRY_BOOKED' && pacificDateStringFrom(a.timestamp) === today)?.id,
             bicycleActionId: actions.find(a => a.type === 'BICYCLE_LOGGED' && pacificDateStringFrom(a.timestamp) === today)?.id,
@@ -263,6 +268,8 @@ function PureGuestCard({
     const baseMealCount = mealStatus.mealCount;
     const extraMealsCount = mealStatus.extraMealCount;
     const totalMeals = mealStatus.totalMeals;
+    const hasReachedMealLimit = mealStatus.hasReachedMealLimit;
+    const hasReachedExtraMealLimit = mealStatus.hasReachedExtraMealLimit;
 
     const todayShower = serviceStatus.hasShower;
     const todayLaundry = serviceStatus.hasLaundry;
@@ -271,6 +278,7 @@ function PureGuestCard({
     const todayHoliday = serviceStatus.hasHoliday;
 
     const mealAction = actionStatus.mealActionId ? { id: actionStatus.mealActionId } : undefined;
+    const extraMealAction = actionStatus.extraMealActionId ? { id: actionStatus.extraMealActionId } : undefined;
     const showerAction = actionStatus.showerActionId ? { id: actionStatus.showerActionId } : undefined;
     const laundryAction = actionStatus.laundryActionId ? { id: actionStatus.laundryActionId } : undefined;
     const bicycleAction = actionStatus.bicycleActionId ? { id: actionStatus.bicycleActionId } : undefined;
@@ -304,7 +312,13 @@ function PureGuestCard({
 
     const handleExtraMealAdd = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (isPending || isBannedFromMeals) return;
+        if (isPending || isBannedFromMeals || hasReachedMealLimit || hasReachedExtraMealLimit) return;
+
+        // Require explicit confirmation to prevent accidental extra meal additions
+        const confirmed = window.confirm(
+            `Add an extra meal for ${guest.preferredName || guest.firstName}?\n\nThis is in addition to the ${baseMealCount} meal${baseMealCount !== 1 ? 's' : ''} already logged.`
+        );
+        if (!confirmed) return;
 
         setIsPending(true);
         try {
@@ -613,28 +627,67 @@ function PureGuestCard({
                                     ))}
                                 </div>
                             ) : (
-                                <div className="flex items-center gap-1 px-1 py-1 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                                    <div className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
-                                        <Check size={14} />
-                                        <span>{totalMeals}</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 px-1 py-1 bg-emerald-50/50 rounded-xl border border-emerald-100">
+                                        <div className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
+                                            <Check size={14} />
+                                            <span>{baseMealCount}</span>
+                                            {extraMealsCount > 0 && (
+                                                <span className="text-orange-600 text-xs ml-0.5">+{extraMealsCount}</span>
+                                            )}
+                                        </div>
+                                        {mealAction && (
+                                            <button
+                                                onClick={(e) => handleUndo(e, mealAction.id, 'Check-in')}
+                                                disabled={isPending}
+                                                className="flex items-center justify-center h-10 px-2 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 disabled:opacity-50"
+                                                title="Undo Check-in"
+                                            >
+                                                <RotateCcw size={16} />
+                                            </button>
+                                        )}
                                     </div>
-                                    <button
-                                        onClick={handleExtraMealAdd}
-                                        disabled={isPending}
-                                        className="flex items-center justify-center h-10 px-2 rounded-lg bg-white border border-emerald-200 text-emerald-600 hover:bg-emerald-50 transition-all active:scale-95 disabled:opacity-50"
-                                        title="Add extra meal"
-                                    >
-                                        <Plus size={16} />
-                                    </button>
-                                    {mealAction && (
-                                        <button
-                                            onClick={(e) => handleUndo(e, mealAction.id, 'Check-in')}
-                                            disabled={isPending}
-                                            className="flex items-center justify-center h-10 px-2 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 disabled:opacity-50"
-                                            title="Undo Check-in"
-                                        >
-                                            <RotateCcw size={16} />
-                                        </button>
+                                    {hasReachedMealLimit || hasReachedExtraMealLimit ? (
+                                        <div className="flex items-center gap-1">
+                                            <div
+                                                className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-xs cursor-not-allowed"
+                                                title={`Daily meal limit reached (${totalMeals}/${4})`}
+                                            >
+                                                <span>Limit</span>
+                                            </div>
+                                            {extraMealAction && (
+                                                <button
+                                                    onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
+                                                    disabled={isPending}
+                                                    className="flex items-center justify-center h-10 px-2 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 disabled:opacity-50"
+                                                    title="Undo extra meal"
+                                                >
+                                                    <RotateCcw size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-1">
+                                            <button
+                                                onClick={handleExtraMealAdd}
+                                                disabled={isPending}
+                                                className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-orange-50 border-2 border-dashed border-orange-300 text-orange-600 font-bold text-xs hover:bg-orange-100 hover:border-orange-400 transition-all active:scale-95 disabled:opacity-50"
+                                                title="Add extra meal (requires confirmation)"
+                                            >
+                                                <Plus size={14} />
+                                                <span>Extra</span>
+                                            </button>
+                                            {extraMealAction && (
+                                                <button
+                                                    onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
+                                                    disabled={isPending}
+                                                    className="flex items-center justify-center h-10 px-2 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 disabled:opacity-50"
+                                                    title="Undo extra meal"
+                                                >
+                                                    <RotateCcw size={14} />
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             )}
@@ -697,15 +750,19 @@ function PureGuestCard({
                         </div>
                     )}
 
-                    {/* Complete Check-in Button */}
+                    {/* Complete Check-in Button - separated from undo to prevent confusion */}
                     {hasServiceToday && !compact && (
-                        <button
-                            onClick={handleCompleteCheckIn}
-                            className="flex items-center justify-center h-10 px-3 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold transition-all active:scale-95"
-                            title="Complete check-in and search for next guest"
-                        >
-                            <UserCheck size={20} />
-                        </button>
+                        <>
+                            {/* Visual separator to distinguish from undo button */}
+                            <div className="w-px h-8 bg-gray-200 mx-1" aria-hidden="true"></div>
+                            <button
+                                onClick={handleCompleteCheckIn}
+                                className="flex items-center justify-center h-10 px-3 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold transition-all active:scale-95"
+                                title="Complete check-in and search for next guest"
+                            >
+                                <UserCheck size={20} />
+                            </button>
+                        </>
                     )}
 
                     <div className={cn(
@@ -824,17 +881,44 @@ function PureGuestCard({
                                     )}
                                     <span className="text-xs font-bold text-gray-700">{todayBicycle ? 'Bicycle ✓' : 'Bicycle'}</span>
                                 </button>
-                                {todayMeal && (
-                                    <button
-                                        onClick={handleExtraMealAdd}
-                                        disabled={isPending || isBannedFromMeals}
-                                        className="flex flex-col items-center justify-center p-4 rounded-xl bg-white border border-gray-100 shadow-sm hover:border-emerald-200 hover:bg-emerald-50 transition-all disabled:opacity-50"
-                                    >
-                                        <Plus size={20} className="text-emerald-500 mb-1.5" />
-                                        <span className="text-xs font-bold text-gray-700">Extra Meal</span>
-                                    </button>
-                                )}
                             </div>
+
+                            {/* Extra Meal - separated from main services to prevent accidental taps */}
+                            {todayMeal && (
+                                <div className="mt-2 pt-2 border-t border-dashed border-orange-200">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">Extra Meals</p>
+                                        {extraMealAction && (
+                                            <button
+                                                onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
+                                                disabled={isPending}
+                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 text-xs font-semibold hover:bg-orange-200 transition-all active:scale-95 disabled:opacity-50"
+                                                title="Undo extra meal"
+                                            >
+                                                <RotateCcw size={12} />
+                                                Undo
+                                            </button>
+                                        )}
+                                    </div>
+                                    {hasReachedMealLimit || hasReachedExtraMealLimit ? (
+                                        <div className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-gray-50 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm">
+                                            <span>Daily meal limit reached ({totalMeals}/{4})</span>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={handleExtraMealAdd}
+                                            disabled={isPending || isBannedFromMeals}
+                                            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-orange-50 border-2 border-dashed border-orange-300 text-orange-700 font-bold text-sm hover:bg-orange-100 hover:border-orange-400 transition-all disabled:opacity-50"
+                                        >
+                                            <Plus size={16} />
+                                            <span>Add Extra Meal</span>
+                                            {extraMealsCount > 0 && (
+                                                <span className="ml-1 px-1.5 py-0.5 bg-orange-200 rounded-full text-[10px] font-black">{extraMealsCount} added</span>
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Linked Guests Manager */}
                             <LinkedGuestsList guestId={guest.id} className="mb-4" />
@@ -844,10 +928,6 @@ function PureGuestCard({
 
                             {/* Actions */}
                             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
-                                <button className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
-                                    <Link2 size={14} />
-                                    Link Guest
-                                </button>
                                 {todayHaircut ? (
                                     <div className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg">
                                         <Check size={14} />
@@ -1094,7 +1174,7 @@ const mealSnapshot = (props: GuestCardProps) => {
     const id = props.guest?.id;
     if (!id) return '';
     const s = props.mealStatusMap?.get(id) || defaultMealStatus;
-    return `${s.hasMeal}-${s.mealCount}-${s.extraMealCount}-${s.totalMeals}`;
+    return `${s.hasMeal}-${s.mealCount}-${s.extraMealCount}-${s.totalMeals}-${s.hasReachedMealLimit}-${s.hasReachedExtraMealLimit}`;
 };
 
 const serviceSnapshot = (props: GuestCardProps) => {
@@ -1119,6 +1199,7 @@ const actionSnapshot = (props: GuestCardProps) => {
     const s = props.actionStatusMap?.get(id) || defaultActionStatus;
     return [
         s.mealActionId || '',
+        s.extraMealActionId || '',
         s.showerActionId || '',
         s.laundryActionId || '',
         s.bicycleActionId || '',

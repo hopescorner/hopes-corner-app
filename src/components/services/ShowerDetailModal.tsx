@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, Shirt, Package, Tent, Footprints, AlertCircle, CheckCircle, Loader2, Clock, Undo2 } from 'lucide-react';
+import { X, Shirt, Package, Tent, Footprints, AlertCircle, CheckCircle, Loader2, Clock, Undo2, Check } from 'lucide-react';
 import { JacketIcon } from '@/components/icons/JacketIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaiverBadge } from '@/components/ui/WaiverBadge';
 import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
 import { useItemsStore } from '@/stores/useItemsStore';
+import { useServicesStore } from '@/stores/useServicesStore';
 import { formatTimeElapsed } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
@@ -31,8 +32,10 @@ const AMENITY_ITEMS = [
 
 export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDetailModalProps) {
     const { fetchItemsForGuest, checkAvailability, giveItem, undoItem, distributedItems, isLoading } = useItemsStore();
+    const { updateShowerStatus } = useServicesStore();
     const [localLoading, setLocalLoading] = useState<string | null>(null);
     const [undoLoading, setUndoLoading] = useState<string | null>(null);
+    const [markingDone, setMarkingDone] = useState(false);
     const [isWaiverModalOpen, setIsWaiverModalOpen] = useState(false);
 
     useEffect(() => {
@@ -88,6 +91,25 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
         );
     };
 
+    // Handle marking shower as done
+    const handleMarkAsDone = async () => {
+        if (!record?.id) return;
+        setMarkingDone(true);
+        try {
+            const success = await updateShowerStatus(record.id, 'done');
+            if (success) {
+                toast.success(`Shower marked as done for ${guest.preferredName || guest.firstName || 'Guest'}`);
+                onClose();
+            } else {
+                toast.error('Failed to update shower status');
+            }
+        } catch (error) {
+            toast.error('Error updating shower status');
+        } finally {
+            setMarkingDone(false);
+        }
+    };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
@@ -132,6 +154,32 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Time Slot</span>
                             <span className="font-bold text-gray-900">{record.time || 'N/A'}</span>
                         </div>
+                        
+                        {/* Mark as Done Button - only show if not already done */}
+                        {record.status !== 'done' ? (
+                            <button
+                                onClick={handleMarkAsDone}
+                                disabled={markingDone}
+                                className={cn(
+                                    "w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl",
+                                    "bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-sm",
+                                    "transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                                )}
+                            >
+                                {markingDone ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                ) : (
+                                    <Check size={16} />
+                                )}
+                                Mark as Done
+                            </button>
+                        ) : (
+                            <div className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                                <CheckCircle size={16} className="text-emerald-600" />
+                                <span className="text-emerald-700 font-bold text-sm">Shower Completed</span>
+                            </div>
+                        )}
+                        
                         <div className="pt-3 border-t border-gray-200">
                             <WaiverBadge 
                                 guestId={guest.id} 

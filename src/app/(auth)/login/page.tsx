@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
+import AnimatedChef from '@/components/icons/AnimatedChef';
+import AnimatedGuest from '@/components/icons/AnimatedGuest';
 
 function LoginForm() {
     const router = useRouter();
@@ -70,7 +72,7 @@ function LoginForm() {
                         onChange={(e) => setEmail(e.target.value)}
                         required
                         autoComplete="email"
-                        placeholder="you@example.com"
+                        placeholder="email@hopes-corner.org"
                         className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
                     />
                 </div>
@@ -147,18 +149,35 @@ function LoginFormFallback() {
 
 export default function LoginPage() {
     return (
-        <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
+        <div className="min-h-screen bg-gradient-to-b from-emerald-50 to-white flex items-center justify-center p-4 overflow-hidden relative">
+
+            {/* Background Animations */}
+            <div className="absolute top-1/2 left-[5%] -translate-y-1/2 w-48 h-48 hidden lg:block opacity-80 hover:opacity-100 transition-opacity">
+                <AnimatedChef />
+            </div>
+            <div className="absolute top-1/2 right-[5%] -translate-y-1/2 w-48 h-48 hidden lg:block opacity-80 hover:opacity-100 transition-opacity">
+                <AnimatedGuest />
+            </div>
+
+            <div className="w-full max-w-md relative z-10">
                 {/* Logo and Title */}
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-emerald-100 mb-4">
-                        <Image
-                            src="/hope-corner-logo-v2.svg"
-                            alt="Hope's Corner"
-                            width={48}
-                            height={48}
-                            className="w-12 h-12"
-                        />
+                    <div className="flex justify-center items-center gap-4 mb-6">
+                        <div className="w-20 h-20 lg:hidden hover:scale-105 transition-transform">
+                            <AnimatedChef />
+                        </div>
+                        <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-emerald-100 shadow-sm border border-emerald-200">
+                            <Image
+                                src="/hope-corner-logo-v2.svg"
+                                alt="Hope's Corner"
+                                width={48}
+                                height={48}
+                                className="w-12 h-12"
+                            />
+                        </div>
+                        <div className="w-20 h-20 lg:hidden hover:scale-105 transition-transform">
+                            <AnimatedGuest />
+                        </div>
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 font-heading">
                         Hope&apos;s Corner
@@ -174,7 +193,7 @@ export default function LoginPage() {
                 </Suspense>
 
                 {/* Footer */}
-                <p className="text-center text-sm text-gray-500 mt-6">
+                <p className="text-center text-sm text-gray-500 mt-6 font-medium">
                     Building community one meal and shower at a time
                 </p>
             </div>
