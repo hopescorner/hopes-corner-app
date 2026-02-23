@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { ServiceStatusOverview } from '../ServiceStatusOverview';
 import { useServicesStore } from '@/stores/useServicesStore';
@@ -249,6 +249,22 @@ describe('ServiceStatusOverview', () => {
 
         // With available slots, should always show "Next:" — never a fallback message
         expect(screen.getByText(/Next: 08:00/)).toBeDefined();
+    });
+
+    it('does not show a full slot as next when statuses are awaiting + done', () => {
+        // App-normalized status is "awaiting" (DB "booked")
+        // 09:30 has two occupying records and must be treated as full
+        mockShowerRecords.push(
+            { id: 'awaiting-1', guestId: 'g1', date: '2026-01-22', status: 'awaiting', time: '09:30' },
+            { id: 'done-1', guestId: 'g2', date: '2026-01-22', status: 'done', time: '09:30' }
+        );
+
+        render(<ServiceStatusOverview />);
+
+        // Scope to shower card to avoid matching laundry text
+        const showerCard = screen.getAllByRole('link')[0];
+        expect(within(showerCard).getByText(/Next: 07:30/)).toBeDefined();
+        expect(within(showerCard).queryByText(/Next: 09:30/)).toBeNull();
     });
 
     it('shows "Waitlist only" when all shower slots are booked', () => {

@@ -43,9 +43,10 @@ export const MAX_GUESTS_PER_SHOWER_SLOT = 2;
 
 /**
  * Shower statuses that occupy a slot and count towards capacity.
+ * In the app layer, DB 'booked' is normalized to 'awaiting', so both are treated as occupying.
  * cancelled / no_show / waitlisted do NOT occupy a slot.
  */
-export const SHOWER_SLOT_OCCUPYING_STATUSES = new Set(['booked', 'done']);
+export const SHOWER_SLOT_OCCUPYING_STATUSES = new Set(['booked', 'awaiting', 'done']);
 
 /**
  * Maximum number of guests per onsite laundry slot (each slot = one machine window).

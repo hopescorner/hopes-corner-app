@@ -19,6 +19,7 @@ describe('Shower Slot Capacity Constraints', () => {
 
         it('should count booked and done statuses towards capacity', () => {
             expect(SHOWER_SLOT_OCCUPYING_STATUSES.has('booked')).toBe(true);
+            expect(SHOWER_SLOT_OCCUPYING_STATUSES.has('awaiting')).toBe(true);
             expect(SHOWER_SLOT_OCCUPYING_STATUSES.has('done')).toBe(true);
         });
 
