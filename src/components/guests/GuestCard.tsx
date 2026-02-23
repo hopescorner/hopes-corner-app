@@ -94,7 +94,7 @@ type PureGuestCardProps = GuestCardProps & {
 
     addMealRecord: (guestId: string, count?: number) => Promise<any>;
     addExtraMealRecord: (guestId: string, count?: number) => Promise<any>;
-    addHaircutRecord: (guestId: string) => Promise<any>;
+    addHaircutRecord: (guestId: string, options?: { serviceDate?: string; slotTime?: string; stylistName?: string }) => Promise<any>;
     addHolidayRecord: (guestId: string) => Promise<any>;
 
     setShowerPickerGuest: (guest: any) => void;
@@ -180,6 +180,7 @@ function PureGuestCard({
     const reminderBadgeCount = activeRemindersCount ?? 0;
 
     const today = todayPacificDateString();
+    const [haircutDate, setHaircutDate] = useState(today);
 
     // Always compute local status (useMemo must be called unconditionally)
     // Then use precomputed map if provided
@@ -371,12 +372,27 @@ function PureGuestCard({
         e.stopPropagation();
         if (isPending || isBanned) return; // Blanket ban check
 
+        const targetHaircutDate = haircutDate || today;
+
         setIsPending(true);
         try {
-            const record = await addHaircutRecord(guest.id);
+            const record = await addHaircutRecord(guest.id, { serviceDate: targetHaircutDate });
             if (record && record.id) {
-                addAction('HAIRCUT_LOGGED', { recordId: record.id, guestId: guest.id });
-                toast.success(`Haircut logged for ${guest.preferredName || guest.firstName}`);
+                if (targetHaircutDate === today) {
+                    addAction('HAIRCUT_LOGGED', { recordId: record.id, guestId: guest.id });
+                }
+
+                const displayDate = new Date(`${targetHaircutDate}T12:00:00`).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                });
+
+                toast.success(
+                    targetHaircutDate === today
+                        ? `Haircut logged for ${guest.preferredName || guest.firstName}`
+                        : `Haircut logged for ${guest.preferredName || guest.firstName} on ${displayDate}`
+                );
             }
         } catch (error: any) {
             toast.error(error.message || 'Failed to log haircut');
@@ -943,19 +959,33 @@ function PureGuestCard({
                                         )}
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={handleHaircutAdd}
-                                        disabled={isPending || isBanned}
-                                        className={cn(
-                                            "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors border border-transparent",
-                                            isBanned
-                                                ? "text-gray-400 cursor-not-allowed"
-                                                : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                                        )}
-                                    >
-                                        <Scissors size={14} />
-                                        Haircut
-                                    </button>
+                                    <div className="inline-flex items-center gap-2">
+                                        <label htmlFor={`haircut-date-${guest.id}`} className="sr-only">Haircut date</label>
+                                        <input
+                                            id={`haircut-date-${guest.id}`}
+                                            aria-label="Haircut date"
+                                            type="date"
+                                            value={haircutDate}
+                                            max={today}
+                                            onChange={(e) => setHaircutDate(e.target.value)}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="h-8 rounded-md border border-gray-200 px-2 text-xs text-gray-600"
+                                            disabled={isPending || isBanned}
+                                        />
+                                        <button
+                                            onClick={handleHaircutAdd}
+                                            disabled={isPending || isBanned}
+                                            className={cn(
+                                                "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors border border-transparent",
+                                                isBanned
+                                                    ? "text-gray-400 cursor-not-allowed"
+                                                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                                            )}
+                                        >
+                                            <Scissors size={14} />
+                                            Haircut
+                                        </button>
+                                    </div>
                                 )}
 
                                 {todayHoliday ? (

@@ -300,6 +300,25 @@ describe('GuestCard Component', () => {
         });
     });
 
+    describe('Haircut Actions', () => {
+        it('allows assigning haircut for a past date from guest card', async () => {
+            render(<GuestCard guest={baseGuest} />);
+
+            fireEvent.click(screen.getByText('Johnny'));
+
+            const haircutDateInput = screen.getByLabelText('Haircut date');
+            fireEvent.change(haircutDateInput, { target: { value: '2026-01-14' } });
+
+            fireEvent.click(screen.getByRole('button', { name: 'Haircut' }));
+
+            await waitFor(() => {
+                expect(mockAddHaircutRecord).toHaveBeenCalledWith('g1', {
+                    serviceDate: '2026-01-14',
+                });
+            });
+        });
+    });
+
     describe('Expand/Collapse', () => {
         it('expands on click', () => {
             render(<GuestCard guest={baseGuest} />);
