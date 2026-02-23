@@ -212,7 +212,10 @@ export function AnalyticsSection() {
     }, []);
 
     const dateKeyOf = useCallback((record: any) => {
-        return record?.dateKey || (typeof record?.date === 'string' ? record.date.split('T')[0] : '');
+        if (record?.dateKey) return record.dateKey;
+        if (record?.serviceDate) return record.serviceDate;
+        if (record?.service_date) return record.service_date;
+        return typeof record?.date === 'string' ? record.date.split('T')[0] : '';
     }, []);
 
     const dailyCountMaps = useMemo(() => {

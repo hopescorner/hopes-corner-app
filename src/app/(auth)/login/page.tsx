@@ -7,11 +7,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, LogIn, AlertCircle } from 'lucide-react';
 import AnimatedChef from '@/components/icons/AnimatedChef';
 import AnimatedGuest from '@/components/icons/AnimatedGuest';
+import { inferRole, getDefaultRoute } from '@/lib/auth/types';
 
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const callbackUrl = searchParams.get('callbackUrl') || '/check-in';
+    const callbackUrl = searchParams.get('callbackUrl');
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -34,7 +35,8 @@ function LoginForm() {
             if (result?.error) {
                 setError('Invalid email or password. Please try again.');
             } else if (result?.ok) {
-                router.push(callbackUrl);
+                const fallbackRoute = getDefaultRoute(inferRole(email));
+                router.push(callbackUrl || fallbackRoute);
                 router.refresh();
             }
         } catch {
