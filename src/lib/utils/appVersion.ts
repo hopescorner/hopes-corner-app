@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.5';
+export const APP_VERSION = '0.5.6';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.6',
+        date: 'February 23, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Slot Capacity Enforcement',
+                description: 'Shower and laundry slots are now enforced at the application and database level, preventing overbooking even through admin backfill or race conditions.',
+            },
+            {
+                type: 'fix',
+                title: 'Accurate Next-Available Slot Display',
+                description: 'The "Next" slot shown on the check-in page now correctly accounts for completed showers and finished laundry, so fully-booked slots no longer appear available.',
+            },
+        ],
+    },
     {
         version: '0.5.5',
         date: 'February 23, 2026',
