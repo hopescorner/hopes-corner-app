@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.6';
+export const APP_VERSION = '0.5.7';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.7',
+        date: 'February 23, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Correct Shower Next-Slot Availability',
+                description: 'Fixed an issue where the check-in overview could show a shower slot as next available even when it was already full. The app now correctly treats awaiting and done shower records as slot-occupying when computing next availability.',
+            },
+        ],
+    },
     {
         version: '0.5.6',
         date: 'February 23, 2026',
