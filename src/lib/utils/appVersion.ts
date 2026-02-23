@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.11';
+export const APP_VERSION = '0.5.12';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.12',
+        date: 'February 23, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Mobile Analytics Tab Overflow',
+                description: 'Fixed the Analytics view tabs on mobile so labels like Demographics no longer bleed outside the card border.',
+            },
+        ],
+    },
     {
         version: '0.5.11',
         date: 'February 23, 2026',

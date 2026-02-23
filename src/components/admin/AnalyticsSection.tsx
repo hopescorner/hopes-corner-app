@@ -1156,8 +1156,8 @@ export function AnalyticsSection() {
             </div>
 
             {/* View Tabs */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-2 shadow-sm">
-                <nav className="flex gap-1">
+            <div className="bg-white rounded-2xl border border-gray-100 p-1.5 sm:p-2 shadow-sm">
+                <nav className="grid grid-cols-3 gap-1">
                     {VIEWS.map(view => {
                         const Icon = view.icon;
                         return (
@@ -1165,14 +1165,14 @@ export function AnalyticsSection() {
                                 key={view.id}
                                 onClick={() => setActiveView(view.id)}
                                 className={cn(
-                                    "flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all",
+                                    "flex min-w-0 items-center justify-center gap-1 sm:gap-2 px-2 sm:px-6 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold transition-all",
                                     activeView === view.id
                                         ? "bg-blue-100 text-blue-700"
                                         : "text-gray-500 hover:bg-gray-100"
                                 )}
                             >
                                 <Icon size={16} />
-                                {view.label}
+                                <span className="truncate">{view.label}</span>
                             </button>
                         );
                     })}
