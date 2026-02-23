@@ -166,6 +166,11 @@ export default function MonthlyReportGenerator() {
             return pacificDate >= startDate && pacificDate <= endDate;
         };
 
+        const haircutDateInRange = (record: any) => {
+            const dateValue = record?.serviceDate || record?.dateKey || record?.date;
+            return inRange(dateValue);
+        };
+
         // Meals - filter by date field and sum counts
         const guestMeals = (mealRecords || []).filter(r => inRange(r.date)).reduce((sum, r) => sum + (r.count || 0), 0);
         const extraMeals = (extraMealRecords || []).filter(r => inRange(r.date)).reduce((sum, r) => sum + (r.count || 0), 0);
@@ -201,7 +206,7 @@ export default function MonthlyReportGenerator() {
         }).length;
 
         // Haircuts
-        const haircuts = (haircutRecords || []).filter(r => inRange(r.date)).length;
+        const haircuts = (haircutRecords || []).filter(r => haircutDateInRange(r)).length;
 
         return {
             totalMeals,

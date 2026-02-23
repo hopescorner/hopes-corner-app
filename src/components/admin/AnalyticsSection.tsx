@@ -100,7 +100,6 @@ export function AnalyticsSection() {
         rvMealRecords,
         extraMealRecords,
         holidayRecords,
-        haircutRecords,
         dayWorkerMealRecords,
         shelterMealRecords,
         unitedEffortMealRecords,
@@ -111,7 +110,6 @@ export function AnalyticsSection() {
             rvMealRecords: s.rvMealRecords,
             extraMealRecords: s.extraMealRecords,
             holidayRecords: s.holidayRecords,
-            haircutRecords: s.haircutRecords,
             dayWorkerMealRecords: s.dayWorkerMealRecords,
             shelterMealRecords: s.shelterMealRecords,
             unitedEffortMealRecords: s.unitedEffortMealRecords,
@@ -119,11 +117,12 @@ export function AnalyticsSection() {
         }))
     );
 
-    const { showerRecords, laundryRecords, bicycleRecords } = useServicesStore(
+    const { showerRecords, laundryRecords, bicycleRecords, haircutRecords } = useServicesStore(
         useShallow((s) => ({
             showerRecords: s.showerRecords,
             laundryRecords: s.laundryRecords,
             bicycleRecords: s.bicycleRecords,
+            haircutRecords: s.haircutRecords,
         }))
     );
 

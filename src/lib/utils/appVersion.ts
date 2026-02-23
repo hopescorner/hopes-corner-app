@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.9';
+export const APP_VERSION = '0.5.10';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.10',
+        date: 'February 23, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Haircuts Now Included in Analytics and Monthly Reports',
+                description: 'Fixed an issue where haircut backfills could be missing from analytics and monthly reports. Haircut counts now use the service date/date key and the correct data source.',
+            },
+        ],
+    },
     {
         version: '0.5.9',
         date: 'February 23, 2026',
