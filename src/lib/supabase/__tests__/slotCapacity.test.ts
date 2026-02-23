@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 
 /**
  * Tests for slot capacity constraint logic
@@ -7,57 +7,60 @@ import { describe, it, expect } from 'vitest';
  * - check_shower_slot_capacity()
  * - check_laundry_slot_capacity()
  * 
- * The actual enforcement happens at the database level via triggers.
- * These tests validate the business rules and expected error handling.
+ * The actual enforcement happens at the database level via triggers,
+ * with an additional store-level check before insert.
  */
 
 describe('Shower Slot Capacity Constraints', () => {
     describe('Business Rules', () => {
         it('should allow max 2 guests per shower slot', () => {
-            const MAX_CAPACITY = 2;
-            expect(MAX_CAPACITY).toBe(2);
+            expect(MAX_GUESTS_PER_SHOWER_SLOT).toBe(2);
         });
 
-        it('should only count active statuses towards capacity', () => {
-            const ACTIVE_STATUSES = ['booked'];
-            const INACTIVE_STATUSES = ['done', 'cancelled', 'no_show', 'waitlisted'];
-            
-            // Active statuses count towards capacity
-            expect(ACTIVE_STATUSES).toContain('booked');
-            
-            // Inactive statuses don't count
-            expect(INACTIVE_STATUSES).toContain('cancelled');
-            expect(INACTIVE_STATUSES).toContain('done');
-            expect(INACTIVE_STATUSES).toContain('no_show');
+        it('should count booked and done statuses towards capacity', () => {
+            expect(SHOWER_SLOT_OCCUPYING_STATUSES.has('booked')).toBe(true);
+            expect(SHOWER_SLOT_OCCUPYING_STATUSES.has('done')).toBe(true);
+        });
+
+        it('should NOT count cancelled, no_show, or waitlisted towards capacity', () => {
+            expect(SHOWER_SLOT_OCCUPYING_STATUSES.has('cancelled')).toBe(false);
+            expect(SHOWER_SLOT_OCCUPYING_STATUSES.has('no_show')).toBe(false);
+            expect(SHOWER_SLOT_OCCUPYING_STATUSES.has('waitlisted')).toBe(false);
         });
 
         it('should allow waitlisted status without counting towards slot capacity', () => {
-            // Waitlisted guests don't have a specific time slot assigned
-            // They should not count towards slot capacity
             const status = 'waitlisted';
-            const countsTowardsCapacity = ['booked'].includes(status);
+            const countsTowardsCapacity = SHOWER_SLOT_OCCUPYING_STATUSES.has(status);
             expect(countsTowardsCapacity).toBe(false);
         });
 
         it('should allow booking when slot has space', () => {
             const currentCount = 1;
-            const maxCapacity = 2;
-            const canBook = currentCount < maxCapacity;
+            const canBook = currentCount < MAX_GUESTS_PER_SHOWER_SLOT;
             expect(canBook).toBe(true);
         });
 
         it('should reject booking when slot is full', () => {
             const currentCount = 2;
-            const maxCapacity = 2;
-            const canBook = currentCount < maxCapacity;
+            const canBook = currentCount < MAX_GUESTS_PER_SHOWER_SLOT;
             expect(canBook).toBe(false);
         });
 
         it('should allow booking in empty slot', () => {
             const currentCount = 0;
-            const maxCapacity = 2;
-            const canBook = currentCount < maxCapacity;
+            const canBook = currentCount < MAX_GUESTS_PER_SHOWER_SLOT;
             expect(canBook).toBe(true);
+        });
+
+        it('should free the slot when a booking is cancelled', () => {
+            // cancelled and no_show don't count, so their slot opens up
+            const slotRecords = [
+                { status: 'done' },
+                { status: 'cancelled' },
+            ];
+            const occupying = slotRecords.filter(r => SHOWER_SLOT_OCCUPYING_STATUSES.has(r.status));
+            expect(occupying.length).toBe(1);
+            expect(occupying.length < MAX_GUESTS_PER_SHOWER_SLOT).toBe(true);
         });
     });
 

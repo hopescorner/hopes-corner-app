@@ -17,6 +17,7 @@ import {
     mapShowerStatusToDb,
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 
 const OPERATIONAL_WINDOW_DAYS = 45;
 
@@ -148,6 +149,27 @@ export const useServicesStore = create<ServicesState>()(
                         if (!guestId) throw new Error('Guest ID is required');
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
+
+                        // ── Slot capacity check ──
+                        if (time) {
+                            const { count, error: countError } = await supabase
+                                .from('shower_reservations')
+                                .select('*', { count: 'exact', head: true })
+                                .eq('scheduled_for', targetDate)
+                                .eq('scheduled_time', time)
+                                .in('status', Array.from(SHOWER_SLOT_OCCUPYING_STATUSES));
+
+                            if (countError) {
+                                console.error('Failed to check slot capacity:', countError);
+                                throw new Error('Unable to verify slot availability');
+                            }
+
+                            if ((count ?? 0) >= MAX_GUESTS_PER_SHOWER_SLOT) {
+                                throw new Error(
+                                    `This shower slot is full (${count}/${MAX_GUESTS_PER_SHOWER_SLOT}). Please choose another time.`
+                                );
+                            }
+                        }
 
                         const payload = {
                             guest_id: guestId,

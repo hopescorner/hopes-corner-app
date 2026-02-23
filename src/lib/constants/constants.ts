@@ -38,6 +38,15 @@ export const BICYCLE_REPAIR_STATUS = {
   DONE: "done",
 };
 
+/** Maximum number of guests that can be booked into a single shower time slot. */
+export const MAX_GUESTS_PER_SHOWER_SLOT = 2;
+
+/**
+ * Shower statuses that occupy a slot and count towards capacity.
+ * cancelled / no_show / waitlisted do NOT occupy a slot.
+ */
+export const SHOWER_SLOT_OCCUPYING_STATUSES = new Set(['booked', 'done']);
+
 /** Maximum number of base (non-extra) meals a guest can receive per service day. */
 export const MAX_BASE_MEALS_PER_DAY = 2;
 

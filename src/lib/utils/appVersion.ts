@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.4';
+export const APP_VERSION = '0.5.5';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.5',
+        date: 'February 23, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Shower Slot Capacity Enforcement',
+                description: 'Fixed a critical bug where more guests than allowed could be booked into a single shower time slot. Capacity is now enforced at both the application and database level.',
+            },
+        ],
+    },
     {
         version: '0.5.4',
         date: 'February 22, 2026',

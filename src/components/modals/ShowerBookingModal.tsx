@@ -15,6 +15,7 @@ import { useSession } from 'next-auth/react';
 import { type UserRole } from '@/lib/auth/types';
 import { ShieldAlert } from 'lucide-react';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
+import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
 
@@ -45,7 +46,7 @@ export function ShowerBookingModal() {
                 (record) =>
                     record.time === slotTime &&
                     pacificDateStringFrom(record.date) === today &&
-                    record.status !== "waitlisted"
+                    SHOWER_SLOT_OCCUPYING_STATUSES.has(record.status)
             );
 
             const count = todaysRecords.length;
@@ -61,8 +62,8 @@ export function ShowerBookingModal() {
                 label: formatSlotLabel(slotTime),
                 count,
                 guests: guestsInSlot,
-                isFull: count >= 2,
-                isNearlyFull: count === 1,
+                isFull: count >= MAX_GUESTS_PER_SHOWER_SLOT,
+                isNearlyFull: count === MAX_GUESTS_PER_SHOWER_SLOT - 1,
                 isBlocked,
             };
         });
@@ -241,7 +242,7 @@ export function ShowerBookingModal() {
                                     <div className="flex items-center justify-between mb-2">
                                         <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest">Select an available time</h3>
                                         <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-100">
-                                            2 GUESTS PER SLOT
+                                            {MAX_GUESTS_PER_SHOWER_SLOT} GUESTS PER SLOT
                                         </span>
                                     </div>
 
@@ -275,7 +276,7 @@ export function ShowerBookingModal() {
                                                 ) : (
                                                     <div className="flex items-center gap-1 mt-1">
                                                         <Users size={12} className={slot.isFull ? 'text-gray-300' : 'text-sky-500'} />
-                                                        <span className="text-[10px] font-bold text-gray-500">{slot.count}/2</span>
+                                                        <span className="text-[10px] font-bold text-gray-500">{slot.count}/{MAX_GUESTS_PER_SHOWER_SLOT}</span>
                                                     </div>
                                                 )}
                                             </button>

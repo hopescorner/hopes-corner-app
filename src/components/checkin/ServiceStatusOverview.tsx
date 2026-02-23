@@ -10,6 +10,7 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
+import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 
 // Subscribe to array lengths to ensure re-renders when records change
 // This is a workaround for potential subscription issues with complex selectors
@@ -114,16 +115,15 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
 
     // Calculate shower statistics
     const showerStats = useMemo(() => {
-        const excludedStatuses = new Set(['waitlisted', 'cancelled']);
         const todaysRecords = (showerRecords || []).filter(
             (record: any) =>
                 pacificDateStringFrom(getRecordDate(record) || new Date()) === todayString &&
-                !excludedStatuses.has(record.status)
+                SHOWER_SLOT_OCCUPYING_STATUSES.has(record.status)
         );
 
         const totalSlots = allShowerSlots?.length || 0;
-        const blockedCapacity = blockedShowerSlotsCount * 2;
-        const totalCapacity = (totalSlots * 2) - blockedCapacity;
+        const blockedCapacity = blockedShowerSlotsCount * MAX_GUESTS_PER_SHOWER_SLOT;
+        const totalCapacity = (totalSlots * MAX_GUESTS_PER_SHOWER_SLOT) - blockedCapacity;
         const booked = todaysRecords.length;
         const available = Math.max(totalCapacity - booked, 0);
         const waitlisted = (showerRecords || []).filter(

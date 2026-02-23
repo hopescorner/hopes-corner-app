@@ -707,6 +707,45 @@ describe('useServicesStore', () => {
                     await expect(useServicesStore.getState().addShowerRecord('g1')).rejects.toThrow('Unable to save shower record');
                 });
 
+                it('rejects booking when shower slot is at capacity', async () => {
+                    // Mock capacity check to return count of 2 (full)
+                    mockSupabase.in.mockResolvedValueOnce({ count: 2, error: null });
+
+                    await expect(
+                        useServicesStore.getState().addShowerRecord('g1', '08:00')
+                    ).rejects.toThrow('This shower slot is full (2/2). Please choose another time.');
+
+                    // Insert should never be called
+                    expect(mockSupabase.insert).not.toHaveBeenCalled();
+                });
+
+                it('allows booking when slot has room', async () => {
+                    // Mock capacity check passes (count 1 < 2)
+                    mockSupabase.in.mockResolvedValueOnce({ count: 1, error: null });
+                    const mockData = { id: 's200', guest_id: 'g1', scheduled_for: '2025-01-06' };
+                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+
+                    const result = await useServicesStore.getState().addShowerRecord('g1', '08:00');
+                    expect(result.id).toBe('s200');
+                });
+
+                it('skips capacity check when no time is provided', async () => {
+                    const mockData = { id: 's201', guest_id: 'g1', scheduled_for: '2025-01-06' };
+                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+
+                    const result = await useServicesStore.getState().addShowerRecord('g1');
+                    expect(result.id).toBe('s201');
+                    // .in() should not be called for capacity check (only default chaining)
+                });
+
+                it('throws when capacity check query fails', async () => {
+                    mockSupabase.in.mockResolvedValueOnce({ count: null, error: { message: 'DB error' } });
+
+                    await expect(
+                        useServicesStore.getState().addShowerRecord('g1', '09:00')
+                    ).rejects.toThrow('Unable to verify slot availability');
+                });
+
                 it('updates shower status successfully', async () => {
                     useServicesStore.setState({ showerRecords: [createMockShowerRecord({ id: 's1', status: 'waiting' })] });
                     mockSupabase.update.mockReturnThis();

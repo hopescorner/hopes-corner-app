@@ -485,9 +485,44 @@ for each row execute function public.ensure_guest_not_banned('shower');
 create unique index if not exists shower_one_per_day
   on public.shower_reservations (guest_id, scheduled_for);
 
--- Helps enforce max 2 per slot via app logic (query count per slot); add a check trigger later if you prefer
+-- Helps enforce max 2 per slot; also enforced by trg_shower_slot_capacity trigger
 create index if not exists shower_slot_idx
   on public.shower_reservations (scheduled_for, scheduled_time);
+
+-- Trigger: enforce max 2 guests per shower time slot
+create or replace function public.check_shower_slot_capacity()
+returns trigger as $$
+declare
+  slot_count integer;
+  max_per_slot constant integer := 2;
+begin
+  if NEW.status not in ('booked', 'done') then
+    return NEW;
+  end if;
+  if NEW.scheduled_time is null then
+    return NEW;
+  end if;
+
+  select count(*) into slot_count
+    from public.shower_reservations
+   where scheduled_for  = NEW.scheduled_for
+     and scheduled_time = NEW.scheduled_time
+     and status in ('booked', 'done')
+     and id != NEW.id;
+
+  if slot_count >= max_per_slot then
+    raise exception 'Shower slot % on % is full (%/% taken)',
+      NEW.scheduled_time, NEW.scheduled_for, slot_count, max_per_slot;
+  end if;
+
+  return NEW;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_shower_slot_capacity on public.shower_reservations;
+create trigger trg_shower_slot_capacity
+  before insert or update on public.shower_reservations
+  for each row execute function public.check_shower_slot_capacity();
 
 -- Performance indexes for shower_reservations (from migration 004)
 create index if not exists shower_scheduled_for_idx
