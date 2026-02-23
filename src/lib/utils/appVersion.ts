@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.10';
+export const APP_VERSION = '0.5.11';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.11',
+        date: 'February 23, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Accurate Haircut Range Filtering in Analytics',
+                description: 'Haircuts in analytics now prioritize service date fields when filtering by time range, preventing backfilled past-date haircuts from being counted in recent periods.',
+            },
+            {
+                type: 'fix',
+                title: 'Board Login Redirect',
+                description: 'Board users now default to the dashboard after login (when no callback URL is specified), instead of being sent to check-in.',
+            },
+        ],
+    },
     {
         version: '0.5.10',
         date: 'February 23, 2026',
