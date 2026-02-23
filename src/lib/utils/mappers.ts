@@ -97,6 +97,9 @@ interface HaircutRow {
   id: string;
   guest_id: string;
   served_at: string;
+  service_date?: string | null;
+  slot_time?: string | null;
+  stylist_name?: string | null;
 }
 
 interface ItemRow {
@@ -421,11 +424,15 @@ export const mapHolidayRow = (row: HolidayRow) => {
 
 export const mapHaircutRow = (row: HaircutRow) => {
   const effectiveTimestamp = row.served_at || new Date().toISOString();
+  const serviceDate = row.service_date || pacificDateStringFrom(effectiveTimestamp);
   return {
     id: row.id,
     guestId: row.guest_id,
     date: effectiveTimestamp,
-    dateKey: pacificDateStringFrom(effectiveTimestamp),
+    dateKey: serviceDate,
+    serviceDate,
+    slotTime: row.slot_time || undefined,
+    stylistName: row.stylist_name || undefined,
     type: "haircut",
   };
 };

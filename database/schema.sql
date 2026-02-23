@@ -768,6 +768,8 @@ create table if not exists public.haircut_visits (
   guest_id uuid references public.guests(id) on delete cascade,
   served_at timestamptz not null default now(),
   service_date date,
+  slot_time time,
+  stylist_name text,
   created_at timestamptz not null default now()
 );
 
@@ -785,6 +787,12 @@ create index if not exists haircut_created_at_idx
 
 create index if not exists haircut_guest_id_idx
   on public.haircut_visits (guest_id);
+
+create unique index if not exists haircut_visits_schedule_unique
+  on public.haircut_visits (service_date, slot_time, stylist_name)
+  where service_date is not null
+    and slot_time is not null
+    and stylist_name is not null;
 
 -- RLS for haircut_visits table
 alter table public.haircut_visits enable row level security;

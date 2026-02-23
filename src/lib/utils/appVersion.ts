@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.7';
+export const APP_VERSION = '0.5.8';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.8',
+        date: 'February 23, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Haircut Slot Scheduler',
+                description: 'Added a new Haircuts services page with a paper-style grid to assign guests to 15-minute time slots and stylists, plus quick slot clearing for corrections.',
+            },
+            {
+                type: 'improvement',
+                title: 'Haircut Data Model Upgrade',
+                description: 'Haircut records now support service date, slot time, and stylist fields so schedules can be saved and viewed by date.',
+            },
+        ],
+    },
     {
         version: '0.5.7',
         date: 'February 23, 2026',

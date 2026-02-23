@@ -7,6 +7,7 @@ import {
     BarChart3,
     ShowerHead,
     WashingMachine,
+    Scissors,
     Bike,
     History,
     Utensils,
@@ -29,6 +30,7 @@ const TABS = [
     { id: 'meals', label: 'Meals', icon: Utensils, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { id: 'showers', label: 'Showers', icon: ShowerHead, color: 'text-sky-600', bg: 'bg-sky-50' },
     { id: 'laundry', label: 'Laundry', icon: WashingMachine, color: 'text-purple-600', bg: 'bg-purple-50' },
+    { id: 'haircuts', label: 'Haircuts', icon: Scissors, color: 'text-violet-600', bg: 'bg-violet-50' },
     { id: 'bicycles', label: 'Bicycles', icon: Bike, color: 'text-amber-600', bg: 'bg-amber-50' },
     { id: 'donations', label: 'Donations', icon: Heart, color: 'text-rose-600', bg: 'bg-rose-50' },
 ];
@@ -39,6 +41,7 @@ const TabSkeleton = () => <div className="h-80 w-full animate-pulse rounded-2xl 
 const OverviewSection = dynamic(() => import('@/components/services/OverviewSection').then((m) => m.OverviewSection), { loading: TabSkeleton });
 const ShowersSection = dynamic(() => import('@/components/services/ShowersSection').then((m) => m.ShowersSection), { loading: TabSkeleton });
 const LaundrySection = dynamic(() => import('@/components/services/LaundrySection').then((m) => m.LaundrySection), { loading: TabSkeleton });
+const HaircutsSection = dynamic(() => import('@/components/services/HaircutsSection').then((m) => m.HaircutsSection), { loading: TabSkeleton });
 const BicycleSection = dynamic(() => import('@/components/services/BicycleSection').then((m) => m.BicycleSection), { loading: TabSkeleton });
 const TimelineSection = dynamic(() => import('@/components/services/TimelineSection').then((m) => m.TimelineSection), { loading: TabSkeleton });
 const MealsSection = dynamic(() => import('@/components/services/MealsSection').then((m) => m.MealsSection), { loading: TabSkeleton });
@@ -199,6 +202,7 @@ export default function ServicesPage() {
             case 'overview': return <OverviewSection metrics={metrics} setActiveTab={setActiveTab} />;
             case 'showers': return <ShowersSection />;
             case 'laundry': return <LaundrySection />;
+            case 'haircuts': return <HaircutsSection />;
             case 'bicycles': return <BicycleSection />;
             case 'timeline': return <TimelineSection />;
             case 'meals': return <MealsSection />;

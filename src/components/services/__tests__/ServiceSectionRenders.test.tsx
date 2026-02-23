@@ -4,6 +4,7 @@ import React from 'react';
 import { ShowersSection } from '../ShowersSection';
 import { LaundrySection } from '../LaundrySection';
 import { BicycleSection } from '../BicycleSection';
+import { HaircutsSection } from '../HaircutsSection';
 import { MealsSection } from '../MealsSection';
 import { DonationsSection } from '../DonationsSection';
 
@@ -21,6 +22,8 @@ vi.mock('@/stores/useServicesStore', () => ({
             updateShowerStatus: vi.fn(),
             deleteShowerRecord: vi.fn(),
             cancelMultipleShowers: vi.fn(),
+            addHaircutRecord: vi.fn(),
+            deleteHaircutRecord: vi.fn(),
             loadFromSupabase: vi.fn(),
         };
         return typeof selector === 'function' ? selector(state) : state;
@@ -94,6 +97,11 @@ describe('Service Section Rendering', () => {
     it('BicycleSection renders correctly', () => {
         render(<BicycleSection />);
         expect(screen.getByText(/Bicycle Repairs/i)).toBeDefined();
+    });
+
+    it('HaircutsSection renders correctly', () => {
+        render(<HaircutsSection />);
+        expect(screen.getByText(/Haircut Schedule/i)).toBeDefined();
     });
 
     it('MealsSection renders correctly', () => {

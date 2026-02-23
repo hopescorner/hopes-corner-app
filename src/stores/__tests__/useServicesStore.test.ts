@@ -899,6 +899,48 @@ describe('useServicesStore', () => {
                 expect(useServicesStore.getState().haircutRecords).toHaveLength(1);
             });
 
+            it('adds a scheduled haircut with slot and stylist', async () => {
+                mockSupabase.single.mockResolvedValueOnce({ data: { id: 'h2', service_date: '2025-01-06', slot_time: '09:30', stylist_name: 'Stylist 2' }, error: null });
+
+                await useServicesStore.getState().addHaircutRecord('g1', {
+                    serviceDate: '2025-01-06',
+                    slotTime: '09:30',
+                    stylistName: 'Stylist 2',
+                });
+
+                expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
+                    guest_id: 'g1',
+                    service_date: '2025-01-06',
+                    slot_time: '09:30',
+                    stylist_name: 'Stylist 2',
+                }));
+            });
+
+            it('rejects duplicate stylist slot assignment on same date', async () => {
+                useServicesStore.setState({
+                    haircutRecords: [
+                        {
+                            id: 'existing-haircut',
+                            guestId: 'g-existing',
+                            date: '2025-01-06T09:30:00Z',
+                            dateKey: '2025-01-06',
+                            serviceDate: '2025-01-06',
+                            slotTime: '09:30',
+                            stylistName: 'Stylist 2',
+                            type: 'haircut',
+                        } as any,
+                    ],
+                });
+
+                await expect(
+                    useServicesStore.getState().addHaircutRecord('g1', {
+                        serviceDate: '2025-01-06',
+                        slotTime: '09:30',
+                        stylistName: 'Stylist 2',
+                    })
+                ).rejects.toThrow('That stylist slot is already assigned. Please choose another slot.');
+            });
+
             it('adds a holiday record successfully', async () => {
                 mockSupabase.single.mockResolvedValueOnce({ data: { id: 'hol1' }, error: null });
                 await useServicesStore.getState().addHolidayRecord('g1');

@@ -77,8 +77,17 @@ interface HaircutRecord {
     guestId: string;
     date: string;
     dateKey?: string;
+    serviceDate?: string;
+    slotTime?: string;
+    stylistName?: string;
     type: string;
     createdAt?: string;
+}
+
+interface HaircutRecordOptions {
+    serviceDate?: string;
+    slotTime?: string;
+    stylistName?: string;
 }
 
 interface HolidayRecord {
@@ -114,7 +123,7 @@ interface ServicesState {
     addBicycleRecord: (guestId: string, repairOptions?: any) => Promise<BicycleRecord | Partial<BicycleRecord>>;
     updateBicycleRecord: (recordId: string, updates: Partial<BicycleRecord>) => Promise<void>;
     deleteBicycleRecord: (recordId: string) => Promise<void>;
-    addHaircutRecord: (guestId: string) => Promise<HaircutRecord | Partial<HaircutRecord>>;
+    addHaircutRecord: (guestId: string, options?: HaircutRecordOptions) => Promise<HaircutRecord | Partial<HaircutRecord>>;
     deleteHaircutRecord: (recordId: string) => Promise<void>;
     addHolidayRecord: (guestId: string) => Promise<HolidayRecord | Partial<HolidayRecord>>;
     deleteHolidayRecord: (recordId: string) => Promise<void>;
@@ -648,15 +657,39 @@ export const useServicesStore = create<ServicesState>()(
                         }
                     },
 
-                    addHaircutRecord: async (guestId: string) => {
+                    addHaircutRecord: async (guestId: string, options?: HaircutRecordOptions) => {
                         if (!guestId) throw new Error('Guest ID is required');
-                        const todayStr = todayPacificDateString();
+                        const targetDate = options?.serviceDate || todayPacificDateString();
+                        const normalizedSlot = options?.slotTime?.trim() || null;
+                        const normalizedStylist = options?.stylistName?.trim() || null;
+
+                        if ((normalizedSlot && !normalizedStylist) || (!normalizedSlot && normalizedStylist)) {
+                            throw new Error('Both slot time and stylist are required for scheduled haircuts');
+                        }
+
+                        if (normalizedSlot && normalizedStylist) {
+                            const conflict = get().haircutRecords.some((record) => {
+                                const recordDate = record.serviceDate || record.dateKey || pacificDateStringFrom(record.date);
+                                return (
+                                    recordDate === targetDate &&
+                                    record.slotTime === normalizedSlot &&
+                                    record.stylistName === normalizedStylist
+                                );
+                            });
+
+                            if (conflict) {
+                                throw new Error('That stylist slot is already assigned. Please choose another slot.');
+                            }
+                        }
+
                         const supabase = createClient();
 
                         const payload = {
                             guest_id: guestId,
-                            served_at: new Date().toISOString(), // Use exact timestamp for uniqueness if needed, or date string based on logic
-                            service_date: todayStr
+                            served_at: new Date().toISOString(),
+                            service_date: targetDate,
+                            slot_time: normalizedSlot,
+                            stylist_name: normalizedStylist,
                         };
 
                         const { data, error } = await supabase

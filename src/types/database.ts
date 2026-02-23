@@ -100,6 +100,9 @@ export interface HaircutVisit {
     id: string;
     guest_id: string;
     served_at: string;
+    service_date?: string;
+    slot_time?: string;
+    stylist_name?: string;
     created_at: string;
 }
 
