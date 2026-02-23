@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.8';
+export const APP_VERSION = '0.5.9';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.9',
+        date: 'February 23, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Backdate Haircuts from Check-In',
+                description: 'Staff can now choose a past service date when logging a haircut directly from the guest check-in card, making historical backfill easier without leaving check-in.',
+            },
+        ],
+    },
     {
         version: '0.5.8',
         date: 'February 23, 2026',
