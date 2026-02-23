@@ -47,6 +47,21 @@ export const MAX_GUESTS_PER_SHOWER_SLOT = 2;
  */
 export const SHOWER_SLOT_OCCUPYING_STATUSES = new Set(['booked', 'done']);
 
+/**
+ * Maximum number of guests per onsite laundry slot (each slot = one machine window).
+ * Offsite laundry is unconstrained.
+ */
+export const MAX_GUESTS_PER_LAUNDRY_SLOT = 1;
+
+/**
+ * Laundry statuses that occupy a slot and count towards capacity.
+ * Once a guest has used the slot (even if done/picked_up), the slot is consumed for the day.
+ * Only 'waitlisted' does not count.
+ */
+export const LAUNDRY_SLOT_OCCUPYING_STATUSES = new Set([
+  'waiting', 'washer', 'dryer', 'done', 'picked_up',
+]);
+
 /** Maximum number of base (non-extra) meals a guest can receive per service day. */
 export const MAX_BASE_MEALS_PER_DAY = 2;
 

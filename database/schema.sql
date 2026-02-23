@@ -576,6 +576,45 @@ for each row execute function public.ensure_guest_not_banned('laundry');
 create unique index if not exists laundry_one_per_day
   on public.laundry_bookings (guest_id, scheduled_for);
 
+-- Trigger: enforce max 1 guest per onsite laundry time slot
+create or replace function public.check_laundry_slot_capacity()
+returns trigger as $$
+declare
+  slot_count integer;
+  max_per_slot constant integer := 1;
+begin
+  if NEW.laundry_type != 'onsite' then
+    return NEW;
+  end if;
+  if NEW.slot_label is null then
+    return NEW;
+  end if;
+  if NEW.status not in ('waiting', 'washer', 'dryer', 'done', 'picked_up') then
+    return NEW;
+  end if;
+
+  select count(*) into slot_count
+    from public.laundry_bookings
+   where scheduled_for = NEW.scheduled_for
+     and slot_label    = NEW.slot_label
+     and laundry_type  = 'onsite'
+     and status in ('waiting', 'washer', 'dryer', 'done', 'picked_up')
+     and id != NEW.id;
+
+  if slot_count >= max_per_slot then
+    raise exception 'Laundry slot % on % is already booked',
+      NEW.slot_label, NEW.scheduled_for;
+  end if;
+
+  return NEW;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_laundry_slot_capacity on public.laundry_bookings;
+create trigger trg_laundry_slot_capacity
+  before insert or update on public.laundry_bookings
+  for each row execute function public.check_laundry_slot_capacity();
+
 -- Performance indexes for laundry_bookings (from migration 004)
 create index if not exists laundry_scheduled_for_idx
   on public.laundry_bookings (scheduled_for desc);

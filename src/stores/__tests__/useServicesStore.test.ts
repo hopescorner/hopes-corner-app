@@ -821,6 +821,52 @@ describe('useServicesStore', () => {
                     await useServicesStore.getState().updateLaundryBagNumber('l1', '2');
                     expect(useServicesStore.getState().laundryRecords[0].bagNumber).toBe('2');
                 });
+
+                it('rejects onsite booking when laundry slot is already taken', async () => {
+                    // Mock capacity check to return count of 1 (full for laundry, max is 1)
+                    mockSupabase.in.mockResolvedValueOnce({ count: 1, error: null });
+
+                    await expect(
+                        useServicesStore.getState().addLaundryRecord('g1', 'onsite', '08:00', 'B1')
+                    ).rejects.toThrow('This laundry slot is already booked');
+
+                    // Insert should never be called
+                    expect(mockSupabase.insert).not.toHaveBeenCalled();
+                });
+
+                it('allows onsite booking when slot is free', async () => {
+                    // Mock capacity check passes (count 0 < 1)
+                    mockSupabase.in.mockResolvedValueOnce({ count: 0, error: null });
+                    const mockData = { id: 'l300', guest_id: 'g1', scheduled_for: '2025-01-06' };
+                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+
+                    const result = await useServicesStore.getState().addLaundryRecord('g1', 'onsite', '08:00', 'B1');
+                    expect(result.id).toBe('l300');
+                });
+
+                it('skips capacity check for offsite laundry', async () => {
+                    const mockData = { id: 'l301', guest_id: 'g1', scheduled_for: '2025-01-06' };
+                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+
+                    const result = await useServicesStore.getState().addLaundryRecord('g1', 'offsite');
+                    expect(result.id).toBe('l301');
+                });
+
+                it('skips capacity check when no slot label provided', async () => {
+                    const mockData = { id: 'l302', guest_id: 'g1', scheduled_for: '2025-01-06' };
+                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+
+                    const result = await useServicesStore.getState().addLaundryRecord('g1', 'onsite');
+                    expect(result.id).toBe('l302');
+                });
+
+                it('throws when laundry capacity check query fails', async () => {
+                    mockSupabase.in.mockResolvedValueOnce({ count: null, error: { message: 'DB error' } });
+
+                    await expect(
+                        useServicesStore.getState().addLaundryRecord('g1', 'onsite', '09:00', 'B2')
+                    ).rejects.toThrow('Unable to verify slot availability');
+                });
             });
         });
 

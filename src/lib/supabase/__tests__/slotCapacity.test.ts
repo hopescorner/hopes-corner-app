@@ -1,4 +1,4 @@
-import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES, MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 
 /**
  * Tests for slot capacity constraint logic
@@ -86,9 +86,8 @@ describe('Shower Slot Capacity Constraints', () => {
 
 describe('Laundry Slot Capacity Constraints', () => {
     describe('Business Rules', () => {
-        it('should allow max 2 guests per onsite laundry slot', () => {
-            const MAX_CAPACITY = 2;
-            expect(MAX_CAPACITY).toBe(2);
+        it('should allow max 1 guest per onsite laundry slot', () => {
+            expect(MAX_GUESTS_PER_LAUNDRY_SLOT).toBe(1);
         });
 
         it('should only apply to onsite laundry', () => {
@@ -99,29 +98,30 @@ describe('Laundry Slot Capacity Constraints', () => {
             expect(CONSTRAINED_TYPES).not.toContain('offsite');
         });
 
-        it('should only count active statuses towards capacity', () => {
-            const ACTIVE_STATUSES = ['waiting', 'washer', 'dryer'];
-            const INACTIVE_STATUSES = ['done', 'picked_up', 'pending', 'transported', 'returned'];
-            
-            // Active statuses count towards capacity
-            expect(ACTIVE_STATUSES).toContain('waiting');
-            expect(ACTIVE_STATUSES).toContain('washer');
-            expect(ACTIVE_STATUSES).toContain('dryer');
-            
-            // Completed statuses don't count
-            expect(INACTIVE_STATUSES).toContain('done');
-            expect(INACTIVE_STATUSES).toContain('picked_up');
+        it('should count active and completed statuses towards capacity', () => {
+            // All statuses that mean the slot was used
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('waiting')).toBe(true);
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('washer')).toBe(true);
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('dryer')).toBe(true);
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('done')).toBe(true);
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('picked_up')).toBe(true);
+        });
+
+        it('should NOT count offsite/waitlisted statuses towards capacity', () => {
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('pending')).toBe(false);
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('transported')).toBe(false);
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('returned')).toBe(false);
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('offsite_picked_up')).toBe(false);
+            expect(LAUNDRY_SLOT_OCCUPYING_STATUSES.has('waitlisted')).toBe(false);
         });
 
         it('should not apply constraints to offsite laundry', () => {
-            // Offsite laundry doesn't have slot capacity limits
             const laundryType: string = 'offsite';
             const hasSlotConstraint = laundryType === 'onsite';
             expect(hasSlotConstraint).toBe(false);
         });
 
         it('should only apply constraints when slot_label is set', () => {
-            // If no slot label, no capacity check needed
             const slotLabel: string | null = null;
             const needsCapacityCheck = slotLabel !== null;
             expect(needsCapacityCheck).toBe(false);

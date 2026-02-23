@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import { type UserRole } from '@/lib/auth/types';
 import { ShieldAlert } from 'lucide-react';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
+import { LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
@@ -45,7 +46,8 @@ export function LaundryBookingModal() {
                 (r) =>
                     r.time === slotLabel &&
                     r.laundryType === 'onsite' &&
-                    pacificDateStringFrom(r.date) === today
+                    pacificDateStringFrom(r.date) === today &&
+                    LAUNDRY_SLOT_OCCUPYING_STATUSES.has(r.status)
             );
             const isBlocked = isSlotBlocked('laundry', slotLabel, today);
 

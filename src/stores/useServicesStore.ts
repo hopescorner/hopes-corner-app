@@ -17,7 +17,7 @@ import {
     mapShowerStatusToDb,
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
-import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES, MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 
 const OPERATIONAL_WINDOW_DAYS = 45;
 
@@ -255,6 +255,28 @@ export const useServicesStore = create<ServicesState>()(
 
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
+
+                        // ── Onsite slot capacity check ──
+                        if (slotLabel && washType.toLowerCase() === 'onsite') {
+                            const { count, error: countError } = await supabase
+                                .from('laundry_bookings')
+                                .select('*', { count: 'exact', head: true })
+                                .eq('scheduled_for', targetDate)
+                                .eq('slot_label', slotLabel)
+                                .eq('laundry_type', 'onsite')
+                                .in('status', Array.from(LAUNDRY_SLOT_OCCUPYING_STATUSES));
+
+                            if (countError) {
+                                console.error('Failed to check laundry slot capacity:', countError);
+                                throw new Error('Unable to verify slot availability');
+                            }
+
+                            if ((count ?? 0) >= MAX_GUESTS_PER_LAUNDRY_SLOT) {
+                                throw new Error(
+                                    `This laundry slot is already booked. Please choose another time.`
+                                );
+                            }
+                        }
 
                         const payload = {
                             guest_id: guestId,
