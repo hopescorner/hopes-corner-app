@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut, Menu, X } from 'lucide-react';
+import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut } from 'lucide-react';
 import { getDefaultRoute, getRoleLabel, ROLE_ACCESS, type UserRole } from '@/lib/auth/types';
 import { AppVersion } from '@/components/pwa/AppVersion';
 import { TutorialModal } from '@/components/modals/TutorialModal';
@@ -26,7 +26,6 @@ const allNavItems: NavItem[] = [
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const { data: session } = useSession();
     const pathname = usePathname();
-    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [showTutorial, setShowTutorial] = useState(false);
 
     // Set up realtime subscriptions for multi-device sync
@@ -43,12 +42,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     // Get current active tab from pathname
     const activeTab = navItems.find((item) => pathname.startsWith(item.href))?.id || navItems[0]?.id;
-
-    // Close mobile menu on route change
-    useEffect(() => {
-        const timer = setTimeout(() => setMobileMenuOpen(false), 0);
-        return () => clearTimeout(timer);
-    }, [pathname]);
 
     // Handle touch detection
     const [isTouch, setIsTouch] = useState(false);
@@ -174,14 +167,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                             </button>
                         </div>
 
-                        {/* Mobile menu button */}
-                        <button
-                            className="md:hidden p-2 text-emerald-200 hover:text-white"
-                            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                            aria-label="Toggle menu"
-                        >
-                            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-                        </button>
                     </div>
                 </div>
             </header>

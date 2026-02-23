@@ -106,24 +106,6 @@ describe('MainLayout', () => {
         expect(screen.queryByText('Dashboard')).toBeNull();
     });
 
-    it('handles mobile menu toggle', () => {
-        vi.mocked(useSession).mockReturnValue({
-            data: { user: { role: 'admin', name: 'Admin' } },
-            status: 'authenticated',
-        } as any);
-
-        render(<MainLayout>Content</MainLayout>);
-
-        const menuButton = screen.getByLabelText('Toggle menu');
-        fireEvent.click(menuButton);
-
-        // Mobile layout should show icons/links
-        expect(screen.getByTestId('icon-x')).toBeDefined();
-
-        fireEvent.click(menuButton);
-        expect(screen.getByTestId('icon-menu')).toBeDefined();
-    });
-
     it('calls signOut on logout button click', () => {
         vi.mocked(useSession).mockReturnValue({
             data: { user: { role: 'admin', name: 'Admin' } },

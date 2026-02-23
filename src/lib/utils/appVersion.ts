@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.3';
+export const APP_VERSION = '0.5.4';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.4',
+        date: 'February 22, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Accurate Per-Day Average',
+                description: 'The "per day" average for Unique Guests now divides only by service days that have already occurred this month, so the number is not diluted by future days.',
+            },
+            {
+                type: 'improvement',
+                title: 'Cleaner Mobile Header',
+                description: 'Removed the non-functional hamburger menu from the mobile header. Navigation is handled entirely by the bottom tab bar.',
+            },
+        ],
+    },
     {
         version: '0.5.3',
         date: 'February 21, 2026',
