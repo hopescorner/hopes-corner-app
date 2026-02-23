@@ -10,7 +10,7 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
-import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 
 // Subscribe to array lengths to ensure re-renders when records change
 // This is a workaround for potential subscription issues with complex selectors
@@ -167,20 +167,19 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
     // Find next available shower slot (any unbooked slot regardless of time)
     const nextAvailableShowerSlot = useMemo(() => {
         if (!allShowerSlots?.length || showerStats.available === 0) return null;
-        const inactiveStatuses = new Set(['waitlisted', 'cancelled', 'done']);
-        const todayActiveRecords = (showerRecords || []).filter(
+        const todayOccupyingRecords = (showerRecords || []).filter(
             (record: any) =>
                 pacificDateStringFrom(getRecordDate(record) || new Date()) === todayString &&
-                !inactiveStatuses.has(record.status)
+                SHOWER_SLOT_OCCUPYING_STATUSES.has(record.status)
         );
         const slotCounts: Record<string, number> = {};
-        todayActiveRecords.forEach((record: any) => {
+        todayOccupyingRecords.forEach((record: any) => {
             const time = record.scheduledTime || record.time;
             if (time) slotCounts[time] = (slotCounts[time] || 0) + 1;
         });
         for (const slot of allShowerSlots) {
             if (!slot || isSlotBlocked('shower', slot, todayString)) continue;
-            if ((slotCounts[slot] || 0) < 2) return slot;
+            if ((slotCounts[slot] || 0) < MAX_GUESTS_PER_SHOWER_SLOT) return slot;
         }
         return null;
     }, [allShowerSlots, showerRecords, todayString, showerStats.available, isSlotBlocked, showerRecordsLength]);
@@ -188,12 +187,11 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
     // Find next available laundry slot (any unbooked slot regardless of time)
     const nextAvailableLaundrySlot = useMemo(() => {
         if (!allLaundrySlots?.length || laundryStats.onsiteAvailable === 0) return null;
-        const activeLaundryStatuses = new Set(['waiting', 'washer', 'dryer']);
         const todayLaundryRecords = (laundryRecords || []).filter(
             (record: any) =>
                 pacificDateStringFrom(getRecordDate(record) || new Date()) === todayString &&
                 record.laundryType === 'onsite' &&
-                activeLaundryStatuses.has(record.status)
+                LAUNDRY_SLOT_OCCUPYING_STATUSES.has(record.status)
         );
         const bookedLaundrySlots = new Set(
             todayLaundryRecords.map((record: any) => record.slotLabel || record.time).filter(Boolean)
