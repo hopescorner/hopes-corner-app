@@ -797,7 +797,7 @@ export function AnalyticsSection() {
     const renderDemographics = () => (
         <div className="space-y-6">
             {/* Meal Type Filters — only visible when Meals program is selected */}
-            {selectedPrograms.includes('meals') && <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            {selectedPrograms.includes('meals') && <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                         <Utensils size={16} className="text-gray-400" />
@@ -812,7 +812,7 @@ export function AnalyticsSection() {
                         </button>
                     </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {DEMO_MEAL_TYPE_OPTIONS.map(type => {
                         const isSelected = demoMealTypeFilters[type.key];
                         return (
@@ -835,7 +835,7 @@ export function AnalyticsSection() {
             </div>}
 
             {/* Demographic Filters */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                         <Filter size={16} className="text-gray-400" />
@@ -973,11 +973,13 @@ export function AnalyticsSection() {
             </div>
 
             {/* Demographics Results */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
-                    <Users size={20} className="text-indigo-600" />
-                    <h3 className="text-lg font-black text-gray-900">Guest Demographics</h3>
-                    <span className="px-3 py-1 text-sm font-bold bg-indigo-100 text-indigo-700 rounded-full">
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                    <div className="flex items-center gap-2">
+                        <Users size={20} className="text-indigo-600" />
+                        <h3 className="text-base sm:text-lg font-black text-gray-900">Guest Demographics</h3>
+                    </div>
+                    <span className="self-start px-3 py-1 text-sm font-bold bg-indigo-100 text-indigo-700 rounded-full">
                         {demographics.total} active guests
                     </span>
                 </div>
@@ -997,7 +999,7 @@ export function AnalyticsSection() {
                         )}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                         {[
                             { title: 'Housing Status', data: demographics.housingCounts },
                             { title: 'Age Groups', data: demographics.ageCounts },
@@ -1006,19 +1008,28 @@ export function AnalyticsSection() {
                         ].map(({ title, data }) => {
                             const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
                             const total = entries.reduce((sum, [, count]) => sum + count, 0);
+                            const maxCount = entries.length > 0 ? entries[0][1] : 1;
                             return (
-                                <div key={title} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                                    <h4 className="font-black text-gray-900 mb-4 text-sm uppercase tracking-wider">{title}</h4>
-                                    <div className="space-y-2">
+                                <div key={title} className="bg-gray-50 rounded-xl p-3 sm:p-4 border border-gray-100">
+                                    <h4 className="font-black text-gray-900 mb-3 sm:mb-4 text-xs sm:text-sm uppercase tracking-wider">{title}</h4>
+                                    <div className="space-y-2.5">
                                         {entries.slice(0, 5).map(([label, count], idx) => (
-                                            <div key={label} className="flex items-center justify-between">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                                                    <span className="text-sm text-gray-700">{label}</span>
+                                            <div key={label}>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                                                        <span className="text-sm text-gray-700 truncate">{label}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 flex-shrink-0 ml-2">
+                                                        <span className="text-sm font-bold text-gray-900">{count}</span>
+                                                        <span className="text-xs text-gray-500">({total > 0 ? ((count / total) * 100).toFixed(0) : 0}%)</span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-bold text-gray-900">{count}</span>
-                                                    <span className="text-xs text-gray-500">({total > 0 ? ((count / total) * 100).toFixed(0) : 0}%)</span>
+                                                <div className="h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full transition-all"
+                                                        style={{ width: `${maxCount > 0 ? (count / maxCount) * 100 : 0}%`, backgroundColor: COLORS[idx % COLORS.length] }}
+                                                    />
                                                 </div>
                                             </div>
                                         ))}

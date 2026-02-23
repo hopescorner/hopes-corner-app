@@ -19,7 +19,12 @@ import { useGuestsStore } from '@/stores/useGuestsStore';
 import { cn } from '@/lib/utils/cn';
 import { useCallback, useRef } from 'react';
 
-const TabSkeleton = () => <div className="h-80 w-full animate-pulse rounded-2xl bg-gray-100" />;
+const TabSkeleton = () => (
+    <div className="flex flex-col items-center justify-center gap-4 h-80 w-full rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200">
+        <div className="h-10 w-10 rounded-full border-4 border-gray-200 border-t-indigo-600 animate-spin" />
+        <p className="text-sm font-semibold text-gray-500">Loading section…</p>
+    </div>
+);
 const AnalyticsSection = dynamic(() => import('@/components/admin/AnalyticsSection').then((m) => m.AnalyticsSection), { loading: TabSkeleton });
 const DataExportSection = dynamic(() => import('@/components/admin/DataExportSection').then((m) => m.DataExportSection), { loading: TabSkeleton });
 const MealReport = dynamic(() => import('@/components/admin/reports/MealReport').then((m) => m.MealReport), { loading: TabSkeleton });
