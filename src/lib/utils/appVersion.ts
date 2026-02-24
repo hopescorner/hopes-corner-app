@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.12';
+export const APP_VERSION = '0.5.13';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.13',
+        date: 'February 23, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Consistent Unique Guest Counts in Analytics',
+                description: 'Aligned Overview unique guest totals with Demographics program/date logic so custom-range counts stay consistent when filtering to Meals only.',
+            },
+        ],
+    },
     {
         version: '0.5.12',
         date: 'February 23, 2026',

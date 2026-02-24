@@ -297,28 +297,56 @@ export function AnalyticsSection() {
             .filter((r: { date: string; dateKey?: string }) => isRecordInRange(r))
             .length;
 
-        // Get unique guest IDs from all services
+        // Get unique guest IDs from selected programs (aligned with demographics selection behavior)
         const guestIds = new Set<string>();
-        [
-            ...mealRecords,
-            ...rvMealRecords,
-            ...extraMealRecords,
-            ...dayWorkerMealRecords,
-            ...shelterMealRecords,
-            ...unitedEffortMealRecords,
-            ...lunchBagRecords,
-        ]
-            .filter(isRecordInRange)
-            .forEach(r => r.guestId && guestIds.add(r.guestId));
-        showerRecords.filter(r => isRecordInRange(r) && r.status === 'done')
-            .forEach(r => guestIds.add(r.guestId));
-        laundryRecords.filter(r => isRecordInRange(r))
-            .forEach(r => guestIds.add(r.guestId));
-        bicycleRecords.filter(r => isRecordInRange(r) && r.status === 'done')
-            .forEach(r => r.guestId && guestIds.add(r.guestId));
+        const addGuestIds = (records: Array<{ guestId?: string; date?: string; dateKey?: string }>) => {
+            records
+                .filter(isRecordInRange)
+                .forEach((record) => record.guestId && guestIds.add(record.guestId));
+        };
+
+        if (selectedPrograms.includes('meals')) {
+            if (demoMealTypeFilters.guest) addGuestIds(mealRecords);
+            if (demoMealTypeFilters.rv) addGuestIds(rvMealRecords);
+            if (demoMealTypeFilters.extras) addGuestIds(extraMealRecords);
+            if (demoMealTypeFilters.dayWorker) addGuestIds(dayWorkerMealRecords);
+            if (demoMealTypeFilters.shelter) addGuestIds(shelterMealRecords);
+            if (demoMealTypeFilters.unitedEffort) addGuestIds(unitedEffortMealRecords);
+            if (demoMealTypeFilters.lunchBags) addGuestIds(lunchBagRecords);
+        }
+
+        if (selectedPrograms.includes('showers')) {
+            showerRecords
+                .filter(r => isRecordInRange(r) && r.status === 'done')
+                .forEach(r => guestIds.add(r.guestId));
+        }
+
+        if (selectedPrograms.includes('laundry')) {
+            laundryRecords
+                .filter(r => isRecordInRange(r))
+                .forEach(r => guestIds.add(r.guestId));
+        }
+
+        if (selectedPrograms.includes('bicycles')) {
+            bicycleRecords
+                .filter(r => isRecordInRange(r) && r.status !== 'cancelled')
+                .forEach(r => r.guestId && guestIds.add(r.guestId));
+        }
+
+        if (selectedPrograms.includes('haircuts')) {
+            (haircutRecords || [])
+                .filter((r: { date?: string; dateKey?: string }) => isRecordInRange(r))
+                .forEach((r: { guestId?: string }) => r.guestId && guestIds.add(r.guestId));
+        }
+
+        if (selectedPrograms.includes('holidays')) {
+            (holidayRecords || [])
+                .filter((r: { date?: string; dateKey?: string }) => isRecordInRange(r))
+                .forEach((r: { guestId?: string }) => r.guestId && guestIds.add(r.guestId));
+        }
 
         return { meals, showers, laundry, bicycles, bicycleServices, haircuts, holidays, uniqueGuests: guestIds.size };
-    }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isInRange, dateKeyOf, countBicycleServices]);
+    }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isInRange, dateKeyOf, countBicycleServices, selectedPrograms, demoMealTypeFilters]);
 
     // Calculate comparison metrics (previous period)
     const prevPeriod = useMemo(() => {
