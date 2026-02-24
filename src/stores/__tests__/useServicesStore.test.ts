@@ -2,6 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useServicesStore } from '../useServicesStore';
 
 // Mock dependencies
+const mockRpcResult = {
+    single: vi.fn().mockResolvedValue({ data: { id: 'new-id' }, error: null }),
+};
 const mockSupabase = {
     from: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
@@ -14,6 +17,7 @@ const mockSupabase = {
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data: { id: 'new-id' }, error: null }),
+    rpc: vi.fn().mockReturnValue(mockRpcResult),
 };
 
 vi.mock('@/lib/supabase/client', () => ({
@@ -99,6 +103,12 @@ describe('useServicesStore', () => {
 
         mockSupabase.single.mockReset();
         mockSupabase.single.mockResolvedValue({ data: { id: 'new-id' }, error: null });
+
+        // Reset RPC mock
+        mockRpcResult.single.mockReset();
+        mockRpcResult.single.mockResolvedValue({ data: { id: 'new-id' }, error: null });
+        mockSupabase.rpc.mockReset();
+        mockSupabase.rpc.mockReturnValue(mockRpcResult);
     });
 
     describe('initial state', () => {
@@ -649,47 +659,48 @@ describe('useServicesStore', () => {
             // Note: beforeEach at top level resets mocks
 
             describe('shower actions', () => {
-                it('adds a shower record successfully', async () => {
+                it('adds a shower record via atomic RPC when time is provided', async () => {
                     const mockData = { id: 's123', guest_id: 'g1', scheduled_for: '2025-01-06' };
-                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+                    mockRpcResult.single.mockResolvedValueOnce({ data: mockData, error: null });
 
                     const result = await useServicesStore.getState().addShowerRecord('g1', '08:00');
 
                     expect(result.id).toBe('s123');
                     expect(useServicesStore.getState().showerRecords).toHaveLength(1);
-                    expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
-                        guest_id: 'g1',
-                        scheduled_time: '08:00',
-                        status: 'booked'
-                    }));
+                    expect(mockSupabase.rpc).toHaveBeenCalledWith('book_shower_slot', {
+                        p_guest_id: 'g1',
+                        p_scheduled_for: '2025-01-06',
+                        p_scheduled_time: '08:00',
+                        p_status: 'booked',
+                    });
                 });
 
-                it('adds a shower record for a selected past date', async () => {
+                it('adds a shower record for a selected past date via RPC', async () => {
                     const mockData = { id: 's124', guest_id: 'g1', scheduled_for: '2025-01-04' };
-                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+                    mockRpcResult.single.mockResolvedValueOnce({ data: mockData, error: null });
 
                     await useServicesStore.getState().addShowerRecord('g1', '09:00', '2025-01-04');
 
-                    expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
-                        guest_id: 'g1',
-                        scheduled_for: '2025-01-04',
-                        scheduled_time: '09:00',
-                        status: 'booked',
-                    }));
+                    expect(mockSupabase.rpc).toHaveBeenCalledWith('book_shower_slot', {
+                        p_guest_id: 'g1',
+                        p_scheduled_for: '2025-01-04',
+                        p_scheduled_time: '09:00',
+                        p_status: 'booked',
+                    });
                 });
 
-                it('adds a completed shower record for a selected past date', async () => {
+                it('adds a completed shower record for a selected past date via RPC', async () => {
                     const mockData = { id: 's125', guest_id: 'g1', scheduled_for: '2025-01-04', status: 'done' };
-                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+                    mockRpcResult.single.mockResolvedValueOnce({ data: mockData, error: null });
 
                     await useServicesStore.getState().addShowerRecord('g1', '09:30', '2025-01-04', 'done');
 
-                    expect(mockSupabase.insert).toHaveBeenCalledWith(expect.objectContaining({
-                        guest_id: 'g1',
-                        scheduled_for: '2025-01-04',
-                        scheduled_time: '09:30',
-                        status: 'done',
-                    }));
+                    expect(mockSupabase.rpc).toHaveBeenCalledWith('book_shower_slot', {
+                        p_guest_id: 'g1',
+                        p_scheduled_for: '2025-01-04',
+                        p_scheduled_time: '09:30',
+                        p_status: 'done',
+                    });
                 });
 
                 it('adds a shower waitlist record successfully', async () => {
@@ -702,48 +713,52 @@ describe('useServicesStore', () => {
                     await expect(useServicesStore.getState().addShowerRecord('')).rejects.toThrow('Guest ID is required');
                 });
 
-                it('throws error when Supabase insert fails in addShowerRecord', async () => {
+                it('throws error when Supabase insert fails for no-time fallback path', async () => {
                     mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'Insert failed' } });
                     await expect(useServicesStore.getState().addShowerRecord('g1')).rejects.toThrow('Unable to save shower record');
                 });
 
-                it('rejects booking when shower slot is at capacity', async () => {
-                    // Mock capacity check to return count of 2 (full)
-                    mockSupabase.in.mockResolvedValueOnce({ count: 2, error: null });
+                it('rejects booking when shower slot is at capacity (RPC returns full error)', async () => {
+                    mockRpcResult.single.mockResolvedValueOnce({
+                        data: null,
+                        error: { message: 'This shower slot is full (2/2). Please choose another time.' },
+                    });
 
                     await expect(
                         useServicesStore.getState().addShowerRecord('g1', '08:00')
                     ).rejects.toThrow('This shower slot is full (2/2). Please choose another time.');
 
-                    // Insert should never be called
+                    // Regular insert should never be called when time is provided
                     expect(mockSupabase.insert).not.toHaveBeenCalled();
                 });
 
-                it('allows booking when slot has room', async () => {
-                    // Mock capacity check passes (count 1 < 2)
-                    mockSupabase.in.mockResolvedValueOnce({ count: 1, error: null });
+                it('allows booking when slot has room via RPC', async () => {
                     const mockData = { id: 's200', guest_id: 'g1', scheduled_for: '2025-01-06' };
-                    mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
+                    mockRpcResult.single.mockResolvedValueOnce({ data: mockData, error: null });
 
                     const result = await useServicesStore.getState().addShowerRecord('g1', '08:00');
                     expect(result.id).toBe('s200');
                 });
 
-                it('skips capacity check when no time is provided', async () => {
+                it('falls back to regular insert when no time is provided', async () => {
                     const mockData = { id: 's201', guest_id: 'g1', scheduled_for: '2025-01-06' };
                     mockSupabase.single.mockResolvedValueOnce({ data: mockData, error: null });
 
                     const result = await useServicesStore.getState().addShowerRecord('g1');
                     expect(result.id).toBe('s201');
-                    // .in() should not be called for capacity check (only default chaining)
+                    // RPC should NOT be called when no time is provided
+                    expect(mockSupabase.rpc).not.toHaveBeenCalled();
                 });
 
-                it('throws when capacity check query fails', async () => {
-                    mockSupabase.in.mockResolvedValueOnce({ count: null, error: { message: 'DB error' } });
+                it('throws user-friendly error when RPC fails with non-capacity error', async () => {
+                    mockRpcResult.single.mockResolvedValueOnce({
+                        data: null,
+                        error: { message: 'connection timeout' },
+                    });
 
                     await expect(
                         useServicesStore.getState().addShowerRecord('g1', '09:00')
-                    ).rejects.toThrow('Unable to verify slot availability');
+                    ).rejects.toThrow('Unable to book shower slot. Please try again.');
                 });
 
                 it('updates shower status successfully', async () => {

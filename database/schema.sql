@@ -1335,34 +1335,82 @@ for each row execute function public.touch_updated_at();
 -- Prevents race conditions when multiple staff book the same slot simultaneously
 -- ============================================
 
--- SHOWER SLOT CAPACITY CONSTRAINT
--- Limits to 2 guests per slot (configurable)
+-- ATOMIC SHOWER BOOKING RPC
+-- Serializes access per slot via advisory lock, checks capacity, inserts.
+create or replace function public.book_shower_slot(
+    p_guest_id uuid,
+    p_scheduled_for date,
+    p_scheduled_time text,
+    p_status text default 'booked'
+)
+returns setof public.shower_reservations
+language plpgsql
+as $$
+declare
+    v_count integer;
+    v_max_capacity constant integer := 2;
+begin
+    perform pg_advisory_xact_lock(
+        hashtext(p_scheduled_for::text || '_' || coalesce(p_scheduled_time, ''))
+    );
+
+    select count(*) into v_count
+    from public.shower_reservations
+    where scheduled_for  = p_scheduled_for
+      and scheduled_time = p_scheduled_time
+      and status in ('booked', 'done');
+
+    if v_count >= v_max_capacity then
+        raise exception 'This shower slot is full (%/%). Please choose another time.',
+            v_count, v_max_capacity;
+    end if;
+
+    return query
+    insert into public.shower_reservations
+        (guest_id, scheduled_for, scheduled_time, status)
+    values
+        (p_guest_id, p_scheduled_for, p_scheduled_time, p_status)
+    returning *;
+end;
+$$;
+
+comment on function public.book_shower_slot(uuid, date, text, text) is
+'Atomically checks slot capacity and inserts a shower reservation. '
+'Uses an advisory lock to prevent race conditions when multiple staff book simultaneously.';
+
+-- SHOWER SLOT CAPACITY CONSTRAINT (safety-net trigger)
+-- Limits to 2 guests per slot, uses advisory lock for concurrency safety
 create or replace function public.check_shower_slot_capacity()
 returns trigger as $$
 declare
     slot_count integer;
-    max_capacity integer := 2; -- Configure max guests per shower slot
+    max_per_slot constant integer := 2;
 begin
-    -- Only check for new bookings and status changes to active statuses
-    if new.status in ('booked', 'waitlisted') then
-        -- Count existing active bookings for this slot
-        select count(*) into slot_count
-        from public.shower_reservations
-        where scheduled_for = new.scheduled_for
-          and scheduled_time = new.scheduled_time
-          and scheduled_time is not null
-          and status in ('booked')
-          and id != coalesce(new.id, '00000000-0000-0000-0000-000000000000'::uuid);
-        
-        -- For new 'booked' records, check capacity
-        if new.status = 'booked' and slot_count >= max_capacity then
-            raise exception 'Shower slot % on % is at full capacity (% of % slots taken)', 
-                new.scheduled_time, new.scheduled_for, slot_count, max_capacity
-                using errcode = 'P0001';
-        end if;
+    if NEW.status not in ('booked', 'done') then
+        return NEW;
     end if;
-    
-    return new;
+
+    if NEW.scheduled_time is null then
+        return NEW;
+    end if;
+
+    perform pg_advisory_xact_lock(
+        hashtext(NEW.scheduled_for::text || '_' || NEW.scheduled_time)
+    );
+
+    select count(*) into slot_count
+    from public.shower_reservations
+    where scheduled_for  = NEW.scheduled_for
+      and scheduled_time = NEW.scheduled_time
+      and status in ('booked', 'done')
+      and id != NEW.id;
+
+    if slot_count >= max_per_slot then
+        raise exception 'Shower slot % on % is full (%/% taken)',
+            NEW.scheduled_time, NEW.scheduled_for, slot_count, max_per_slot;
+    end if;
+
+    return NEW;
 end;
 $$ language plpgsql;
 
@@ -1372,7 +1420,7 @@ before insert or update on public.shower_reservations
 for each row execute function public.check_shower_slot_capacity();
 
 comment on function public.check_shower_slot_capacity() is 
-'Trigger function to enforce max 2 guests per shower time slot. Prevents race conditions when multiple staff book simultaneously.';
+'Trigger function to enforce max 2 guests per shower time slot. Uses advisory lock to prevent race conditions.';
 
 -- LAUNDRY SLOT CAPACITY CONSTRAINT  
 -- Limits to 2 guests per slot for onsite laundry
@@ -1429,21 +1477,21 @@ returns table (
 begin
     return query
     with all_slots as (
-        -- Generate common time slots (7:30 AM to 11:30 AM in 30-min increments)
+        -- Generate common time slots (7:30 AM to 12:00 PM in 30-min increments)
         select unnest(array[
             '07:30', '08:00', '08:30', '09:00', '09:30', 
-            '10:00', '10:30', '11:00', '11:30'
+            '10:00', '10:30', '11:00', '11:30', '12:00'
         ]) as time_slot
     ),
     booked_slots as (
         select 
-            scheduled_time,
+            sr.scheduled_time,
             count(*) as booked_count
-        from public.shower_reservations
-        where scheduled_for = check_date
-          and status in ('booked')
-          and scheduled_time is not null
-        group by scheduled_time
+        from public.shower_reservations sr
+        where sr.scheduled_for = check_date
+          and sr.status in ('booked', 'done')
+          and sr.scheduled_time is not null
+        group by sr.scheduled_time
     )
     select 
         all_slots.time_slot as slot_time,

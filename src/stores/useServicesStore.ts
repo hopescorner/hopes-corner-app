@@ -17,7 +17,7 @@ import {
     mapShowerStatusToDb,
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
-import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES, MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 
 const OPERATIONAL_WINDOW_DAYS = 45;
 
@@ -159,27 +159,37 @@ export const useServicesStore = create<ServicesState>()(
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
-                        // ── Slot capacity check ──
+                        // ── Atomic slot-capacity-checked insert via RPC ──
+                        // Uses pg_advisory_xact_lock inside the DB function to
+                        // prevent race conditions when multiple staff book the same slot.
                         if (time) {
-                            const { count, error: countError } = await supabase
-                                .from('shower_reservations')
-                                .select('*', { count: 'exact', head: true })
-                                .eq('scheduled_for', targetDate)
-                                .eq('scheduled_time', time)
-                                .in('status', Array.from(SHOWER_SLOT_OCCUPYING_STATUSES));
+                            const { data, error } = await supabase
+                                .rpc('book_shower_slot', {
+                                    p_guest_id: guestId,
+                                    p_scheduled_for: targetDate,
+                                    p_scheduled_time: time,
+                                    p_status: initialStatus,
+                                })
+                                .single();
 
-                            if (countError) {
-                                console.error('Failed to check slot capacity:', countError);
-                                throw new Error('Unable to verify slot availability');
+                            if (error) {
+                                console.error('Failed to book shower slot:', error);
+                                // Surface the DB capacity message when available
+                                const msg = error.message || '';
+                                if (msg.includes('full')) {
+                                    throw new Error(msg);
+                                }
+                                throw new Error('Unable to book shower slot. Please try again.');
                             }
 
-                            if ((count ?? 0) >= MAX_GUESTS_PER_SHOWER_SLOT) {
-                                throw new Error(
-                                    `This shower slot is full (${count}/${MAX_GUESTS_PER_SHOWER_SLOT}). Please choose another time.`
-                                );
-                            }
+                            const mapped = mapShowerRow(data as any);
+                            set((state) => {
+                                state.showerRecords.push(mapped as any);
+                            });
+                            return mapped;
                         }
 
+                        // Fallback path for records with no time (rare—shouldn't normally happen)
                         const payload = {
                             guest_id: guestId,
                             scheduled_for: targetDate,

@@ -65,6 +65,7 @@ vi.mock('@/stores/useServicesStore', () => ({
         addLaundryRecord: vi.fn(),
         addBicycleRecord: vi.fn(),
         addShowerWaitlist: vi.fn(),
+        loadFromSupabase: vi.fn(),
         showerRecords: [],
         laundryRecords: [],
         bicycleRecords: [],

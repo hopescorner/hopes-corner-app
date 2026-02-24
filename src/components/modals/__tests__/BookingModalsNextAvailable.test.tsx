@@ -60,6 +60,7 @@ vi.mock('@/stores/useServicesStore', () => ({
         addShowerRecord: mockAddShowerRecord,
         addShowerWaitlist: mockAddShowerWaitlist,
         addLaundryRecord: mockAddLaundryRecord,
+        loadFromSupabase: vi.fn(),
     })),
 }));
 

@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.13';
+export const APP_VERSION = '0.5.14';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.14',
+        date: 'February 24, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Atomic Shower Slot Booking',
+                description: 'Shower bookings now use an atomic database function with advisory locking to prevent double-booking the same slot when multiple staff book simultaneously.',
+            },
+        ],
+    },
     {
         version: '0.5.13',
         date: 'February 23, 2026',

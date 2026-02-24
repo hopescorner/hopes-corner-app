@@ -21,7 +21,7 @@ import { useEffect } from 'react';
 
 export function ShowerBookingModal() {
     const { showerPickerGuest, setShowerPickerGuest } = useModalStore();
-    const { showerRecords, addShowerRecord, addShowerWaitlist } = useServicesStore();
+    const { showerRecords, addShowerRecord, addShowerWaitlist, loadFromSupabase } = useServicesStore();
     const { guests } = useGuestsStore();
     const { addAction } = useActionHistoryStore();
     const { fetchBlockedSlots, isSlotBlocked } = useBlockedSlotsStore();
@@ -29,6 +29,13 @@ export function ShowerBookingModal() {
     useEffect(() => {
         fetchBlockedSlots();
     }, [fetchBlockedSlots]);
+
+    // Refresh shower data when modal opens to ensure slots reflect real-time state
+    useEffect(() => {
+        if (showerPickerGuest) {
+            loadFromSupabase();
+        }
+    }, [showerPickerGuest, loadFromSupabase]);
 
     const [isPending, setIsPending] = useState(false);
 
@@ -87,6 +94,8 @@ export function ShowerBookingModal() {
             setShowerPickerGuest(null);
         } catch (error: any) {
             toast.error(error.message || 'Failed to book shower');
+            // Refresh data so slot counts are accurate after a capacity rejection
+            loadFromSupabase();
         } finally {
             setIsPending(false);
         }

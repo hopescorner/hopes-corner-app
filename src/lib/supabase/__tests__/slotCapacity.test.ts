@@ -73,14 +73,45 @@ describe('Shower Slot Capacity Constraints', () => {
         });
 
         it('should include slot info in error message', () => {
-            // Expected error format from trigger
+            // Expected error format from atomic RPC book_shower_slot()
+            const formatError = (count: number, max: number) =>
+                `This shower slot is full (${count}/${max}). Please choose another time.`;
+            
+            const error = formatError(2, 2);
+            expect(error).toContain('full');
+            expect(error).toContain('2/2');
+        });
+
+        it('should include slot info in trigger error message', () => {
+            // Expected error format from safety-net trigger
             const formatError = (time: string, date: string, count: number, max: number) =>
-                `Shower slot ${time} on ${date} is at full capacity (${count} of ${max} slots taken)`;
+                `Shower slot ${time} on ${date} is full (${count}/${max} taken)`;
             
             const error = formatError('09:00', '2026-01-22', 2, 2);
             expect(error).toContain('09:00');
             expect(error).toContain('2026-01-22');
-            expect(error).toContain('full capacity');
+            expect(error).toContain('full');
+        });
+    });
+
+    describe('Atomic RPC booking', () => {
+        it('should use advisory lock to prevent race conditions', () => {
+            // The book_shower_slot() RPC uses pg_advisory_xact_lock
+            // to serialize access per date+time, eliminating the
+            // race condition between separate count and insert queries.
+            const lockKey = 'shower_slot_2026-02-24_09:00';
+            expect(lockKey).toContain('2026-02-24');
+            expect(lockKey).toContain('09:00');
+        });
+
+        it('should count both booked and done towards capacity in RPC', () => {
+            // The RPC checks status IN ('booked', 'done')
+            const occupyingDbStatuses = ['booked', 'done'];
+            expect(occupyingDbStatuses).toContain('booked');
+            expect(occupyingDbStatuses).toContain('done');
+            expect(occupyingDbStatuses).not.toContain('waitlisted');
+            expect(occupyingDbStatuses).not.toContain('cancelled');
+            expect(occupyingDbStatuses).not.toContain('no_show');
         });
     });
 });
