@@ -1369,7 +1369,7 @@ begin
     insert into public.shower_reservations
         (guest_id, scheduled_for, scheduled_time, status)
     values
-        (p_guest_id, p_scheduled_for, p_scheduled_time, p_status)
+        (p_guest_id, p_scheduled_for, p_scheduled_time, p_status::public.shower_status_enum)
     returning *;
 end;
 $$;
