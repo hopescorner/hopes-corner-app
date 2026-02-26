@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.14';
+export const APP_VERSION = '0.5.15';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.15',
+        date: 'February 26, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'One Haircut Per Guest Per Day',
+                description: 'Guests can now only be scheduled for one haircut per day. Duplicates are blocked at the database, store, and UI level.',
+            },
+            {
+                type: 'improvement',
+                title: 'Redesigned Previous Day Laundry Section',
+                description: 'Stale laundry from past days now appears in a prominent Action Required banner with age badges, waiver status indicators, and a bulk Mark All Picked Up button.',
+            },
+            {
+                type: 'fix',
+                title: 'Past Laundry No Longer Duplicated in Today View',
+                description: 'On-site laundry from previous days no longer appears in the All Laundry (Today) list. They are now shown exclusively in the Action Required section.',
+            },
+        ],
+    },
     {
         version: '0.5.14',
         date: 'February 24, 2026',
