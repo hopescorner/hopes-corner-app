@@ -677,6 +677,16 @@ export const useServicesStore = create<ServicesState>()(
                             throw new Error('Both slot time and stylist are required for scheduled haircuts');
                         }
 
+                        // Prevent more than one haircut per guest per day
+                        const duplicateGuest = get().haircutRecords.some((record) => {
+                            const recordDate = record.serviceDate || record.dateKey || pacificDateStringFrom(record.date);
+                            return record.guestId === guestId && recordDate === targetDate;
+                        });
+
+                        if (duplicateGuest) {
+                            throw new Error('This guest already has a haircut for this date.');
+                        }
+
                         if (normalizedSlot && normalizedStylist) {
                             const conflict = get().haircutRecords.some((record) => {
                                 const recordDate = record.serviceDate || record.dateKey || pacificDateStringFrom(record.date);

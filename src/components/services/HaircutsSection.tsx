@@ -95,9 +95,24 @@ export function HaircutsSection() {
         return map;
     }, [scheduledRecords]);
 
+    const guestsWithHaircutOnDate = useMemo(() => {
+        const ids = new Set<string>();
+        for (const record of recordsForDate) {
+            ids.add(record.guestId);
+        }
+        return ids;
+    }, [recordsForDate]);
+
+    const selectedGuestAlreadyHasHaircut = !!selectedGuestId && guestsWithHaircutOnDate.has(selectedGuestId);
+
     const handleAssign = async () => {
         if (!selectedGuestId) {
             toast.error('Please select a guest');
+            return;
+        }
+
+        if (guestsWithHaircutOnDate.has(selectedGuestId)) {
+            toast.error('This guest already has a haircut for this date.');
             return;
         }
 
@@ -154,8 +169,11 @@ export function HaircutsSection() {
                                 <option value="">Select guest</option>
                                 {selectableGuests.map((guest) => {
                                     const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`;
+                                    const alreadyBooked = guestsWithHaircutOnDate.has(guest.id);
                                     return (
-                                        <option key={guest.id} value={guest.id}>{displayName}</option>
+                                        <option key={guest.id} value={guest.id} disabled={alreadyBooked}>
+                                            {displayName}{alreadyBooked ? ' (already scheduled)' : ''}
+                                        </option>
                                     );
                                 })}
                             </select>
@@ -193,7 +211,7 @@ export function HaircutsSection() {
                             <button
                                 type="button"
                                 onClick={handleAssign}
-                                disabled={isSaving}
+                                disabled={isSaving || selectedGuestAlreadyHasHaircut}
                                 className="w-full rounded-lg bg-violet-600 px-3 py-2 text-sm font-bold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isSaving ? 'Assigning…' : 'Assign Slot'}

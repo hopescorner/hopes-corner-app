@@ -278,6 +278,14 @@ function PureGuestCard({
     const todayHaircut = serviceStatus.hasHaircut;
     const todayHoliday = serviceStatus.hasHoliday;
 
+    // Check if the guest already has a haircut for the selected haircutDate
+    const hasHaircutForSelectedDate = useMemo(() => {
+        if (haircutDate === today) return todayHaircut;
+        return (haircutRecords || []).some(
+            (r) => r.guestId === guest.id && (r.serviceDate || r.dateKey || pacificDateStringFrom(r.date)) === haircutDate
+        );
+    }, [haircutRecords, guest.id, haircutDate, today, todayHaircut]);
+
     const mealAction = actionStatus.mealActionId ? { id: actionStatus.mealActionId } : undefined;
     const extraMealAction = actionStatus.extraMealActionId ? { id: actionStatus.extraMealActionId } : undefined;
     const showerAction = actionStatus.showerActionId ? { id: actionStatus.showerActionId } : undefined;
@@ -970,20 +978,20 @@ function PureGuestCard({
                                             onChange={(e) => setHaircutDate(e.target.value)}
                                             onClick={(e) => e.stopPropagation()}
                                             className="h-8 rounded-md border border-gray-200 px-2 text-xs text-gray-600"
-                                            disabled={isPending || isBanned}
+                                            disabled={isPending || isBanned || hasHaircutForSelectedDate}
                                         />
                                         <button
                                             onClick={handleHaircutAdd}
-                                            disabled={isPending || isBanned}
+                                            disabled={isPending || isBanned || hasHaircutForSelectedDate}
                                             className={cn(
                                                 "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors border border-transparent",
-                                                isBanned
+                                                isBanned || hasHaircutForSelectedDate
                                                     ? "text-gray-400 cursor-not-allowed"
                                                     : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                                             )}
                                         >
                                             <Scissors size={14} />
-                                            Haircut
+                                            {hasHaircutForSelectedDate ? 'Haircut Done' : 'Haircut'}
                                         </button>
                                     </div>
                                 )}

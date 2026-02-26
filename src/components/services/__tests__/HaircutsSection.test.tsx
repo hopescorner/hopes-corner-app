@@ -6,6 +6,8 @@ import { HaircutsSection } from '../HaircutsSection';
 const addHaircutRecordMock = vi.fn();
 const deleteHaircutRecordMock = vi.fn();
 
+const mockHaircutRecords: any[] = [];
+
 vi.mock('next-auth/react', () => ({
     useSession: vi.fn(() => ({ data: { user: { role: 'admin' } } })),
 }));
@@ -20,7 +22,7 @@ vi.mock('@/lib/utils/date', () => ({
 
 vi.mock('@/stores/useServicesStore', () => ({
     useServicesStore: vi.fn(() => ({
-        haircutRecords: [],
+        haircutRecords: mockHaircutRecords,
         addHaircutRecord: addHaircutRecordMock,
         deleteHaircutRecord: deleteHaircutRecordMock,
     })),
@@ -38,6 +40,7 @@ vi.mock('@/stores/useGuestsStore', () => ({
 describe('HaircutsSection', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockHaircutRecords.length = 0;
         addHaircutRecordMock.mockResolvedValue({ id: 'hc1' });
         deleteHaircutRecordMock.mockResolvedValue(undefined);
     });
@@ -64,5 +67,48 @@ describe('HaircutsSection', () => {
             slotTime: '09:30',
             stylistName: 'Stylist 2',
         });
+    });
+
+    it('marks guests who already have a haircut as disabled in dropdown', () => {
+        mockHaircutRecords.push({
+            id: 'hc-existing',
+            guestId: 'g1',
+            date: '2026-02-23T09:00:00Z',
+            dateKey: '2026-02-23',
+            serviceDate: '2026-02-23',
+            slotTime: '08:00',
+            stylistName: 'Stylist 1',
+            type: 'haircut',
+        });
+
+        render(<HaircutsSection />);
+
+        const guestSelect = screen.getByLabelText('Guest') as HTMLSelectElement;
+        const janeOption = Array.from(guestSelect.options).find(o => o.value === 'g1');
+        const victorOption = Array.from(guestSelect.options).find(o => o.value === 'g2');
+
+        expect(janeOption?.disabled).toBe(true);
+        expect(janeOption?.textContent).toContain('already scheduled');
+        expect(victorOption?.disabled).toBe(false);
+    });
+
+    it('disables Assign button when selected guest already has a haircut', () => {
+        mockHaircutRecords.push({
+            id: 'hc-existing',
+            guestId: 'g1',
+            date: '2026-02-23T09:00:00Z',
+            dateKey: '2026-02-23',
+            serviceDate: '2026-02-23',
+            slotTime: '08:00',
+            stylistName: 'Stylist 1',
+            type: 'haircut',
+        });
+
+        render(<HaircutsSection />);
+
+        fireEvent.change(screen.getByLabelText('Guest'), { target: { value: 'g1' } });
+
+        const assignButton = screen.getByRole('button', { name: 'Assign Slot' });
+        expect(assignButton).toHaveProperty('disabled', true);
     });
 });

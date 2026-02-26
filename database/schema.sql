@@ -794,6 +794,13 @@ create unique index if not exists haircut_visits_schedule_unique
     and slot_time is not null
     and stylist_name is not null;
 
+-- Enforce at most one haircut visit per guest per day
+create unique index if not exists haircut_visits_one_per_guest_per_day
+  on public.haircut_visits (
+    guest_id,
+    coalesce(service_date, (served_at at time zone 'America/Los_Angeles')::date)
+  );
+
 -- RLS for haircut_visits table
 alter table public.haircut_visits enable row level security;
 

@@ -956,6 +956,56 @@ describe('useServicesStore', () => {
                 ).rejects.toThrow('That stylist slot is already assigned. Please choose another slot.');
             });
 
+            it('rejects duplicate haircut for same guest on same day', async () => {
+                useServicesStore.setState({
+                    haircutRecords: [
+                        {
+                            id: 'existing-haircut',
+                            guestId: 'g1',
+                            date: '2025-01-06T10:00:00Z',
+                            dateKey: '2025-01-06',
+                            serviceDate: '2025-01-06',
+                            slotTime: '09:00',
+                            stylistName: 'Stylist 1',
+                            type: 'haircut',
+                        } as any,
+                    ],
+                });
+
+                await expect(
+                    useServicesStore.getState().addHaircutRecord('g1', {
+                        serviceDate: '2025-01-06',
+                        slotTime: '10:00',
+                        stylistName: 'Stylist 3',
+                    })
+                ).rejects.toThrow('This guest already has a haircut for this date.');
+            });
+
+            it('allows same guest to get a haircut on a different day', async () => {
+                useServicesStore.setState({
+                    haircutRecords: [
+                        {
+                            id: 'existing-haircut',
+                            guestId: 'g1',
+                            date: '2025-01-05T10:00:00Z',
+                            dateKey: '2025-01-05',
+                            serviceDate: '2025-01-05',
+                            slotTime: '09:00',
+                            stylistName: 'Stylist 1',
+                            type: 'haircut',
+                        } as any,
+                    ],
+                });
+
+                mockSupabase.single.mockResolvedValueOnce({ data: { id: 'h3', service_date: '2025-01-06' }, error: null });
+                await useServicesStore.getState().addHaircutRecord('g1', {
+                    serviceDate: '2025-01-06',
+                    slotTime: '09:00',
+                    stylistName: 'Stylist 1',
+                });
+                expect(useServicesStore.getState().haircutRecords).toHaveLength(2);
+            });
+
             it('adds a holiday record successfully', async () => {
                 mockSupabase.single.mockResolvedValueOnce({ data: { id: 'hol1' }, error: null });
                 await useServicesStore.getState().addHolidayRecord('g1');
