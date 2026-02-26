@@ -489,25 +489,13 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
         return guest.name || guest.preferredName || `${guest.firstName || ""} ${guest.lastName || ""}`.trim() || "Guest";
     }, [guestMap]);
 
-    // Filter target day records - lightweight first pass
+    // Filter target day records - only records from the selected date.
+    // Past active records are surfaced by the dedicated legacy section in LaundrySection.
     const targetDayRecords = useMemo(() => {
         return (laundryRecords || []).filter((record) => {
-            const recordDate = pacificDateStringFrom(record.date);
-
-            // If viewing today, include today's records AND past active records
-            if (displayDate === todayString) {
-                const isToday = recordDate === todayString;
-                const isPast = recordDate < todayString;
-                const completedStatuses = new Set(['picked_up', 'returned', 'offsite_picked_up', 'cancelled']);
-                const isActive = !completedStatuses.has(record.status);
-
-                return isToday || (isPast && isActive);
-            }
-
-            // If viewing a specific past date, only show records from that date
-            return recordDate === displayDate;
+            return pacificDateStringFrom(record.date) === displayDate;
         });
-    }, [laundryRecords, displayDate, todayString]);
+    }, [laundryRecords, displayDate]);
 
     // Group laundry records by type and status
     const laundryData = useMemo(() => {

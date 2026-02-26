@@ -124,5 +124,20 @@ describe('CompactLaundryList Component', () => {
             render(<CompactLaundryList viewDate="2026-01-08" />);
             // Component should render
         });
+
+        it('excludes past records from today view (legacy section handles those)', async () => {
+            // Override the date mock so the record dates differ from today
+            const dateMod = await import('@/lib/utils/date');
+            const origPacific = dateMod.pacificDateStringFrom;
+            // Make record dates resolve to yesterday
+            vi.spyOn(dateMod, 'pacificDateStringFrom').mockImplementation(() => '2026-01-07');
+
+            render(<CompactLaundryList />);
+            // With all records from yesterday, the list should show the empty state
+            expect(screen.getByText(/No laundry bookings/i)).toBeDefined();
+
+            // Restore
+            vi.mocked(dateMod.pacificDateStringFrom).mockImplementation(origPacific);
+        });
     });
 });
