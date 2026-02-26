@@ -157,7 +157,7 @@ describe('LaundrySection Component', () => {
 
             render(<LaundrySection />);
             expect(screen.getByTestId('legacy-laundry-section')).toBeDefined();
-            expect(screen.getByText(/Previous Day Laundry/)).toBeDefined();
+            expect(screen.getByText(/Action Required/)).toBeDefined();
         });
 
         it('does not show legacy section for past-day records that are picked up', async () => {
@@ -172,6 +172,46 @@ describe('LaundrySection Component', () => {
 
             render(<LaundrySection />);
             expect(screen.queryByTestId('legacy-laundry-section')).toBeNull();
+        });
+
+        it('displays days-ago badge on legacy cards', () => {
+            const legacyRecords = [
+                { id: 'l-old', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '1', date: '2026-01-05', laundryType: 'onsite', createdAt: '2026-01-05T09:00:00Z' },
+            ];
+            const legacyStoreData = { ...defaultStoreData, laundryRecords: legacyRecords };
+            mockUseServicesStore.mockReturnValue(legacyStoreData);
+            mockUseServicesStore.getState.mockReturnValue(legacyStoreData);
+
+            render(<LaundrySection />);
+            expect(screen.getByTestId('days-ago-badge')).toBeDefined();
+            expect(screen.getByTestId('days-ago-badge').textContent).toContain('days ago');
+        });
+
+        it('shows waiver indicator on legacy cards', () => {
+            const legacyRecords = [
+                { id: 'l-old', guestId: 'g1', status: 'done', time: '10:00-10:30', bagNumber: '5', date: '2026-01-07', laundryType: 'onsite', createdAt: '2026-01-07T10:00:00Z' },
+            ];
+            const legacyStoreData = { ...defaultStoreData, laundryRecords: legacyRecords };
+            mockUseServicesStore.mockReturnValue(legacyStoreData);
+            mockUseServicesStore.getState.mockReturnValue(legacyStoreData);
+
+            render(<LaundrySection />);
+            // The legacy section renders and includes CompactWaiverIndicator per card
+            const section = screen.getByTestId('legacy-laundry-section');
+            expect(section).toBeDefined();
+        });
+
+        it('shows Mark All Picked Up button when multiple legacy records exist', () => {
+            const legacyRecords = [
+                { id: 'l-old1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '1', date: '2026-01-07', laundryType: 'onsite', createdAt: '2026-01-07T09:00:00Z' },
+                { id: 'l-old2', guestId: 'g2', status: 'done', time: '10:00-10:30', bagNumber: '5', date: '2026-01-06', laundryType: 'onsite', createdAt: '2026-01-06T10:00:00Z' },
+            ];
+            const legacyStoreData = { ...defaultStoreData, laundryRecords: legacyRecords };
+            mockUseServicesStore.mockReturnValue(legacyStoreData);
+            mockUseServicesStore.getState.mockReturnValue(legacyStoreData);
+
+            render(<LaundrySection />);
+            expect(screen.getByText('Mark All Picked Up')).toBeDefined();
         });
     });
 

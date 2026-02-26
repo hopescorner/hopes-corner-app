@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp, GripVertical, AlertTriangle } from 'lucide-react';
+import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp, GripVertical, AlertTriangle, CalendarDays } from 'lucide-react';
 import {
     DndContext,
     DragOverlay,
@@ -104,13 +104,16 @@ export function LaundrySection() {
     }, [laundryRecords, selectedDate, isViewingPast, today]);
 
     // Legacy laundry: past-day records still needing pickup (not completed/cancelled)
+    // Sorted oldest-first so the most urgent items surface at the top
     const legacyLaundry = useMemo(() => {
         if (isViewingPast) return [];
         const completedStatuses = new Set(['picked_up', 'returned', 'offsite_picked_up', 'cancelled']);
-        return laundryRecords.filter(r => {
-            const recordDate = pacificDateStringFrom(r.date);
-            return recordDate < today && !completedStatuses.has(r.status);
-        });
+        return laundryRecords
+            .filter(r => {
+                const recordDate = pacificDateStringFrom(r.date);
+                return recordDate < today && !completedStatuses.has(r.status);
+            })
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [laundryRecords, isViewingPast, today]);
 
     const onsiteLaundry = activeLaundry.filter(r => r.laundryType === 'onsite' || !r.laundryType);
@@ -318,6 +321,27 @@ export function LaundrySection() {
         return { guest, legalName, preferredName, hasPreferred, primaryName };
     }, [guestMap]);
 
+    const handleBulkLegacyPickup = useCallback(async () => {
+        if (legacyLaundry.length === 0) return;
+        const confirmed = window.confirm(
+            `Mark all ${legacyLaundry.length} previous-day laundry item${legacyLaundry.length > 1 ? 's' : ''} as picked up?`
+        );
+        if (!confirmed) return;
+        let successCount = 0;
+        for (const record of legacyLaundry) {
+            const isOnsite = record.laundryType === 'onsite' || !record.laundryType;
+            try {
+                await updateLaundryStatus(record.id, isOnsite ? 'picked_up' : 'offsite_picked_up');
+                successCount++;
+            } catch {
+                // Continue with remaining records
+            }
+        }
+        if (successCount > 0) {
+            toast.success(`${successCount} laundry item${successCount > 1 ? 's' : ''} marked as picked up`);
+        }
+    }, [legacyLaundry, updateLaundryStatus]);
+
     return (
         <div className="space-y-8">
             {/* Historical Data Warning Banner */}
@@ -346,68 +370,116 @@ export function LaundrySection() {
                 />
             )}
 
-            {/* Legacy Laundry Pickup Section */}
+            {/* Legacy Laundry — Pending Pickup (always visible, prominent) */}
             {!isViewingPast && legacyLaundry.length > 0 && (
-                <div className="bg-amber-50 border-2 border-amber-200 rounded-xl overflow-hidden" data-testid="legacy-laundry-section">
-                    <button
-                        type="button"
-                        onClick={() => setShowLegacySection(!showLegacySection)}
-                        className="w-full flex items-center justify-between px-4 py-3 hover:bg-amber-100/50 transition-colors"
-                        aria-expanded={showLegacySection}
-                    >
-                        <div className="flex items-center gap-3">
-                            <AlertTriangle size={18} className="text-amber-600" />
-                            <div className="text-left">
-                                <p className="text-sm font-bold text-amber-800">
-                                    Previous Day Laundry — Pending Pickup ({legacyLaundry.length})
-                                </p>
-                                <p className="text-xs text-amber-600">
-                                    These bookings are from previous days and still need to be picked up. They do not block today&apos;s slots.
-                                </p>
+                <div className="rounded-xl overflow-hidden border-2 border-red-300 shadow-md" data-testid="legacy-laundry-section">
+                    {/* Prominent header */}
+                    <div className="bg-gradient-to-r from-red-600 to-orange-500 px-5 py-4">
+                        <div className="flex items-center justify-between gap-4 flex-wrap">
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <AlertTriangle size={22} className="text-white" />
+                                    <span className="absolute -top-0.5 -right-0.5 block h-2.5 w-2.5 rounded-full bg-yellow-300 ring-2 ring-red-600 animate-pulse" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-black text-white tracking-tight">
+                                        Previous Day Laundry — Action Required ({legacyLaundry.length})
+                                    </h3>
+                                    <p className="text-xs text-red-100 mt-0.5">
+                                        These bookings are from previous days and still need to be picked up. They do not block today&apos;s slots.
+                                    </p>
+                                </div>
                             </div>
+                            {isAdmin && legacyLaundry.length > 1 && (
+                                <button
+                                    type="button"
+                                    onClick={handleBulkLegacyPickup}
+                                    className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-xs font-bold rounded-lg border border-white/30 hover:bg-white/30 transition-colors whitespace-nowrap"
+                                >
+                                    <CheckCircle size={14} />
+                                    Mark All Picked Up
+                                </button>
+                            )}
                         </div>
-                        <ChevronDown size={16} className={cn("text-amber-500 transition-transform", showLegacySection && "rotate-180")} />
-                    </button>
-                    {showLegacySection && (
-                        <div className="px-4 pb-4 border-t border-amber-200">
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 pt-3">
-                                {legacyLaundry.map((record) => {
-                                    const { primaryName, legalName, hasPreferred } = getGuestNameDetails(record.guestId);
-                                    const recordDateStr = new Date(record.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-                                    const isOnsite = record.laundryType === 'onsite' || !record.laundryType;
-                                    const statusLabel = STATUS_COLUMNS.find(c => c.id === record.status)?.title
-                                        || OFFSITE_STATUS_COLUMNS.find(c => c.id === record.status)?.title
-                                        || record.status;
-                                    return (
-                                        <div key={record.id} className="bg-white rounded-lg border border-amber-200 shadow-sm p-3">
-                                            <div className="flex items-center justify-between gap-2 mb-1.5">
-                                                <span className="font-bold text-xs text-gray-900 truncate" title={hasPreferred ? `${primaryName} (${legalName})` : legalName}>
+                    </div>
+
+                    {/* Cards */}
+                    <div className="bg-red-50/60 px-4 py-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                            {legacyLaundry.map((record) => {
+                                const { primaryName, legalName, hasPreferred } = getGuestNameDetails(record.guestId);
+                                const recordDateObj = new Date(record.date);
+                                const todayObj = new Date(`${today}T12:00:00`);
+                                const daysAgo = Math.max(1, Math.round((todayObj.getTime() - recordDateObj.getTime()) / (1000 * 60 * 60 * 24)));
+                                const recordDateStr = recordDateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+                                const isOnsite = record.laundryType === 'onsite' || !record.laundryType;
+                                const statusLabel = STATUS_COLUMNS.find(c => c.id === record.status)?.title
+                                    || OFFSITE_STATUS_COLUMNS.find(c => c.id === record.status)?.title
+                                    || record.status;
+                                const isStale = daysAgo >= 3;
+
+                                return (
+                                    <div
+                                        key={record.id}
+                                        className={cn(
+                                            "bg-white rounded-xl border-2 shadow-sm p-4 flex flex-col gap-2",
+                                            isStale ? "border-red-300 ring-1 ring-red-200" : "border-orange-200"
+                                        )}
+                                    >
+                                        {/* Guest name + waiver + status */}
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <span
+                                                    className="font-bold text-sm text-gray-900 truncate"
+                                                    title={hasPreferred ? `${primaryName} (${legalName})` : legalName}
+                                                >
                                                     {primaryName}
                                                 </span>
-                                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 whitespace-nowrap">
-                                                    {statusLabel}
-                                                </span>
+                                                <CompactWaiverIndicator guestId={record.guestId} serviceType="laundry" />
                                             </div>
-                                            <div className="text-[10px] text-gray-500 space-y-0.5">
-                                                <p>From: {recordDateStr}</p>
-                                                {record.bagNumber && <p className="text-purple-600">Bag #{record.bagNumber}</p>}
-                                                <p>{isOnsite ? 'On-site' : 'Off-site'}{record.time ? ` • ${record.time}` : ''}</p>
-                                            </div>
-                                            <div className="flex gap-1.5 mt-2">
-                                                <button
-                                                    onClick={() => handleStatusChange(record, isOnsite ? 'picked_up' : 'offsite_picked_up')}
-                                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-emerald-600 text-white rounded text-[10px] font-bold hover:bg-emerald-700 transition-colors"
-                                                >
-                                                    <CheckCircle size={12} />
-                                                    Mark Picked Up
-                                                </button>
-                                            </div>
+                                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 whitespace-nowrap flex-shrink-0">
+                                                {statusLabel}
+                                            </span>
                                         </div>
-                                    );
-                                })}
-                            </div>
+
+                                        {/* Date + days-ago badge */}
+                                        <div className="flex items-center gap-2">
+                                            <CalendarDays size={13} className="text-gray-400 flex-shrink-0" />
+                                            <span className="text-xs font-semibold text-gray-700">{recordDateStr}</span>
+                                            <span
+                                                className={cn(
+                                                    "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                                                    isStale
+                                                        ? "bg-red-100 text-red-700"
+                                                        : "bg-amber-100 text-amber-700"
+                                                )}
+                                                data-testid="days-ago-badge"
+                                            >
+                                                {daysAgo === 1 ? '1 day ago' : `${daysAgo} days ago`}
+                                            </span>
+                                        </div>
+
+                                        {/* Details */}
+                                        <div className="flex items-center gap-3 text-xs text-gray-500">
+                                            {record.bagNumber && (
+                                                <span className="font-semibold text-purple-600">Bag #{record.bagNumber}</span>
+                                            )}
+                                            <span>{isOnsite ? 'On-site' : 'Off-site'}{record.time ? ` • ${record.time}` : ''}</span>
+                                        </div>
+
+                                        {/* Action button */}
+                                        <button
+                                            onClick={() => handleStatusChange(record, isOnsite ? 'picked_up' : 'offsite_picked_up')}
+                                            className="mt-1 flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm"
+                                        >
+                                            <CheckCircle size={14} />
+                                            Mark Picked Up
+                                        </button>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    )}
+                    </div>
                 </div>
             )}
 
