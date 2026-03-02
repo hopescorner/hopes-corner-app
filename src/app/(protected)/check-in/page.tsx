@@ -421,10 +421,7 @@ export default function CheckInPage() {
                                     initial={prefersReducedMotion ? false : { scale: 0.5, opacity: 0 }}
                                     animate={{ scale: 1, opacity: 1 }}
                                     exit={prefersReducedMotion ? undefined : { scale: 0.5, opacity: 0 }}
-                                    onClick={() => {
-                                        setSearchQuery('');
-                                        setSelectedIndex(-1);
-                                    }}
+                                    onClick={handleClearSearch}
                                     className="absolute right-5 p-1.5 bg-gray-200 text-gray-500 hover:bg-gray-300 hover:text-gray-700 rounded-full transition-all"
                                 >
                                     <X size={18} strokeWidth={3} />
