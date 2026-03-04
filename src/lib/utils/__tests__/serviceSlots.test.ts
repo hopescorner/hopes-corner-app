@@ -46,12 +46,12 @@ describe('serviceSlots utilities', () => {
             expect(slots[slots.length - 1]).toBe('12:00');
         });
 
-        it('Saturday slots do not go beyond 13:30', () => {
+        it('Saturday slots include 13:30', () => {
             const saturday = new Date(2025, 0, 4);
             const slots = generateShowerSlots(saturday);
 
-            expect(slots).not.toContain('13:30');
-            expect(slots[slots.length - 1]).toBe('13:00');
+            expect(slots).toContain('13:30');
+            expect(slots[slots.length - 1]).toBe('13:30');
         });
     });
 
