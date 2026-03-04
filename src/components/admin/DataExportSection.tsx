@@ -87,15 +87,10 @@ export function DataExportSection() {
                     exportToCSV(
                         guests.map(g => ({
                             'Guest ID': g.guestId || g.id,
-                            'First Name': g.firstName || '',
-                            'Last Name': g.lastName || '',
-                            'Preferred Name': g.preferredName || '',
-                            'Full Name': g.name || '',
                             'Housing Status': g.housingStatus || '',
                             'Location': g.location || '',
                             'Age': g.age || '',
                             'Gender': g.gender || '',
-                            'Notes': g.notes || '',
                             'Registration Date': g.createdAt ? new Date(g.createdAt).toLocaleDateString() : '',
                         })),
                         `hopes-corner-guests-${today}.csv`
@@ -108,7 +103,6 @@ export function DataExportSection() {
                             Date: new Date(r.date).toLocaleDateString(),
                             Service: 'Meal',
                             'Guest ID': r.guestId || '-',
-                            'Guest Name': guests.find(g => g.id === r.guestId)?.name || '-',
                             Quantity: r.count || 1,
                             Type: r.type || 'standard',
                             Details: '-',
@@ -117,7 +111,6 @@ export function DataExportSection() {
                             Date: new Date(r.date).toLocaleDateString(),
                             Service: 'Shower',
                             'Guest ID': r.guestId,
-                            'Guest Name': guests.find(g => g.id === r.guestId)?.name || 'Unknown',
                             Quantity: 1,
                             Type: r.status || '-',
                             Details: r.time || '-',
@@ -126,7 +119,6 @@ export function DataExportSection() {
                             Date: new Date(r.date).toLocaleDateString(),
                             Service: 'Laundry',
                             'Guest ID': r.guestId,
-                            'Guest Name': guests.find(g => g.id === r.guestId)?.name || 'Unknown',
                             Quantity: 1,
                             Type: r.laundryType || '-',
                             Details: r.status || '-',
@@ -135,7 +127,6 @@ export function DataExportSection() {
                             Date: new Date(r.date).toLocaleDateString(),
                             Service: 'Bicycle Repair',
                             'Guest ID': r.guestId,
-                            'Guest Name': guests.find(g => g.id === r.guestId)?.name || 'Unknown',
                             Quantity: 1,
                             Type: r.repairType || (r.repairTypes?.join(', ') || '-'),
                             Details: r.status || '-',
@@ -149,7 +140,6 @@ export function DataExportSection() {
                         mealRecords.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
                             'Guest ID': r.guestId || '-',
-                            'Guest Name': guests.find(g => g.id === r.guestId)?.name || '-',
                             'Meal Type': r.type || 'standard',
                             Count: r.count || 1,
                         })),
@@ -162,7 +152,6 @@ export function DataExportSection() {
                         showerRecords.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
                             'Guest ID': r.guestId,
-                            'Guest Name': guests.find(g => g.id === r.guestId)?.name || 'Unknown',
                             'Time Slot': r.time || '-',
                             Status: r.status || '-',
                         })),
@@ -175,7 +164,6 @@ export function DataExportSection() {
                         laundryRecords.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
                             'Guest ID': r.guestId,
-                            'Guest Name': guests.find(g => g.id === r.guestId)?.name || 'Unknown',
                             Type: r.laundryType || '-',
                             'Bag Number': r.bagNumber || '-',
                             Status: r.status || '-',
@@ -189,7 +177,6 @@ export function DataExportSection() {
                         bicycleRecords.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
                             'Guest ID': r.guestId,
-                            'Guest Name': guests.find(g => g.id === r.guestId)?.name || 'Unknown',
                             'Repair Types': r.repairTypes?.join(', ') || r.repairType || '-',
                             Status: r.status || '-',
                             Notes: r.notes?.replace(/\n/g, ' ') || '-',
@@ -237,7 +224,6 @@ export function DataExportSection() {
                         (supplyData || []).map(r => ({
                             Date: new Date(r.distributed_at).toLocaleDateString(),
                             'Guest ID': r.guest_id,
-                            'Guest Name': guests.find(g => g.id === r.guest_id)?.name || 'Unknown',
                             Item: ITEM_LABELS[r.item_key] || r.item_key.replace(/_/g, ' '),
                             'Item Key': r.item_key,
                         })),
