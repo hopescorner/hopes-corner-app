@@ -15,9 +15,9 @@ export const generateShowerSlots = (date: Date = new Date()) => {
             slots.push(time);
         }
     } else {
-        // Saturday (day 6): 08:30 AM to 01:30 PM, every 30 minutes
+        // Saturday (day 6): 08:30 AM to 01:30 PM (inclusive), every 30 minutes
         const start = 8.5 * 60; // 08:30
-        const end = 13.5 * 60; // 13:30
+        const end = 14.0 * 60; // 14:00 (exclusive), so last slot is 13:30
         for (let t = start; t < end; t += 30) {
             const hours = Math.floor(t / 60);
             const minutes = t % 60;
