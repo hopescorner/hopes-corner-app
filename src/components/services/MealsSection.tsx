@@ -19,7 +19,10 @@ import {
     Building2,
     HandHeart,
     Trash2,
-    Check
+    Check,
+    Search,
+    CheckSquare,
+    Square,
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
@@ -49,6 +52,13 @@ export function MealsSection() {
     const [isPendingIndividual, setIsPendingIndividual] = useState(false);
     const [activityFilter, setActivityFilter] = useState<string>('all');
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+
+    // Multi-guest bulk add state
+    const [bulkGuestSearch, setBulkGuestSearch] = useState('');
+    const [bulkGuestMealFilter, setBulkGuestMealFilter] = useState<'all' | 'no_meal' | 'has_meal'>('all');
+    const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
+    const [bulkGuestMealCount, setBulkGuestMealCount] = useState(1);
+    const [isBulkAddingGuests, setIsBulkAddingGuests] = useState(false);
 
     const {
         mealRecords,
@@ -99,6 +109,40 @@ export function MealsSection() {
     }, [guests]);
 
     const isToday = selectedDate === todayPacificDateString();
+
+    // Set of guest IDs that already have a guest meal record on the selected date
+    const guestsWithMealOnDateSet = useMemo(() => {
+        const set = new Set<string>();
+        mealRecords
+            .filter((r) => (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate)
+            .forEach((r) => { if (r.guestId) set.add(r.guestId); });
+        return set;
+    }, [mealRecords, selectedDate]);
+
+    // Filtered + sorted guest list for the multi-guest bulk add panel
+    const filteredBulkGuests = useMemo(() => {
+        let list = guests.filter((g) => g?.id && !g.bannedFromMeals);
+
+        if (bulkGuestMealFilter === 'no_meal') {
+            list = list.filter((g) => !guestsWithMealOnDateSet.has(g.id));
+        } else if (bulkGuestMealFilter === 'has_meal') {
+            list = list.filter((g) => guestsWithMealOnDateSet.has(g.id));
+        }
+
+        if (bulkGuestSearch.trim()) {
+            const query = bulkGuestSearch.toLowerCase();
+            list = list.filter((g) => {
+                const name = (g.preferredName || g.name || `${g.firstName || ''} ${g.lastName || ''}`).toLowerCase();
+                return name.includes(query);
+            });
+        }
+
+        return [...list].sort((a, b) => {
+            const aName = (a.preferredName || a.name || `${a.firstName || ''} ${a.lastName || ''}`).toLowerCase();
+            const bName = (b.preferredName || b.name || `${b.firstName || ''} ${b.lastName || ''}`).toLowerCase();
+            return aName.localeCompare(bName);
+        });
+    }, [guests, bulkGuestSearch, bulkGuestMealFilter, guestsWithMealOnDateSet]);
 
     // Editing state
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -278,6 +322,35 @@ export function MealsSection() {
         setSelectedDate(pacificDateStringFrom(d));
     };
 
+    const handleBulkAddGuestMeals = async () => {
+        if (selectedGuestIds.size === 0) {
+            toast.error('Please select at least one guest');
+            return;
+        }
+
+        setIsBulkAddingGuests(true);
+        const guestIdList = [...selectedGuestIds];
+        const results = await Promise.allSettled(
+            guestIdList.map((guestId) =>
+                addMealRecord(guestId, bulkGuestMealCount, null, selectedDate)
+            )
+        );
+        setIsBulkAddingGuests(false);
+
+        const successCount = results.filter((r) => r.status === 'fulfilled').length;
+        const failCount = results.filter((r) => r.status === 'rejected').length;
+
+        if (successCount > 0) {
+            toast.success(
+                `Added ${bulkGuestMealCount} meal${bulkGuestMealCount > 1 ? 's' : ''} to ${successCount} guest${successCount > 1 ? 's' : ''}${!isToday ? ` for ${selectedDate}` : ''}`
+            );
+            setSelectedGuestIds(new Set());
+        }
+        if (failCount > 0) {
+            toast.error(`${failCount} guest${failCount > 1 ? 's' : ''} could not be updated (already at limit or duplicate)`);
+        }
+    };
+
     const getDisplayName = (record: any) => {
         const type = record.type;
         if (type === 'rv') return 'RV Meal Distribution';
@@ -448,6 +521,145 @@ export function MealsSection() {
                                         )}
                                     >
                                         {isPendingIndividual ? 'Adding...' : `Add${!isToday ? ` for ${selectedDate}` : ''}`}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Multi-Guest Bulk Add */}
+                            <div className="mb-5 p-4 rounded-2xl border border-blue-100 bg-blue-50/40">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-blue-700 mb-3 flex items-center gap-2">
+                                    <Users size={13} /> Multi-Guest Meal Entry
+                                </p>
+
+                                {/* Filter row */}
+                                <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                                    <div className="relative flex-1">
+                                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search guests…"
+                                            value={bulkGuestSearch}
+                                            onChange={(e) => setBulkGuestSearch(e.target.value)}
+                                            className="w-full pl-8 pr-3 py-2 rounded-xl border border-blue-200 bg-white text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                            aria-label="Search guests for bulk meal add"
+                                        />
+                                    </div>
+                                    <select
+                                        value={bulkGuestMealFilter}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (value === 'all' || value === 'no_meal' || value === 'has_meal') {
+                                                setBulkGuestMealFilter(value);
+                                            }
+                                            setSelectedGuestIds(new Set());
+                                        }}
+                                        className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-xs font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                        aria-label="Filter by meal status"
+                                    >
+                                        <option value="all">All Guests</option>
+                                        <option value="no_meal">No Meal Yet</option>
+                                        <option value="has_meal">Already Has Meal</option>
+                                    </select>
+                                </div>
+
+                                {/* Select all / deselect all */}
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[11px] text-blue-600 font-bold uppercase tracking-wide">
+                                        {filteredBulkGuests.length} guest{filteredBulkGuests.length !== 1 ? 's' : ''} shown
+                                        {selectedGuestIds.size > 0 && ` · ${selectedGuestIds.size} selected`}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedGuestIds(new Set(filteredBulkGuests.map((g) => g.id)))}
+                                            disabled={filteredBulkGuests.length === 0}
+                                            className="text-[11px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                                            aria-label="Select all visible guests"
+                                        >
+                                            Select All
+                                        </button>
+                                        {selectedGuestIds.size > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedGuestIds(new Set())}
+                                                className="text-[11px] font-black uppercase tracking-wider text-gray-500 hover:text-gray-700 transition-colors"
+                                                aria-label="Deselect all guests"
+                                            >
+                                                Clear
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Guest list */}
+                                <div className="max-h-52 overflow-y-auto rounded-xl border border-blue-100 bg-white divide-y divide-gray-50 mb-3">
+                                    {filteredBulkGuests.length === 0 ? (
+                                        <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">No guests match filters</p>
+                                    ) : (
+                                        filteredBulkGuests.map((guest) => {
+                                            const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
+                                            const hasMeal = guestsWithMealOnDateSet.has(guest.id);
+                                            const checked = selectedGuestIds.has(guest.id);
+                                            return (
+                                                <button
+                                                    key={guest.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedGuestIds((prev) => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(guest.id)) next.delete(guest.id);
+                                                            else next.add(guest.id);
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className={cn(
+                                                        "w-full flex items-center gap-3 px-3 py-2 text-left transition-colors",
+                                                        checked ? "bg-blue-50" : "hover:bg-gray-50"
+                                                    )}
+                                                    aria-pressed={checked}
+                                                >
+                                                    {checked
+                                                        ? <CheckSquare size={16} className="shrink-0 text-blue-600" />
+                                                        : <Square size={16} className="shrink-0 text-gray-300" />
+                                                    }
+                                                    <span className="flex-1 text-sm font-medium text-gray-900 truncate">{displayName}</span>
+                                                    {hasMeal && (
+                                                        <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                                                            Has meal
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                {/* Quantity + submit row */}
+                                <div className="flex items-center gap-3">
+                                    <label className="text-xs font-black uppercase tracking-wider text-gray-500 shrink-0">Meals each</label>
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={bulkGuestMealCount}
+                                        onChange={(e) => setBulkGuestMealCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                        className="w-20 p-2 rounded-xl border border-blue-200 bg-white text-sm font-bold text-center focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                        aria-label="Meals per guest"
+                                    />
+                                    <button
+                                        onClick={handleBulkAddGuestMeals}
+                                        disabled={selectedGuestIds.size === 0 || isBulkAddingGuests}
+                                        className={cn(
+                                            "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                                            selectedGuestIds.size > 0 && !isBulkAddingGuests
+                                                ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
+                                                : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                        )}
+                                    >
+                                        {isBulkAddingGuests
+                                            ? 'Adding…'
+                                            : selectedGuestIds.size > 0
+                                                ? `Add to ${selectedGuestIds.size} Guest${selectedGuestIds.size > 1 ? 's' : ''}`
+                                                : 'Select Guests Above'}
                                     </button>
                                 </div>
                             </div>
