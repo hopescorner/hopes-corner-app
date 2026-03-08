@@ -454,6 +454,7 @@ export function MealsSectionStory({
       updateBulkMealRecord: (async () => {}) as any,
       updateMealRecord: (async () => {}) as any,
       checkAndAddAutomaticMeals: (async () => {}) as any,
+      addMealRecord: (async () => ({ id: 'new-meal' })) as any,
     });
 
     useGuestsStore.setState({
