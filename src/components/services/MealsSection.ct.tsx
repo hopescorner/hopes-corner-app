@@ -226,9 +226,11 @@ test.describe('MealsSection', () => {
         />
       );
       await component.getByRole('button', { name: 'Add Bulk Meals' }).click();
+      // Scope to the multi-guest guest list to avoid matching dropdown options / activity log
+      const guestList = component.getByTestId('multi-guest-list');
       // Only Johnny (g1) should appear; Jane Doe (g2) has no meal today
-      await expect(component.getByText('Johnny')).toBeVisible();
-      await expect(component.getByText('Jane Doe')).not.toBeVisible();
+      await expect(guestList.getByText('Johnny')).toBeVisible();
+      await expect(guestList.getByText('Jane Doe')).not.toBeVisible();
     });
 
     test('shows "No guests served on this date" when no meal records exist', async ({ mount }) => {
@@ -257,7 +259,9 @@ test.describe('MealsSection', () => {
       const searchInput = component.getByLabel('Search guests for bulk meal add');
       await searchInput.fill('jane');
       await expect(component.getByText('1 guest shown')).toBeVisible();
-      await expect(component.getByText('Jane Doe')).toBeVisible();
+      // Scope to the multi-guest guest list to avoid matching dropdown options / activity log
+      const guestList = component.getByTestId('multi-guest-list');
+      await expect(guestList.getByText('Jane Doe')).toBeVisible();
     });
 
     test('Select All selects all visible guests', async ({ mount }) => {
@@ -331,7 +335,9 @@ test.describe('MealsSection', () => {
         />
       );
       await component.getByRole('button', { name: 'Add Bulk Meals' }).click();
-      await expect(component.getByText('Has meal')).toBeVisible();
+      // Scope to the multi-guest guest list to avoid matching the filter dropdown option
+      const guestList = component.getByTestId('multi-guest-list');
+      await expect(guestList.getByText('Has meal')).toBeVisible();
     });
 
     test('"Has Meal" filter shows only guests who have a meal on this date', async ({ mount }) => {

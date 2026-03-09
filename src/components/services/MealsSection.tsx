@@ -599,7 +599,7 @@ export function MealsSection() {
                                 </div>
 
                                 {/* Guest list */}
-                                <div className="max-h-52 overflow-y-auto rounded-xl border border-blue-100 bg-white divide-y divide-gray-50 mb-3">
+                                <div data-testid="multi-guest-list" className="max-h-52 overflow-y-auto rounded-xl border border-blue-100 bg-white divide-y divide-gray-50 mb-3">
                                     {filteredBulkGuests.length === 0 ? (
                                         <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">No guests served on this date</p>
                                     ) : (

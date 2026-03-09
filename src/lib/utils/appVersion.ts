@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.15';
+export const APP_VERSION = '0.5.16';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.16',
+        date: 'March 9, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Bulk Multi-Guest Meal Addition',
+                description: 'Added a Multi-Guest Meal Entry panel that lets staff select all guests served on a specific date and bulk-add meals to them at once, instead of updating each guest individually.',
+            },
+        ],
+    },
     {
         version: '0.5.15',
         date: 'February 26, 2026',
