@@ -55,7 +55,7 @@ export function MealsSection() {
 
     // Multi-guest bulk add state
     const [bulkGuestSearch, setBulkGuestSearch] = useState('');
-    const [bulkGuestMealFilter, setBulkGuestMealFilter] = useState<'all' | 'no_meal' | 'has_meal'>('all');
+    const [bulkGuestMealFilter, setBulkGuestMealFilter] = useState<'all' | 'has_meal'>('all');
     const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
     const [bulkGuestMealCount, setBulkGuestMealCount] = useState(1);
     const [isBulkAddingGuests, setIsBulkAddingGuests] = useState(false);
@@ -119,13 +119,21 @@ export function MealsSection() {
         return set;
     }, [mealRecords, selectedDate]);
 
-    // Filtered + sorted guest list for the multi-guest bulk add panel
+    // Filtered + sorted guest list for the multi-guest bulk add panel.
+    // Base is scoped to guests who have a meal record on the selected date so staff
+    // only see guests relevant to that service day.
     const filteredBulkGuests = useMemo(() => {
-        let list = guests.filter((g) => g?.id && !g.bannedFromMeals);
+        // Start from guests who are present on the selected date (have a guest meal record).
+        const guestsById = new Map<string, (typeof guests)[number]>();
+        for (const g of guests) {
+            if (g?.id) guestsById.set(g.id, g);
+        }
 
-        if (bulkGuestMealFilter === 'no_meal') {
-            list = list.filter((g) => !guestsWithMealOnDateSet.has(g.id));
-        } else if (bulkGuestMealFilter === 'has_meal') {
+        let list = [...guestsWithMealOnDateSet]
+            .map((id) => guestsById.get(id))
+            .filter((g): g is (typeof guests)[number] => !!g && !g.bannedFromMeals);
+
+        if (bulkGuestMealFilter === 'has_meal') {
             list = list.filter((g) => guestsWithMealOnDateSet.has(g.id));
         }
 
@@ -548,7 +556,7 @@ export function MealsSection() {
                                         value={bulkGuestMealFilter}
                                         onChange={(e) => {
                                             const value = e.target.value;
-                                            if (value === 'all' || value === 'no_meal' || value === 'has_meal') {
+                                            if (value === 'all' || value === 'has_meal') {
                                                 setBulkGuestMealFilter(value);
                                             }
                                             setSelectedGuestIds(new Set());
@@ -556,9 +564,8 @@ export function MealsSection() {
                                         className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-xs font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-300"
                                         aria-label="Filter by meal status"
                                     >
-                                        <option value="all">All Guests</option>
-                                        <option value="no_meal">No Meal Yet</option>
-                                        <option value="has_meal">Already Has Meal</option>
+                                        <option value="all">All from This Date</option>
+                                        <option value="has_meal">Has Meal</option>
                                     </select>
                                 </div>
 
@@ -594,7 +601,7 @@ export function MealsSection() {
                                 {/* Guest list */}
                                 <div className="max-h-52 overflow-y-auto rounded-xl border border-blue-100 bg-white divide-y divide-gray-50 mb-3">
                                     {filteredBulkGuests.length === 0 ? (
-                                        <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">No guests match filters</p>
+                                        <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">No guests served on this date</p>
                                     ) : (
                                         filteredBulkGuests.map((guest) => {
                                             const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
