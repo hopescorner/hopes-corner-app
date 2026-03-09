@@ -380,7 +380,7 @@ export function MealsSection() {
             const parts: string[] = [];
             parts.push(`Added ${bulkGuestMealCount} meal${bulkGuestMealCount > 1 ? 's' : ''} to ${successCount} guest${successCount > 1 ? 's' : ''}${!isToday ? ` for ${selectedDate}` : ''}`);
             if (skippedCount > 0) {
-                parts.push(`${skippedCount} already at limit`);
+                parts.push(`${skippedCount} already at ${MAX_BASE_MEALS_PER_DAY} base meals/day limit`);
             }
             toast.success(parts.join('. '));
             setSelectedGuestIds(new Set());
