@@ -119,6 +119,19 @@ export function MealsSection() {
         return set;
     }, [mealRecords, selectedDate]);
 
+    // Map of guest ID → total meal count on the selected date (for display in multi-guest list)
+    const guestMealCountOnDate = useMemo(() => {
+        const map = new Map<string, number>();
+        mealRecords
+            .filter((r) => (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate)
+            .forEach((r) => {
+                if (r.guestId) {
+                    map.set(r.guestId, (map.get(r.guestId) || 0) + (r.count || 1));
+                }
+            });
+        return map;
+    }, [mealRecords, selectedDate]);
+
     // Filtered + sorted guest list for the multi-guest bulk add panel.
     // Base is scoped to guests who have a meal record on the selected date so staff
     // only see guests relevant to that service day.
@@ -355,7 +368,7 @@ export function MealsSection() {
             setSelectedGuestIds(new Set());
         }
         if (failCount > 0) {
-            toast.error(`${failCount} guest${failCount > 1 ? 's' : ''} could not be updated (already at limit or duplicate)`);
+            toast.error(`${failCount} guest${failCount > 1 ? 's' : ''} skipped — already at the 2 base meals/day limit`);
         }
     };
 
@@ -605,7 +618,7 @@ export function MealsSection() {
                                     ) : (
                                         filteredBulkGuests.map((guest) => {
                                             const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
-                                            const hasMeal = guestsWithMealOnDateSet.has(guest.id);
+                                            const mealCount = guestMealCountOnDate.get(guest.id) || 0;
                                             const checked = selectedGuestIds.has(guest.id);
                                             return (
                                                 <button
@@ -630,9 +643,9 @@ export function MealsSection() {
                                                         : <Square size={16} className="shrink-0 text-gray-300" />
                                                     }
                                                     <span className="flex-1 text-sm font-medium text-gray-900 truncate">{displayName}</span>
-                                                    {hasMeal && (
+                                                    {mealCount > 0 && (
                                                         <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                                            Has meal
+                                                            {mealCount} meal{mealCount !== 1 ? 's' : ''}
                                                         </span>
                                                     )}
                                                 </button>
@@ -642,32 +655,37 @@ export function MealsSection() {
                                 </div>
 
                                 {/* Quantity + submit row */}
-                                <div className="flex items-center gap-3">
-                                    <label className="text-xs font-black uppercase tracking-wider text-gray-500 shrink-0">Meals each</label>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={bulkGuestMealCount}
-                                        onChange={(e) => setBulkGuestMealCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                        className="w-20 p-2 rounded-xl border border-blue-200 bg-white text-sm font-bold text-center focus:outline-none focus:ring-1 focus:ring-blue-300"
-                                        aria-label="Meals per guest"
-                                    />
-                                    <button
-                                        onClick={handleBulkAddGuestMeals}
-                                        disabled={selectedGuestIds.size === 0 || isBulkAddingGuests}
-                                        className={cn(
-                                            "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
-                                            selectedGuestIds.size > 0 && !isBulkAddingGuests
-                                                ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
-                                                : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                        )}
-                                    >
-                                        {isBulkAddingGuests
-                                            ? 'Adding…'
-                                            : selectedGuestIds.size > 0
-                                                ? `Add to ${selectedGuestIds.size} Guest${selectedGuestIds.size > 1 ? 's' : ''}`
-                                                : 'Select Guests Above'}
-                                    </button>
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <label className="text-xs font-black uppercase tracking-wider text-gray-500 shrink-0">Add meals</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={bulkGuestMealCount}
+                                            onChange={(e) => setBulkGuestMealCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                            className="w-20 p-2 rounded-xl border border-blue-200 bg-white text-sm font-bold text-center focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                            aria-label="Meals per guest"
+                                        />
+                                        <button
+                                            onClick={handleBulkAddGuestMeals}
+                                            disabled={selectedGuestIds.size === 0 || isBulkAddingGuests}
+                                            className={cn(
+                                                "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                                                selectedGuestIds.size > 0 && !isBulkAddingGuests
+                                                    ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
+                                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                            )}
+                                        >
+                                            {isBulkAddingGuests
+                                                ? 'Adding…'
+                                                : selectedGuestIds.size > 0
+                                                    ? `Add ${bulkGuestMealCount} to ${selectedGuestIds.size} Guest${selectedGuestIds.size > 1 ? 's' : ''}`
+                                                    : 'Select Guests Above'}
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 italic">
+                                        Adds {bulkGuestMealCount} additional meal{bulkGuestMealCount !== 1 ? 's' : ''} per guest (e.g. guest with 1 meal → {1 + bulkGuestMealCount} meals). Max 2 base meals per guest per day.
+                                    </p>
                                 </div>
                             </div>
 

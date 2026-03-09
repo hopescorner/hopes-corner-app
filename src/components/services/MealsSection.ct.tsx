@@ -322,10 +322,10 @@ test.describe('MealsSection', () => {
       );
       await component.getByRole('button', { name: 'Add Bulk Meals' }).click();
       await component.getByRole('button', { name: 'Select all visible guests' }).click();
-      await expect(component.getByText('Add to 2 Guests')).toBeVisible();
+      await expect(component.getByText('Add 1 to 2 Guests')).toBeVisible();
     });
 
-    test('shows "Has meal" badge for guests with existing meal', async ({ mount }) => {
+    test('shows meal count badge for guests with existing meals', async ({ mount }) => {
       const component = await mount(
         <MealsSectionStory
           guests={sampleGuests}
@@ -337,7 +337,7 @@ test.describe('MealsSection', () => {
       await component.getByRole('button', { name: 'Add Bulk Meals' }).click();
       // Scope to the multi-guest guest list to avoid matching the filter dropdown option
       const guestList = component.getByTestId('multi-guest-list');
-      await expect(guestList.getByText('Has meal')).toBeVisible();
+      await expect(guestList.getByText('1 meal')).toBeVisible();
     });
 
     test('"Has Meal" filter shows only guests who have a meal on this date', async ({ mount }) => {
