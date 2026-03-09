@@ -29,6 +29,7 @@ import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
+import { MAX_BASE_MEALS_PER_DAY } from '@/lib/constants/constants';
 import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -55,7 +56,7 @@ export function MealsSection() {
 
     // Multi-guest bulk add state
     const [bulkGuestSearch, setBulkGuestSearch] = useState('');
-    const [bulkGuestMealFilter, setBulkGuestMealFilter] = useState<'all' | 'has_meal'>('all');
+    const [bulkGuestMealFilter, setBulkGuestMealFilter] = useState<'all' | 'has_meal' | 'can_add_more'>('all');
     const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
     const [bulkGuestMealCount, setBulkGuestMealCount] = useState(1);
     const [isBulkAddingGuests, setIsBulkAddingGuests] = useState(false);
@@ -148,6 +149,8 @@ export function MealsSection() {
 
         if (bulkGuestMealFilter === 'has_meal') {
             list = list.filter((g) => guestsWithMealOnDateSet.has(g.id));
+        } else if (bulkGuestMealFilter === 'can_add_more') {
+            list = list.filter((g) => (guestMealCountOnDate.get(g.id) || 0) < MAX_BASE_MEALS_PER_DAY);
         }
 
         if (bulkGuestSearch.trim()) {
@@ -349,10 +352,22 @@ export function MealsSection() {
             return;
         }
 
+        // Pre-filter: skip guests already at the base meal limit
+        const allSelected = [...selectedGuestIds];
+        const eligible = allSelected.filter((guestId) => {
+            const currentCount = guestMealCountOnDate.get(guestId) || 0;
+            return currentCount + bulkGuestMealCount <= MAX_BASE_MEALS_PER_DAY;
+        });
+        const skippedCount = allSelected.length - eligible.length;
+
+        if (eligible.length === 0) {
+            toast.error(`All ${allSelected.length} selected guest${allSelected.length > 1 ? 's' : ''} already at the ${MAX_BASE_MEALS_PER_DAY} base meals/day limit`);
+            return;
+        }
+
         setIsBulkAddingGuests(true);
-        const guestIdList = [...selectedGuestIds];
         const results = await Promise.allSettled(
-            guestIdList.map((guestId) =>
+            eligible.map((guestId) =>
                 addMealRecord(guestId, bulkGuestMealCount, null, selectedDate)
             )
         );
@@ -362,13 +377,16 @@ export function MealsSection() {
         const failCount = results.filter((r) => r.status === 'rejected').length;
 
         if (successCount > 0) {
-            toast.success(
-                `Added ${bulkGuestMealCount} meal${bulkGuestMealCount > 1 ? 's' : ''} to ${successCount} guest${successCount > 1 ? 's' : ''}${!isToday ? ` for ${selectedDate}` : ''}`
-            );
+            const parts: string[] = [];
+            parts.push(`Added ${bulkGuestMealCount} meal${bulkGuestMealCount > 1 ? 's' : ''} to ${successCount} guest${successCount > 1 ? 's' : ''}${!isToday ? ` for ${selectedDate}` : ''}`);
+            if (skippedCount > 0) {
+                parts.push(`${skippedCount} already at limit`);
+            }
+            toast.success(parts.join('. '));
             setSelectedGuestIds(new Set());
         }
         if (failCount > 0) {
-            toast.error(`${failCount} guest${failCount > 1 ? 's' : ''} skipped — already at the 2 base meals/day limit`);
+            toast.error(`${failCount} guest${failCount > 1 ? 's' : ''} failed to update`);
         }
     };
 
@@ -569,7 +587,7 @@ export function MealsSection() {
                                         value={bulkGuestMealFilter}
                                         onChange={(e) => {
                                             const value = e.target.value;
-                                            if (value === 'all' || value === 'has_meal') {
+                                            if (value === 'all' || value === 'has_meal' || value === 'can_add_more') {
                                                 setBulkGuestMealFilter(value);
                                             }
                                             setSelectedGuestIds(new Set());
@@ -578,6 +596,7 @@ export function MealsSection() {
                                         aria-label="Filter by meal status"
                                     >
                                         <option value="all">All from This Date</option>
+                                        <option value="can_add_more">Can Add More</option>
                                         <option value="has_meal">Has Meal</option>
                                     </select>
                                 </div>
@@ -619,6 +638,7 @@ export function MealsSection() {
                                         filteredBulkGuests.map((guest) => {
                                             const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
                                             const mealCount = guestMealCountOnDate.get(guest.id) || 0;
+                                            const atLimit = mealCount >= MAX_BASE_MEALS_PER_DAY;
                                             const checked = selectedGuestIds.has(guest.id);
                                             return (
                                                 <button
@@ -644,8 +664,13 @@ export function MealsSection() {
                                                     }
                                                     <span className="flex-1 text-sm font-medium text-gray-900 truncate">{displayName}</span>
                                                     {mealCount > 0 && (
-                                                        <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
-                                                            {mealCount} meal{mealCount !== 1 ? 's' : ''}
+                                                        <span className={cn(
+                                                            "shrink-0 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full",
+                                                            atLimit
+                                                                ? "text-amber-600 bg-amber-50"
+                                                                : "text-emerald-600 bg-emerald-50"
+                                                        )}>
+                                                            {mealCount} meal{mealCount !== 1 ? 's' : ''}{atLimit ? ' (limit)' : ''}
                                                         </span>
                                                     )}
                                                 </button>

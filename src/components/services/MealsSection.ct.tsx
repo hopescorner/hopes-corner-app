@@ -340,6 +340,42 @@ test.describe('MealsSection', () => {
       await expect(guestList.getByText('1 meal')).toBeVisible();
     });
 
+    test('shows "(limit)" badge for guests at the max base meals', async ({ mount }) => {
+      const component = await mount(
+        <MealsSectionStory
+          guests={sampleGuests}
+          mealRecords={[
+            { id: 'm1', guestId: 'g1', count: 2, date: todayDate, createdAt: todayDate },
+          ]}
+        />
+      );
+      await component.getByRole('button', { name: 'Add Bulk Meals' }).click();
+      const guestList = component.getByTestId('multi-guest-list');
+      await expect(guestList.getByText('2 meals (limit)')).toBeVisible();
+    });
+
+    test('"Can Add More" filter hides guests at the limit', async ({ mount }) => {
+      const component = await mount(
+        <MealsSectionStory
+          guests={sampleGuests}
+          mealRecords={[
+            { id: 'm1', guestId: 'g1', count: 1, date: todayDate, createdAt: todayDate },
+            { id: 'm2', guestId: 'g2', count: 2, date: todayDate, createdAt: todayDate },
+          ]}
+        />
+      );
+      await component.getByRole('button', { name: 'Add Bulk Meals' }).click();
+      // All from This Date shows both guests
+      await expect(component.getByText('2 guests shown')).toBeVisible();
+      // Switch to "Can Add More"
+      await component.getByLabel('Filter by meal status').selectOption('can_add_more');
+      await expect(component.getByText('1 guest shown')).toBeVisible();
+      const guestList = component.getByTestId('multi-guest-list');
+      await expect(guestList.getByText('Johnny')).toBeVisible();
+      // Jane (at 2 meals/limit) should not be visible
+      await expect(guestList.getByText('Jane Doe')).not.toBeVisible();
+    });
+
     test('"Has Meal" filter shows only guests who have a meal on this date', async ({ mount }) => {
       const component = await mount(
         <MealsSectionStory
