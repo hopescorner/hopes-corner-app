@@ -373,15 +373,25 @@ export function MealsSection() {
         }
 
         setIsBulkAddingGuests(true);
-        const results = await Promise.allSettled(
-            eligible.map((guestId) =>
-                addMealRecord(guestId, bulkGuestMealCount, null, selectedDate)
-            )
-        );
-        setIsBulkAddingGuests(false);
 
-        const successCount = results.filter((r) => r.status === 'fulfilled').length;
-        const failCount = results.filter((r) => r.status === 'rejected').length;
+        // Process in small batches to avoid overwhelming Supabase with
+        // hundreds of concurrent requests (each call may also trigger a
+        // lunch-bag auto-add, doubling the request count).
+        const BATCH_SIZE = 10;
+        let successCount = 0;
+        let failCount = 0;
+        for (let i = 0; i < eligible.length; i += BATCH_SIZE) {
+            const batch = eligible.slice(i, i + BATCH_SIZE);
+            const results = await Promise.allSettled(
+                batch.map((guestId) =>
+                    addMealRecord(guestId, bulkGuestMealCount, null, selectedDate)
+                )
+            );
+            successCount += results.filter((r) => r.status === 'fulfilled').length;
+            failCount += results.filter((r) => r.status === 'rejected').length;
+        }
+
+        setIsBulkAddingGuests(false);
 
         if (successCount > 0) {
             const parts: string[] = [];

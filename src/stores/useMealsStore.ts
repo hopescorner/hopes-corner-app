@@ -163,7 +163,56 @@ export const useMealsStore = create<MealsState>()(
                         if (totalMeals + quantity > MAX_TOTAL_MEALS_PER_DAY) {
                             throw new Error(`Guest already has ${totalMeals} total meal${totalMeals !== 1 ? 's' : ''} today (max ${MAX_TOTAL_MEALS_PER_DAY})`);
                         }
+
+                        // Check for an existing guest-meal row on this date (DB has a unique
+                        // index on (guest_id, served_on) WHERE meal_type='guest').  If a row
+                        // already exists, increment its quantity instead of inserting a
+                        // duplicate that would violate the constraint.
+                        const dateKey = (r: MealRecord) => r?.dateKey || pacificDateStringFrom(r.date);
+                        const existing = get().mealRecords.find(
+                            (r) => r.guestId === guestId && dateKey(r) === targetDate
+                        );
+
                         const supabase = createClient();
+
+                        if (existing) {
+                            const newQuantity = (existing.count || 1) + quantity;
+                            const { data, error } = await supabase
+                                .from('meal_attendance')
+                                .update({ quantity: newQuantity })
+                                .eq('id', existing.id)
+                                .select()
+                                .single();
+
+                            if (error) {
+                                console.error('Failed to update meal record in Supabase:', error);
+                                throw new Error('Unable to save meal record');
+                            }
+
+                            const mapped = mapMealRow(data);
+                            set((state) => {
+                                const idx = state.mealRecords.findIndex((r) => r.id === existing.id);
+                                if (idx !== -1) {
+                                    state.mealRecords[idx] = mapped;
+                                }
+                            });
+
+                            // Auto-add lunch bag (skip Fridays)
+                            const dateParts = parsePacificDateParts(targetDate);
+                            const isFriday = dateParts?.dayOfWeek === 5;
+                            if (!isFriday) {
+                                try {
+                                    await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
+                                    if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+                                        await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', undefined, targetDate);
+                                    }
+                                } catch (err) {
+                                    console.error('Failed to auto-add lunch bag', err);
+                                }
+                            }
+
+                            return mapped;
+                        }
 
                         const payload: any = {
                             guest_id: guestId,
