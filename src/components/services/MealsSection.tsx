@@ -326,6 +326,13 @@ export function MealsSection() {
             return;
         }
 
+        // Client-side pre-check: skip the Supabase call if the guest is already at the limit
+        const currentCount = guestMealCountOnDate.get(individualGuestId) || 0;
+        if (currentCount + individualMealCount > MAX_BASE_MEALS_PER_DAY) {
+            toast.error(`Guest already has ${currentCount} base meal${currentCount !== 1 ? 's' : ''} today (max ${MAX_BASE_MEALS_PER_DAY})`);
+            return;
+        }
+
         setIsPendingIndividual(true);
         try {
             await addMealRecord(individualGuestId, individualMealCount, null, selectedDate);
@@ -334,7 +341,7 @@ export function MealsSection() {
             setIndividualMealCount(1);
         } catch (error) {
             console.error('Failed to add individual meal:', error);
-            toast.error('Failed to add individual meal');
+            toast.error(error instanceof Error ? error.message : 'Failed to add individual meal');
         } finally {
             setIsPendingIndividual(false);
         }

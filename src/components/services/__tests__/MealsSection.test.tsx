@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import toast from 'react-hot-toast';
 import React from 'react';
 import { MealsSection } from '../MealsSection';
 
@@ -13,6 +14,7 @@ vi.mock('next-auth/react', () => ({
 }));
 
 const mockDeleteBulkMealRecord = vi.fn().mockResolvedValue(true);
+const mockAddMealRecord = vi.fn().mockResolvedValue({ id: 'meal-new' });
 
 vi.mock('@/stores/useMealsStore', () => ({
     useMealsStore: vi.fn((selector) => {
@@ -40,7 +42,7 @@ vi.mock('@/stores/useMealsStore', () => ({
             deleteBulkMealRecord: mockDeleteBulkMealRecord,
             updateBulkMealRecord: vi.fn().mockResolvedValue(true),
             checkAndAddAutomaticMeals: vi.fn(),
-            addMealRecord: vi.fn().mockResolvedValue({ id: 'meal-new' }),
+            addMealRecord: mockAddMealRecord,
         };
         return typeof selector === 'function' ? selector(state) : state;
     }),
@@ -190,6 +192,74 @@ describe('MealsSection Component', () => {
             expect(mockDeleteBulkMealRecord).not.toHaveBeenCalled();
 
             vi.restoreAllMocks();
+        });
+    });
+
+    describe('Individual Meal Limit Pre-check', () => {
+        it('blocks adding a meal for a guest already at the base meal limit without calling the store', async () => {
+            // g1 has count: 2 meals on 2026-01-08 (at the MAX_BASE_MEALS_PER_DAY limit)
+            const user = userEvent.setup();
+            render(<MealsSection />);
+
+            // Open the add panel
+            const addBtn = screen.getByText('Add Bulk Meals');
+            await user.click(addBtn);
+
+            // Scope to the Individual Meal Entry section
+            const individualSection = screen.getByText('Individual Meal Entry').closest('div')!;
+
+            // Select guest g1 (Johnny) who already has 2 meals
+            const guestSelect = within(individualSection).getByDisplayValue('Select guest');
+            await user.selectOptions(guestSelect, 'g1');
+
+            // Click the add button inside the individual section
+            const submitBtn = within(individualSection).getByRole('button', { name: /add/i });
+            await user.click(submitBtn);
+
+            // Should show a specific error toast, NOT call the store
+            expect(toast.error).toHaveBeenCalledWith(
+                'Guest already has 2 base meals today (max 2)'
+            );
+            expect(mockAddMealRecord).not.toHaveBeenCalled();
+        });
+
+        it('allows adding a meal for a guest with 0 meals', async () => {
+            // g2 (Jane Smith) has no meal records → count = 0
+            const user = userEvent.setup();
+            render(<MealsSection />);
+
+            const addBtn = screen.getByText('Add Bulk Meals');
+            await user.click(addBtn);
+
+            const individualSection = screen.getByText('Individual Meal Entry').closest('div')!;
+            const guestSelect = within(individualSection).getByDisplayValue('Select guest');
+            await user.selectOptions(guestSelect, 'g2');
+
+            const submitBtn = within(individualSection).getByRole('button', { name: /add/i });
+            await user.click(submitBtn);
+
+            expect(toast.error).not.toHaveBeenCalled();
+            expect(mockAddMealRecord).toHaveBeenCalledWith('g2', 1, null, '2026-01-08');
+        });
+
+        it('surfaces specific error message when store addMealRecord throws', async () => {
+            mockAddMealRecord.mockRejectedValueOnce(new Error('Guest already has 2 base meals today (max 2)'));
+            const user = userEvent.setup();
+            render(<MealsSection />);
+
+            const addBtn = screen.getByText('Add Bulk Meals');
+            await user.click(addBtn);
+
+            const individualSection = screen.getByText('Individual Meal Entry').closest('div')!;
+            const guestSelect = within(individualSection).getByDisplayValue('Select guest');
+            await user.selectOptions(guestSelect, 'g2');
+
+            const submitBtn = within(individualSection).getByRole('button', { name: /add/i });
+            await user.click(submitBtn);
+
+            expect(toast.error).toHaveBeenCalledWith(
+                'Guest already has 2 base meals today (max 2)'
+            );
         });
     });
 });
