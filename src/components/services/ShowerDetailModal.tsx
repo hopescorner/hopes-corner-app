@@ -80,16 +80,8 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
         }
     };
 
-    // Check if an item was given today (for showing undo option)
-    const isGivenToday = (distributedAt: string) => {
-        const itemDate = new Date(distributedAt);
-        const today = new Date();
-        return (
-            itemDate.getFullYear() === today.getFullYear() &&
-            itemDate.getMonth() === today.getMonth() &&
-            itemDate.getDate() === today.getDate()
-        );
-    };
+    // Filter to only show items for the current guest
+    const guestItems = distributedItems.filter((item) => item.guestId === guest.id);
 
     // Handle marking shower as done
     const handleMarkAsDone = async () => {
@@ -247,12 +239,11 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                     </div>
 
                     {/* History Section (Recent items) */}
-                    {distributedItems.length > 0 && (
+                    {guestItems.length > 0 && (
                         <div>
                             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Recent Items Given</h4>
                             <div className="bg-white border border-gray-100 rounded-xl overflow-hidden divide-y divide-gray-50">
-                                {distributedItems.slice(0, 5).map((item) => {
-                                    const canUndo = isGivenToday(item.distributedAt);
+                                {guestItems.slice(0, 5).map((item) => {
                                     const isUndoing = undoLoading === item.id;
                                     
                                     return (
@@ -267,24 +258,22 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                                                 <span className="text-xs text-gray-400 font-medium">
                                                     {new Date(item.distributedAt).toLocaleDateString()}
                                                 </span>
-                                                {canUndo && (
-                                                    <button
-                                                        onClick={() => handleUndoItem(item.id, item.itemKey.replace('_', ' '))}
-                                                        disabled={isUndoing || isLoading}
-                                                        className={cn(
-                                                            "p-1.5 rounded-lg transition-all",
-                                                            "text-amber-600 hover:bg-amber-50 hover:text-amber-700",
-                                                            "disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        )}
-                                                        title="Undo - remove this item"
-                                                    >
-                                                        {isUndoing ? (
-                                                            <Loader2 size={14} className="animate-spin" />
-                                                        ) : (
-                                                            <Undo2 size={14} />
-                                                        )}
-                                                    </button>
-                                                )}
+                                                <button
+                                                    onClick={() => handleUndoItem(item.id, item.itemKey.replace('_', ' '))}
+                                                    disabled={isUndoing || isLoading}
+                                                    className={cn(
+                                                        "p-1.5 rounded-lg transition-all",
+                                                        "text-amber-600 hover:bg-amber-50 hover:text-amber-700",
+                                                        "disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    )}
+                                                    title="Undo - remove this item"
+                                                >
+                                                    {isUndoing ? (
+                                                        <Loader2 size={14} className="animate-spin" />
+                                                    ) : (
+                                                        <Undo2 size={14} />
+                                                    )}
+                                                </button>
                                             </div>
                                         </div>
                                     );
