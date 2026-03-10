@@ -76,6 +76,14 @@ describe('useMealsStore', () => {
         vi.clearAllMocks();
         vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-06');
 
+        // Re-establish mock chain after clearAllMocks
+        mockSupabase.from.mockReturnThis();
+        mockSupabase.select.mockReturnThis();
+        mockSupabase.insert.mockReturnThis();
+        mockSupabase.update.mockReturnThis();
+        mockSupabase.delete.mockReturnThis();
+        mockSupabase.eq.mockReturnThis();
+
         // Default Supabase Single Response
         mockSupabase.single.mockResolvedValue({
             data: {
@@ -489,6 +497,52 @@ describe('useMealsStore', () => {
                 expect(useMealsStore.getState().mealRecords).toHaveLength(1);
                 expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
             });
+
+            it('updates existing row quantity instead of inserting duplicate', async () => {
+                // Seed the store with an existing record for g1 on 2025-01-06
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'existing-1', guestId: 'g1', count: 1, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+
+                // Mock the update response (returns updated row)
+                mockSupabase.single
+                    .mockResolvedValueOnce({
+                        data: { id: 'existing-1', guest_id: 'g1', quantity: 2, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    })
+                    // auto lunch bag
+                    .mockResolvedValueOnce({
+                        data: { id: 'lb-auto', quantity: 1, meal_type: 'lunch_bag', served_on: '2025-01-06' },
+                        error: null,
+                    });
+
+                await useMealsStore.getState().addMealRecord('g1', 1);
+
+                // Should still be 1 record (updated in-place), not 2
+                expect(useMealsStore.getState().mealRecords).toHaveLength(1);
+                expect(useMealsStore.getState().mealRecords[0].count).toBe(2);
+
+                // Should have called update for the meal (not insert)
+                expect(mockSupabase.update).toHaveBeenCalledWith({ quantity: 2 });
+            });
+
+            it('rejects adding when existing record is already at base meal limit', async () => {
+                // Guest already has 2 meals (the limit) on this date
+                useMealsStore.setState({
+                    mealRecords: [
+                        createMockMealRecord({ id: 'existing-2', guestId: 'g1', count: 2, date: '2025-01-06', dateKey: '2025-01-06' }),
+                    ],
+                });
+
+                await expect(useMealsStore.getState().addMealRecord('g1', 1))
+                    .rejects.toThrow('Guest already has 2 base meals today (max 2)');
+
+                // Should NOT have called insert or update
+                expect(mockSupabase.insert).not.toHaveBeenCalled();
+                expect(mockSupabase.update).not.toHaveBeenCalled();
+            });
         });
 
         // Restoring other actions coverage:
@@ -762,10 +816,10 @@ describe('useMealsStore', () => {
                     ],
                 });
 
-                // 1 base + 2 extra = 3 total, adding 1 base → 2 base, 4 total (at limit, allowed)
+                // 1 base + 2 extra = 3 total, adding 1 base → upsert existing row to quantity 2 (4 total, at limit, allowed)
                 mockSupabase.single
                     .mockResolvedValueOnce({
-                        data: { id: 'new-meal', guest_id: 'g1', quantity: 1, served_on: '2025-01-06', meal_type: 'guest' },
+                        data: { id: 'm1', guest_id: 'g1', quantity: 2, served_on: '2025-01-06', meal_type: 'guest' },
                         error: null,
                     })
                     .mockResolvedValueOnce({
@@ -774,7 +828,9 @@ describe('useMealsStore', () => {
                     });
 
                 const record = await useMealsStore.getState().addMealRecord('g1', 1);
-                expect(record.id).toBe('new-meal');
+                expect(record.id).toBe('m1');
+                // Should have updated the existing record via update, not insert for the meal itself
+                expect(mockSupabase.update).toHaveBeenCalledWith({ quantity: 2 });
             });
         });
 

@@ -217,7 +217,7 @@ describe('ShowerDetailModal', () => {
             expect(screen.getByTitle('Undo - remove this item')).toBeDefined();
         });
 
-        it('does not show undo button for items given on previous days', () => {
+        it('shows undo button for items given on previous days', () => {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
             mockDistributedItems = [
@@ -227,7 +227,7 @@ describe('ShowerDetailModal', () => {
             render(<ShowerDetailModal {...defaultProps} />);
 
             expect(screen.getByText('jacket')).toBeDefined();
-            expect(screen.queryByTitle('Undo - remove this item')).toBeNull();
+            expect(screen.getByTitle('Undo - remove this item')).toBeDefined();
         });
 
         it('calls undoItem when undo button is clicked', async () => {
@@ -294,7 +294,7 @@ describe('ShowerDetailModal', () => {
             expect(screen.getByText('Recent Items Given')).toBeDefined();
         });
 
-        it('shows multiple items with appropriate undo buttons', () => {
+        it('shows undo buttons for all items regardless of date', () => {
             const today = new Date();
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
@@ -310,9 +310,24 @@ describe('ShowerDetailModal', () => {
             expect(screen.getByText('tshirt')).toBeDefined();
             expect(screen.getByText('jacket')).toBeDefined();
 
-            // Only one undo button should be visible (for today's item)
+            // Both items should have undo buttons
             const undoButtons = screen.queryAllByTitle('Undo - remove this item');
-            expect(undoButtons.length).toBe(1);
+            expect(undoButtons.length).toBe(2);
+        });
+
+        it('only shows items for the current guest', () => {
+            const today = new Date().toISOString();
+
+            mockDistributedItems = [
+                { id: 'item-1', guestId: 'guest-1', itemKey: 'tshirt', distributedAt: today, createdAt: today },
+                { id: 'item-2', guestId: 'other-guest', itemKey: 'tent', distributedAt: today, createdAt: today },
+            ];
+
+            render(<ShowerDetailModal {...defaultProps} />);
+
+            // Only the current guest's item should be visible
+            expect(screen.getByText('tshirt')).toBeDefined();
+            expect(screen.queryByText('tent')).toBeNull();
         });
     });
 

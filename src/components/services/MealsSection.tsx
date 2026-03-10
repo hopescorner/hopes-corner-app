@@ -19,13 +19,17 @@ import {
     Building2,
     HandHeart,
     Trash2,
-    Check
+    Check,
+    Search,
+    CheckSquare,
+    Square,
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
+import { MAX_BASE_MEALS_PER_DAY } from '@/lib/constants/constants';
 import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -49,6 +53,13 @@ export function MealsSection() {
     const [isPendingIndividual, setIsPendingIndividual] = useState(false);
     const [activityFilter, setActivityFilter] = useState<string>('all');
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+
+    // Multi-guest bulk add state
+    const [bulkGuestSearch, setBulkGuestSearch] = useState('');
+    const [bulkGuestMealFilter, setBulkGuestMealFilter] = useState<'all' | 'has_meal' | 'can_add_more'>('all');
+    const [selectedGuestIds, setSelectedGuestIds] = useState<Set<string>>(new Set());
+    const [bulkGuestMealCount, setBulkGuestMealCount] = useState(1);
+    const [isBulkAddingGuests, setIsBulkAddingGuests] = useState(false);
 
     const {
         mealRecords,
@@ -99,6 +110,63 @@ export function MealsSection() {
     }, [guests]);
 
     const isToday = selectedDate === todayPacificDateString();
+
+    // Set of guest IDs that already have a guest meal record on the selected date
+    const guestsWithMealOnDateSet = useMemo(() => {
+        const set = new Set<string>();
+        mealRecords
+            .filter((r) => (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate)
+            .forEach((r) => { if (r.guestId) set.add(r.guestId); });
+        return set;
+    }, [mealRecords, selectedDate]);
+
+    // Map of guest ID → total meal count on the selected date (for display in multi-guest list)
+    const guestMealCountOnDate = useMemo(() => {
+        const map = new Map<string, number>();
+        mealRecords
+            .filter((r) => (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate)
+            .forEach((r) => {
+                if (r.guestId) {
+                    map.set(r.guestId, (map.get(r.guestId) || 0) + (r.count || 1));
+                }
+            });
+        return map;
+    }, [mealRecords, selectedDate]);
+
+    // Filtered + sorted guest list for the multi-guest bulk add panel.
+    // Base is scoped to guests who have a meal record on the selected date so staff
+    // only see guests relevant to that service day.
+    const filteredBulkGuests = useMemo(() => {
+        // Start from guests who are present on the selected date (have a guest meal record).
+        const guestsById = new Map<string, (typeof guests)[number]>();
+        for (const g of guests) {
+            if (g?.id) guestsById.set(g.id, g);
+        }
+
+        let list = [...guestsWithMealOnDateSet]
+            .map((id) => guestsById.get(id))
+            .filter((g): g is (typeof guests)[number] => !!g && !g.bannedFromMeals);
+
+        if (bulkGuestMealFilter === 'has_meal') {
+            list = list.filter((g) => guestsWithMealOnDateSet.has(g.id));
+        } else if (bulkGuestMealFilter === 'can_add_more') {
+            list = list.filter((g) => (guestMealCountOnDate.get(g.id) || 0) < MAX_BASE_MEALS_PER_DAY);
+        }
+
+        if (bulkGuestSearch.trim()) {
+            const query = bulkGuestSearch.toLowerCase();
+            list = list.filter((g) => {
+                const name = (g.preferredName || g.name || `${g.firstName || ''} ${g.lastName || ''}`).toLowerCase();
+                return name.includes(query);
+            });
+        }
+
+        return [...list].sort((a, b) => {
+            const aName = (a.preferredName || a.name || `${a.firstName || ''} ${a.lastName || ''}`).toLowerCase();
+            const bName = (b.preferredName || b.name || `${b.firstName || ''} ${b.lastName || ''}`).toLowerCase();
+            return aName.localeCompare(bName);
+        });
+    }, [guests, bulkGuestSearch, bulkGuestMealFilter, guestsWithMealOnDateSet]);
 
     // Editing state
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -258,6 +326,13 @@ export function MealsSection() {
             return;
         }
 
+        // Client-side pre-check: skip the Supabase call if the guest is already at the limit
+        const currentCount = guestMealCountOnDate.get(individualGuestId) || 0;
+        if (currentCount + individualMealCount > MAX_BASE_MEALS_PER_DAY) {
+            toast.error(`Guest already has ${currentCount} base meal${currentCount !== 1 ? 's' : ''} today (max ${MAX_BASE_MEALS_PER_DAY})`);
+            return;
+        }
+
         setIsPendingIndividual(true);
         try {
             await addMealRecord(individualGuestId, individualMealCount, null, selectedDate);
@@ -266,7 +341,7 @@ export function MealsSection() {
             setIndividualMealCount(1);
         } catch (error) {
             console.error('Failed to add individual meal:', error);
-            toast.error('Failed to add individual meal');
+            toast.error(error instanceof Error ? error.message : 'Failed to add individual meal');
         } finally {
             setIsPendingIndividual(false);
         }
@@ -276,6 +351,60 @@ export function MealsSection() {
         const d = new Date(selectedDate + 'T12:00:00');
         d.setDate(d.getDate() + days);
         setSelectedDate(pacificDateStringFrom(d));
+    };
+
+    const handleBulkAddGuestMeals = async () => {
+        if (selectedGuestIds.size === 0) {
+            toast.error('Please select at least one guest');
+            return;
+        }
+
+        // Pre-filter: skip guests already at the base meal limit
+        const allSelected = [...selectedGuestIds];
+        const eligible = allSelected.filter((guestId) => {
+            const currentCount = guestMealCountOnDate.get(guestId) || 0;
+            return currentCount + bulkGuestMealCount <= MAX_BASE_MEALS_PER_DAY;
+        });
+        const skippedCount = allSelected.length - eligible.length;
+
+        if (eligible.length === 0) {
+            toast.error(`All ${allSelected.length} selected guest${allSelected.length > 1 ? 's' : ''} already at the ${MAX_BASE_MEALS_PER_DAY} base meals/day limit`);
+            return;
+        }
+
+        setIsBulkAddingGuests(true);
+
+        // Process in small batches to avoid overwhelming Supabase with
+        // hundreds of concurrent requests (each call may also trigger a
+        // lunch-bag auto-add, doubling the request count).
+        const BATCH_SIZE = 10;
+        let successCount = 0;
+        let failCount = 0;
+        for (let i = 0; i < eligible.length; i += BATCH_SIZE) {
+            const batch = eligible.slice(i, i + BATCH_SIZE);
+            const results = await Promise.allSettled(
+                batch.map((guestId) =>
+                    addMealRecord(guestId, bulkGuestMealCount, null, selectedDate)
+                )
+            );
+            successCount += results.filter((r) => r.status === 'fulfilled').length;
+            failCount += results.filter((r) => r.status === 'rejected').length;
+        }
+
+        setIsBulkAddingGuests(false);
+
+        if (successCount > 0) {
+            const parts: string[] = [];
+            parts.push(`Added ${bulkGuestMealCount} meal${bulkGuestMealCount > 1 ? 's' : ''} to ${successCount} guest${successCount > 1 ? 's' : ''}${!isToday ? ` for ${selectedDate}` : ''}`);
+            if (skippedCount > 0) {
+                parts.push(`${skippedCount} already at ${MAX_BASE_MEALS_PER_DAY} base meals/day limit`);
+            }
+            toast.success(parts.join('. '));
+            setSelectedGuestIds(new Set());
+        }
+        if (failCount > 0) {
+            toast.error(`${failCount} guest${failCount > 1 ? 's' : ''} failed to update`);
+        }
     };
 
     const getDisplayName = (record: any) => {
@@ -449,6 +578,156 @@ export function MealsSection() {
                                     >
                                         {isPendingIndividual ? 'Adding...' : `Add${!isToday ? ` for ${selectedDate}` : ''}`}
                                     </button>
+                                </div>
+                            </div>
+
+                            {/* Multi-Guest Bulk Add */}
+                            <div className="mb-5 p-4 rounded-2xl border border-blue-100 bg-blue-50/40">
+                                <p className="text-[11px] font-black uppercase tracking-widest text-blue-700 mb-3 flex items-center gap-2">
+                                    <Users size={13} /> Multi-Guest Meal Entry
+                                </p>
+
+                                {/* Filter row */}
+                                <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                                    <div className="relative flex-1">
+                                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search guests…"
+                                            value={bulkGuestSearch}
+                                            onChange={(e) => setBulkGuestSearch(e.target.value)}
+                                            className="w-full pl-8 pr-3 py-2 rounded-xl border border-blue-200 bg-white text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                            aria-label="Search guests for bulk meal add"
+                                        />
+                                    </div>
+                                    <select
+                                        value={bulkGuestMealFilter}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            if (value === 'all' || value === 'has_meal' || value === 'can_add_more') {
+                                                setBulkGuestMealFilter(value);
+                                            }
+                                            setSelectedGuestIds(new Set());
+                                        }}
+                                        className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-xs font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                        aria-label="Filter by meal status"
+                                    >
+                                        <option value="all">All from This Date</option>
+                                        <option value="can_add_more">Can Add More</option>
+                                        <option value="has_meal">Has Meal</option>
+                                    </select>
+                                </div>
+
+                                {/* Select all / deselect all */}
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[11px] text-blue-600 font-bold uppercase tracking-wide">
+                                        {filteredBulkGuests.length} guest{filteredBulkGuests.length !== 1 ? 's' : ''} shown
+                                        {selectedGuestIds.size > 0 && ` · ${selectedGuestIds.size} selected`}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedGuestIds(new Set(filteredBulkGuests.map((g) => g.id)))}
+                                            disabled={filteredBulkGuests.length === 0}
+                                            className="text-[11px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                                            aria-label="Select all visible guests"
+                                        >
+                                            Select All
+                                        </button>
+                                        {selectedGuestIds.size > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setSelectedGuestIds(new Set())}
+                                                className="text-[11px] font-black uppercase tracking-wider text-gray-500 hover:text-gray-700 transition-colors"
+                                                aria-label="Deselect all guests"
+                                            >
+                                                Clear
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Guest list */}
+                                <div data-testid="multi-guest-list" className="max-h-52 overflow-y-auto rounded-xl border border-blue-100 bg-white divide-y divide-gray-50 mb-3">
+                                    {filteredBulkGuests.length === 0 ? (
+                                        <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">No guests served on this date</p>
+                                    ) : (
+                                        filteredBulkGuests.map((guest) => {
+                                            const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
+                                            const mealCount = guestMealCountOnDate.get(guest.id) || 0;
+                                            const atLimit = mealCount >= MAX_BASE_MEALS_PER_DAY;
+                                            const checked = selectedGuestIds.has(guest.id);
+                                            return (
+                                                <button
+                                                    key={guest.id}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setSelectedGuestIds((prev) => {
+                                                            const next = new Set(prev);
+                                                            if (next.has(guest.id)) next.delete(guest.id);
+                                                            else next.add(guest.id);
+                                                            return next;
+                                                        });
+                                                    }}
+                                                    className={cn(
+                                                        "w-full flex items-center gap-3 px-3 py-2 text-left transition-colors",
+                                                        checked ? "bg-blue-50" : "hover:bg-gray-50"
+                                                    )}
+                                                    aria-pressed={checked}
+                                                >
+                                                    {checked
+                                                        ? <CheckSquare size={16} className="shrink-0 text-blue-600" />
+                                                        : <Square size={16} className="shrink-0 text-gray-300" />
+                                                    }
+                                                    <span className="flex-1 text-sm font-medium text-gray-900 truncate">{displayName}</span>
+                                                    {mealCount > 0 && (
+                                                        <span className={cn(
+                                                            "shrink-0 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full",
+                                                            atLimit
+                                                                ? "text-amber-600 bg-amber-50"
+                                                                : "text-emerald-600 bg-emerald-50"
+                                                        )}>
+                                                            {mealCount} meal{mealCount !== 1 ? 's' : ''}{atLimit ? ' (limit)' : ''}
+                                                        </span>
+                                                    )}
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                {/* Quantity + submit row */}
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <label className="text-xs font-black uppercase tracking-wider text-gray-500 shrink-0">Add meals</label>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={bulkGuestMealCount}
+                                            onChange={(e) => setBulkGuestMealCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                            className="w-20 p-2 rounded-xl border border-blue-200 bg-white text-sm font-bold text-center focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                            aria-label="Meals per guest"
+                                        />
+                                        <button
+                                            onClick={handleBulkAddGuestMeals}
+                                            disabled={selectedGuestIds.size === 0 || isBulkAddingGuests}
+                                            className={cn(
+                                                "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                                                selectedGuestIds.size > 0 && !isBulkAddingGuests
+                                                    ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
+                                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                            )}
+                                        >
+                                            {isBulkAddingGuests
+                                                ? 'Adding…'
+                                                : selectedGuestIds.size > 0
+                                                    ? `Add ${bulkGuestMealCount} to ${selectedGuestIds.size} Guest${selectedGuestIds.size > 1 ? 's' : ''}`
+                                                    : 'Select Guests Above'}
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 italic">
+                                        Adds {bulkGuestMealCount} additional meal{bulkGuestMealCount !== 1 ? 's' : ''} per guest (e.g. guest with 1 meal → {1 + bulkGuestMealCount} meals). Max 2 base meals per guest per day.
+                                    </p>
                                 </div>
                             </div>
 
