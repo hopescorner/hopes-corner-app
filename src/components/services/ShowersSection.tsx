@@ -11,6 +11,7 @@ import { generateShowerSlots } from '@/lib/utils/serviceSlots';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
+import { HousingStatusBadge } from '@/components/ui/HousingStatusBadge';
 import CompactShowerList from './CompactShowerList';
 import { ShowerDetailModal } from './ShowerDetailModal';
 import { SlotBlockModal } from '../admin/SlotBlockModal';
@@ -557,6 +558,9 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                         <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
                             <Clock size={12} />
                             {record.time ? formatSlotLabel(record.time) : (record.status === 'waitlisted' ? (queuePosition != null ? `Queue #${queuePosition}` : 'Waitlisted') : 'No time')}
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                            <HousingStatusBadge housingStatus={guest?.housingStatus} />
                         </div>
                     </div>
                 </div>

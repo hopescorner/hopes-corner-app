@@ -8,8 +8,8 @@ vi.mock('@/stores/useGuestsStore', () => ({
     useGuestsStore: vi.fn((selector) => {
         const state = {
             guests: [
-                { id: 'g1', name: 'John Doe', preferredName: 'Johnny' },
-                { id: 'g2', name: 'Jane Smith', preferredName: '' },
+                { id: 'g1', name: 'John Doe', preferredName: 'Johnny', housingStatus: 'Unhoused' },
+                { id: 'g2', name: 'Jane Smith', preferredName: '', housingStatus: 'Housed' },
             ],
         };
         return typeof selector === 'function' ? selector(state) : state;
@@ -90,6 +90,13 @@ describe('CompactShowerList Component', () => {
             render(<CompactShowerList records={mockRecords} />);
             const waiverIndicators = screen.getAllByTestId('waiver-indicator');
             expect(waiverIndicators.length).toBe(2);
+        });
+
+        it('shows housing status for each guest', () => {
+            render(<CompactShowerList records={mockRecords} />);
+
+            expect(screen.getByText('Unhoused')).toBeDefined();
+            expect(screen.getByText('Housed')).toBeDefined();
         });
     });
 

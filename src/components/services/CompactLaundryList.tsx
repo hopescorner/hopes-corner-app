@@ -5,6 +5,7 @@ import { WashingMachine, Clock, CheckCircle, Package, Wind, Truck, ChevronDown, 
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom, formatPacificTimeString } from '@/lib/utils/date';
+import { HousingStatusBadge } from '@/components/ui/HousingStatusBadge';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
 import { ReminderIndicator } from '@/components/ui/ReminderIndicator';
 import { cn } from '@/lib/utils/cn';
@@ -34,6 +35,7 @@ interface LaundryBooking {
     id: string;
     guestId: string;
     name: string;
+    housingStatus?: string;
     time?: string | null;
     timeLabel: string;
     status: string;
@@ -240,6 +242,9 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
                     <span className="font-medium text-gray-900 text-sm truncate block">
                         {booking.name}
                     </span>
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                        <HousingStatusBadge housingStatus={booking.housingStatus} />
+                    </div>
                     {booking.bagNumber && (
                         <span className="text-xs text-purple-600">Bag #{booking.bagNumber}</span>
                     )}
@@ -308,6 +313,9 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { book
                     <span className="font-medium text-gray-700 text-sm truncate block">
                         {booking.name}
                     </span>
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                        <HousingStatusBadge housingStatus={booking.housingStatus} />
+                    </div>
                     {booking.bagNumber && (
                         <span className="text-xs text-emerald-600">Bag #{booking.bagNumber}</span>
                     )}
@@ -356,6 +364,9 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, readOnly = false }: { item:
                 <span className="font-medium text-blue-900 text-sm truncate block">
                     {item.name}
                 </span>
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <HousingStatusBadge housingStatus={item.housingStatus} />
+                </div>
                 {item.bagNumber && (
                     <span className="text-xs text-blue-600">Bag #{item.bagNumber}</span>
                 )}
@@ -418,6 +429,9 @@ const OffsiteDoneRow = memo(({ item, onGuestClick, readOnly = false }: { item: L
                 <span className="font-medium text-emerald-900 text-sm truncate block">
                     {item.name}
                 </span>
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <HousingStatusBadge housingStatus={item.housingStatus} />
+                </div>
                 {item.bagNumber && (
                     <span className="text-xs text-emerald-600">Bag #{item.bagNumber}</span>
                 )}
@@ -486,7 +500,11 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
     const getGuestName = useCallback((guestId: string) => {
         const guest = guestMap.get(guestId);
         if (!guest) return "Guest";
-        return guest.name || guest.preferredName || `${guest.firstName || ""} ${guest.lastName || ""}`.trim() || "Guest";
+        return guest.preferredName || guest.name || `${guest.firstName || ""} ${guest.lastName || ""}`.trim() || "Guest";
+    }, [guestMap]);
+
+    const getGuestHousingStatus = useCallback((guestId: string) => {
+        return guestMap.get(guestId)?.housingStatus;
     }, [guestMap]);
 
     // Filter target day records - only records from the selected date.
@@ -514,6 +532,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
                 id: record.id,
                 guestId: record.guestId,
                 name: getGuestName(record.guestId),
+                housingStatus: getGuestHousingStatus(record.guestId),
                 time: record.time,
                 timeLabel: formatLaundrySlot(record.time),
                 status: record.status,
@@ -535,6 +554,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
                 id: record.id,
                 guestId: record.guestId,
                 name: getGuestName(record.guestId),
+                housingStatus: getGuestHousingStatus(record.guestId),
                 time: record.time,
                 timeLabel: formatLaundrySlot(record.time),
                 status: record.status,
@@ -546,7 +566,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
         const offsiteDone = offsite.filter(item => isCompletedStatus(item.status));
 
         return { onsiteActive, onsiteDone, offsiteActive, offsiteDone, total: targetDayRecords.length };
-    }, [targetDayRecords, getGuestName, isCompletedStatus]);
+    }, [targetDayRecords, getGuestHousingStatus, getGuestName, isCompletedStatus]);
 
     // Memoized toggle handlers
     const toggleOffsite = useCallback(() => setShowOffsite(prev => !prev), []);

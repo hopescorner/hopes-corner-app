@@ -23,6 +23,7 @@ import { generateLaundrySlots } from '@/lib/utils/serviceSlots';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
+import { HousingStatusBadge } from '@/components/ui/HousingStatusBadge';
 import CompactLaundryList from './CompactLaundryList';
 import { LayoutGrid, List, Settings } from 'lucide-react';
 import { SlotBlockModal } from '../admin/SlotBlockModal';
@@ -407,7 +408,7 @@ export function LaundrySection() {
                     <div className="bg-red-50/60 px-4 py-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                             {legacyLaundry.map((record) => {
-                                const { primaryName, legalName, hasPreferred } = getGuestNameDetails(record.guestId);
+                                const { guest, primaryName, legalName, hasPreferred } = getGuestNameDetails(record.guestId);
                                 const recordDateObj = new Date(record.date);
                                 const todayObj = new Date(`${today}T12:00:00`);
                                 const daysAgo = Math.max(1, Math.round((todayObj.getTime() - recordDateObj.getTime()) / (1000 * 60 * 60 * 24)));
@@ -429,12 +430,17 @@ export function LaundrySection() {
                                         {/* Guest name + waiver + status */}
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="flex items-center gap-2 min-w-0">
-                                                <span
-                                                    className="font-bold text-sm text-gray-900 truncate"
-                                                    title={hasPreferred ? `${primaryName} (${legalName})` : legalName}
-                                                >
-                                                    {primaryName}
-                                                </span>
+                                                <div className="min-w-0">
+                                                    <span
+                                                        className="font-bold text-sm text-gray-900 truncate block"
+                                                        title={hasPreferred ? `${primaryName} (${legalName})` : legalName}
+                                                    >
+                                                        {primaryName}
+                                                    </span>
+                                                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                                                        <HousingStatusBadge housingStatus={guest?.housingStatus} />
+                                                    </div>
+                                                </div>
                                                 <CompactWaiverIndicator guestId={record.guestId} serviceType="laundry" />
                                             </div>
                                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 whitespace-nowrap flex-shrink-0">
@@ -954,6 +960,9 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                     <div className="flex-1 min-w-0">
                         <div className="font-medium text-xs text-gray-900 leading-tight break-words line-clamp-2" title={guestDetails.hasPreferred ? `${guestDetails.preferredName} (${guestDetails.legalName})` : guestDetails.legalName}>
                             {guestDetails.primaryName}
+                        </div>
+                        <div className="mt-1 flex items-center gap-2 flex-wrap">
+                            <HousingStatusBadge housingStatus={guestDetails.guest?.housingStatus} />
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5">

@@ -21,8 +21,8 @@ vi.mock('@/stores/useServicesStore', () => ({
 vi.mock('@/stores/useGuestsStore', () => ({
     useGuestsStore: vi.fn(() => ({
         guests: [
-            { id: 'g1', name: 'John Doe', preferredName: 'Johnny' },
-            { id: 'g2', name: 'Jane Smith', preferredName: '' },
+            { id: 'g1', name: 'John Doe', preferredName: 'Johnny', housingStatus: 'Unhoused' },
+            { id: 'g2', name: 'Jane Smith', preferredName: '', housingStatus: 'Housed' },
         ],
     })),
 }));
@@ -61,6 +61,13 @@ describe('CompactLaundryList Component', () => {
             render(<CompactLaundryList />);
             const indicators = screen.getAllByTestId('waiver-indicator');
             expect(indicators.length).toBeGreaterThan(0);
+        });
+
+        it('shows housing status for visible laundry guests', () => {
+            render(<CompactLaundryList />);
+
+            expect(screen.getByText('Unhoused')).toBeDefined();
+            expect(screen.getByText('Housed')).toBeDefined();
         });
     });
 

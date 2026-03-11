@@ -4,6 +4,7 @@ import React, { memo, useMemo, useState, useCallback } from "react";
 import { User, Clock, CheckCircle, AlertCircle, XCircle, RotateCcw, Loader2 } from "lucide-react";
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
+import { HousingStatusBadge } from '@/components/ui/HousingStatusBadge';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
 import { ReminderIndicator } from '@/components/ui/ReminderIndicator';
 import { cn } from '@/lib/utils/cn';
@@ -17,9 +18,10 @@ interface Props {
     waitlistQueueMap?: Map<string, number>;
 }
 
-const ShowerListRow = memo(({ record, guestName, onGuestClick, readOnly = false, queuePosition }: {
+const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, readOnly = false, queuePosition }: {
     record: any;
     guestName: string;
+    housingStatus?: string;
     onGuestClick?: (guestId: string, recordId: string) => void;
     readOnly?: boolean;
     queuePosition?: number;
@@ -88,7 +90,8 @@ const ShowerListRow = memo(({ record, guestName, onGuestClick, readOnly = false,
                     <h4 className="font-bold text-gray-900 text-sm truncate group-hover:text-sky-700 transition-colors">
                         {guestName}
                     </h4>
-                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-gray-500">
+                        <HousingStatusBadge housingStatus={housingStatus} />
                         {record.time && (
                             <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-[10px] font-medium">
                                 <Clock size={10} />
@@ -206,6 +209,7 @@ const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitl
                             key={record.id}
                             record={record}
                             guestName={guestName}
+                            housingStatus={guest?.housingStatus}
                             onGuestClick={onGuestClick}
                             readOnly={readOnly}
                             queuePosition={waitlistQueueMap?.get(record.id)}
