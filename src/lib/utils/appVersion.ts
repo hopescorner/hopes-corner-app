@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.17';
+export const APP_VERSION = '0.5.18';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.18',
+        date: 'March 11, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Housing Labels in Shower and Laundry Queues',
+                description: 'Shower and laundry guest cards now show housing labels like Unhoused or Housed, so staff can see that context without opening the full guest record.',
+            },
+        ],
+    },
     {
         version: '0.5.17',
         date: 'March 9, 2026',
