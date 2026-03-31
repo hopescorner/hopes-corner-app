@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.20';
+export const APP_VERSION = '0.5.19';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,17 +19,6 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
-    {
-        version: '0.5.20',
-        date: 'March 31, 2026',
-        highlights: [
-            {
-                type: 'feature',
-                title: 'Split-Flap Availability Display',
-                description: 'Shower and laundry availability numbers on the check-in page now use a retro split-flap departure board animation inspired by European airport displays.',
-            },
-        ],
-    },
     {
         version: '0.5.19',
         date: 'March 31, 2026',
