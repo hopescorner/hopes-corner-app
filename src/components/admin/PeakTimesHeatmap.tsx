@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import { Clock, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { useMealsStore } from '@/stores/useMealsStore';
-import { useServicesStore } from '@/stores/useServicesStore';
 import { useShallow } from 'zustand/react/shallow';
 
 // Hope's Corner operates Monday, Wednesday, Saturday
@@ -14,15 +13,45 @@ const SERVICE_DAYS = [
     { key: 6, label: 'Saturday', short: 'Sat' },
 ] as const;
 
-// Service hours: 7 AM to 2 PM (covering breakfast and lunch)
-const HOUR_START = 7;
-const HOUR_END = 14;
-const HOURS = Array.from({ length: HOUR_END - HOUR_START + 1 }, (_, i) => HOUR_START + i);
+// Time slots: hourly outside 8–10 AM, 30-minute intervals within 8–10 AM
+interface TimeSlot {
+    id: string;       // unique key e.g. "7" or "8.5"
+    label: string;    // header label e.g. "7AM" or "8:30"
+    hourStart: number;
+    minuteStart: number;
+    hourEnd: number;
+    minuteEnd: number;
+}
 
-function formatHour(hour: number): string {
-    const period = hour >= 12 ? 'PM' : 'AM';
-    const h = hour > 12 ? hour - 12 : hour === 0 ? 12 : hour;
-    return `${h}${period}`;
+function buildTimeSlots(): TimeSlot[] {
+    const slots: TimeSlot[] = [];
+    // 7 AM (hourly)
+    slots.push({ id: '7', label: '7AM', hourStart: 7, minuteStart: 0, hourEnd: 7, minuteEnd: 59 });
+    // 8:00–8:29
+    slots.push({ id: '8.0', label: '8:00', hourStart: 8, minuteStart: 0, hourEnd: 8, minuteEnd: 29 });
+    // 8:30–8:59
+    slots.push({ id: '8.5', label: '8:30', hourStart: 8, minuteStart: 30, hourEnd: 8, minuteEnd: 59 });
+    // 9:00–9:29
+    slots.push({ id: '9.0', label: '9:00', hourStart: 9, minuteStart: 0, hourEnd: 9, minuteEnd: 29 });
+    // 9:30–9:59
+    slots.push({ id: '9.5', label: '9:30', hourStart: 9, minuteStart: 30, hourEnd: 9, minuteEnd: 59 });
+    // 10 AM – 2 PM (hourly)
+    for (let h = 10; h <= 14; h++) {
+        const period = h >= 12 ? 'PM' : 'AM';
+        const display = h > 12 ? h - 12 : h;
+        slots.push({ id: String(h), label: `${display}${period}`, hourStart: h, minuteStart: 0, hourEnd: h, minuteEnd: 59 });
+    }
+    return slots;
+}
+
+const TIME_SLOTS = buildTimeSlots();
+
+/** Return the slot id a given hour+minute falls into, or null if outside range. */
+function slotIdFor(hour: number, minute: number): string | null {
+    if (hour < 7 || hour > 14) return null;
+    if (hour === 8) return minute < 30 ? '8.0' : '8.5';
+    if (hour === 9) return minute < 30 ? '9.0' : '9.5';
+    return String(hour);
 }
 
 /** Interpolate between two hex colors based on t [0, 1]. */
@@ -67,105 +96,62 @@ interface Props {
 }
 
 export function PeakTimesHeatmap({ startDate, endDate }: Props) {
-    const {
-        mealRecords,
-        rvMealRecords,
-        extraMealRecords,
-        dayWorkerMealRecords,
-        shelterMealRecords,
-        unitedEffortMealRecords,
-        lunchBagRecords,
-    } = useMealsStore(
+    // Only guest meals and extra meals — no RV, shelter, or other bulk types
+    const { mealRecords, extraMealRecords } = useMealsStore(
         useShallow((s) => ({
             mealRecords: s.mealRecords,
-            rvMealRecords: s.rvMealRecords,
             extraMealRecords: s.extraMealRecords,
-            dayWorkerMealRecords: s.dayWorkerMealRecords,
-            shelterMealRecords: s.shelterMealRecords,
-            unitedEffortMealRecords: s.unitedEffortMealRecords,
-            lunchBagRecords: s.lunchBagRecords,
         }))
     );
 
-    const { showerRecords, laundryRecords } = useServicesStore(
-        useShallow((s) => ({
-            showerRecords: s.showerRecords,
-            laundryRecords: s.laundryRecords,
-        }))
-    );
-
-    const { grid, maxCount, peakHour, peakDay } = useMemo(() => {
-        // Build a map of [dayOfWeek][hour] → count
+    const { grid, maxCount, peakSlotLabel, peakDay } = useMemo(() => {
+        // Map of "dayOfWeek-slotId" → total meals served
         const counts = new Map<string, number>();
-        const dayHourKey = (dow: number, h: number) => `${dow}-${h}`;
+        const cellKey = (dow: number, slotId: string) => `${dow}-${slotId}`;
 
-        const allMeals = [
-            ...mealRecords,
-            ...rvMealRecords,
-            ...extraMealRecords,
-            ...dayWorkerMealRecords,
-            ...shelterMealRecords,
-            ...unitedEffortMealRecords,
-            ...lunchBagRecords,
-        ];
+        const allMeals = [...mealRecords, ...extraMealRecords];
 
-        const processTimestamp = (ts: string | null | undefined, dateStr?: string) => {
-            if (!ts) return;
+        for (const r of allMeals) {
+            const ts = r.createdAt;
+            if (!ts) continue;
             const d = new Date(ts);
-            if (isNaN(d.getTime())) return;
+            if (isNaN(d.getTime())) continue;
 
             // Date range filter
-            const dateKey = dateStr || d.toISOString().split('T')[0];
-            if (startDate && dateKey < startDate) return;
-            if (endDate && dateKey > endDate) return;
+            const dateKey = r.dateKey || r.date;
+            if (startDate && dateKey < startDate) continue;
+            if (endDate && dateKey > endDate) continue;
 
-            const dow = d.getDay(); // 0=Sun ... 6=Sat
-            // Only Mon(1), Wed(3), Sat(6)
-            if (dow !== 1 && dow !== 3 && dow !== 6) return;
-            const hour = d.getHours();
-            if (hour < HOUR_START || hour > HOUR_END) return;
+            const dow = d.getDay(); // 0=Sun … 6=Sat
+            if (dow !== 1 && dow !== 3 && dow !== 6) continue;
 
-            const key = dayHourKey(dow, hour);
-            counts.set(key, (counts.get(key) || 0) + 1);
-        };
+            const sid = slotIdFor(d.getHours(), d.getMinutes());
+            if (!sid) continue;
 
-        // Process meal records by createdAt timestamp
-        for (const r of allMeals) {
-            processTimestamp(r.createdAt, r.dateKey || r.date);
+            const key = cellKey(dow, sid);
+            counts.set(key, (counts.get(key) || 0) + (r.count || 1));
         }
 
-        // Process shower records
-        for (const r of showerRecords) {
-            if (r.status === 'done' || r.status === 'booked') {
-                processTimestamp((r as any).createdAt || (r as any).created_at, (r as any).dateKey || r.date);
-            }
-        }
-
-        // Process laundry records
-        for (const r of laundryRecords) {
-            processTimestamp((r as any).createdAt || (r as any).created_at, (r as any).dateKey || r.date);
-        }
-
-        // Build grid data
+        // Build grid
         let maxVal = 0;
-        let peakH = HOUR_START;
+        let peakSLabel = TIME_SLOTS[0].label;
         let peakD: string = SERVICE_DAYS[0].label;
 
         const gridData = SERVICE_DAYS.map(day => {
-            const cells = HOURS.map(hour => {
-                const count = counts.get(dayHourKey(day.key, hour)) || 0;
+            const cells = TIME_SLOTS.map(slot => {
+                const count = counts.get(cellKey(day.key, slot.id)) || 0;
                 if (count > maxVal) {
                     maxVal = count;
-                    peakH = hour;
+                    peakSLabel = slot.label;
                     peakD = day.label;
                 }
-                return { hour, count };
+                return { slot, count };
             });
             return { day, cells };
         });
 
-        return { grid: gridData, maxCount: maxVal, peakHour: peakH, peakDay: peakD };
-    }, [mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, startDate, endDate]);
+        return { grid: gridData, maxCount: maxVal, peakSlotLabel: peakSLabel, peakDay: peakD };
+    }, [mealRecords, extraMealRecords, startDate, endDate]);
 
     const hasData = maxCount > 0;
 
@@ -179,10 +165,10 @@ export function PeakTimesHeatmap({ startDate, endDate }: Props) {
                     </div>
                     <div>
                         <h3 className="text-sm font-black text-gray-900 uppercase tracking-wider">
-                            Peak Activity Heatmap
+                            Peak Meal Activity
                         </h3>
                         <p className="text-xs text-gray-500 font-medium mt-0.5">
-                            Service day activity — Monday, Wednesday &amp; Saturday
+                            Meals served — Mon, Wed &amp; Sat · 30-min detail 8–10 AM
                         </p>
                     </div>
                 </div>
@@ -190,7 +176,7 @@ export function PeakTimesHeatmap({ startDate, endDate }: Props) {
                     <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 rounded-xl border border-orange-200">
                         <Clock size={14} className="text-orange-600" />
                         <span className="text-xs font-bold text-orange-700">
-                            Peak: {peakDay} {formatHour(peakHour)}
+                            Peak: {peakDay} {peakSlotLabel}
                         </span>
                     </div>
                 )}
@@ -199,22 +185,22 @@ export function PeakTimesHeatmap({ startDate, endDate }: Props) {
             {!hasData ? (
                 <div className="text-center py-12 text-gray-400">
                     <Flame size={48} className="mx-auto mb-3 opacity-30" />
-                    <p className="font-medium text-sm">No timestamped activity data available for heatmap.</p>
-                    <p className="text-xs mt-1">Activity will appear here as records accumulate.</p>
+                    <p className="font-medium text-sm">No meal data available for heatmap.</p>
+                    <p className="text-xs mt-1">Meal activity will appear here as records accumulate.</p>
                 </div>
             ) : (
                 <>
                     {/* Heatmap grid */}
                     <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-                        <div className="min-w-[480px]">
-                            {/* Hour labels */}
+                        <div className="min-w-[560px]">
+                            {/* Slot labels */}
                             <div className="flex items-end mb-2 pl-20 sm:pl-28">
-                                {HOURS.map(h => (
+                                {TIME_SLOTS.map(slot => (
                                     <div
-                                        key={h}
+                                        key={slot.id}
                                         className="flex-1 text-center text-[10px] sm:text-xs font-bold text-gray-400"
                                     >
-                                        {formatHour(h)}
+                                        {slot.label}
                                     </div>
                                 ))}
                             </div>
@@ -234,20 +220,20 @@ export function PeakTimesHeatmap({ startDate, endDate }: Props) {
 
                                     {/* Heat cells */}
                                     <div className="flex-1 flex gap-1">
-                                        {cells.map(({ hour, count }) => {
+                                        {cells.map(({ slot, count }) => {
                                             const ratio = maxCount > 0 ? count / maxCount : 0;
                                             const bg = count === 0 ? '#f9fafb' : heatColor(ratio);
                                             const textColor = ratio > 0.5 ? 'text-white' : 'text-gray-600';
                                             return (
                                                 <div
-                                                    key={hour}
+                                                    key={slot.id}
                                                     className={cn(
                                                         'flex-1 aspect-[1.6] rounded-lg flex items-center justify-center transition-colors',
                                                         'hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 cursor-default',
                                                         count === 0 && 'border border-gray-100',
                                                     )}
                                                     style={{ backgroundColor: bg }}
-                                                    title={`${day.label} ${formatHour(hour)}: ${count} activities`}
+                                                    title={`${day.label} ${slot.label}: ${count} meals`}
                                                 >
                                                     <span className={cn('text-[10px] sm:text-xs font-bold', textColor)}>
                                                         {count > 0 ? count : ''}
@@ -263,7 +249,7 @@ export function PeakTimesHeatmap({ startDate, endDate }: Props) {
 
                     {/* Legend */}
                     <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
-                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Intensity</span>
+                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Meals served</span>
                         <div className="flex items-center gap-1">
                             <span className="text-[10px] text-gray-400 font-medium mr-1">Low</span>
                             {[0, 0.25, 0.5, 0.75, 1].map((t) => (
