@@ -143,6 +143,29 @@ h6,
   animation: spin 3s linear infinite;
 }
 
+/* Split-flap display animation (departure board style) */
+@keyframes splitFlapFlip {
+  0% {
+    transform: rotateX(0deg);
+  }
+  50% {
+    transform: rotateX(-90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
+}
+
+.split-flap-flip {
+  animation: splitFlapFlip 300ms ease-in-out;
+  will-change: transform;
+}
+
+/* Render digit character from data attribute — keeps DOM text-free for accessibility */
+.split-flap-digit::after {
+  content: attr(data-digit);
+}
+
 /* Glassmorphism utilities */
 .glass {
   background: rgba(255, 255, 255, 0.8);

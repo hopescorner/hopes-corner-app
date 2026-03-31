@@ -11,6 +11,7 @@ import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
 import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { SplitFlapDisplay } from '@/components/ui/SplitFlapDisplay';
 
 // Subscribe to array lengths to ensure re-renders when records change
 // This is a workaround for potential subscription issues with complex selectors
@@ -69,15 +70,17 @@ const CardContent = ({ stats, nextSlotLabel, type }: CardContentProps) => {
                 <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
                     {isShower ? (stats.available > 0 ? 'Available' : 'Waitlist') : 'Available'}
                 </span>
-                <span className={`text-2xl font-black ${isShower
-                        ? (stats.available > 0 ? 'text-blue-600' : 'text-amber-600')
-                        : (stats.onsiteAvailable > 0 ? 'text-purple-600' : 'text-gray-400')
-                    }`}>
-                    {isShower
+                <SplitFlapDisplay
+                    value={isShower
                         ? (stats.available > 0 ? stats.available : stats.waitlisted)
                         : stats.onsiteAvailable
                     }
-                </span>
+                    color={isShower
+                        ? (stats.available > 0 ? 'blue' : 'amber')
+                        : (stats.onsiteAvailable > 0 ? 'purple' : 'gray')
+                    }
+                    size="md"
+                />
             </div>
             <p className="mt-2 text-xs text-gray-500 font-medium">{nextSlotLabel}</p>
         </>
