@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.18';
+export const APP_VERSION = '0.5.19';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.19',
+        date: 'March 31, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Peak Activity Heatmap',
+                description: 'New heatmap in the Analytics dashboard shows check-in hotspots across Monday, Wednesday, and Saturday service hours so staff can plan coverage.',
+            },
+            {
+                type: 'feature',
+                title: 'Guest Retention Chart',
+                description: 'Monthly bar chart showing new versus returning guests, with toggleable 6- and 12-month views to track community engagement trends.',
+            },
+        ],
+    },
     {
         version: '0.5.18',
         date: 'March 11, 2026',

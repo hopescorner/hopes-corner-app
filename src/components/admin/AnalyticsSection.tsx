@@ -42,6 +42,8 @@ import { useModalStore } from '@/stores/useModalStore';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
 import { pacificDateStringFrom, todayPacificDateString } from '@/lib/utils/date';
+import { PeakTimesHeatmap } from './PeakTimesHeatmap';
+import { GuestRetentionChart } from './GuestRetentionChart';
 import {
     HOUSING_STATUSES,
     AGE_GROUPS,
@@ -671,6 +673,12 @@ export function AnalyticsSection() {
                     {dateRange.days} day{dateRange.days !== 1 ? 's' : ''} from {new Date(dateRange.start + 'T12:00:00').toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })} to {new Date(dateRange.end + 'T12:00:00').toLocaleDateString('en-US', { timeZone: 'America/Los_Angeles' })}
                 </p>
             </div>
+
+            {/* Peak Times Heatmap */}
+            <PeakTimesHeatmap startDate={dateRange.start} endDate={dateRange.end} />
+
+            {/* Guest Retention Chart */}
+            <GuestRetentionChart isMounted={isMounted} />
 
             {/* Daily Notes Summary */}
             {notesInRange.length > 0 && (
