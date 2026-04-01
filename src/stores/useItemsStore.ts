@@ -182,7 +182,7 @@ export const useItemsStore = create<ItemsState>()(
                     next.setDate(last.getDate() + 15);
                     next.setHours(0, 0, 0, 0);
                     nextAvailable = next;
-                } else if (['sleeping_bag', 'backpack', 'tent', 'flipflops', 'flip_flops', 'shoes', 'blanket'].includes(itemKey)) {
+                } else if (['sleeping_bag', 'backpack', 'tent', 'flipflops', 'flip_flops', 'shoes', 'blanket', 'sweatpants'].includes(itemKey)) {
                     // 30 days cooldown for big ticket items
                     const next = new Date(last);
                     next.setDate(last.getDate() + 30);

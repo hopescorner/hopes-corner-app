@@ -218,6 +218,7 @@ export function DataExportSection() {
                         flip_flops: 'Flip Flops',
                         shoes: 'Shoes',
                         blanket: 'Blanket',
+                        sweatpants: 'Sweatpants',
                     };
 
                     exportToCSV(

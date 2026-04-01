@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, Shirt, Package, Tent, Footprints, AlertCircle, CheckCircle, Loader2, Clock, Undo2, Check } from 'lucide-react';
+import { X, Shirt, Package, Tent, Footprints, Layers, AlertCircle, CheckCircle, Loader2, Clock, Undo2, Check } from 'lucide-react';
 import { JacketIcon } from '@/components/icons/JacketIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaiverBadge } from '@/components/ui/WaiverBadge';
@@ -28,6 +28,7 @@ const AMENITY_ITEMS = [
     { key: 'sleeping_bag', label: 'Sleeping Bag', icon: Package, limit: '30 Days' },
     { key: 'backpack', label: 'Backpack', icon: Package, limit: '30 Days' },
     { key: 'flipflops', label: 'Flip Flops', icon: Footprints, limit: '30 Days' },
+    { key: 'sweatpants', label: 'Sweatpants', icon: Layers, limit: '30 Days' },
 ];
 
 export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDetailModalProps) {
