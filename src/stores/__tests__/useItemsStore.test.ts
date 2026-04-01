@@ -321,6 +321,22 @@ describe('useItemsStore', () => {
             expect(result.daysRemaining).toBe(28);
         });
 
+        it('calculates cooldown for sweatpants (30 days)', () => {
+            const recently = new Date();
+            recently.setDate(recently.getDate() - 10);
+
+            useItemsStore.setState({
+                distributedItems: [
+                    { id: '1', guestId: 'g1', itemKey: 'sweatpants', distributedAt: recently.toISOString(), createdAt: recently.toISOString() },
+                ],
+            });
+
+            const { checkAvailability } = useItemsStore.getState();
+            const result = checkAvailability('g1', 'sweatpants');
+            expect(result.available).toBe(false);
+            expect(result.daysRemaining).toBe(20);
+        });
+
         it('calculates cooldown for jacket (15 days)', () => {
             const recently = new Date();
             recently.setDate(recently.getDate() - 5); // Given 5 days ago

@@ -130,6 +130,11 @@ describe('ShowerDetailModal', () => {
             expect(screen.getByText('Flip Flops')).toBeDefined();
         });
 
+        it('displays Sweatpants amenity with 30-day limit', () => {
+            render(<ShowerDetailModal {...defaultProps} />);
+            expect(screen.getByText('Sweatpants')).toBeDefined();
+        });
+
         it('does NOT display Socks (unlimited item)', () => {
             render(<ShowerDetailModal {...defaultProps} />);
             expect(screen.queryByText('Socks')).toBeNull();
