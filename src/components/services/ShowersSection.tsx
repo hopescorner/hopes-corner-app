@@ -31,7 +31,7 @@ export function ShowersSection() {
     const today = todayPacificDateString();
     const [selectedDate, setSelectedDate] = useState(today);
     const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'waitlist' | 'cancelled'>('active');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
     const [selectedShower, setSelectedShower] = useState<any>(null);
     const [showSlotManager, setShowSlotManager] = useState(false);
     const [backfillGuestId, setBackfillGuestId] = useState('');
