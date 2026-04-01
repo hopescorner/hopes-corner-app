@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { createElement, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
+import { ShowerHead, WashingMachine } from 'lucide-react';
 import { subscribeToTable } from '@/lib/supabase/realtime';
 import {
     mapShowerRow,
@@ -21,6 +23,14 @@ import { useRemindersStore } from '@/stores/useRemindersStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
+
+function resolveGuestName(guestId: string): string {
+    const guests = useGuestsStore.getState().guests;
+    const guest = guests.find((g: any) => g.id === guestId);
+    if (!guest) return 'A guest';
+    const display = guest.preferredName || `${guest.firstName} ${guest.lastName}`.trim();
+    return display || 'A guest';
+}
 
 /**
  * Hook to set up realtime subscriptions for all critical tables.
@@ -113,9 +123,18 @@ export function useRealtimeSync() {
                     const row = payload.new as any;
                     if (!row?.id) throw new Error('missing shower row payload');
                     const mapped = mapShowerRow(row);
+                    const isNew = payload.eventType === 'INSERT';
                     useServicesStore.setState((state: any) => ({
                         showerRecords: [mapped, ...state.showerRecords.filter((r: any) => r.id !== mapped.id)],
                     }));
+                    if (isNew && row.guest_id) {
+                        const name = resolveGuestName(row.guest_id);
+                        const slot = row.scheduled_time || '';
+                        const msg = slot
+                            ? `${name} was signed up for Shower at ${slot}`
+                            : `${name} was signed up for Shower`;
+                        toast(msg, { icon: createElement(ShowerHead, { size: 18 }), id: `rt-shower-${row.id}` });
+                    }
                 } catch (error) {
                     console.error('[RealtimeSync] Shower patch failed, reloading:', error);
                     fallbackReload(servicesLoadFromSupabase, 'shower');
@@ -139,9 +158,18 @@ export function useRealtimeSync() {
                     const row = payload.new as any;
                     if (!row?.id) throw new Error('missing laundry row payload');
                     const mapped = mapLaundryRow(row);
+                    const isNew = payload.eventType === 'INSERT';
                     useServicesStore.setState((state: any) => ({
                         laundryRecords: [mapped, ...state.laundryRecords.filter((r: any) => r.id !== mapped.id)],
                     }));
+                    if (isNew && row.guest_id) {
+                        const name = resolveGuestName(row.guest_id);
+                        const slot = row.slot_label || '';
+                        const msg = slot
+                            ? `${name} was signed up for Laundry at ${slot}`
+                            : `${name} was signed up for Laundry`;
+                        toast(msg, { icon: createElement(WashingMachine, { size: 18 }), id: `rt-laundry-${row.id}` });
+                    }
                 } catch (error) {
                     console.error('[RealtimeSync] Laundry patch failed, reloading:', error);
                     fallbackReload(servicesLoadFromSupabase, 'laundry');

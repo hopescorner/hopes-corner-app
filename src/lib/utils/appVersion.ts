@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.19';
+export const APP_VERSION = '0.5.20';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.20',
+        date: 'March 31, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Realtime Booking Notifications',
+                description: 'Staff viewing the Showers or Laundry section now see a toast notification when a guest is booked into a slot from another device, showing the guest name and time slot.',
+            },
+        ],
+    },
     {
         version: '0.5.19',
         date: 'March 31, 2026',

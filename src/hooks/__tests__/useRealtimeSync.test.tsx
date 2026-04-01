@@ -3,7 +3,22 @@ import { renderHook, act, render } from '@testing-library/react';
 import { useRealtimeSync, RealtimeSyncProvider } from '../useRealtimeSync';
 import React from 'react';
 
-// Mock the realtime module
+const { mockToast } = vi.hoisted(() => {
+    const mockToast = vi.fn();
+    return { mockToast };
+});
+vi.mock('react-hot-toast', () => ({
+    default: Object.assign(mockToast, {
+        success: vi.fn(),
+        error: vi.fn(),
+    }),
+}));
+
+vi.mock('lucide-react', () => ({
+    ShowerHead: 'ShowerHead',
+    WashingMachine: 'WashingMachine',
+}));
+
 const mockSubscribeToTable: Mock = vi.fn(() => vi.fn());
 const mockUnsubscribeFromAll = vi.fn();
 
@@ -51,6 +66,13 @@ vi.mock('@/stores/useMealsStore', () => ({
     }, { setState: (...args: any[]) => mockMealsSetState(...args) }),
 }));
 
+const mockGuestsGetState = vi.fn(() => ({
+    guests: [
+        { id: 'g-1', firstName: 'John', lastName: 'Doe', preferredName: '' },
+        { id: 'g-2', firstName: 'Jane', lastName: 'Smith', preferredName: 'Janey' },
+    ],
+}));
+
 vi.mock('@/stores/useGuestsStore', () => ({
     useGuestsStore: Object.assign(function useGuestsStore(selector: any) {
         if (typeof selector === 'function') {
@@ -65,7 +87,10 @@ vi.mock('@/stores/useGuestsStore', () => ({
             loadGuestWarningsFromSupabase: mockGuestsLoadWarnings,
             loadGuestProxiesFromSupabase: mockGuestsLoadProxies,
         };
-    }, { setState: (...args: any[]) => mockGuestsSetState(...args) }),
+    }, {
+        setState: (...args: any[]) => mockGuestsSetState(...args),
+        getState: () => mockGuestsGetState(),
+    }),
 }));
 
 vi.mock('@/stores/useRemindersStore', () => ({
@@ -289,6 +314,184 @@ describe('useRealtimeSync', () => {
 
         expect(mockGuestsSetState).toHaveBeenCalled();
         expect(mockGuestsLoadProxies).not.toHaveBeenCalled();
+    });
+
+    it('shows toast when a new shower booking arrives via realtime', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'shower_reservations') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 's-new', guest_id: 'g-1', scheduled_for: '2025-01-06', scheduled_time: '9:00 AM', status: 'booked' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockToast).toHaveBeenCalledWith(
+            'John Doe was signed up for Shower at 9:00 AM',
+            { icon: expect.anything(), id: 'rt-shower-s-new' }
+        );
+    });
+
+    it('shows toast with preferred name for shower booking', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'shower_reservations') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 's-new-2', guest_id: 'g-2', scheduled_for: '2025-01-06', scheduled_time: '10:00 AM', status: 'booked' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockToast).toHaveBeenCalledWith(
+            'Janey was signed up for Shower at 10:00 AM',
+            { icon: expect.anything(), id: 'rt-shower-s-new-2' }
+        );
+    });
+
+    it('shows toast when a new laundry booking arrives via realtime', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'laundry_bookings') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 'l-new', guest_id: 'g-1', laundry_type: 'onsite', slot_label: '11:00 AM - 12:00 PM', status: 'waiting' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockToast).toHaveBeenCalledWith(
+            'John Doe was signed up for Laundry at 11:00 AM - 12:00 PM',
+            { icon: expect.anything(), id: 'rt-laundry-l-new' }
+        );
+    });
+
+    it('does not show toast for shower UPDATE events', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'shower_reservations') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'UPDATE',
+            new: { id: 's-1', guest_id: 'g-1', scheduled_for: '2025-01-06', status: 'done' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockToast).not.toHaveBeenCalled();
+    });
+
+    it('does not show toast for laundry DELETE events', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'laundry_bookings') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'DELETE',
+            old: { id: 'l-1' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockToast).not.toHaveBeenCalled();
+    });
+
+    it('shows generic name when guest not found in store', async () => {
+        mockGuestsGetState.mockReturnValueOnce({ guests: [] });
+
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'shower_reservations') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 's-unknown', guest_id: 'g-missing', scheduled_for: '2025-01-06', status: 'booked' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockToast).toHaveBeenCalledWith(
+            'A guest was signed up for Shower',
+            { icon: expect.anything(), id: 'rt-shower-s-unknown' }
+        );
+    });
+
+    it('shows shower toast without slot when scheduled_time is absent', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'shower_reservations') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 's-noslot', guest_id: 'g-1', scheduled_for: '2025-01-06', status: 'booked' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockToast).toHaveBeenCalledWith(
+            'John Doe was signed up for Shower',
+            { icon: expect.anything(), id: 'rt-shower-s-noslot' }
+        );
     });
 });
 
