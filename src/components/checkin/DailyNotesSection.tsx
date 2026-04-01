@@ -46,6 +46,11 @@ function NoteCard({ note, onEdit }: NoteCardProps) {
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                         <span className={cn("text-xs font-bold", config.color)}>{config.label}</span>
+                        {note.noteEndDate && (
+                            <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-md">
+                                Through {formatDate(note.noteEndDate)}
+                            </span>
+                        )}
                         <Edit2 size={10} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
                     </div>
                     <p className="text-sm text-gray-700 line-clamp-2">{note.noteText}</p>

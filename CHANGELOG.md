@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.21] - 2026-03-31
+
+### Added
+- Multi-day notes: daily notes can now span a date range via a "Multi-day note" toggle in the modal, with start/end date pickers and validation. Range notes automatically appear on all intermediate dates. Useful for equipment outages or multi-day events.
+- 6 new tests covering range-aware getters (getNotesForDate, getNotesForDateRange, hasNoteForDateAndService).
+- Database migration adding nullable `note_end_date` column with check constraint.
+
 ## [0.4.1] - 2026-03-31
 
 ### Added

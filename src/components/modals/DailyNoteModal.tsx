@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { X, StickyNote, Loader2, CalendarDays, Trash2, User, Clock } from 'lucide-react';
+import { X, StickyNote, Loader2, CalendarDays, Trash2, User, Clock, CalendarRange } from 'lucide-react';
 import { useModalStore } from '@/stores/useModalStore';
 import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
 import { DailyNoteServiceType } from '@/types/database';
@@ -39,12 +39,13 @@ export function DailyNoteModal() {
     const userEmail = session?.user?.email || 'Unknown';
 
     const [selectedDate, setSelectedDate] = useState<string>(todayPacificDateString());
+    const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
+    const [isMultiDay, setIsMultiDay] = useState(false);
     const [selectedServiceType, setSelectedServiceType] = useState<DailyNoteServiceType>('general');
     const [noteText, setNoteText] = useState('');
     const [isPending, setIsPending] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    // Load existing note when context changes
     useEffect(() => {
         if (notePickerContext) {
             setSelectedDate(notePickerContext.date);
@@ -52,13 +53,26 @@ export function DailyNoteModal() {
 
             const existingNote = getNoteForDateAndService(notePickerContext.date, notePickerContext.serviceType);
             setNoteText(existingNote?.noteText || '');
+            if (existingNote?.noteEndDate) {
+                setIsMultiDay(true);
+                setSelectedEndDate(existingNote.noteEndDate);
+            } else {
+                setIsMultiDay(false);
+                setSelectedEndDate(null);
+            }
         }
     }, [notePickerContext, getNoteForDateAndService]);
 
-    // Update note text when date/service changes
     useEffect(() => {
         const existingNote = getNoteForDateAndService(selectedDate, selectedServiceType);
         setNoteText(existingNote?.noteText || '');
+        if (existingNote?.noteEndDate) {
+            setIsMultiDay(true);
+            setSelectedEndDate(existingNote.noteEndDate);
+        } else {
+            setIsMultiDay(false);
+            setSelectedEndDate(null);
+        }
     }, [selectedDate, selectedServiceType, getNoteForDateAndService]);
 
     const existingNote = useMemo(() => {
@@ -77,9 +91,15 @@ export function DailyNoteModal() {
             return;
         }
 
+        if (isMultiDay && selectedEndDate && selectedEndDate < selectedDate) {
+            toast.error('End date must be on or after start date');
+            return;
+        }
+
         setIsPending(true);
         try {
-            await addOrUpdateNote(selectedDate, selectedServiceType, trimmed, userEmail);
+            const endDate = isMultiDay ? (selectedEndDate || null) : null;
+            await addOrUpdateNote(selectedDate, selectedServiceType, trimmed, userEmail, endDate);
             toast.success(isEditMode ? 'Note updated' : 'Note added');
             setNotePickerContext(null);
         } catch (error: any) {
@@ -141,7 +161,9 @@ export function DailyNoteModal() {
                                 {isEditMode ? 'Edit Note' : 'Add Note'}
                             </h2>
                             <p className="text-sm text-gray-500 font-medium">
-                                {formattedDate}
+                                {isMultiDay && selectedEndDate
+                                    ? `${formattedDate} — ${formatFullDate(selectedEndDate)}`
+                                    : formattedDate}
                             </p>
                         </div>
                     </div>
@@ -159,7 +181,7 @@ export function DailyNoteModal() {
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-2">
                             <CalendarDays size={14} className="inline mr-1.5" />
-                            Date
+                            {isMultiDay ? 'Start Date' : 'Date'}
                         </label>
                         <input
                             type="date"
@@ -168,6 +190,58 @@ export function DailyNoteModal() {
                             className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-900 font-medium focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
                         />
                     </div>
+
+                    {/* Multi-Day Toggle */}
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={isMultiDay}
+                            onClick={() => {
+                                const next = !isMultiDay;
+                                setIsMultiDay(next);
+                                if (!next) setSelectedEndDate(null);
+                            }}
+                            className={cn(
+                                "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                                isMultiDay ? "bg-sky-500" : "bg-gray-200"
+                            )}
+                        >
+                            <span
+                                className={cn(
+                                    "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
+                                    isMultiDay ? "translate-x-5" : "translate-x-0"
+                                )}
+                            />
+                        </button>
+                        <div className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+                            <CalendarRange size={14} className="text-gray-400" />
+                            Multi-day note
+                        </div>
+                    </div>
+
+                    {/* End Date Picker */}
+                    {isMultiDay && (
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">
+                                <CalendarDays size={14} className="inline mr-1.5" />
+                                End Date
+                            </label>
+                            <input
+                                type="date"
+                                value={selectedEndDate || ''}
+                                min={selectedDate}
+                                onChange={(e) => setSelectedEndDate(e.target.value || null)}
+                                className={cn(
+                                    "w-full px-4 py-3 border rounded-xl text-gray-900 font-medium focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all",
+                                    selectedEndDate && selectedEndDate < selectedDate ? "border-red-300" : "border-gray-200"
+                                )}
+                            />
+                            {selectedEndDate && selectedEndDate < selectedDate && (
+                                <p className="mt-1 text-xs text-red-500 font-medium">End date must be on or after start date</p>
+                            )}
+                        </div>
+                    )}
 
                     {/* Service Type Selector */}
                     <div>

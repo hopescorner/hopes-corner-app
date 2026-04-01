@@ -8,7 +8,8 @@ import toast from 'react-hot-toast';
 
 export interface DailyNote {
     id: string;
-    noteDate: string;              // YYYY-MM-DD format
+    noteDate: string;
+    noteEndDate?: string | null;
     serviceType: DailyNoteServiceType;
     noteText: string;
     createdBy: string | null;
@@ -30,7 +31,8 @@ interface DailyNotesState {
         noteDate: string,
         serviceType: DailyNoteServiceType,
         noteText: string,
-        userId?: string
+        userId?: string,
+        noteEndDate?: string | null
     ) => Promise<DailyNote | null>;
     deleteNote: (noteId: string) => Promise<boolean>;
 
@@ -92,11 +94,10 @@ export const useDailyNotesStore = create<DailyNotesState>()(
                 },
 
                 // Add or update a note (upsert on note_date + service_type)
-                addOrUpdateNote: async (noteDate, serviceType, noteText, userId) => {
+                addOrUpdateNote: async (noteDate, serviceType, noteText, userId, noteEndDate) => {
                     const supabase = createClient();
                     const trimmedText = noteText.trim();
 
-                    // Don't allow empty notes - delete instead
                     if (!trimmedText) {
                         const existing = get().getNoteForDateAndService(noteDate, serviceType);
                         if (existing) {
@@ -107,12 +108,13 @@ export const useDailyNotesStore = create<DailyNotesState>()(
 
                     const existing = get().getNoteForDateAndService(noteDate, serviceType);
 
-                    const payload = {
+                    const payload: Record<string, unknown> = {
                         note_date: noteDate,
                         service_type: serviceType,
                         note_text: trimmedText,
                         created_by: existing ? existing.createdBy : (userId || null),
                         updated_by: userId || null,
+                        note_end_date: noteEndDate || null,
                     };
 
                     const { data, error } = await supabase
@@ -170,34 +172,33 @@ export const useDailyNotesStore = create<DailyNotesState>()(
                     return true;
                 },
 
-                // Get all notes for a specific date
                 getNotesForDate: (date) => {
                     const { notes } = get();
-                    return notes.filter((n) => n.noteDate === date);
+                    return notes.filter((n) => n.noteDate === date || (n.noteEndDate && n.noteDate <= date && n.noteEndDate >= date));
                 },
 
-                // Get a specific note for date and service type
                 getNoteForDateAndService: (date, serviceType) => {
                     const { notes } = get();
-                    return notes.find((n) => n.noteDate === date && n.serviceType === serviceType) || null;
+                    return notes.find((n) => n.serviceType === serviceType && (n.noteDate === date || (n.noteEndDate && n.noteDate <= date && n.noteEndDate >= date))) || null;
                 },
 
-                // Get all notes within a date range (inclusive)
                 getNotesForDateRange: (startDate, endDate) => {
                     const { notes } = get();
-                    return notes.filter((n) => n.noteDate >= startDate && n.noteDate <= endDate);
+                    return notes.filter((n) => {
+                        const noteStart = n.noteDate;
+                        const noteEnd = n.noteEndDate || n.noteDate;
+                        return noteStart <= endDate && noteEnd >= startDate;
+                    });
                 },
 
-                // Check if any note exists for a date
                 hasNoteForDate: (date) => {
                     const { notes } = get();
-                    return notes.some((n) => n.noteDate === date);
+                    return notes.some((n) => n.noteDate === date || (n.noteEndDate && n.noteDate <= date && n.noteEndDate >= date));
                 },
 
-                // Check if a note exists for a specific date and service
                 hasNoteForDateAndService: (date, serviceType) => {
                     const { notes } = get();
-                    return notes.some((n) => n.noteDate === date && n.serviceType === serviceType);
+                    return notes.some((n) => n.serviceType === serviceType && (n.noteDate === date || (n.noteEndDate && n.noteDate <= date && n.noteEndDate >= date)));
                 },
 
                 // Subscribe to real-time changes

@@ -24,6 +24,7 @@ vi.mock('@/lib/utils/mappers', () => ({
     mapDailyNoteRow: (row: any) => ({
         id: row.id,
         noteDate: row.note_date,
+        noteEndDate: row.note_end_date || null,
         serviceType: row.service_type,
         noteText: row.note_text,
         createdBy: row.created_by,
@@ -74,6 +75,31 @@ describe('useDailyNotesStore', () => {
             });
 
             const result = useDailyNotesStore.getState().getNotesForDate('2026-01-20');
+            expect(result).toHaveLength(0);
+        });
+
+        it('returns range notes that span the queried date', () => {
+            useDailyNotesStore.setState({
+                notes: [
+                    { id: '1', noteDate: '2026-01-10', noteEndDate: '2026-01-20', serviceType: 'laundry', noteText: 'Dryer broken', createdBy: null, updatedBy: null },
+                    { id: '2', noteDate: '2026-01-15', serviceType: 'meals', noteText: 'Single day', createdBy: null, updatedBy: null },
+                    { id: '3', noteDate: '2026-01-01', noteEndDate: '2026-01-05', serviceType: 'laundry', noteText: 'Old range', createdBy: null, updatedBy: null },
+                ],
+            });
+
+            const result = useDailyNotesStore.getState().getNotesForDate('2026-01-15');
+            expect(result).toHaveLength(2);
+            expect(result.map(n => n.id)).toEqual(expect.arrayContaining(['1', '2']));
+        });
+
+        it('does not return range notes that end before the queried date', () => {
+            useDailyNotesStore.setState({
+                notes: [
+                    { id: '1', noteDate: '2026-01-10', noteEndDate: '2026-01-12', serviceType: 'laundry', noteText: 'Old range', createdBy: null, updatedBy: null },
+                ],
+            });
+
+            const result = useDailyNotesStore.getState().getNotesForDate('2026-01-15');
             expect(result).toHaveLength(0);
         });
     });
@@ -132,6 +158,19 @@ describe('useDailyNotesStore', () => {
             const result = useDailyNotesStore.getState().getNotesForDateRange('2026-02-01', '2026-02-28');
             expect(result).toHaveLength(0);
         });
+
+        it('returns range notes that overlap the queried range', () => {
+            useDailyNotesStore.setState({
+                notes: [
+                    { id: '1', noteDate: '2026-01-10', noteEndDate: '2026-01-18', serviceType: 'laundry', noteText: 'Dryer broken', createdBy: null, updatedBy: null },
+                    { id: '2', noteDate: '2026-01-25', serviceType: 'meals', noteText: 'After', createdBy: null, updatedBy: null },
+                ],
+            });
+
+            const result = useDailyNotesStore.getState().getNotesForDateRange('2026-01-15', '2026-01-20');
+            expect(result).toHaveLength(1);
+            expect(result[0].id).toBe('1');
+        });
     });
 
     describe('hasNoteForDate', () => {
@@ -175,6 +214,26 @@ describe('useDailyNotesStore', () => {
             });
 
             expect(useDailyNotesStore.getState().hasNoteForDateAndService('2026-01-15', 'showers')).toBe(false);
+        });
+
+        it('returns true when a range note spans the queried date', () => {
+            useDailyNotesStore.setState({
+                notes: [
+                    { id: '1', noteDate: '2026-01-10', noteEndDate: '2026-01-20', serviceType: 'laundry', noteText: 'Dryer broken', createdBy: null, updatedBy: null },
+                ],
+            });
+
+            expect(useDailyNotesStore.getState().hasNoteForDateAndService('2026-01-15', 'laundry')).toBe(true);
+        });
+
+        it('returns false when a range note does not span the queried date', () => {
+            useDailyNotesStore.setState({
+                notes: [
+                    { id: '1', noteDate: '2026-01-10', noteEndDate: '2026-01-12', serviceType: 'laundry', noteText: 'Dryer broken', createdBy: null, updatedBy: null },
+                ],
+            });
+
+            expect(useDailyNotesStore.getState().hasNoteForDateAndService('2026-01-15', 'laundry')).toBe(false);
         });
     });
 
