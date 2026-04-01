@@ -114,6 +114,14 @@ describe('ShowersSection Cancelled Tab', () => {
         expect(cancelledTab).toBeDefined();
     });
 
+    it('defaults to list view', () => {
+        render(<ShowersSection />);
+        
+        const listViewButton = screen.getByTitle('List View');
+        // List view button should have the active styling
+        expect(listViewButton.className).toContain('text-sky-600');
+    });
+
     it('displays correct count in cancelled tab', () => {
         render(<ShowersSection />);
         
@@ -174,31 +182,31 @@ describe('ShowersSection Cancelled Tab', () => {
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
-            // no_show should be displayed with underscore replaced by space
-            expect(screen.getByText('no show')).toBeDefined();
+            // no_show status is displayed in the list view
+            expect(screen.getByText('no_show')).toBeDefined();
         });
     });
 
-    it('shows REBOOK button for cancelled showers', async () => {
+    it('shows Rebook button for cancelled showers', async () => {
         render(<ShowersSection />);
         
         const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
-            const rebookButtons = screen.getAllByText('REBOOK');
+            const rebookButtons = screen.getAllByRole('button', { name: /rebook shower/i });
             expect(rebookButtons.length).toBe(2); // One for each cancelled/no_show shower
         });
     });
 
-    it('calls updateShowerStatus when REBOOK is clicked', async () => {
+    it('calls updateShowerStatus when Rebook is clicked', async () => {
         render(<ShowersSection />);
         
         const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
-            const rebookButtons = screen.getAllByText('REBOOK');
+            const rebookButtons = screen.getAllByRole('button', { name: /rebook shower/i });
             fireEvent.click(rebookButtons[0]);
         });
         
@@ -242,7 +250,7 @@ describe('ShowersSection Cancelled Tab', () => {
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
-            expect(screen.getByText(/no cancelled showers found/i)).toBeDefined();
+            expect(screen.getByText(/no showers in this list/i)).toBeDefined();
         });
     });
 });
