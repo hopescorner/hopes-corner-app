@@ -1559,6 +1559,7 @@ $$ language plpgsql;
 create table if not exists public.daily_notes (
   id uuid primary key default gen_random_uuid(),
   note_date date not null,
+  note_end_date date,
   service_type text not null check (service_type in ('meals', 'showers', 'laundry', 'general')),
   note_text text not null,
   created_by text,
@@ -1566,7 +1567,8 @@ create table if not exists public.daily_notes (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   
-  constraint daily_notes_unique_per_day unique (note_date, service_type)
+  constraint daily_notes_unique_per_day unique (note_date, service_type),
+  constraint daily_notes_end_date_check check (note_end_date is null or note_end_date >= note_date)
 );
 
 comment on table public.daily_notes is 'Stores daily operational notes for meals, showers, laundry, and general services to explain data anomalies in reports.';

@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.20';
+export const APP_VERSION = '0.5.21';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.21',
+        date: 'March 31, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Multi-Day Notes',
+                description: 'Daily notes can now span a date range. Toggle "Multi-day note" when adding a note to set a start and end date, useful for equipment outages or multi-day events.',
+            },
+        ],
+    },
     {
         version: '0.5.20',
         date: 'March 31, 2026',

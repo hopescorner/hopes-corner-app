@@ -180,6 +180,7 @@ export interface GuestWarning {
 export interface DailyNote {
     id: string;
     note_date: string;
+    note_end_date?: string | null;
     service_type: DailyNoteServiceType;
     note_text: string;
     created_by: string | null;
@@ -191,6 +192,7 @@ export interface DailyNote {
 export interface DailyNoteRow {
     id: string;
     note_date: string;
+    note_end_date?: string | null;
     service_type: DailyNoteServiceType;
     note_text: string;
     created_by: string | null;
