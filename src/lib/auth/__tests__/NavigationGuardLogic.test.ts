@@ -28,6 +28,11 @@ describe('Navigation Guard Logic Tests', () => {
             // Check-in only
             { user: { role: 'checkin' as UserRole }, route: '/services', expected: { redirect: '/unauthorized' } },
             { user: { role: 'checkin' as UserRole }, route: '/check-in', expected: { allowed: true } },
+
+            // Bicycle - can access check-in and services, but not dashboard
+            { user: { role: 'bicycle' as UserRole }, route: '/check-in', expected: { allowed: true } },
+            { user: { role: 'bicycle' as UserRole }, route: '/services', expected: { allowed: true } },
+            { user: { role: 'bicycle' as UserRole }, route: '/dashboard', expected: { redirect: '/unauthorized' } },
         ];
 
         it.each(scenarios)('guards route %s for user %s correctly', ({ user, route, expected }) => {
@@ -35,7 +40,7 @@ describe('Navigation Guard Logic Tests', () => {
         });
 
         // Exhaustive count bump
-        const allRoles: UserRole[] = ['admin', 'staff', 'board', 'checkin'];
+        const allRoles: UserRole[] = ['admin', 'staff', 'board', 'checkin', 'bicycle'];
         const allTestRoutes = ['/check-in', '/services', '/dashboard', '/settings'];
 
         const exhaustive = allRoles.flatMap(role =>

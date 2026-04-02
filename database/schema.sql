@@ -1301,7 +1301,7 @@ comment on function public.cleanup_old_blocked_slots() is 'Removes blocked slots
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
-  role text not null default 'checkin' check (role in ('checkin', 'staff', 'admin', 'board')),
+  role text not null default 'checkin' check (role in ('checkin', 'staff', 'admin', 'board', 'bicycle')),
   full_name text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
