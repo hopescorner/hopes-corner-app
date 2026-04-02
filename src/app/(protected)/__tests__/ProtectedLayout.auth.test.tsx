@@ -162,6 +162,30 @@ describe('ProtectedLayout - Client-Side Auth', () => {
                 expect(screen.getByTestId('protected-content')).toBeDefined();
             });
         });
+
+        it('renders for bicycle role', async () => {
+            mockUseSession.mockReturnValue({
+                data: {
+                    user: {
+                        id: 'user-101',
+                        email: 'bicycle@hopes-corner.org',
+                        name: 'Bicycle User',
+                        role: 'bicycle'
+                    }
+                },
+                status: 'authenticated'
+            });
+
+            render(
+                <ProtectedLayout>
+                    <div data-testid="protected-content">Bicycle Services</div>
+                </ProtectedLayout>
+            );
+
+            await waitFor(() => {
+                expect(screen.getByTestId('protected-content')).toBeDefined();
+            });
+        });
     });
 
     describe('Session Transitions', () => {

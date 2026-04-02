@@ -23,8 +23,10 @@ import { useRemindersStore } from '@/stores/useRemindersStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
+import { useSession } from 'next-auth/react';
+import type { UserRole } from '@/lib/auth/types';
 
-const TABS = [
+const ALL_TABS = [
     { id: 'overview', label: 'Overview', icon: BarChart3, color: 'text-blue-600', bg: 'bg-blue-50' },
     { id: 'timeline', label: 'Timeline', icon: History, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { id: 'meals', label: 'Meals', icon: Utensils, color: 'text-emerald-600', bg: 'bg-emerald-50' },
@@ -34,6 +36,9 @@ const TABS = [
     { id: 'bicycles', label: 'Bicycles', icon: Bike, color: 'text-amber-600', bg: 'bg-amber-50' },
     { id: 'donations', label: 'Donations', icon: Heart, color: 'text-rose-600', bg: 'bg-rose-50' },
 ];
+
+// Bicycle role only sees the bicycles tab
+const BICYCLE_TABS = ALL_TABS.filter((tab) => tab.id === 'bicycles');
 
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -52,6 +57,11 @@ export default function ServicesPage() {
     const router = useRouter();
     const prefersReducedMotion = useReducedMotion();
     const firstTabSwitchMarkRef = useRef(false);
+    const { data: session } = useSession();
+    const role = (session?.user?.role as UserRole) || 'checkin';
+    const isBicycleRole = role === 'bicycle';
+    const TABS = isBicycleRole ? BICYCLE_TABS : ALL_TABS;
+    const defaultTab = isBicycleRole ? 'bicycles' : 'overview';
 
     const markPerf = useCallback((name: string) => {
         if (typeof performance === 'undefined') return;
@@ -59,7 +69,9 @@ export default function ServicesPage() {
     }, []);
 
     // Use URL as source of truth for active tab
-    const activeTab = searchParams.get('tab') || 'overview';
+    const rawTab = searchParams.get('tab') || defaultTab;
+    // Ensure the tab is valid for the current role
+    const activeTab = TABS.some((t) => t.id === rawTab) ? rawTab : defaultTab;
 
     const setActiveTab = (tabId: string) => {
         if (!firstTabSwitchMarkRef.current) {
@@ -207,7 +219,7 @@ export default function ServicesPage() {
             case 'timeline': return <TimelineSection />;
             case 'meals': return <MealsSection />;
             case 'donations': return <DonationsSection />;
-            default: return <OverviewSection metrics={metrics} setActiveTab={setActiveTab} />;
+            default: return isBicycleRole ? <BicycleSection /> : <OverviewSection metrics={metrics} setActiveTab={setActiveTab} />;
         }
     };
 

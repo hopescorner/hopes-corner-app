@@ -10,6 +10,8 @@ describe('Auth Logic Exhaustive Tests', () => {
             ['BOARD@example.com', 'board'],
             ['checkin.desk@hopes-corner.org', 'checkin'],
             ['CHECKIN@test.org', 'checkin'],
+            ['bicycle@hopes-corner.org', 'bicycle'],
+            ['BICYCLE.user@example.com', 'bicycle'],
             ['staff.person@hopes-corner.org', 'staff'],
             ['random@user.com', 'staff'],
             ['', 'staff'],
@@ -51,6 +53,10 @@ describe('Auth Logic Exhaustive Tests', () => {
             { role: 'checkin' as UserRole, route: '/check-in', expected: true },
             { role: 'checkin' as UserRole, route: '/dashboard', expected: false },
             { role: 'checkin' as UserRole, route: '/services', expected: false },
+
+            { role: 'bicycle' as UserRole, route: '/check-in', expected: true },
+            { role: 'bicycle' as UserRole, route: '/services', expected: true },
+            { role: 'bicycle' as UserRole, route: '/dashboard', expected: false },
         ];
 
         it.each(routes)('checks access for $role to $route: $expected', ({ role, route, expected }) => {
@@ -69,6 +75,7 @@ describe('Auth Logic Exhaustive Tests', () => {
             ['staff', '/check-in'],
             ['board', '/dashboard'],
             ['checkin', '/check-in'],
+            ['bicycle', '/check-in'],
         ];
 
         it.each(cases)('gets default route for %s as %s', (role, expected) => {
@@ -82,6 +89,7 @@ describe('Auth Logic Exhaustive Tests', () => {
             ['staff', 'Staff'],
             ['board', 'Board (read-only)'],
             ['checkin', 'Check-in'],
+            ['bicycle', 'Bicycle'],
         ];
 
         it.each(cases)('gets label for %s as %s', (role, expected) => {

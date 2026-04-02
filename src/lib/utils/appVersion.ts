@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.21';
+export const APP_VERSION = '0.5.22';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.22',
+        date: 'April 2, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Bicycle-Only User Role',
+                description: 'A new bicycle role allows dedicated bicycle volunteers to access the guest check-in page and the bicycle services tab without seeing other service areas.',
+            },
+        ],
+    },
     {
         version: '0.5.21',
         date: 'March 31, 2026',

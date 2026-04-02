@@ -1,5 +1,5 @@
 // User roles for the application
-export type UserRole = 'admin' | 'staff' | 'board' | 'checkin';
+export type UserRole = 'admin' | 'staff' | 'board' | 'checkin' | 'bicycle';
 
 // User type extending NextAuth user
 export interface AppUser {
@@ -20,6 +20,7 @@ export const ROLE_ACCESS = {
     staff: ['check-in', 'services', 'dashboard'],
     board: ['dashboard'],
     checkin: ['check-in'],
+    bicycle: ['check-in', 'services'],
 } as const;
 
 // Infer role from email prefix (matching current app behavior)
@@ -28,6 +29,7 @@ export function inferRole(email: string | null | undefined): UserRole {
     if (base.startsWith('admin')) return 'admin';
     if (base.startsWith('board')) return 'board';
     if (base.startsWith('checkin')) return 'checkin';
+    if (base.startsWith('bicycle')) return 'bicycle';
     return 'staff';
 }
 
@@ -55,6 +57,8 @@ export function getRoleLabel(role: UserRole): string {
             return 'Staff';
         case 'checkin':
             return 'Check-in';
+        case 'bicycle':
+            return 'Bicycle';
         default:
             return role;
     }
