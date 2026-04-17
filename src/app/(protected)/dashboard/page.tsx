@@ -276,6 +276,7 @@ export default function DashboardPage() {
                         return (
                             <button
                                 key={tab.id}
+                                data-testid={`dashboard-tab-${tab.id}-desktop`}
                                 onClick={() => handleTabChange(tab.id)}
                                 className={cn(
                                     "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black transition-all",
@@ -318,6 +319,7 @@ export default function DashboardPage() {
                     return (
                         <button
                             key={tab.id}
+                            data-testid={`dashboard-tab-${tab.id}-mobile`}
                             onClick={() => handleTabChange(tab.id)}
                             className={cn(
                                 "flex-shrink-0 flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-black transition-all border",

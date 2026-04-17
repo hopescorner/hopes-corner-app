@@ -87,19 +87,21 @@ describe('Dashboard tab switching performance', () => {
     it('keeps previously opened report tabs mounted when switching between report views', async () => {
         render(<DashboardPage />);
 
-        fireEvent.click(screen.getAllByRole('button', { name: /monthly report/i })[0]);
+        fireEvent.click(screen.getByTestId('dashboard-tab-monthly-report-desktop'));
 
         await waitFor(() => expect(screen.getByTestId('dynamic:MonthlyReportGenerator')).toBeDefined());
 
-        fireEvent.click(screen.getAllByRole('button', { name: /meal report/i })[0]);
+        fireEvent.click(screen.getByTestId('dashboard-tab-meal-report-desktop'));
 
         await waitFor(() => expect(screen.getByTestId('dynamic:MealReport')).toBeDefined());
 
-        fireEvent.click(screen.getAllByRole('button', { name: /monthly report/i })[0]);
+        fireEvent.click(screen.getByTestId('dashboard-tab-monthly-report-desktop'));
 
         await waitFor(() => expect(screen.getByTestId('dynamic:MonthlyReportGenerator')).toBeDefined());
 
         expect(mounts.MonthlyReportGenerator).toBe(1);
         expect(unmounts.MonthlyReportGenerator ?? 0).toBe(0);
+        expect(mounts.MealReport).toBe(1);
+        expect(unmounts.MealReport ?? 0).toBe(0);
     });
 });
