@@ -45,6 +45,7 @@ const REPORT_BASELINE_YEAR = 2025;
 
 export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState('analytics');
+    const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(['analytics']));
     const currentYear = new Date().getFullYear();
     const [preloadYear, setPreloadYear] = useState(currentYear);
     const [loadedReportYears, setLoadedReportYears] = useState<Set<number>>(() => new Set());
@@ -127,6 +128,12 @@ export default function DashboardPage() {
             firstTabSwitchMarkRef.current = true;
             markPerf('dashboard:first-tab-switch');
         }
+        setVisitedTabs((prev) => {
+            if (prev.has(tabId)) return prev;
+            const next = new Set(prev);
+            next.add(tabId);
+            return next;
+        });
         setActiveTab(tabId);
     };
 
@@ -197,14 +204,35 @@ export default function DashboardPage() {
                 </motion.div>
             );
         }
-        switch (activeTab) {
-            case 'analytics': return <AnalyticsSection />;
-            case 'monthly-report': return <MonthlyReportGenerator />;
-            case 'meal-report': return <MealReport />;
-            case 'monthly-summary': return <MonthlySummaryReport />;
-            case 'export': return <DataExportSection />;
-            default: return <AnalyticsSection />;
-        }
+        return (
+            <>
+                {visitedTabs.has('analytics') && (
+                    <div hidden={activeTab !== 'analytics'}>
+                        <AnalyticsSection />
+                    </div>
+                )}
+                {visitedTabs.has('monthly-report') && (
+                    <div hidden={activeTab !== 'monthly-report'}>
+                        <MonthlyReportGenerator />
+                    </div>
+                )}
+                {visitedTabs.has('meal-report') && (
+                    <div hidden={activeTab !== 'meal-report'}>
+                        <MealReport />
+                    </div>
+                )}
+                {visitedTabs.has('monthly-summary') && (
+                    <div hidden={activeTab !== 'monthly-summary'}>
+                        <MonthlySummaryReport />
+                    </div>
+                )}
+                {visitedTabs.has('export') && (
+                    <div hidden={activeTab !== 'export'}>
+                        <DataExportSection />
+                    </div>
+                )}
+            </>
+        );
     };
 
     return (
@@ -307,7 +335,6 @@ export default function DashboardPage() {
 
             {/* Main Content Area */}
             <motion.div
-                key={activeTab}
                 initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: prefersReducedMotion ? 0 : 0.4, ease: [0.19, 1, 0.22, 1] }}
