@@ -1,14 +1,17 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { getAppVersion, hasUnseenUpdates, markVersionAsSeen, CHANGELOG, APP_VERSION } from '../appVersion';
 
 describe('App Version Logic Tests', () => {
     beforeEach(() => {
-        vi.stubGlobal('localStorage', {
-            getItem: vi.fn(),
-            setItem: vi.fn(),
-            clear: vi.fn()
-        });
-        vi.stubGlobal('window', {});
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+        localStorage.clear();
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.restoreAllMocks();
+        localStorage.clear();
     });
 
     it('returns the current app version', () => {
@@ -22,17 +25,17 @@ describe('App Version Logic Tests', () => {
         });
 
         it('returns true when no version is in localStorage', () => {
-            (localStorage.getItem as any).mockReturnValue(null);
+            vi.spyOn(localStorage, 'getItem').mockReturnValue(null);
             expect(hasUnseenUpdates()).toBe(true);
         });
 
         it('returns true when a different version is in localStorage', () => {
-            (localStorage.getItem as any).mockReturnValue('0.0.1');
+            vi.spyOn(localStorage, 'getItem').mockReturnValue('0.0.1');
             expect(hasUnseenUpdates()).toBe(true);
         });
 
         it('returns false when current version is in localStorage', () => {
-            (localStorage.getItem as any).mockReturnValue(APP_VERSION);
+            vi.spyOn(localStorage, 'getItem').mockReturnValue(APP_VERSION);
             expect(hasUnseenUpdates()).toBe(false);
         });
     });
@@ -40,13 +43,15 @@ describe('App Version Logic Tests', () => {
     describe('markVersionAsSeen', () => {
         it('does nothing when window is undefined', () => {
             vi.stubGlobal('window', undefined);
+            const setItemSpy = vi.spyOn(localStorage, 'setItem');
             markVersionAsSeen();
-            expect(localStorage.setItem).not.toHaveBeenCalled();
+            expect(setItemSpy).not.toHaveBeenCalled();
         });
 
         it('sets the current version in localStorage', () => {
+            const setItemSpy = vi.spyOn(localStorage, 'setItem');
             markVersionAsSeen();
-            expect(localStorage.setItem).toHaveBeenCalledWith('hopes-corner-seen-version', APP_VERSION);
+            expect(setItemSpy).toHaveBeenCalledWith('hopes-corner-seen-version', APP_VERSION);
         });
     });
 

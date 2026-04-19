@@ -220,6 +220,26 @@ export function AnalyticsSection() {
         return typeof record?.date === 'string' ? record.date.split('T')[0] : '';
     }, []);
 
+    // Set of guest IDs matching demographic filters (null = no filtering active)
+    const demographicFilteredGuestIds = useMemo(() => {
+        if (filterLocation === 'all' && filterAgeGroup === 'all' && filterGender === 'all' && filterHousing === 'all') return null;
+        const filtered = new Set<string>();
+        guests.forEach(g => {
+            if (filterLocation !== 'all' && (g.location || 'Unknown') !== filterLocation) return;
+            if (filterAgeGroup !== 'all' && (g.age || 'Unknown') !== filterAgeGroup) return;
+            if (filterGender !== 'all' && (g.gender || 'Unknown') !== filterGender) return;
+            if (filterHousing !== 'all' && (g.housingStatus || 'Unknown') !== filterHousing) return;
+            filtered.add(g.id);
+        });
+        return filtered;
+    }, [guests, filterLocation, filterAgeGroup, filterGender, filterHousing]);
+
+    // Check if a record's guest passes demographic filter
+    const isGuestIncluded = useCallback((guestId?: string) => {
+        if (!demographicFilteredGuestIds) return true;
+        return guestId ? demographicFilteredGuestIds.has(guestId) : false;
+    }, [demographicFilteredGuestIds]);
+
     const dailyCountMaps = useMemo(() => {
         const mealsByDay = new Map<string, number>();
         const showersDoneByDay = new Map<string, number>();
@@ -232,78 +252,86 @@ export function AnalyticsSection() {
             map.set(day, (map.get(day) || 0) + delta);
         };
 
-        for (const r of [
-            ...mealRecords,
-            ...rvMealRecords,
-            ...extraMealRecords,
-            ...dayWorkerMealRecords,
-            ...shelterMealRecords,
-            ...unitedEffortMealRecords,
-            ...lunchBagRecords,
-        ]) {
-            addToMap(mealsByDay, dateKeyOf(r), Number(r.count) || 0);
+        const mealArraysForMap: [DemoMealTypeKey, typeof mealRecords][] = [
+            ['guest', mealRecords],
+            ['rv', rvMealRecords],
+            ['extras', extraMealRecords],
+            ['dayWorker', dayWorkerMealRecords],
+            ['shelter', shelterMealRecords],
+            ['unitedEffort', unitedEffortMealRecords],
+            ['lunchBags', lunchBagRecords],
+        ];
+        for (const [key, records] of mealArraysForMap) {
+            if (!demoMealTypeFilters[key]) continue;
+            for (const r of records) {
+                if (!isGuestIncluded(r.guestId)) continue;
+                addToMap(mealsByDay, dateKeyOf(r), Number(r.count) || 0);
+            }
         }
         for (const r of showerRecords) {
-            if (r.status === 'done') addToMap(showersDoneByDay, dateKeyOf(r), 1);
+            if (r.status === 'done' && isGuestIncluded(r.guestId)) addToMap(showersDoneByDay, dateKeyOf(r), 1);
         }
         for (const r of laundryRecords) {
-            if (['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status)) {
+            if (['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status) && isGuestIncluded(r.guestId)) {
                 addToMap(laundryDoneByDay, dateKeyOf(r), 1);
             }
         }
         for (const r of haircutRecords || []) {
-            addToMap(haircutsByDay, dateKeyOf(r), 1);
+            if (isGuestIncluded((r as any).guestId)) addToMap(haircutsByDay, dateKeyOf(r), 1);
         }
         for (const r of bicycleRecords) {
-            if (r.status === 'done') addToMap(bicyclesDoneByDay, dateKeyOf(r), countBicycleServices(r));
+            if (r.status === 'done' && isGuestIncluded(r.guestId)) addToMap(bicyclesDoneByDay, dateKeyOf(r), countBicycleServices(r));
         }
 
         return { mealsByDay, showersDoneByDay, laundryDoneByDay, bicyclesDoneByDay, haircutsByDay };
-    }, [mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, dateKeyOf, countBicycleServices]);
+    }, [mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, dateKeyOf, countBicycleServices, demoMealTypeFilters, isGuestIncluded]);
 
     // Calculate metrics for the selected range
     const metrics = useMemo(() => {
         const { start, end } = dateRange;
         const isRecordInRange = (record: { date?: string; dateKey?: string }) => isInRange(dateKeyOf(record), start, end);
 
-        const meals = [
-            ...mealRecords,
-            ...rvMealRecords,
-            ...extraMealRecords,
-            ...dayWorkerMealRecords,
-            ...shelterMealRecords,
-            ...unitedEffortMealRecords,
-            ...lunchBagRecords,
-        ]
-            .filter(isRecordInRange)
+        const mealArraysByType: [DemoMealTypeKey, typeof mealRecords][] = [
+            ['guest', mealRecords],
+            ['rv', rvMealRecords],
+            ['extras', extraMealRecords],
+            ['dayWorker', dayWorkerMealRecords],
+            ['shelter', shelterMealRecords],
+            ['unitedEffort', unitedEffortMealRecords],
+            ['lunchBags', lunchBagRecords],
+        ];
+        const meals = mealArraysByType
+            .filter(([key]) => demoMealTypeFilters[key])
+            .flatMap(([, records]) => records)
+            .filter(r => isRecordInRange(r) && isGuestIncluded(r.guestId))
             .reduce((sum, r) => sum + (r.count || 0), 0);
 
         const showers = showerRecords
-            .filter(r => isRecordInRange(r) && r.status === 'done')
+            .filter(r => isRecordInRange(r) && r.status === 'done' && isGuestIncluded(r.guestId))
             .length;
 
         const laundry = laundryRecords
-            .filter(r => isRecordInRange(r) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status))
+            .filter(r => isRecordInRange(r) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status) && isGuestIncluded(r.guestId))
             .length;
 
         const doneBicycles = bicycleRecords
-            .filter(r => isRecordInRange(r) && r.status === 'done');
+            .filter(r => isRecordInRange(r) && r.status === 'done' && isGuestIncluded(r.guestId));
         const bicycles = doneBicycles.length;
         const bicycleServices = doneBicycles.reduce((sum, r) => sum + countBicycleServices(r), 0);
 
         const haircuts = (haircutRecords || [])
-            .filter((r: { date: string; dateKey?: string }) => isRecordInRange(r))
+            .filter((r: { date: string; dateKey?: string; guestId?: string }) => isRecordInRange(r) && isGuestIncluded(r.guestId))
             .length;
 
         const holidays = (holidayRecords || [])
-            .filter((r: { date: string; dateKey?: string }) => isRecordInRange(r))
+            .filter((r: { date: string; dateKey?: string; guestId?: string }) => isRecordInRange(r) && isGuestIncluded((r as any).guestId))
             .length;
 
-        // Get unique guest IDs from selected programs (aligned with demographics selection behavior)
+        // Get unique guest IDs from selected programs
         const guestIds = new Set<string>();
         const addGuestIds = (records: Array<{ guestId?: string; date?: string; dateKey?: string }>) => {
             records
-                .filter(isRecordInRange)
+                .filter(r => isRecordInRange(r) && isGuestIncluded(r.guestId))
                 .forEach((record) => record.guestId && guestIds.add(record.guestId));
         };
 
@@ -319,36 +347,36 @@ export function AnalyticsSection() {
 
         if (selectedPrograms.includes('showers')) {
             showerRecords
-                .filter(r => isRecordInRange(r) && r.status === 'done')
+                .filter(r => isRecordInRange(r) && r.status === 'done' && isGuestIncluded(r.guestId))
                 .forEach(r => guestIds.add(r.guestId));
         }
 
         if (selectedPrograms.includes('laundry')) {
             laundryRecords
-                .filter(r => isRecordInRange(r))
+                .filter(r => isRecordInRange(r) && isGuestIncluded(r.guestId))
                 .forEach(r => guestIds.add(r.guestId));
         }
 
         if (selectedPrograms.includes('bicycles')) {
             bicycleRecords
-                .filter(r => isRecordInRange(r) && r.status !== 'cancelled')
+                .filter(r => isRecordInRange(r) && r.status !== 'cancelled' && isGuestIncluded(r.guestId))
                 .forEach(r => r.guestId && guestIds.add(r.guestId));
         }
 
         if (selectedPrograms.includes('haircuts')) {
             (haircutRecords || [])
-                .filter((r: { date?: string; dateKey?: string }) => isRecordInRange(r))
+                .filter((r: { date?: string; dateKey?: string; guestId?: string }) => isRecordInRange(r) && isGuestIncluded(r.guestId))
                 .forEach((r: { guestId?: string }) => r.guestId && guestIds.add(r.guestId));
         }
 
         if (selectedPrograms.includes('holidays')) {
             (holidayRecords || [])
-                .filter((r: { date?: string; dateKey?: string }) => isRecordInRange(r))
+                .filter((r: { date?: string; dateKey?: string; guestId?: string }) => isRecordInRange(r) && isGuestIncluded((r as any).guestId))
                 .forEach((r: { guestId?: string }) => r.guestId && guestIds.add(r.guestId));
         }
 
         return { meals, showers, laundry, bicycles, bicycleServices, haircuts, holidays, uniqueGuests: guestIds.size };
-    }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isInRange, dateKeyOf, countBicycleServices, selectedPrograms, demoMealTypeFilters]);
+    }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isInRange, dateKeyOf, countBicycleServices, selectedPrograms, demoMealTypeFilters, isGuestIncluded]);
 
     // Calculate comparison metrics (previous period)
     const prevPeriod = useMemo(() => {
@@ -369,26 +397,29 @@ export function AnalyticsSection() {
         const { start: pStart, end: pEnd } = prevPeriod;
         const isRecordInPreviousRange = (record: { date?: string; dateKey?: string }) => isInRange(dateKeyOf(record), pStart, pEnd);
 
-        const prevMeals = [
-            ...mealRecords,
-            ...rvMealRecords,
-            ...extraMealRecords,
-            ...dayWorkerMealRecords,
-            ...shelterMealRecords,
-            ...unitedEffortMealRecords,
-            ...lunchBagRecords,
-        ]
-            .filter(isRecordInPreviousRange)
+        const prevMealArraysByType: [DemoMealTypeKey, typeof mealRecords][] = [
+            ['guest', mealRecords],
+            ['rv', rvMealRecords],
+            ['extras', extraMealRecords],
+            ['dayWorker', dayWorkerMealRecords],
+            ['shelter', shelterMealRecords],
+            ['unitedEffort', unitedEffortMealRecords],
+            ['lunchBags', lunchBagRecords],
+        ];
+        const prevMeals = prevMealArraysByType
+            .filter(([key]) => demoMealTypeFilters[key])
+            .flatMap(([, records]) => records)
+            .filter(r => isRecordInPreviousRange(r) && isGuestIncluded(r.guestId))
             .reduce((sum, r) => sum + (r.count || 0), 0);
 
         const prevShowers = showerRecords
-            .filter(r => isRecordInPreviousRange(r) && r.status === 'done').length;
+            .filter(r => isRecordInPreviousRange(r) && r.status === 'done' && isGuestIncluded(r.guestId)).length;
 
         const prevLaundry = laundryRecords
-            .filter(r => isRecordInPreviousRange(r) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status)).length;
+            .filter(r => isRecordInPreviousRange(r) && ['done', 'picked_up', 'returned', 'offsite_picked_up'].includes(r.status) && isGuestIncluded(r.guestId)).length;
 
         const prevDoneBicycles = bicycleRecords
-            .filter(r => isRecordInPreviousRange(r) && r.status === 'done');
+            .filter(r => isRecordInPreviousRange(r) && r.status === 'done' && isGuestIncluded(r.guestId));
         const prevBicycles = prevDoneBicycles.length;
         const prevBicycleServices = prevDoneBicycles.reduce((sum, r) => sum + countBicycleServices(r), 0);
 
@@ -399,7 +430,7 @@ export function AnalyticsSection() {
             bicycles: metrics.bicycles - prevBicycles,
             bicycleServices: metrics.bicycleServices - prevBicycleServices,
         };
-    }, [dateRange, showComparison, metrics, prevPeriod, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, isInRange, dateKeyOf]);
+    }, [dateRange, showComparison, metrics, prevPeriod, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, isInRange, dateKeyOf, countBicycleServices, demoMealTypeFilters, isGuestIncluded]);
 
     // Daily breakdown for trends
     const dailyData = useMemo(() => {
@@ -834,182 +865,6 @@ export function AnalyticsSection() {
     // Render Demographics
     const renderDemographics = () => (
         <div className="space-y-6">
-            {/* Meal Type Filters — only visible when Meals program is selected */}
-            {selectedPrograms.includes('meals') && <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                        <Utensils size={16} className="text-gray-400" />
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Meal Types</p>
-                    </div>
-                    <div className="flex gap-3">
-                        <button onClick={selectAllDemoMealTypes} className="text-xs text-blue-600 hover:underline flex items-center gap-1 font-medium">
-                            <Check size={12} /> All
-                        </button>
-                        <button onClick={clearDemoMealTypes} className="text-xs text-gray-400 hover:underline flex items-center gap-1 font-medium">
-                            <X size={12} /> Clear
-                        </button>
-                    </div>
-                </div>
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {DEMO_MEAL_TYPE_OPTIONS.map(type => {
-                        const isSelected = demoMealTypeFilters[type.key];
-                        return (
-                            <button
-                                key={type.key}
-                                onClick={() => toggleDemoMealType(type.key)}
-                                className={cn(
-                                    "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
-                                    isSelected
-                                        ? "text-white border-transparent"
-                                        : "bg-white text-gray-400 border-gray-200"
-                                )}
-                                style={isSelected ? { backgroundColor: type.color } : {}}
-                            >
-                                {type.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            </div>}
-
-            {/* Demographic Filters */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                        <Filter size={16} className="text-gray-400" />
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Demographic Filters</p>
-                    </div>
-                    {hasActiveDemoFilters && (
-                        <button
-                            onClick={clearDemographicFilters}
-                            className="text-xs text-red-500 hover:underline flex items-center gap-1 font-medium"
-                        >
-                            <X size={12} /> Clear Filters
-                        </button>
-                    )}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Location Filter */}
-                    <div>
-                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                            <MapPin size={12} /> Location
-                        </label>
-                        <select
-                            value={filterLocation}
-                            onChange={e => setFilterLocation(e.target.value)}
-                            className={cn(
-                                "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
-                                filterLocation !== 'all'
-                                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                                    : "border-gray-200 bg-white text-gray-700"
-                            )}
-                        >
-                            <option value="all">All Locations</option>
-                            {locationOptions.map(loc => (
-                                <option key={loc} value={loc}>{loc}</option>
-                            ))}
-                            <option value="Unknown">Unknown</option>
-                        </select>
-                    </div>
-
-                    {/* Age Group Filter */}
-                    <div>
-                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                            <Users size={12} /> Age Group
-                        </label>
-                        <select
-                            value={filterAgeGroup}
-                            onChange={e => setFilterAgeGroup(e.target.value)}
-                            className={cn(
-                                "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
-                                filterAgeGroup !== 'all'
-                                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                                    : "border-gray-200 bg-white text-gray-700"
-                            )}
-                        >
-                            <option value="all">All Age Groups</option>
-                            {AGE_GROUPS.map(ag => (
-                                <option key={ag} value={ag}>{ag}</option>
-                            ))}
-                            <option value="Unknown">Unknown</option>
-                        </select>
-                    </div>
-
-                    {/* Gender Filter */}
-                    <div>
-                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                            <UserCheck size={12} /> Gender
-                        </label>
-                        <select
-                            value={filterGender}
-                            onChange={e => setFilterGender(e.target.value)}
-                            className={cn(
-                                "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
-                                filterGender !== 'all'
-                                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                                    : "border-gray-200 bg-white text-gray-700"
-                            )}
-                        >
-                            <option value="all">All Genders</option>
-                            {GENDERS.map(g => (
-                                <option key={g} value={g}>{g}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Housing Status Filter */}
-                    <div>
-                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                            <Home size={12} /> Housing Status
-                        </label>
-                        <select
-                            value={filterHousing}
-                            onChange={e => setFilterHousing(e.target.value)}
-                            className={cn(
-                                "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
-                                filterHousing !== 'all'
-                                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                                    : "border-gray-200 bg-white text-gray-700"
-                            )}
-                        >
-                            <option value="all">All Statuses</option>
-                            {HOUSING_STATUSES.map(hs => (
-                                <option key={hs} value={hs}>{hs}</option>
-                            ))}
-                            <option value="Unknown">Unknown</option>
-                        </select>
-                    </div>
-                </div>
-                {(hasActiveDemoFilters || hasActiveMealTypeFilters) && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                        {filterLocation !== 'all' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                                <MapPin size={10} /> {filterLocation}
-                                <button onClick={() => setFilterLocation('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
-                            </span>
-                        )}
-                        {filterAgeGroup !== 'all' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                                <Users size={10} /> {filterAgeGroup}
-                                <button onClick={() => setFilterAgeGroup('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
-                            </span>
-                        )}
-                        {filterGender !== 'all' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                                <UserCheck size={10} /> {filterGender}
-                                <button onClick={() => setFilterGender('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
-                            </span>
-                        )}
-                        {filterHousing !== 'all' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                                <Home size={10} /> {filterHousing}
-                                <button onClick={() => setFilterHousing('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
-                            </span>
-                        )}
-                    </div>
-                )}
-            </div>
-
             {/* Demographics Results */}
             <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-6 shadow-sm">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
@@ -1189,6 +1044,182 @@ export function AnalyticsSection() {
                         );
                     })}
                 </div>
+            </div>
+
+            {/* Meal Type Filters — visible when Meals program is selected */}
+            {selectedPrograms.includes('meals') && <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                        <Utensils size={16} className="text-gray-400" />
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Meal Types</p>
+                    </div>
+                    <div className="flex gap-3">
+                        <button onClick={selectAllDemoMealTypes} className="text-xs text-blue-600 hover:underline flex items-center gap-1 font-medium">
+                            <Check size={12} /> All
+                        </button>
+                        <button onClick={clearDemoMealTypes} className="text-xs text-gray-400 hover:underline flex items-center gap-1 font-medium">
+                            <X size={12} /> Clear
+                        </button>
+                    </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    {DEMO_MEAL_TYPE_OPTIONS.map(type => {
+                        const isSelected = demoMealTypeFilters[type.key];
+                        return (
+                            <button
+                                key={type.key}
+                                onClick={() => toggleDemoMealType(type.key)}
+                                className={cn(
+                                    "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all",
+                                    isSelected
+                                        ? "text-white border-transparent"
+                                        : "bg-white text-gray-400 border-gray-200"
+                                )}
+                                style={isSelected ? { backgroundColor: type.color } : {}}
+                            >
+                                {type.label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>}
+
+            {/* Demographic Filters */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 sm:p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <Filter size={16} className="text-gray-400" />
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Demographic Filters</p>
+                    </div>
+                    {hasActiveDemoFilters && (
+                        <button
+                            onClick={clearDemographicFilters}
+                            className="text-xs text-red-500 hover:underline flex items-center gap-1 font-medium"
+                        >
+                            <X size={12} /> Clear Filters
+                        </button>
+                    )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* Location Filter */}
+                    <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            <MapPin size={12} /> Location
+                        </label>
+                        <select
+                            value={filterLocation}
+                            onChange={e => setFilterLocation(e.target.value)}
+                            className={cn(
+                                "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
+                                filterLocation !== 'all'
+                                    ? "border-blue-300 bg-blue-50 text-blue-700"
+                                    : "border-gray-200 bg-white text-gray-700"
+                            )}
+                        >
+                            <option value="all">All Locations</option>
+                            {locationOptions.map(loc => (
+                                <option key={loc} value={loc}>{loc}</option>
+                            ))}
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                    </div>
+
+                    {/* Age Group Filter */}
+                    <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            <Users size={12} /> Age Group
+                        </label>
+                        <select
+                            value={filterAgeGroup}
+                            onChange={e => setFilterAgeGroup(e.target.value)}
+                            className={cn(
+                                "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
+                                filterAgeGroup !== 'all'
+                                    ? "border-blue-300 bg-blue-50 text-blue-700"
+                                    : "border-gray-200 bg-white text-gray-700"
+                            )}
+                        >
+                            <option value="all">All Age Groups</option>
+                            {AGE_GROUPS.map(ag => (
+                                <option key={ag} value={ag}>{ag}</option>
+                            ))}
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                    </div>
+
+                    {/* Gender Filter */}
+                    <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            <UserCheck size={12} /> Gender
+                        </label>
+                        <select
+                            value={filterGender}
+                            onChange={e => setFilterGender(e.target.value)}
+                            className={cn(
+                                "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
+                                filterGender !== 'all'
+                                    ? "border-blue-300 bg-blue-50 text-blue-700"
+                                    : "border-gray-200 bg-white text-gray-700"
+                            )}
+                        >
+                            <option value="all">All Genders</option>
+                            {GENDERS.map(g => (
+                                <option key={g} value={g}>{g}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Housing Status Filter */}
+                    <div>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
+                            <Home size={12} /> Housing Status
+                        </label>
+                        <select
+                            value={filterHousing}
+                            onChange={e => setFilterHousing(e.target.value)}
+                            className={cn(
+                                "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
+                                filterHousing !== 'all'
+                                    ? "border-blue-300 bg-blue-50 text-blue-700"
+                                    : "border-gray-200 bg-white text-gray-700"
+                            )}
+                        >
+                            <option value="all">All Statuses</option>
+                            {HOUSING_STATUSES.map(hs => (
+                                <option key={hs} value={hs}>{hs}</option>
+                            ))}
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                    </div>
+                </div>
+                {(hasActiveDemoFilters || hasActiveMealTypeFilters) && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {filterLocation !== 'all' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                <MapPin size={10} /> {filterLocation}
+                                <button onClick={() => setFilterLocation('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
+                            </span>
+                        )}
+                        {filterAgeGroup !== 'all' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                <Users size={10} /> {filterAgeGroup}
+                                <button onClick={() => setFilterAgeGroup('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
+                            </span>
+                        )}
+                        {filterGender !== 'all' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                <UserCheck size={10} /> {filterGender}
+                                <button onClick={() => setFilterGender('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
+                            </span>
+                        )}
+                        {filterHousing !== 'all' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                <Home size={10} /> {filterHousing}
+                                <button onClick={() => setFilterHousing('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* View Tabs */}
