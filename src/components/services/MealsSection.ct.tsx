@@ -29,6 +29,14 @@ test.describe('MealsSection', () => {
     await expect(component.getByText('Active Service Day')).toBeVisible();
   });
 
+  test('shows paused meal automation state from settings', async ({ mount }) => {
+    const component = await mount(<MealsSectionStory autoMealAdditionsEnabled={false} />);
+
+    await expect(component.getByText('Meal Automation')).toBeVisible();
+    await expect(component.getByRole('switch', { name: 'Automatic RV and lunch bag additions' })).toHaveAttribute('aria-checked', 'false');
+    await expect(component.getByText('Paused')).toBeVisible();
+  });
+
   test('displays zero stats when no records', async ({ mount }) => {
     const component = await mount(<MealsSectionStory />);
     // All stat cards should show 0
@@ -47,7 +55,7 @@ test.describe('MealsSection', () => {
     await expect(component.getByText('Total Meals')).toBeVisible();
     await expect(component.getByRole('paragraph').filter({ hasText: 'Guest Meals' })).toBeVisible();
     await expect(component.getByText('Proxy Pickups')).toBeVisible();
-    await expect(component.getByRole('paragraph').filter({ hasText: 'Lunch Bags' })).toBeVisible();
+    await expect(component.getByRole('paragraph').filter({ hasText: /^Lunch Bags$/ })).toBeVisible();
     // Distribution details (compact stats) — scope to stats section to avoid filter dropdown collisions
     const distributionSection = component.locator('.border-t').first();
     await expect(component.getByText('Extra', { exact: true })).toBeVisible();

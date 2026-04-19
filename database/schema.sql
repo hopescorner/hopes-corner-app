@@ -924,6 +924,7 @@ create table if not exists public.app_settings (
   site_name text not null default 'Hope''s Corner',
   max_onsite_laundry_slots smallint not null default 5,
   enable_offsite_laundry boolean not null default true,
+  auto_meal_additions_enabled boolean not null default true,
   ui_density text not null default 'comfortable',
   show_charts boolean not null default true,
   default_report_days smallint not null default 7,

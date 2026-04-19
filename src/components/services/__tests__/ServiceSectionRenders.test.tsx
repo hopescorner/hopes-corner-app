@@ -83,6 +83,17 @@ vi.mock('@/stores/useDonationsStore', () => ({
     })),
 }));
 
+vi.mock('@/stores/useSettingsStore', () => ({
+    useSettingsStore: vi.fn((selector) => {
+        const state = {
+            autoMealAdditionsEnabled: true,
+            updateAutoMealAdditionsEnabled: vi.fn(),
+            loadSettings: vi.fn().mockResolvedValue(undefined),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
+}));
+
 describe('Service Section Rendering', () => {
     it('ShowersSection renders correctly', () => {
         render(<ShowersSection />);

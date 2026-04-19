@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useMealsStore } from '../useMealsStore';
+import { useSettingsStore } from '../useSettingsStore';
 import * as dateUtils from '@/lib/utils/date';
 
 // 1. Define Mock Supabase Object
@@ -107,6 +108,10 @@ describe('useMealsStore', () => {
             holidayRecords: [],
             haircutRecords: [],
         });
+
+        useSettingsStore.setState({
+            autoMealAdditionsEnabled: true,
+        });
     });
 
     afterEach(() => {
@@ -180,6 +185,19 @@ describe('useMealsStore', () => {
                 expect(useMealsStore.getState().rvMealRecords[0].count).toBe(100);
             });
 
+            it('skips automatic RV meals on Monday when meal automation is paused', async () => {
+                vi.useFakeTimers();
+                const monday = new Date('2025-01-06T12:00:00Z');
+                vi.setSystemTime(monday);
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-06');
+                vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-06');
+                useSettingsStore.setState({ autoMealAdditionsEnabled: false });
+
+                await useMealsStore.getState().checkAndAddAutomaticMeals();
+
+                expect(useMealsStore.getState().rvMealRecords).toHaveLength(0);
+            });
+
             it('adds 40 RV meals on Wednesday', async () => {
                 vi.useFakeTimers();
                 const wednesday = new Date('2025-01-08T12:00:00Z');
@@ -247,6 +265,28 @@ describe('useMealsStore', () => {
                 expect(rvMealRecords).toHaveLength(1);
                 expect(rvMealRecords[0].count).toBe(100);
 
+                expect(dayWorkerMealRecords).toHaveLength(1);
+                expect(dayWorkerMealRecords[0].count).toBe(50);
+            });
+
+            it('keeps Saturday day worker automation while RV and lunch bag automation is paused', async () => {
+                vi.useFakeTimers();
+                const saturday = new Date('2025-01-11T12:00:00Z');
+                vi.setSystemTime(saturday);
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-11');
+                vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-11');
+                useSettingsStore.setState({ autoMealAdditionsEnabled: false });
+
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: { id: 'dw-sat', quantity: 50, meal_type: 'day_worker', served_on: '2025-01-11' },
+                    error: null,
+                });
+
+                await useMealsStore.getState().checkAndAddAutomaticMeals();
+
+                const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords } = useMealsStore.getState();
+                expect(lunchBagRecords).toHaveLength(0);
+                expect(rvMealRecords).toHaveLength(0);
                 expect(dayWorkerMealRecords).toHaveLength(1);
                 expect(dayWorkerMealRecords[0].count).toBe(50);
             });
@@ -468,6 +508,21 @@ describe('useMealsStore', () => {
 
                 expect(useMealsStore.getState().mealRecords).toHaveLength(1);
                 expect(useMealsStore.getState().lunchBagRecords).toHaveLength(1);
+            });
+
+            it('does not auto-add lunch bag when meal automation is paused', async () => {
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-06');
+                useSettingsStore.setState({ autoMealAdditionsEnabled: false });
+
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: { id: 'meal-mon', guest_id: 'g1', quantity: 1, meal_type: 'guest', served_on: '2025-01-06' },
+                    error: null,
+                });
+
+                await useMealsStore.getState().addMealRecord('g1', 1);
+
+                expect(useMealsStore.getState().mealRecords).toHaveLength(1);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
             });
 
             it('does NOT auto-add lunch bag on Friday even with proxy pickup', async () => {

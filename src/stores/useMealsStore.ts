@@ -15,6 +15,7 @@ import {
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom, parsePacificDateParts } from '@/lib/utils/date';
 import { MAX_BASE_MEALS_PER_DAY, MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 
 const OPERATIONAL_WINDOW_DAYS = 45;
 
@@ -22,6 +23,15 @@ const getOperationalSince = () => {
     const d = new Date();
     d.setDate(d.getDate() - OPERATIONAL_WINDOW_DAYS);
     return d.toISOString();
+};
+
+const autoMealAdditionsEnabled = () => useSettingsStore.getState().autoMealAdditionsEnabled;
+
+const shouldAutoAddLunchBagsForDate = (serviceDate: string) => {
+    const dateParts = parsePacificDateParts(serviceDate);
+    const isFriday = dateParts?.dayOfWeek === 5;
+
+    return autoMealAdditionsEnabled() && !isFriday;
 };
 
 export interface MealRecord {
@@ -197,10 +207,7 @@ export const useMealsStore = create<MealsState>()(
                                 }
                             });
 
-                            // Auto-add lunch bag (skip Fridays)
-                            const dateParts = parsePacificDateParts(targetDate);
-                            const isFriday = dateParts?.dayOfWeek === 5;
-                            if (!isFriday) {
+                            if (shouldAutoAddLunchBagsForDate(targetDate)) {
                                 try {
                                     await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
                                     if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
@@ -238,10 +245,7 @@ export const useMealsStore = create<MealsState>()(
                             state.mealRecords.push(mapped);
                         });
 
-                        // Auto-add lunch bag (skip Fridays — no lunch bags on Fridays)
-                        const dateParts = parsePacificDateParts(targetDate);
-                        const isFriday = dateParts?.dayOfWeek === 5;
-                        if (!isFriday) {
+                        if (shouldAutoAddLunchBagsForDate(targetDate)) {
                             try {
                                 await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
                                 // If proxy pickup, add another? Logic from old app:
@@ -627,6 +631,7 @@ export const useMealsStore = create<MealsState>()(
                         const today = new Date();
                         const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                         const todayStr = todayPacificDateString();
+                        const automaticSupportMealsEnabled = autoMealAdditionsEnabled();
                         const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords, addBulkMealRecord } = get();
 
                         const todaysRv = rvMealRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
@@ -640,14 +645,24 @@ export const useMealsStore = create<MealsState>()(
                         // Sat (6): 100 Lunch Bags, 100 RV, 50 Day Worker
 
                         if (dayOfWeek === 1) { // Mon
-                            if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Mon)', `rv_${todayStr}`);
+                            if (automaticSupportMealsEnabled && todaysRv.length === 0) {
+                                await addBulkMealRecord('rv', 100, 'Automatic Entry (Mon)', `rv_${todayStr}`);
+                            }
                         } else if (dayOfWeek === 3) { // Wed
-                            if (todaysRv.length === 0) await addBulkMealRecord('rv', 40, 'Automatic Entry (Wed)', `rv_${todayStr}`);
+                            if (automaticSupportMealsEnabled && todaysRv.length === 0) {
+                                await addBulkMealRecord('rv', 40, 'Automatic Entry (Wed)', `rv_${todayStr}`);
+                            }
                         } else if (dayOfWeek === 4) { // Thu
-                            if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Thu)', `rv_${todayStr}`);
+                            if (automaticSupportMealsEnabled && todaysRv.length === 0) {
+                                await addBulkMealRecord('rv', 100, 'Automatic Entry (Thu)', `rv_${todayStr}`);
+                            }
                         } else if (dayOfWeek === 6) { // Sat
-                            if (todaysLunchBags.length === 0) await addBulkMealRecord('lunch_bag', 100, 'Automatic Entry (Sat)', `lunch_bag_${todayStr}`);
-                            if (todaysRv.length === 0) await addBulkMealRecord('rv', 100, 'Automatic Entry (Sat)', `rv_${todayStr}`);
+                            if (automaticSupportMealsEnabled && todaysLunchBags.length === 0) {
+                                await addBulkMealRecord('lunch_bag', 100, 'Automatic Entry (Sat)', `lunch_bag_${todayStr}`);
+                            }
+                            if (automaticSupportMealsEnabled && todaysRv.length === 0) {
+                                await addBulkMealRecord('rv', 100, 'Automatic Entry (Sat)', `rv_${todayStr}`);
+                            }
                             if (todaysDayWorker.length === 0) await addBulkMealRecord('day_worker', 50, 'Automatic Entry (Sat)', `day_worker_${todayStr}`);
                         }
                     },

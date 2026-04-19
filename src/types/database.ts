@@ -223,6 +223,7 @@ export interface AppSettings {
     site_name: string;
     max_onsite_laundry_slots: number;
     enable_offsite_laundry: boolean;
+    auto_meal_additions_enabled: boolean;
     ui_density: string;
     show_charts: boolean;
     default_report_days: number;
