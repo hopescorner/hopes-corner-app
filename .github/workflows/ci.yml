@@ -108,7 +108,7 @@ jobs:
       # https://github.com/amondnet/vercel-action
       # https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel
       - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v42
+        uses: amondnet/vercel-action@v42.2.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
