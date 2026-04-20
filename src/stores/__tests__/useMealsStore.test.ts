@@ -72,6 +72,9 @@ const createMockMealRecord = (overrides = {}) => ({
     ...overrides,
 });
 
+const originalLoadSettings = useSettingsStore.getState().loadSettings;
+const originalEnsureSettingsLoaded = (useSettingsStore.getState() as any).ensureSettingsLoaded;
+
 describe('useMealsStore', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -111,7 +114,11 @@ describe('useMealsStore', () => {
 
         useSettingsStore.setState({
             autoMealAdditionsEnabled: true,
-        });
+            hasLoadedSettings: true,
+            isLoadingSettings: false,
+            loadSettings: originalLoadSettings,
+            ensureSettingsLoaded: originalEnsureSettingsLoaded,
+        } as any);
     });
 
     afterEach(() => {
@@ -198,6 +205,35 @@ describe('useMealsStore', () => {
                 expect(useMealsStore.getState().rvMealRecords).toHaveLength(0);
             });
 
+            it('loads settings before scheduled automation so paused remote settings skip Saturday lunch bag, RV, and day worker entries', async () => {
+                vi.useFakeTimers();
+                const saturday = new Date('2025-01-11T12:00:00Z');
+                vi.setSystemTime(saturday);
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-11');
+                vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-11');
+
+                const ensureSettingsLoaded = vi.fn().mockImplementation(async () => {
+                    useSettingsStore.setState({ autoMealAdditionsEnabled: false, hasLoadedSettings: true } as any);
+                    return true;
+                });
+
+                useSettingsStore.setState({
+                    autoMealAdditionsEnabled: true,
+                    hasLoadedSettings: false,
+                    ensureSettingsLoaded,
+                } as any);
+
+                await useMealsStore.getState().checkAndAddAutomaticMeals();
+
+                expect(ensureSettingsLoaded).toHaveBeenCalled();
+                expect(mockSupabase.insert).not.toHaveBeenCalled();
+
+                const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords } = useMealsStore.getState();
+                expect(lunchBagRecords).toHaveLength(0);
+                expect(rvMealRecords).toHaveLength(0);
+                expect(dayWorkerMealRecords).toHaveLength(0);
+            });
+
             it('adds 40 RV meals on Wednesday', async () => {
                 vi.useFakeTimers();
                 const wednesday = new Date('2025-01-08T12:00:00Z');
@@ -269,7 +305,7 @@ describe('useMealsStore', () => {
                 expect(dayWorkerMealRecords[0].count).toBe(50);
             });
 
-            it('keeps Saturday day worker automation while RV and lunch bag automation is paused', async () => {
+            it('skips Saturday day worker automation when meal automation is paused', async () => {
                 vi.useFakeTimers();
                 const saturday = new Date('2025-01-11T12:00:00Z');
                 vi.setSystemTime(saturday);
@@ -277,18 +313,12 @@ describe('useMealsStore', () => {
                 vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-11');
                 useSettingsStore.setState({ autoMealAdditionsEnabled: false });
 
-                mockSupabase.single.mockResolvedValueOnce({
-                    data: { id: 'dw-sat', quantity: 50, meal_type: 'day_worker', served_on: '2025-01-11' },
-                    error: null,
-                });
-
                 await useMealsStore.getState().checkAndAddAutomaticMeals();
 
                 const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords } = useMealsStore.getState();
                 expect(lunchBagRecords).toHaveLength(0);
                 expect(rvMealRecords).toHaveLength(0);
-                expect(dayWorkerMealRecords).toHaveLength(1);
-                expect(dayWorkerMealRecords[0].count).toBe(50);
+                expect(dayWorkerMealRecords).toHaveLength(0);
             });
 
             // Proxy / Deduplication Logic
@@ -521,6 +551,32 @@ describe('useMealsStore', () => {
 
                 await useMealsStore.getState().addMealRecord('g1', 1);
 
+                expect(useMealsStore.getState().mealRecords).toHaveLength(1);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
+            });
+
+            it('loads settings before guest meal auto-additions so paused remote settings skip lunch bags', async () => {
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-06');
+
+                const ensureSettingsLoaded = vi.fn().mockImplementation(async () => {
+                    useSettingsStore.setState({ autoMealAdditionsEnabled: false, hasLoadedSettings: true } as any);
+                    return true;
+                });
+
+                useSettingsStore.setState({
+                    autoMealAdditionsEnabled: true,
+                    hasLoadedSettings: false,
+                    ensureSettingsLoaded,
+                } as any);
+
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: { id: 'meal-mon', guest_id: 'g1', quantity: 1, meal_type: 'guest', served_on: '2025-01-06' },
+                    error: null,
+                });
+
+                await useMealsStore.getState().addMealRecord('g1', 1);
+
+                expect(ensureSettingsLoaded).toHaveBeenCalled();
                 expect(useMealsStore.getState().mealRecords).toHaveLength(1);
                 expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
             });

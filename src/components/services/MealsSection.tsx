@@ -124,7 +124,7 @@ export function MealsSection() {
 
         try {
             await updateAutoMealAdditionsEnabled(nextValue);
-            toast.success(nextValue ? 'Automatic RV and lunch bag additions resumed' : 'Automatic RV and lunch bag additions paused');
+            toast.success(nextValue ? 'Automatic RV, lunch bag, and day worker additions resumed' : 'Automatic RV, lunch bag, and day worker additions paused');
         } catch (error) {
             console.error('Failed to update meal automation setting:', error);
             toast.error('Failed to update meal automation setting');
@@ -551,9 +551,9 @@ export function MealsSection() {
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700">Meal Automation</p>
-                        <h3 className="mt-1 text-base font-black text-gray-900">Automatic RV and lunch bag additions</h3>
+                        <h3 className="mt-1 text-base font-black text-gray-900">Automatic RV, lunch bag, and day worker additions</h3>
                         <p className="mt-1 text-xs text-gray-500 max-w-2xl">
-                            Turn this off to pause auto-added lunch bags on guest meal entry and scheduled RV or lunch bag bulk entries. Saturday day worker entries still run separately.
+                            Turn this off to pause auto-added lunch bags on guest meal entry and scheduled RV, lunch bag, and day worker bulk entries.
                         </p>
                     </div>
                     <div className="flex items-center gap-3 self-start lg:self-center">
@@ -567,7 +567,7 @@ export function MealsSection() {
                             type="button"
                             role="switch"
                             aria-checked={autoMealAdditionsEnabled}
-                            aria-label="Automatic RV and lunch bag additions"
+                            aria-label="Automatic RV, lunch bag, and day worker additions"
                             disabled={isSavingAutoMealAdditions}
                             onClick={handleToggleAutoMealAdditions}
                             className={cn(

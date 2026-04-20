@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.24';
+export const APP_VERSION = '0.5.26';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,28 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.26',
+        date: 'April 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Meal Automation Pause Applies Across Check-In',
+                description: 'Paused meal automation now blocks guest check-in lunch bag auto-additions and Saturday RV, lunch bag, and day worker automatic entries across the app.',
+            },
+        ],
+    },
+    {
+        version: '0.5.25',
+        date: 'April 20, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Day Worker Added to Meal Automation Pause',
+                description: 'The meal automation pause/resume toggle now also controls Saturday day worker automatic meal entries alongside RV and lunch bags.',
+            },
+        ],
+    },
     {
         version: '0.5.24',
         date: 'April 19, 2026',

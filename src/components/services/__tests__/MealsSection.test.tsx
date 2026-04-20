@@ -105,17 +105,17 @@ describe('MealsSection Component', () => {
         it('renders the meal automation switch', () => {
             render(<MealsSection />);
 
-            expect(screen.getByRole('switch', { name: 'Automatic RV and lunch bag additions' })).toBeDefined();
+            expect(screen.getByRole('switch', { name: 'Automatic RV, lunch bag, and day worker additions' })).toBeDefined();
             expect(screen.getByText('Meal Automation')).toBeDefined();
         });
     });
 
     describe('Meal Automation Toggle', () => {
-        it('calls settings store when pausing automatic RV and lunch bag additions', async () => {
+        it('calls settings store when pausing automatic RV, lunch bag, and day worker additions', async () => {
             const user = userEvent.setup();
             render(<MealsSection />);
 
-            await user.click(screen.getByRole('switch', { name: 'Automatic RV and lunch bag additions' }));
+            await user.click(screen.getByRole('switch', { name: 'Automatic RV, lunch bag, and day worker additions' }));
 
             expect(mockUpdateAutoMealAdditionsEnabled).toHaveBeenCalledWith(false);
         });

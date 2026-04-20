@@ -42,6 +42,8 @@ describe('useSettingsStore', () => {
         useSettingsStore.setState({
             targets: { ...DEFAULT_TARGETS },
             autoMealAdditionsEnabled: DEFAULT_AUTO_MEAL_ADDITIONS_ENABLED,
+            hasLoadedSettings: false,
+            isLoadingSettings: false,
         });
 
         // Default mock implementations
@@ -53,7 +55,7 @@ describe('useSettingsStore', () => {
 
     describe('initial state', () => {
         it('has default targets', () => {
-            const { targets, autoMealAdditionsEnabled } = useSettingsStore.getState();
+            const { targets, autoMealAdditionsEnabled, hasLoadedSettings } = useSettingsStore.getState() as any;
 
             expect(targets.monthlyMeals).toBe(1500);
             expect(targets.yearlyMeals).toBe(18000);
@@ -69,6 +71,7 @@ describe('useSettingsStore', () => {
             expect(targets.yearlyHolidays).toBe(960);
             expect(targets.maxOnsiteLaundrySlots).toBe(5);
             expect(autoMealAdditionsEnabled).toBe(true);
+            expect(hasLoadedSettings).toBe(false);
         });
     });
 
@@ -175,6 +178,7 @@ describe('useSettingsStore', () => {
             expect(targets.monthlyMeals).toBe(3000);
             expect(targets.yearlyMeals).toBe(36000);
             expect(useSettingsStore.getState().autoMealAdditionsEnabled).toBe(false);
+            expect((useSettingsStore.getState() as any).hasLoadedSettings).toBe(true);
         });
 
         it('keeps default settings if no data returned', async () => {
@@ -231,6 +235,29 @@ describe('useSettingsStore', () => {
             );
 
             consoleSpy.mockRestore();
+        });
+
+        it('ensureSettingsLoaded hydrates once and skips duplicate fetches', async () => {
+            mockSingle.mockResolvedValueOnce({
+                data: {
+                    targets: {
+                        ...DEFAULT_TARGETS,
+                        monthlyMeals: 1750,
+                    },
+                    auto_meal_additions_enabled: false,
+                },
+                error: null,
+            });
+
+            const ensureSettingsLoaded = (useSettingsStore.getState() as any).ensureSettingsLoaded;
+
+            await expect(ensureSettingsLoaded()).resolves.toBe(true);
+            await expect(ensureSettingsLoaded()).resolves.toBe(true);
+
+            expect(mockSingle).toHaveBeenCalledTimes(1);
+            expect(useSettingsStore.getState().targets.monthlyMeals).toBe(1750);
+            expect(useSettingsStore.getState().autoMealAdditionsEnabled).toBe(false);
+            expect((useSettingsStore.getState() as any).hasLoadedSettings).toBe(true);
         });
     });
 });
