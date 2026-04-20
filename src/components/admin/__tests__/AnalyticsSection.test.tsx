@@ -726,3 +726,262 @@ describe('AnalyticsSection Trends chart — Pacific timezone alignment', () => {
         expect(screen.getByText(new RegExp(todayFormatted))).toBeDefined();
     });
 });
+
+describe('AnalyticsSection Cross-tab demographic filtering', () => {
+    const today = todayPacificDateString();
+
+    const mockGuests = [
+        { id: 'g1', location: 'Mountain View', age: 'Adult 18-59', gender: 'Male', housingStatus: 'Unhoused' },
+        { id: 'g2', location: 'Palo Alto', age: 'Senior 60+', gender: 'Female', housingStatus: 'Housed' },
+        { id: 'g3', location: 'Mountain View', age: 'Senior 60+', gender: 'Male', housingStatus: 'Unhoused' },
+    ];
+
+    const mockMealRecords = [
+        { date: today, guestId: 'g1', count: 10 },
+        { date: today, guestId: 'g2', count: 5 },
+        { date: today, guestId: 'g3', count: 8 },
+    ];
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+
+        vi.mocked(useMealsStore).mockImplementation((selector: any) => {
+            const state = {
+                mealRecords: mockMealRecords,
+                rvMealRecords: [],
+                extraMealRecords: [],
+                dayWorkerMealRecords: [],
+                shelterMealRecords: [],
+                unitedEffortMealRecords: [],
+                lunchBagRecords: [],
+                holidayRecords: [],
+                haircutRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = {
+                showerRecords: [
+                    { date: today, guestId: 'g1', status: 'done' },
+                    { date: today, guestId: 'g2', status: 'done' },
+                ],
+                laundryRecords: [],
+                bicycleRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useGuestsStore).mockImplementation((selector: any) => {
+            const state = { guests: mockGuests };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useDonationsStore).mockReturnValue({} as any);
+    });
+
+    it('shows filter controls on Overview tab (not just Demographics)', () => {
+        render(<AnalyticsSection />);
+
+        // Overview is the default tab — filters should be visible without switching
+        expect(screen.getByText('Demographic Filters')).toBeDefined();
+        expect(screen.getByText('Meal Types')).toBeDefined();
+    });
+
+    it('location filter reduces Overview meal count to matching guests only', () => {
+        render(<AnalyticsSection />);
+
+        // Default: all 3 guests → 10 + 5 + 8 = 23
+        expect(screen.getByText('23')).toBeDefined();
+
+        // Filter to Mountain View (g1=10, g3=8 → 18)
+        const locationSelect = screen.getAllByRole('combobox')[0];
+        fireEvent.change(locationSelect, { target: { value: 'Mountain View' } });
+
+        expect(screen.getByText('18')).toBeDefined();
+        expect(screen.queryByText('23')).toBeNull();
+    });
+
+    it('location filter updates Unique Guests count on Overview', () => {
+        render(<AnalyticsSection />);
+
+        // The unique guests card uses text-4xl class
+        const uniqueGuestsCard = screen.getByText('Unique Guests Served').closest('div')!;
+        expect(uniqueGuestsCard.querySelector('.text-4xl')?.textContent).toBe('3');
+
+        // Filter to Palo Alto (only g2)
+        const locationSelect = screen.getAllByRole('combobox')[0];
+        fireEvent.change(locationSelect, { target: { value: 'Palo Alto' } });
+
+        expect(uniqueGuestsCard.querySelector('.text-4xl')?.textContent).toBe('1');
+    });
+
+    it('location filter applies to shower counts on Overview', () => {
+        render(<AnalyticsSection />);
+
+        // Default: 2 showers (g1 and g2)
+        const showerLabel = screen.getByText('Showers', { selector: 'span' });
+        const showerCard = showerLabel.closest('div[class*="rounded-2xl"]')!;
+        expect(showerCard.querySelector('.text-3xl')?.textContent).toBe('2');
+
+        // Filter to Mountain View (only g1 has a done shower)
+        const locationSelect = screen.getAllByRole('combobox')[0];
+        fireEvent.change(locationSelect, { target: { value: 'Mountain View' } });
+
+        // Showers should show 1 (only g1's shower matches)
+        expect(showerCard.querySelector('.text-3xl')?.textContent).toBe('1');
+    });
+
+    it('age group filter reduces Overview metrics to matching guests', () => {
+        render(<AnalyticsSection />);
+
+        // Filter to Senior 60+ (g2=5 meals, g3=8 meals → 13)
+        const ageSelect = screen.getAllByRole('combobox')[1];
+        fireEvent.change(ageSelect, { target: { value: 'Senior 60+' } });
+
+        expect(screen.getByText('13')).toBeDefined();
+    });
+
+    it('combined location + age filter narrows Overview results', () => {
+        render(<AnalyticsSection />);
+
+        // Filter to Mountain View + Senior 60+ → only g3 (8 meals)
+        const locationSelect = screen.getAllByRole('combobox')[0];
+        fireEvent.change(locationSelect, { target: { value: 'Mountain View' } });
+
+        const ageSelect = screen.getAllByRole('combobox')[1];
+        fireEvent.change(ageSelect, { target: { value: 'Senior 60+' } });
+
+        expect(screen.getByText('8')).toBeDefined();
+    });
+
+    it('filters persist when switching between Overview and Trends tabs', () => {
+        render(<AnalyticsSection />);
+
+        // Set location filter on Overview
+        const locationSelect = screen.getAllByRole('combobox')[0];
+        fireEvent.change(locationSelect, { target: { value: 'Mountain View' } });
+
+        // Filter pill should show
+        expect(screen.getAllByText('Mountain View').length).toBeGreaterThan(0);
+
+        // Switch to Trends tab
+        fireEvent.click(screen.getByText('Trends'));
+
+        // Filter pill should still be visible
+        expect(screen.getAllByText('Mountain View').length).toBeGreaterThan(0);
+
+        // Switch to Demographics tab
+        fireEvent.click(screen.getByText('Demographics'));
+
+        // Filter pill should still be visible
+        expect(screen.getAllByText('Mountain View').length).toBeGreaterThan(0);
+    });
+
+    it('clearing filters restores full Overview counts', () => {
+        render(<AnalyticsSection />);
+
+        // Apply a filter
+        const locationSelect = screen.getAllByRole('combobox')[0];
+        fireEvent.change(locationSelect, { target: { value: 'Mountain View' } });
+
+        // Verify filtered count
+        expect(screen.getByText('18')).toBeDefined();
+
+        // Clear filters
+        fireEvent.click(screen.getByText('Clear Filters'));
+
+        // Full count should be back
+        expect(screen.getByText('23')).toBeDefined();
+    });
+});
+
+describe('AnalyticsSection meal type filter affects Overview', () => {
+    const today = todayPacificDateString();
+
+    const mockGuests = [
+        { id: 'g1', location: 'Mountain View', age: 'Adult 18-59', gender: 'Male', housingStatus: 'Unhoused' },
+        { id: 'g2', location: 'Palo Alto', age: 'Senior 60+', gender: 'Female', housingStatus: 'Housed' },
+    ];
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+
+        vi.mocked(useMealsStore).mockImplementation((selector: any) => {
+            const state = {
+                mealRecords: [{ date: today, guestId: 'g1', count: 10 }],
+                rvMealRecords: [{ date: today, guestId: 'g2', count: 7 }],
+                extraMealRecords: [],
+                dayWorkerMealRecords: [],
+                shelterMealRecords: [],
+                unitedEffortMealRecords: [],
+                lunchBagRecords: [],
+                holidayRecords: [],
+                haircutRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = { showerRecords: [], laundryRecords: [], bicycleRecords: [] };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useGuestsStore).mockImplementation((selector: any) => {
+            const state = { guests: mockGuests };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useDonationsStore).mockReturnValue({} as any);
+    });
+
+    it('deselecting a meal type removes its count from Overview total', () => {
+        render(<AnalyticsSection />);
+
+        // Default: Guest Meals (10) + RV Meals (7) = 17
+        expect(screen.getByText('17')).toBeDefined();
+
+        // Deselect RV Meals
+        fireEvent.click(screen.getByText('RV Meals'));
+
+        // Should now show only Guest Meals: 10
+        expect(screen.getByText('10')).toBeDefined();
+        expect(screen.queryByText('17')).toBeNull();
+    });
+
+    it('deselecting all meal types shows 0 meals on Overview', () => {
+        render(<AnalyticsSection />);
+
+        // Click Clear to deselect all meal types
+        const clearButtons = screen.getAllByText(/Clear/i);
+        // First "Clear" is in the Meal Types section
+        fireEvent.click(clearButtons[0]);
+
+        // Meal count should be 0
+        const mealsLabel = screen.getByText('Meals', { selector: 'span' });
+        const mealsCard = mealsLabel.closest('div[class*="rounded-2xl"]')!;
+        expect(mealsCard.querySelector('.text-3xl')?.textContent).toBe('0');
+    });
+
+    it('meal type filter and location filter combine on Overview', () => {
+        render(<AnalyticsSection />);
+
+        const mealsLabel = screen.getByText('Meals', { selector: 'span' });
+        const mealsCard = mealsLabel.closest('div[class*="rounded-2xl"]')!;
+
+        // Default: 17 total (10 + 7)
+        expect(mealsCard.querySelector('.text-3xl')?.textContent).toBe('17');
+
+        // Filter to Mountain View (only g1 → Guest Meals: 10, RV: 0)
+        const locationSelect = screen.getAllByRole('combobox')[0];
+        fireEvent.change(locationSelect, { target: { value: 'Mountain View' } });
+
+        // Only g1's Guest Meals count: 10
+        expect(mealsCard.querySelector('.text-3xl')?.textContent).toBe('10');
+
+        // Deselect Guest Meals → 0 (RV belongs to g2 who is in Palo Alto)
+        fireEvent.click(screen.getByText('Guest Meals'));
+
+        expect(mealsCard.querySelector('.text-3xl')?.textContent).toBe('0');
+    });
+});

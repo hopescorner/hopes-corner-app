@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
@@ -53,6 +54,7 @@ export function MealsSection() {
     const [isPendingIndividual, setIsPendingIndividual] = useState(false);
     const [activityFilter, setActivityFilter] = useState<string>('all');
     const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+    const [isSavingAutoMealAdditions, setIsSavingAutoMealAdditions] = useState(false);
 
     // Multi-guest bulk add state
     const [bulkGuestSearch, setBulkGuestSearch] = useState('');
@@ -95,11 +97,41 @@ export function MealsSection() {
         addMealRecord: s.addMealRecord,
     })));
 
+    const {
+        autoMealAdditionsEnabled,
+        updateAutoMealAdditionsEnabled,
+        loadSettings,
+    } = useSettingsStore(useShallow((s) => ({
+        autoMealAdditionsEnabled: s.autoMealAdditionsEnabled,
+        updateAutoMealAdditionsEnabled: s.updateAutoMealAdditionsEnabled,
+        loadSettings: s.loadSettings,
+    })));
+
     const guests = useGuestsStore((s) => s.guests);
 
     useEffect(() => {
-        checkAndAddAutomaticMeals();
-    }, [checkAndAddAutomaticMeals]);
+        const initializeMealAutomation = async () => {
+            await loadSettings();
+            await checkAndAddAutomaticMeals();
+        };
+
+        void initializeMealAutomation();
+    }, [loadSettings, checkAndAddAutomaticMeals]);
+
+    const handleToggleAutoMealAdditions = async () => {
+        const nextValue = !autoMealAdditionsEnabled;
+        setIsSavingAutoMealAdditions(true);
+
+        try {
+            await updateAutoMealAdditionsEnabled(nextValue);
+            toast.success(nextValue ? 'Automatic RV and lunch bag additions resumed' : 'Automatic RV and lunch bag additions paused');
+        } catch (error) {
+            console.error('Failed to update meal automation setting:', error);
+            toast.error('Failed to update meal automation setting');
+        } finally {
+            setIsSavingAutoMealAdditions(false);
+        }
+    };
 
     const guestMap = useMemo(() => {
         const map = new Map<string, (typeof guests)[number]>();
@@ -513,7 +545,47 @@ export function MealsSection() {
         >
             {showAddPanel ? 'Close' : <><Plus size={14} /> Add Bulk Meals</>}
         </button>
-    </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-emerald-50 via-white to-sky-50 rounded-3xl border border-emerald-100 p-4 sm:p-5 shadow-sm">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700">Meal Automation</p>
+                        <h3 className="mt-1 text-base font-black text-gray-900">Automatic RV and lunch bag additions</h3>
+                        <p className="mt-1 text-xs text-gray-500 max-w-2xl">
+                            Turn this off to pause auto-added lunch bags on guest meal entry and scheduled RV or lunch bag bulk entries. Saturday day worker entries still run separately.
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3 self-start lg:self-center">
+                        <span className={cn(
+                            "text-[11px] font-black uppercase tracking-widest",
+                            autoMealAdditionsEnabled ? 'text-emerald-700' : 'text-amber-700'
+                        )}>
+                            {isSavingAutoMealAdditions ? 'Saving' : autoMealAdditionsEnabled ? 'Enabled' : 'Paused'}
+                        </span>
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={autoMealAdditionsEnabled}
+                            aria-label="Automatic RV and lunch bag additions"
+                            disabled={isSavingAutoMealAdditions}
+                            onClick={handleToggleAutoMealAdditions}
+                            className={cn(
+                                "relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors",
+                                isSavingAutoMealAdditions ? 'cursor-wait opacity-70' : 'cursor-pointer',
+                                autoMealAdditionsEnabled ? 'bg-emerald-500' : 'bg-amber-400'
+                            )}
+                        >
+                            <span
+                                className={cn(
+                                    "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
+                                    autoMealAdditionsEnabled ? 'translate-x-5' : 'translate-x-0'
+                                )}
+                            />
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             {/* Quick Add Panel */}
             <AnimatePresence>

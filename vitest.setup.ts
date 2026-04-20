@@ -1,6 +1,53 @@
 import "@testing-library/jest-dom";
 import React from "react";
 
+function createStorageMock() {
+  const store = new Map<string, string>();
+
+  return {
+    getItem: vi.fn((key: string) => (store.has(key) ? store.get(key)! : null)),
+    setItem: vi.fn((key: string, value: string) => {
+      store.set(String(key), String(value));
+    }),
+    removeItem: vi.fn((key: string) => {
+      store.delete(String(key));
+    }),
+    clear: vi.fn(() => {
+      store.clear();
+    }),
+    key: vi.fn((index: number) => Array.from(store.keys())[index] ?? null),
+    get length() {
+      return store.size;
+    },
+    reset: () => {
+      store.clear();
+    },
+  };
+}
+
+const localStorageMock = createStorageMock();
+const sessionStorageMock = createStorageMock();
+
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
+
+Object.defineProperty(window, 'localStorage', {
+  configurable: true,
+  value: localStorageMock,
+});
+
+Object.defineProperty(globalThis, 'sessionStorage', {
+  configurable: true,
+  value: sessionStorageMock,
+});
+
+Object.defineProperty(window, 'sessionStorage', {
+  configurable: true,
+  value: sessionStorageMock,
+});
+
 // Mock window.matchMedia for useReducedMotion and other media query hooks
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
@@ -163,4 +210,21 @@ beforeAll(() => {
 
 afterAll(() => {
   console.error = originalError;
+});
+
+beforeEach(() => {
+  localStorageMock.reset();
+  sessionStorageMock.reset();
+
+  localStorageMock.getItem.mockClear();
+  localStorageMock.setItem.mockClear();
+  localStorageMock.removeItem.mockClear();
+  localStorageMock.clear.mockClear();
+  localStorageMock.key.mockClear();
+
+  sessionStorageMock.getItem.mockClear();
+  sessionStorageMock.setItem.mockClear();
+  sessionStorageMock.removeItem.mockClear();
+  sessionStorageMock.clear.mockClear();
+  sessionStorageMock.key.mockClear();
 });

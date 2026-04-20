@@ -34,12 +34,14 @@ describe('useSettingsStore', () => {
         yearlyHolidays: 960,
         maxOnsiteLaundrySlots: 5,
     };
+    const DEFAULT_AUTO_MEAL_ADDITIONS_ENABLED = true;
 
     beforeEach(() => {
         vi.clearAllMocks();
         // Reset store to initial state
         useSettingsStore.setState({
             targets: { ...DEFAULT_TARGETS },
+            autoMealAdditionsEnabled: DEFAULT_AUTO_MEAL_ADDITIONS_ENABLED,
         });
 
         // Default mock implementations
@@ -51,7 +53,7 @@ describe('useSettingsStore', () => {
 
     describe('initial state', () => {
         it('has default targets', () => {
-            const { targets } = useSettingsStore.getState();
+            const { targets, autoMealAdditionsEnabled } = useSettingsStore.getState();
 
             expect(targets.monthlyMeals).toBe(1500);
             expect(targets.yearlyMeals).toBe(18000);
@@ -66,6 +68,7 @@ describe('useSettingsStore', () => {
             expect(targets.monthlyHolidays).toBe(80);
             expect(targets.yearlyHolidays).toBe(960);
             expect(targets.maxOnsiteLaundrySlots).toBe(5);
+            expect(autoMealAdditionsEnabled).toBe(true);
         });
     });
 
@@ -120,6 +123,37 @@ describe('useSettingsStore', () => {
         });
     });
 
+    describe('updateAutoMealAdditionsEnabled', () => {
+        it('updates and saves the meal automation toggle', async () => {
+            const { updateAutoMealAdditionsEnabled } = useSettingsStore.getState();
+
+            await updateAutoMealAdditionsEnabled(false);
+
+            expect(useSettingsStore.getState().autoMealAdditionsEnabled).toBe(false);
+            expect(mockUpsert).toHaveBeenCalledWith({
+                id: 'global',
+                auto_meal_additions_enabled: false,
+            });
+        });
+
+        it('reverts and throws when the toggle cannot be saved', async () => {
+            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
+            mockUpsert.mockResolvedValueOnce({ error: { message: 'Save failed' } });
+
+            const { updateAutoMealAdditionsEnabled } = useSettingsStore.getState();
+
+            await expect(updateAutoMealAdditionsEnabled(false)).rejects.toThrow('Unable to save meal automation setting');
+
+            expect(useSettingsStore.getState().autoMealAdditionsEnabled).toBe(true);
+            expect(consoleSpy).toHaveBeenCalledWith(
+                'Failed to save meal automation setting to Supabase:',
+                expect.any(Object)
+            );
+
+            consoleSpy.mockRestore();
+        });
+    });
+
     describe('loadSettings', () => {
         it('loads settings from Supabase', async () => {
             mockSingle.mockResolvedValueOnce({
@@ -129,6 +163,7 @@ describe('useSettingsStore', () => {
                         monthlyMeals: 3000,
                         yearlyMeals: 36000,
                     },
+                    auto_meal_additions_enabled: false,
                 },
                 error: null,
             });
@@ -139,6 +174,7 @@ describe('useSettingsStore', () => {
             const { targets } = useSettingsStore.getState();
             expect(targets.monthlyMeals).toBe(3000);
             expect(targets.yearlyMeals).toBe(36000);
+            expect(useSettingsStore.getState().autoMealAdditionsEnabled).toBe(false);
         });
 
         it('keeps default settings if no data returned', async () => {
@@ -149,6 +185,7 @@ describe('useSettingsStore', () => {
 
             const { targets } = useSettingsStore.getState();
             expect(targets.monthlyMeals).toBe(1500);
+            expect(useSettingsStore.getState().autoMealAdditionsEnabled).toBe(true);
         });
 
         it('keeps default settings if targets field is null', async () => {
@@ -159,6 +196,7 @@ describe('useSettingsStore', () => {
 
             const { targets } = useSettingsStore.getState();
             expect(targets.monthlyMeals).toBe(1500);
+            expect(useSettingsStore.getState().autoMealAdditionsEnabled).toBe(true);
         });
 
         it('handles PGRST116 error silently (no row found)', async () => {

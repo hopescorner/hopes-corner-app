@@ -28,6 +28,7 @@ import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useRemindersStore } from '@/stores/useRemindersStore';
 import { useWaiverStore } from '@/stores/useWaiverStore';
+import { useSettingsStore } from '@/stores/useSettingsStore';
 // The mock for next-auth/react is resolved via Vite alias in playwright-ct.config.ts
 // @ts-expect-error __setMockSession is exported by our mock, not the real next-auth/react
 import { __setMockSession } from 'next-auth/react';
@@ -423,6 +424,7 @@ interface MealsSectionStoryProps {
     preferredName?: string;
     name?: string;
   }>;
+  autoMealAdditionsEnabled?: boolean;
 }
 
 export function MealsSectionStory({
@@ -434,10 +436,19 @@ export function MealsSectionStory({
   unitedEffortMealRecords = [],
   lunchBagRecords = [],
   guests = [],
+  autoMealAdditionsEnabled = true,
 }: MealsSectionStoryProps) {
   // Use layout effect so the store is seeded before MealsSection's own useEffects run.
   // Otherwise CT will execute the real store actions (Supabase client creation) on mount.
   useLayoutEffect(() => {
+    useSettingsStore.setState({
+      autoMealAdditionsEnabled,
+      loadSettings: (async () => {}) as any,
+      updateAutoMealAdditionsEnabled: (async (enabled: boolean) => {
+        useSettingsStore.setState({ autoMealAdditionsEnabled: enabled });
+      }) as any,
+    });
+
     useMealsStore.setState({
       mealRecords: mealRecords as any,
       rvMealRecords: rvMealRecords as any,
@@ -469,6 +480,7 @@ export function MealsSectionStory({
     unitedEffortMealRecords,
     lunchBagRecords,
     guests,
+    autoMealAdditionsEnabled,
   ]);
 
   return <MealsSection />;

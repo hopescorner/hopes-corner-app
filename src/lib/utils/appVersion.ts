@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.22';
+export const APP_VERSION = '0.5.24';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,28 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.24',
+        date: 'April 19, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Pause Automatic Meal Entries',
+                description: 'Meals now includes a toggle to pause automatic RV and lunch bag entries while leaving Saturday day worker totals untouched.',
+            },
+        ],
+    },
+    {
+        version: '0.5.23',
+        date: 'April 18, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Analytics Filters Stay In Sync',
+                description: 'Analytics meal and demographic filters now stay visible and apply consistently across Overview, Trends, and Demographics.',
+            },
+        ],
+    },
     {
         version: '0.5.22',
         date: 'April 2, 2026',

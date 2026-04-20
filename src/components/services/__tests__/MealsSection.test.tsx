@@ -15,6 +15,9 @@ vi.mock('next-auth/react', () => ({
 
 const mockDeleteBulkMealRecord = vi.fn().mockResolvedValue(true);
 const mockAddMealRecord = vi.fn().mockResolvedValue({ id: 'meal-new' });
+const mockUpdateAutoMealAdditionsEnabled = vi.fn().mockResolvedValue(undefined);
+const mockLoadSettings = vi.fn().mockResolvedValue(undefined);
+let mockAutoMealAdditionsEnabled = true;
 
 vi.mock('@/stores/useMealsStore', () => ({
     useMealsStore: vi.fn((selector) => {
@@ -60,6 +63,17 @@ vi.mock('@/stores/useGuestsStore', () => ({
     }),
 }));
 
+vi.mock('@/stores/useSettingsStore', () => ({
+    useSettingsStore: vi.fn((selector) => {
+        const state = {
+            autoMealAdditionsEnabled: mockAutoMealAdditionsEnabled,
+            updateAutoMealAdditionsEnabled: mockUpdateAutoMealAdditionsEnabled,
+            loadSettings: mockLoadSettings,
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
+}));
+
 vi.mock('@/lib/utils/date', () => ({
     todayPacificDateString: () => '2026-01-08',
     pacificDateStringFrom: (date: string) => date ? date.slice(0, 10) : null,
@@ -70,6 +84,9 @@ vi.mock('@/lib/utils/date', () => ({
 describe('MealsSection Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockAutoMealAdditionsEnabled = true;
+        mockUpdateAutoMealAdditionsEnabled.mockResolvedValue(undefined);
+        mockLoadSettings.mockResolvedValue(undefined);
     });
 
     describe('Rendering', () => {
@@ -83,6 +100,24 @@ describe('MealsSection Component', () => {
             render(<MealsSection />);
             const buttons = screen.getAllByRole('button');
             expect(buttons.length).toBeGreaterThan(0);
+        });
+
+        it('renders the meal automation switch', () => {
+            render(<MealsSection />);
+
+            expect(screen.getByRole('switch', { name: 'Automatic RV and lunch bag additions' })).toBeDefined();
+            expect(screen.getByText('Meal Automation')).toBeDefined();
+        });
+    });
+
+    describe('Meal Automation Toggle', () => {
+        it('calls settings store when pausing automatic RV and lunch bag additions', async () => {
+            const user = userEvent.setup();
+            render(<MealsSection />);
+
+            await user.click(screen.getByRole('switch', { name: 'Automatic RV and lunch bag additions' }));
+
+            expect(mockUpdateAutoMealAdditionsEnabled).toHaveBeenCalledWith(false);
         });
     });
 
