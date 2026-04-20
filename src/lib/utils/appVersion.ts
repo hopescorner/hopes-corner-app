@@ -39,6 +39,11 @@ export const CHANGELOG: ChangelogEntry[] = [
                 title: 'Day Worker Added to Meal Automation Pause',
                 description: 'The meal automation pause/resume toggle now also controls Saturday day worker automatic meal entries alongside RV and lunch bags.',
             },
+            {
+                type: 'performance',
+                title: 'Faster Dashboard Reports',
+                description: 'Dashboard report tabs now reuse prebuilt month summaries, so the monthly report, meal report, and summary views open much faster after the dashboard finishes loading data.',
+            },
         ],
     },
     {

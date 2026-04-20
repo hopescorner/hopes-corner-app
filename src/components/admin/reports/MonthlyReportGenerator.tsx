@@ -22,7 +22,7 @@ import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { cn } from '@/lib/utils/cn';
-import { parsePacificDateParts } from '@/lib/utils/date';
+import { getMonthlyReportData } from '@/lib/utils/dashboardReportCache';
 
 // Types
 interface MonthOption {
@@ -130,224 +130,6 @@ export default function MonthlyReportGenerator() {
 
     const monthOptions = useMemo(() => generateMonthOptions(), []);
 
-    // Helper: Check if a date string falls within a date range
-    const isDateInRange = useCallback((dateStr: string, startDate: Date, endDate: Date): boolean => {
-        if (!dateStr) return false;
-        const date = new Date(dateStr);
-        return date >= startDate && date <= endDate;
-    }, []);
-
-    // Helper: Get start and end dates for a month
-    const getMonthRange = useCallback((year: number, month: number): { start: Date; end: Date } => {
-        const start = new Date(year, month, 1, 0, 0, 0, 0);
-        const end = new Date(year, month + 1, 0, 23, 59, 59, 999);
-        return { start, end };
-    }, []);
-
-    // Helper: Get YTD range (Jan 1 through end of selected month)
-    const getYtdRange = useCallback((year: number, month: number): { start: Date; end: Date } => {
-        const start = new Date(year, 0, 1, 0, 0, 0, 0);
-        const end = new Date(year, month + 1, 0, 23, 59, 59, 999);
-        return { start, end };
-    }, []);
-
-    // Calculate service statistics for a date range
-    const calculateServiceStats = useCallback((startDate: Date, endDate: Date): ServiceStats => {
-        // Helper to check if a record's date falls within the range.
-        // Uses parsePacificDateParts to correctly handle ISO timestamps — avoids
-        // day-shifting bugs where new Date("2026-01-01") is interpreted as UTC midnight.
-        const inRange = (dateStr: string | null | undefined) => {
-            if (!dateStr) return false;
-            const parts = parsePacificDateParts(dateStr);
-            if (!parts) return false;
-            // Reconstruct a local Date at noon from Pacific date parts for comparison
-            // against the local-time start/end boundaries.
-            const pacificDate = new Date(parts.year, parts.month, parts.day, 12, 0, 0, 0);
-            return pacificDate >= startDate && pacificDate <= endDate;
-        };
-
-        const haircutDateInRange = (record: any) => {
-            const dateValue = record?.serviceDate || record?.dateKey || record?.date;
-            return inRange(dateValue);
-        };
-
-        // Meals - filter by date field and sum counts
-        const guestMeals = (mealRecords || []).filter(r => inRange(r.date)).reduce((sum, r) => sum + (r.count || 0), 0);
-        const extraMeals = (extraMealRecords || []).filter(r => inRange(r.date)).reduce((sum, r) => sum + (r.count || 0), 0);
-        const rvMeals = (rvMealRecords || []).filter(r => inRange(r.date)).reduce((sum, r) => sum + (r.count || 0), 0);
-        const dayWorkerMeals = (dayWorkerMealRecords || []).filter(r => inRange(r.date)).reduce((sum, r) => sum + (r.count || 0), 0);
-        const lunchBags = (lunchBagRecords || []).filter(r => inRange(r.date)).reduce((sum, r) => sum + (r.count || 0), 0);
-        const shelterMeals = (shelterMealRecords || []).filter(r => inRange(r.date)).reduce((sum, r) => sum + (r.count || 0), 0);
-        const unitedEffortMeals = (unitedEffortMealRecords || []).filter(r => inRange(r.date)).reduce((sum, r) => sum + (r.count || 0), 0);
-
-        const onsiteHotMeals = guestMeals + extraMeals;
-        const totalMeals = onsiteHotMeals + rvMeals + dayWorkerMeals + lunchBags + shelterMeals + unitedEffortMeals;
-
-        // Showers - status = 'done'
-        const completedShowers = (showerRecords || [])
-            .filter(r => inRange(r.date) && r.status === 'done').length;
-
-        // Laundry - status = 'done', 'picked_up', or 'offsite_picked_up'
-        const completedLaundry = (laundryRecords || [])
-            .filter(r => inRange(r.date) && ['done', 'picked_up', 'offsite_picked_up'].includes(r.status)).length;
-
-        // Bicycles - status = 'done' or 'in_progress', exclude "New Bicycle" gifts
-        const relevantBicycles = (bicycleRecords || [])
-            .filter(r => inRange(r.date) && ['done', 'in_progress'].includes(r.status));
-
-        const bikeService = relevantBicycles.filter(r => {
-            const types = r.repairTypes || [];
-            return !types.includes('New Bicycle');
-        }).length;
-
-        const newBicycles = relevantBicycles.filter(r => {
-            const types = r.repairTypes || [];
-            return types.includes('New Bicycle');
-        }).length;
-
-        // Haircuts
-        const haircuts = (haircutRecords || []).filter(r => haircutDateInRange(r)).length;
-
-        return {
-            totalMeals,
-            onsiteHotMeals,
-            bagLunch: lunchBags,
-            rvMeals,
-            shelter: shelterMeals,
-            rvSafePark: rvMeals + shelterMeals,
-            dayWorker: dayWorkerMeals,
-            showers: completedShowers,
-            laundry: completedLaundry,
-            bikeService,
-            newBicycles,
-            haircuts,
-        };
-    }, [
-        mealRecords, extraMealRecords, rvMealRecords, dayWorkerMealRecords,
-        lunchBagRecords, shelterMealRecords, unitedEffortMealRecords,
-        showerRecords, laundryRecords, bicycleRecords, haircutRecords
-    ]);
-
-    // Get guests who received meals in a date range
-    const getActiveGuestIds = useCallback((startDate: Date, endDate: Date): Set<string> => {
-        const guestIds = new Set<string>();
-
-        // Helper to check if date is in range
-        const inRange = (dateStr: string | null | undefined) => {
-            if (!dateStr) return false;
-            const date = new Date(dateStr);
-            return date >= startDate && date <= endDate;
-        };
-
-        // Only count guests who received meals (per requirements)
-        const allMealRecords = [
-            ...(mealRecords || []).filter(r => inRange(r.date)),
-            ...(extraMealRecords || []).filter(r => inRange(r.date)),
-            ...(rvMealRecords || []).filter(r => inRange(r.date)),
-            ...(dayWorkerMealRecords || []).filter(r => inRange(r.date)),
-            ...(lunchBagRecords || []).filter(r => inRange(r.date)),
-            ...(shelterMealRecords || []).filter(r => inRange(r.date)),
-            ...(unitedEffortMealRecords || []).filter(r => inRange(r.date)),
-        ];
-
-        allMealRecords.forEach(record => {
-            if (record.guestId) guestIds.add(record.guestId);
-        });
-
-        return guestIds;
-    }, [mealRecords, extraMealRecords, rvMealRecords, dayWorkerMealRecords, lunchBagRecords, shelterMealRecords, unitedEffortMealRecords]);
-
-    // Calculate demographics for active guests
-    const calculateDemographics = useCallback((activeGuestIds: Set<string>) => {
-        const activeGuests = guests.filter(g => activeGuestIds.has(g.id));
-        const total = activeGuests.length;
-
-        if (total === 0) {
-            return {
-                housingBreakdown: [],
-                topLocations: [],
-                ageBreakdown: [],
-            };
-        }
-
-        // Housing Status Breakdown
-        const housingCounts: Record<string, number> = {
-            'Unhoused': 0,
-            'Housed': 0,
-            'Temp. shelter': 0,
-            'RV or vehicle': 0,
-        };
-
-        activeGuests.forEach(guest => {
-            const status = guest.housingStatus || 'Unhoused';
-            if (status in housingCounts) {
-                housingCounts[status]++;
-            } else {
-                housingCounts['Unhoused']++;
-            }
-        });
-
-        const housingBreakdown: DemographicBreakdown[] = Object.entries(housingCounts)
-            .filter(([, count]) => count > 0)
-            .map(([label, count]) => ({
-                label,
-                count,
-                percentage: (count / total) * 100,
-            }))
-            .sort((a, b) => b.count - a.count);
-
-        // Top 5 Locations
-        const locationCounts: Record<string, number> = {};
-        activeGuests.forEach(guest => {
-            const location = guest.location || 'Unknown';
-            locationCounts[location] = (locationCounts[location] || 0) + 1;
-        });
-
-        const topLocations: DemographicBreakdown[] = Object.entries(locationCounts)
-            .map(([label, count]) => ({
-                label,
-                count,
-                percentage: (count / total) * 100,
-            }))
-            .sort((a, b) => b.count - a.count)
-            .slice(0, 5);
-
-        // Age Group Breakdown
-        const ageCounts: Record<string, number> = {
-            'Adult 18-59': 0,
-            'Senior 60+': 0,
-            'Child 0-17': 0,
-        };
-
-        activeGuests.forEach(guest => {
-            const age = guest.age || 'Adult 18-59';
-            if (age.includes('Adult')) {
-                ageCounts['Adult 18-59']++;
-            } else if (age.includes('Senior')) {
-                ageCounts['Senior 60+']++;
-            } else if (age.includes('Child')) {
-                ageCounts['Child 0-17']++;
-            } else {
-                ageCounts['Adult 18-59']++;
-            }
-        });
-
-        const ageBreakdown: DemographicBreakdown[] = Object.entries(ageCounts)
-            .filter(([, count]) => count > 0)
-            .map(([label, count]) => ({
-                label,
-                count,
-                percentage: (count / total) * 100,
-            }))
-            .sort((a, b) => b.count - a.count);
-
-        return {
-            housingBreakdown,
-            topLocations,
-            ageBreakdown,
-        };
-    }, [guests]);
-
     // Generate Report
     const handleGenerateReport = useCallback(async () => {
         setIsGenerating(true);
@@ -359,35 +141,22 @@ export default function MonthlyReportGenerator() {
                 throw new Error('Invalid month selected');
             }
 
-            const { year, month, label } = selectedOption;
+            const { year, month } = selectedOption;
 
-            // Calculate date ranges
-            const { start: monthStart, end: monthEnd } = getMonthRange(year, month);
-            const { start: ytdStart, end: ytdEnd } = getYtdRange(year, month);
-
-            // Calculate stats
-            const monthStats = calculateServiceStats(monthStart, monthEnd);
-            const ytdStats = calculateServiceStats(ytdStart, ytdEnd);
-
-            // Get active guests (those who received meals in the selected month)
-            const activeGuestIds = getActiveGuestIds(monthStart, monthEnd);
-
-            // Calculate demographics
-            const { housingBreakdown, topLocations, ageBreakdown } = calculateDemographics(activeGuestIds);
-
-            const reportData: ReportData = {
-                month: MONTH_NAMES[month],
-                year,
-                monthStats,
-                ytdStats,
-                housingBreakdown,
-                topLocations,
-                ageBreakdown,
-                totalActiveGuests: activeGuestIds.size,
-                generatedAt: new Date().toISOString(),
-            };
-
-            setReportData(reportData);
+            setReportData(getMonthlyReportData({
+                mealRecords,
+                extraMealRecords,
+                rvMealRecords,
+                dayWorkerMealRecords,
+                lunchBagRecords,
+                shelterMealRecords,
+                unitedEffortMealRecords,
+                showerRecords,
+                laundryRecords,
+                bicycleRecords,
+                haircutRecords,
+                guests,
+            }, year, month));
             toast.success('Report generated successfully!');
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Failed to generate report';
@@ -396,7 +165,22 @@ export default function MonthlyReportGenerator() {
         } finally {
             setIsGenerating(false);
         }
-    }, [selectedMonth, monthOptions, getMonthRange, getYtdRange, calculateServiceStats, getActiveGuestIds, calculateDemographics]);
+    }, [
+        bicycleRecords,
+        dayWorkerMealRecords,
+        extraMealRecords,
+        guests,
+        haircutRecords,
+        laundryRecords,
+        lunchBagRecords,
+        mealRecords,
+        monthOptions,
+        rvMealRecords,
+        selectedMonth,
+        shelterMealRecords,
+        showerRecords,
+        unitedEffortMealRecords,
+    ]);
 
     // Handle month change
     const handleMonthChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
