@@ -25,13 +25,22 @@ const getOperationalSince = () => {
     return d.toISOString();
 };
 
-const autoMealAdditionsEnabled = () => useSettingsStore.getState().autoMealAdditionsEnabled;
+const resolveAutoMealAdditionsEnabled = async () => {
+    const settingsStore = useSettingsStore.getState();
+    const loaded = await settingsStore.ensureSettingsLoaded();
 
-const shouldAutoAddLunchBagsForDate = (serviceDate: string) => {
+    if (!loaded) {
+        return false;
+    }
+
+    return useSettingsStore.getState().autoMealAdditionsEnabled;
+};
+
+const shouldAutoAddLunchBagsForDate = async (serviceDate: string) => {
     const dateParts = parsePacificDateParts(serviceDate);
     const isFriday = dateParts?.dayOfWeek === 5;
 
-    return autoMealAdditionsEnabled() && !isFriday;
+    return !isFriday && await resolveAutoMealAdditionsEnabled();
 };
 
 export interface MealRecord {
@@ -207,7 +216,7 @@ export const useMealsStore = create<MealsState>()(
                                 }
                             });
 
-                            if (shouldAutoAddLunchBagsForDate(targetDate)) {
+                            if (await shouldAutoAddLunchBagsForDate(targetDate)) {
                                 try {
                                     await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
                                     if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
@@ -245,7 +254,7 @@ export const useMealsStore = create<MealsState>()(
                             state.mealRecords.push(mapped);
                         });
 
-                        if (shouldAutoAddLunchBagsForDate(targetDate)) {
+                        if (await shouldAutoAddLunchBagsForDate(targetDate)) {
                             try {
                                 await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
                                 // If proxy pickup, add another? Logic from old app:
@@ -631,7 +640,7 @@ export const useMealsStore = create<MealsState>()(
                         const today = new Date();
                         const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                         const todayStr = todayPacificDateString();
-                        const automaticSupportMealsEnabled = autoMealAdditionsEnabled();
+                        const automaticSupportMealsEnabled = await resolveAutoMealAdditionsEnabled();
                         const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords, addBulkMealRecord } = get();
 
                         const todaysRv = rvMealRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
