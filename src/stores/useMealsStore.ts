@@ -663,7 +663,9 @@ export const useMealsStore = create<MealsState>()(
                             if (automaticSupportMealsEnabled && todaysRv.length === 0) {
                                 await addBulkMealRecord('rv', 100, 'Automatic Entry (Sat)', `rv_${todayStr}`);
                             }
-                            if (todaysDayWorker.length === 0) await addBulkMealRecord('day_worker', 50, 'Automatic Entry (Sat)', `day_worker_${todayStr}`);
+                            if (automaticSupportMealsEnabled && todaysDayWorker.length === 0) {
+                                await addBulkMealRecord('day_worker', 50, 'Automatic Entry (Sat)', `day_worker_${todayStr}`);
+                            }
                         }
                     },
 

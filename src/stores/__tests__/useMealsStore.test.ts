@@ -269,7 +269,7 @@ describe('useMealsStore', () => {
                 expect(dayWorkerMealRecords[0].count).toBe(50);
             });
 
-            it('keeps Saturday day worker automation while RV and lunch bag automation is paused', async () => {
+            it('skips Saturday day worker automation when meal automation is paused', async () => {
                 vi.useFakeTimers();
                 const saturday = new Date('2025-01-11T12:00:00Z');
                 vi.setSystemTime(saturday);
@@ -277,18 +277,12 @@ describe('useMealsStore', () => {
                 vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-11');
                 useSettingsStore.setState({ autoMealAdditionsEnabled: false });
 
-                mockSupabase.single.mockResolvedValueOnce({
-                    data: { id: 'dw-sat', quantity: 50, meal_type: 'day_worker', served_on: '2025-01-11' },
-                    error: null,
-                });
-
                 await useMealsStore.getState().checkAndAddAutomaticMeals();
 
                 const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords } = useMealsStore.getState();
                 expect(lunchBagRecords).toHaveLength(0);
                 expect(rvMealRecords).toHaveLength(0);
-                expect(dayWorkerMealRecords).toHaveLength(1);
-                expect(dayWorkerMealRecords[0].count).toBe(50);
+                expect(dayWorkerMealRecords).toHaveLength(0);
             });
 
             // Proxy / Deduplication Logic
