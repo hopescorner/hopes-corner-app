@@ -7,6 +7,7 @@ const {
     unmounts,
     dynamicComponentNames,
     dynamicState,
+    warmDashboardReportCache,
 } = vi.hoisted(() => ({
     mounts: {} as Record<string, number>,
     unmounts: {} as Record<string, number>,
@@ -18,6 +19,7 @@ const {
         'MonthlyReportGenerator',
     ],
     dynamicState: { index: 0 },
+    warmDashboardReportCache: vi.fn(),
 }));
 
 vi.mock('next/dynamic', () => ({
@@ -53,23 +55,63 @@ const ensureMealsLoaded = vi.fn(async () => undefined);
 const ensureServicesLoaded = vi.fn(async () => undefined);
 const ensureGuestsLoaded = vi.fn(async () => undefined);
 
+const mealStoreState = {
+    mealRecords: [],
+    extraMealRecords: [],
+    rvMealRecords: [],
+    dayWorkerMealRecords: [],
+    shelterMealRecords: [],
+    unitedEffortMealRecords: [],
+    lunchBagRecords: [],
+};
+
+const serviceStoreState = {
+    showerRecords: [],
+    laundryRecords: [],
+    bicycleRecords: [],
+    haircutRecords: [],
+};
+
+const guestsStoreState = {
+    guests: [],
+};
+
 vi.mock('@/stores/useSettingsStore', () => ({
     useSettingsStore: () => ({ loadSettings }),
 }));
 
 vi.mock('@/stores/useMealsStore', () => ({
-    useMealsStore: (selector: (state: { ensureLoaded: typeof ensureMealsLoaded }) => unknown) =>
-        selector({ ensureLoaded: ensureMealsLoaded }),
+    useMealsStore: Object.assign(
+        (selector: (state: { ensureLoaded: typeof ensureMealsLoaded }) => unknown) =>
+            selector({ ensureLoaded: ensureMealsLoaded }),
+        {
+            getState: () => mealStoreState,
+        },
+    ),
 }));
 
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: (selector: (state: { ensureLoaded: typeof ensureServicesLoaded }) => unknown) =>
-        selector({ ensureLoaded: ensureServicesLoaded }),
+    useServicesStore: Object.assign(
+        (selector: (state: { ensureLoaded: typeof ensureServicesLoaded }) => unknown) =>
+            selector({ ensureLoaded: ensureServicesLoaded }),
+        {
+            getState: () => serviceStoreState,
+        },
+    ),
 }));
 
 vi.mock('@/stores/useGuestsStore', () => ({
-    useGuestsStore: (selector: (state: { ensureLoaded: typeof ensureGuestsLoaded }) => unknown) =>
-        selector({ ensureLoaded: ensureGuestsLoaded }),
+    useGuestsStore: Object.assign(
+        (selector: (state: { ensureLoaded: typeof ensureGuestsLoaded }) => unknown) =>
+            selector({ ensureLoaded: ensureGuestsLoaded }),
+        {
+            getState: () => guestsStoreState,
+        },
+    ),
+}));
+
+vi.mock('@/lib/utils/dashboardReportCache', () => ({
+    warmDashboardReportCache,
 }));
 
 import DashboardPage from '../(protected)/dashboard/page';
@@ -82,6 +124,7 @@ describe('Dashboard tab switching performance', () => {
         ensureMealsLoaded.mockClear();
         ensureServicesLoaded.mockClear();
         ensureGuestsLoaded.mockClear();
+        warmDashboardReportCache.mockClear();
     });
 
     it('keeps previously opened report tabs mounted when switching between report views', async () => {
@@ -103,5 +146,11 @@ describe('Dashboard tab switching performance', () => {
         expect(unmounts.MonthlyReportGenerator ?? 0).toBe(0);
         expect(mounts.MealReport).toBe(1);
         expect(unmounts.MealReport ?? 0).toBe(0);
+    });
+
+    it('warms the report cache while preloading report years', async () => {
+        render(<DashboardPage />);
+
+        await waitFor(() => expect(warmDashboardReportCache).toHaveBeenCalledTimes(1));
     });
 });

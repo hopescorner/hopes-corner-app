@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.24';
+export const APP_VERSION = '0.5.25';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.25',
+        date: 'April 20, 2026',
+        highlights: [
+            {
+                type: 'performance',
+                title: 'Faster Dashboard Reports',
+                description: 'Dashboard report tabs now reuse prebuilt month summaries, so the monthly report, meal report, and summary views open much faster after the dashboard finishes loading data.',
+            },
+        ],
+    },
     {
         version: '0.5.24',
         date: 'April 19, 2026',

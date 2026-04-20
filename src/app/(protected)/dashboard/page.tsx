@@ -17,6 +17,7 @@ import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { cn } from '@/lib/utils/cn';
+import { warmDashboardReportCache } from '@/lib/utils/dashboardReportCache';
 import { useCallback, useRef } from 'react';
 
 const TabSkeleton = () => (
@@ -91,8 +92,17 @@ export default function DashboardPage() {
             await Promise.all([
                 ensureMealsLoaded({ force: true, since }),
                 ensureServicesLoaded({ force: true, since }),
+                ensureGuestsLoaded(),
                 preloadReportModules(),
             ]);
+            const mealsState = typeof useMealsStore.getState === 'function' ? useMealsStore.getState() : {};
+            const servicesState = typeof useServicesStore.getState === 'function' ? useServicesStore.getState() : {};
+            const guestsState = typeof useGuestsStore.getState === 'function' ? useGuestsStore.getState() : { guests: [] };
+            warmDashboardReportCache({
+                ...mealsState,
+                ...servicesState,
+                guests: guestsState.guests,
+            });
             setLoadedReportYears((prev) => {
                 const next = new Set(prev);
                 next.add(year);
@@ -102,7 +112,7 @@ export default function DashboardPage() {
             preloadingYearRef.current = null;
             setIsPreparingReports(false);
         }
-    }, [ensureMealsLoaded, ensureServicesLoaded, loadedReportYears, preloadReportModules]);
+    }, [ensureGuestsLoaded, ensureMealsLoaded, ensureServicesLoaded, loadedReportYears, preloadReportModules]);
 
     useEffect(() => {
         loadSettings();

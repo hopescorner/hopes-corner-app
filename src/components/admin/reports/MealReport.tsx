@@ -30,10 +30,11 @@ import {
 import toast from "react-hot-toast";
 import { useMealsStore } from "@/stores/useMealsStore";
 import { useGuestsStore } from "@/stores/useGuestsStore";
-import { todayPacificDateString, parsePacificDateParts } from "@/lib/utils/date";
+import { useServicesStore } from "@/stores/useServicesStore";
 import { exportToCSV } from "@/lib/utils/csv";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { getMealReportData } from "@/lib/utils/dashboardReportCache";
 
 const DAYS_OF_WEEK = [
     { value: 1, label: "Monday", short: "Mon" },
@@ -98,6 +99,7 @@ export const MealReport = () => {
         extraMealRecords, dayWorkerMealRecords, lunchBagRecords
     } = useMealsStore();
     const { guests } = useGuestsStore();
+    const { showerRecords, laundryRecords, bicycleRecords, haircutRecords } = useServicesStore.getState();
     const chartRef = useRef<HTMLDivElement>(null);
 
     const currentDate = new Date();
@@ -151,121 +153,46 @@ export const MealReport = () => {
 
     const isCurrentMonth = selectedYear === currentDate.getFullYear() && selectedMonth === currentDate.getMonth();
 
-    // Core Calculation
     const calculateMealData = useMemo(() => {
-        const results = [];
-        const monthNames = months;
-
-        for (let monthOffset = 0; monthOffset <= comparisonMonths; monthOffset++) {
-            const targetDate = new Date(selectedYear, selectedMonth - monthOffset);
-            const targetYear = targetDate.getFullYear();
-            const targetMonth = targetDate.getMonth();
-            const monthLabel = `${monthNames[targetMonth]} ${targetYear}`;
-
-            const daysInMonth = new Date(targetYear, targetMonth + 1, 0).getDate();
-            const isCurrentMonth = monthOffset === 0;
-            const now = new Date();
-            // For the current month, only count service days up to today
-            const lastCountableDay = isCurrentMonth
-                ? Math.min(daysInMonth, now.getDate())
-                : daysInMonth;
-            let validDaysCount = 0;
-
-            for (let day = 1; day <= lastCountableDay; day++) {
-                const date = new Date(targetYear, targetMonth, day);
-                if (selectedDays.includes(date.getDay())) validDaysCount++;
-            }
-
-            // Filter onsite meal types by service-day selection
-            const filterRecordsByDayAndMonth = (records: any[]) => {
-                return records.filter((record) => {
-                    const parts = parsePacificDateParts(record.date);
-                    if (!parts) return false;
-                    return parts.year === targetYear && parts.month === targetMonth && selectedDays.includes(parts.dayOfWeek);
-                });
-            };
-
-            // Bulk/partner types (RV, Day Worker, Shelter, United Effort, Lunch Bags)
-            // operate on their own delivery schedules - filter by month only, not by
-            // onsite service days, so Thursday RV deliveries etc. are never dropped.
-            const filterRecordsByMonthOnly = (records: any[]) => {
-                return records.filter((record) => {
-                    const parts = parsePacificDateParts(record.date);
-                    if (!parts) return false;
-                    return parts.year === targetYear && parts.month === targetMonth;
-                });
-            };
-
-            const sumCounts = (records: any[]) =>
-                records.reduce((sum, r) => sum + (r.count || r.quantity || 0), 0);
-
-            // Onsite types: apply day-of-week filter
-            const monthMeals = mealTypeFilters.guest ? filterRecordsByDayAndMonth(mealRecords) : [];
-            const monthExtraMeals = mealTypeFilters.extras ? filterRecordsByDayAndMonth(extraMealRecords) : [];
-            // Bulk/partner types: all days in month
-            const monthRvMeals = mealTypeFilters.rv ? filterRecordsByMonthOnly(rvMealRecords) : [];
-            const monthDayWorkerMeals = mealTypeFilters.dayWorker ? filterRecordsByMonthOnly(dayWorkerMealRecords) : [];
-            const monthShelterMeals = mealTypeFilters.shelter ? filterRecordsByMonthOnly(shelterMealRecords) : [];
-            const monthUnitedEffortMeals = mealTypeFilters.unitedEffort ? filterRecordsByMonthOnly(unitedEffortMealRecords) : [];
-            const monthLunchBags = mealTypeFilters.lunchBags ? filterRecordsByMonthOnly(lunchBagRecords) : [];
-
-            const guestMealsCount = sumCounts(monthMeals);
-            const extraMealsCount = sumCounts(monthExtraMeals);
-            const rvMealsCount = sumCounts(monthRvMeals);
-            const dayWorkerMealsCount = sumCounts(monthDayWorkerMeals);
-            const shelterMealsCount = sumCounts(monthShelterMeals);
-            const unitedEffortMealsCount = sumCounts(monthUnitedEffortMeals);
-            const lunchBagsCount = sumCounts(monthLunchBags);
-
-            const allRecords = [
-                ...monthMeals, ...monthRvMeals, ...monthShelterMeals, ...monthUnitedEffortMeals,
-                ...monthExtraMeals, ...monthDayWorkerMeals, ...monthLunchBags,
-            ];
-
-            const uniqueGuestIds = new Set(allRecords.map((r) => r.guestId).filter(Boolean));
-
-            // Age Groups
-            const ageGroups: Record<string, number> = {
-                "Adult 18-59": 0, "Child 0-17": 0, "Senior 60+": 0, Unknown: 0,
-            };
-
-            uniqueGuestIds.forEach((guestId) => {
-                const guest = guests.find(
-                    (g) => String(g.id) === String(guestId) || g.guestId === guestId
-                );
-                const age = guest?.age || (guest as any)?.ageGroup || (guest as any)?.age_group;
-
-                if (age) {
-                    if (age.includes('Adult')) ageGroups["Adult 18-59"]++;
-                    else if (age.includes('Child')) ageGroups["Child 0-17"]++;
-                    else if (age.includes('Senior')) ageGroups["Senior 60+"]++;
-                    else ageGroups.Unknown++;
-                } else {
-                    ageGroups.Unknown++;
-                }
-            });
-
-            const totalMealsServed =
-                guestMealsCount + extraMealsCount + rvMealsCount + dayWorkerMealsCount +
-                shelterMealsCount + unitedEffortMealsCount + lunchBagsCount;
-
-            const uniqueGuestsPerServiceDay = validDaysCount ? uniqueGuestIds.size / validDaysCount : uniqueGuestIds.size;
-
-            results.push({
-                month: monthLabel, year: targetYear, monthIndex: targetMonth,
-                guestMeals: guestMealsCount, extras: extraMealsCount, rvMeals: rvMealsCount,
-                dayWorkerMeals: dayWorkerMealsCount, shelterMeals: shelterMealsCount,
-                unitedEffortMeals: unitedEffortMealsCount, lunchBags: lunchBagsCount,
-                totalMeals: totalMealsServed, uniqueGuestsPerServiceDay,
-                uniqueGuests: uniqueGuestIds.size, validDaysCount, isCurrentMonth: monthOffset === 0,
-                ageGroups,
-            });
-        }
-
-        return results.reverse();
-    }, [selectedYear, selectedMonth, selectedDays, comparisonMonths, mealRecords, rvMealRecords,
-        shelterMealRecords, unitedEffortMealRecords, extraMealRecords, dayWorkerMealRecords,
-        lunchBagRecords, mealTypeFilters, months, guests]);
+        return getMealReportData({
+            mealRecords,
+            extraMealRecords,
+            rvMealRecords,
+            dayWorkerMealRecords,
+            shelterMealRecords,
+            unitedEffortMealRecords,
+            lunchBagRecords,
+            showerRecords,
+            laundryRecords,
+            bicycleRecords,
+            haircutRecords,
+            guests,
+        }, {
+            selectedYear,
+            selectedMonth,
+            comparisonMonths,
+            selectedDays,
+            mealTypeFilters,
+        });
+    }, [
+        bicycleRecords,
+        comparisonMonths,
+        dayWorkerMealRecords,
+        extraMealRecords,
+        guests,
+        haircutRecords,
+        laundryRecords,
+        lunchBagRecords,
+        mealRecords,
+        mealTypeFilters,
+        rvMealRecords,
+        selectedDays,
+        selectedMonth,
+        selectedYear,
+        shelterMealRecords,
+        showerRecords,
+        unitedEffortMealRecords,
+    ]);
 
     const currentMonthData = useMemo(() => {
         if (!calculateMealData.length) return null;
