@@ -33,7 +33,7 @@ test.describe('MealsSection', () => {
     const component = await mount(<MealsSectionStory autoMealAdditionsEnabled={false} />);
 
     await expect(component.getByText('Meal Automation')).toBeVisible();
-    await expect(component.getByRole('switch', { name: 'Automatic RV and lunch bag additions' })).toHaveAttribute('aria-checked', 'false');
+    await expect(component.getByRole('switch', { name: 'Automatic RV, lunch bag, and day worker additions' })).toHaveAttribute('aria-checked', 'false');
     await expect(component.getByText('Paused')).toBeVisible();
   });
 
