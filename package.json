@@ -1,12 +1,13 @@
 {
   "name": "hopes-corner-nextjs",
-  "version": "0.5.25",
+  "version": "0.5.26",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "version:check": "node scripts/releaseVersion.mjs check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
