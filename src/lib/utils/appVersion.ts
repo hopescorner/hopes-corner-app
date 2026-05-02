@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.28';
+export const APP_VERSION = '0.5.29';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.29',
+        date: 'May 2, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Guest Last Visit Date on Cards',
+                description: 'Guest cards now show the most recent visit date using meals and service records, giving staff quick context about when someone was last seen.',
+            },
+            {
+                type: 'improvement',
+                title: 'Shared Last-Visit Selector Coverage',
+                description: 'The app now uses a shared selector to calculate last-visit dates across meals, showers, laundry, bicycles, haircuts, and holiday visits with test coverage for each source.',
+            },
+        ],
+    },
     {
         version: '0.5.28',
         date: 'May 2, 2026',

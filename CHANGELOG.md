@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.29] - 2026-05-02
+
+### Added
+
+- Guest cards now show a "Last visit" badge so staff can quickly see when someone was most recently seen.
+- The last-visit date is computed across meals, showers, laundry, bicycles, haircuts, and holiday visits, so it reflects the guest's most recent activity anywhere in the app.
+- Added selector tests covering each record source and the shared most-recent-date logic.
+
 ## [0.5.28] - 2026-05-02
 
 ### Performance
