@@ -129,7 +129,6 @@ export function FeedbackIssueModal({ isOpen, onClose }: FeedbackIssueModalProps)
                         </div>
                         <div>
                             <h2 className="text-lg font-black text-gray-900">File Issue or Request</h2>
-                            <p className="mt-1 text-sm font-medium text-gray-600">Send details to GitHub with your device context attached.</p>
                         </div>
                     </div>
                     <button
@@ -220,7 +219,7 @@ export function FeedbackIssueModal({ isOpen, onClose }: FeedbackIssueModalProps)
                             className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-black text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-70"
                         >
                             {isSubmitting ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <MessageSquarePlus size={16} aria-hidden="true" />}
-                            Submit to GitHub
+                            Submit
                         </button>
                     </div>
                 </form>
