@@ -39,7 +39,7 @@ export type FeedbackIssueValidationResult =
     | { ok: true; value: FeedbackIssuePayload }
     | { ok: false; error: string };
 
-const DEFAULT_OWNER = 'karangattu';
+const DEFAULT_OWNER = 'hopescorner';
 const DEFAULT_REPO = 'hopes-corner-app';
 const DEFAULT_COPILOT_ASSIGNEE = 'copilot';
 const MAX_SUMMARY_LENGTH = 140;
