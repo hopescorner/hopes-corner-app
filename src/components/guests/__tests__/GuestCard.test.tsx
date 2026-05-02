@@ -850,4 +850,55 @@ describe('GuestCard Component', () => {
             expect(undoExtraButton).not.toBeNull();
         });
     });
+
+    describe('Last Visit Badge', () => {
+        it('shows "Last visit: Today" when lastVisitDateMap has today\'s date', () => {
+            const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+            const lastVisitDateMap = new Map([['g1', today]]);
+            render(<GuestCard guest={baseGuest} lastVisitDateMap={lastVisitDateMap} />);
+            expect(screen.getByText(/Last visit:/)).toBeDefined();
+            expect(screen.getByText(/Today/)).toBeDefined();
+        });
+
+        it('does not show last visit badge when lastVisitDateMap has no entry for the guest', () => {
+            const lastVisitDateMap = new Map<string, string>();
+            render(<GuestCard guest={baseGuest} lastVisitDateMap={lastVisitDateMap} />);
+            expect(screen.queryByText(/Last visit:/)).toBeNull();
+        });
+
+        it('does not show last visit badge when no maps are provided and stores have no records', () => {
+            // Stores are mocked with empty arrays, so no last visit date
+            render(<GuestCard guest={baseGuest} />);
+            expect(screen.queryByText(/Last visit:/)).toBeNull();
+        });
+
+        it('shows relative day label "Yesterday" for a one-day-old visit', () => {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const dateStr = yesterday.toISOString().split('T')[0];
+            const lastVisitDateMap = new Map([['g1', dateStr]]);
+            render(<GuestCard guest={baseGuest} lastVisitDateMap={lastVisitDateMap} />);
+            expect(screen.getByText(/Yesterday/)).toBeDefined();
+        });
+
+        it('shows days-ago label for a visit 3 days ago', () => {
+            const threeDaysAgo = new Date();
+            threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+            const dateStr = threeDaysAgo.toISOString().split('T')[0];
+            const lastVisitDateMap = new Map([['g1', dateStr]]);
+            render(<GuestCard guest={baseGuest} lastVisitDateMap={lastVisitDateMap} />);
+            expect(screen.getByText(/3d ago/)).toBeDefined();
+        });
+
+        it('title attribute on the badge contains the date string', () => {
+            const today = new Date().toISOString().split('T')[0];
+            const lastVisitDateMap = new Map([['g1', today]]);
+            const { container } = render(
+                <GuestCard guest={baseGuest} lastVisitDateMap={lastVisitDateMap} />
+            );
+            const badge = container.querySelector('[title^="Last visit:"]');
+            expect(badge).not.toBeNull();
+            expect(badge?.getAttribute('title')).toContain(today);
+        });
+    });
 });
