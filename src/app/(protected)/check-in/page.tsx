@@ -84,7 +84,7 @@ export default function CheckInPage() {
     );
 
     // Precomputed status maps for efficient per-guest lookups
-    const { mealStatus, serviceStatus, actionStatus, recentGuests } = useTodayStatusMaps();
+    const { mealStatus, serviceStatus, actionStatus, recentGuests, lastVisitDates } = useTodayStatusMaps();
 
     // Shared function to load all data
     const loadAllData = useCallback(async () => {
@@ -596,6 +596,7 @@ export default function CheckInPage() {
                                                     serviceStatusMap={serviceStatus}
                                                     actionStatusMap={actionStatus}
                                                     recentGuestsMap={recentGuests}
+                                                    lastVisitDateMap={lastVisitDates}
                                                     warningsCount={warningsCountMap.get(guest.id) || 0}
                                                     linkedGuestsCount={linkedGuestsCountMap.get(guest.id) || 0}
                                                     activeRemindersCount={activeRemindersCountMap.get(guest.id) || 0}
@@ -632,6 +633,7 @@ export default function CheckInPage() {
                                                     serviceStatusMap={serviceStatus}
                                                     actionStatusMap={actionStatus}
                                                     recentGuestsMap={recentGuests}
+                                                    lastVisitDateMap={lastVisitDates}
                                                     warningsCount={warningsCountMap.get(guest.id) || 0}
                                                     linkedGuestsCount={linkedGuestsCountMap.get(guest.id) || 0}
                                                     activeRemindersCount={activeRemindersCountMap.get(guest.id) || 0}

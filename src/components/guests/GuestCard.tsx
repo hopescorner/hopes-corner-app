@@ -26,7 +26,8 @@ import {
     Scissors,
     Gift,
     RotateCcw,
-    Bell
+    Bell,
+    Clock
 } from 'lucide-react';
 import LinkedGuestsList from './LinkedGuestsList';
 import { cn } from '@/lib/utils/cn';
@@ -47,6 +48,7 @@ import type {
     ServiceStatusMap, 
     ActionStatusMap,
     RecentGuestsMap,
+    LastVisitDateMap,
     TodayMealStatus,
     TodayServiceStatus,
     TodayGuestActions
@@ -71,6 +73,8 @@ interface GuestCardProps {
     serviceStatusMap?: ServiceStatusMap;
     actionStatusMap?: ActionStatusMap;
     recentGuestsMap?: RecentGuestsMap;
+    /** Precomputed map of guestId → most recent service date (YYYY-MM-DD) across all service types. */
+    lastVisitDateMap?: LastVisitDateMap;
     // Disable layout animations for better performance in large lists
     disableLayoutAnimation?: boolean;
 
@@ -143,6 +147,7 @@ function PureGuestCard({
     serviceStatusMap,
     actionStatusMap,
     recentGuestsMap,
+    lastVisitDateMap,
     disableLayoutAnimation = false,
     warningsCount,
     linkedGuestsCount,
@@ -588,31 +593,47 @@ function PureGuestCard({
                                     {guest.age}
                                 </span>
                             )}
-                            {/* Last Check-in */}
+                            {/* Last Visit */}
                             {(() => {
-                                const lastMeal = mealRecords
-                                    .filter(r => r.guestId === guest.id)
-                                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+                                // Prefer precomputed lastVisitDateMap; fall back to scanning all available records.
+                                const lastVisitDateStr: string | null = lastVisitDateMap?.get(guest.id) ?? (() => {
+                                    const dateOf = (r: any): string =>
+                                        r?.serviceDate || r?.dateKey || (r?.date ? pacificDateStringFrom(r.date) : '');
+                                    const allRecords = [
+                                        ...mealRecords.filter(r => r.guestId === guest.id),
+                                        ...extraMealRecords.filter(r => r.guestId === guest.id),
+                                        ...showerRecords.filter(r => r.guestId === guest.id),
+                                        ...laundryRecords.filter(r => r.guestId === guest.id),
+                                        ...bicycleRecords.filter(r => r.guestId === guest.id),
+                                        ...haircutRecords.filter(r => r.guestId === guest.id),
+                                        ...holidayRecords.filter(r => r.guestId === guest.id),
+                                    ];
+                                    if (allRecords.length === 0) return null;
+                                    return allRecords.reduce((latest, r) => {
+                                        const d = dateOf(r);
+                                        return d > latest ? d : latest;
+                                    }, '') || null;
+                                })();
 
-                                if (lastMeal) {
-                                    const date = new Date(lastMeal.date);
-                                    const now = new Date();
-                                    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+                                if (!lastVisitDateStr) return null;
 
-                                    let timeString = '';
-                                    if (diffDays === 0) timeString = 'Today';
-                                    else if (diffDays === 1) timeString = 'Yesterday';
-                                    else if (diffDays < 7) timeString = `${diffDays}d ago`;
-                                    else timeString = date.toLocaleDateString();
+                                // Parse as noon local time to avoid DST edge-case shifts
+                                const date = new Date(lastVisitDateStr + 'T12:00:00');
+                                const todayDate = new Date(today + 'T12:00:00');
+                                const diffDays = Math.round((todayDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
 
-                                    return (
-                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 rounded-md border border-gray-100 text-[10px] font-medium text-gray-500 ml-auto sm:ml-0" title={`Last meal: ${date.toLocaleString()}`}>
-                                            <Utensils size={10} className="text-gray-400" />
-                                            Last: {timeString}
-                                        </span>
-                                    );
-                                }
-                                return null;
+                                let timeString = '';
+                                if (diffDays === 0) timeString = 'Today';
+                                else if (diffDays === 1) timeString = 'Yesterday';
+                                else if (diffDays < 7) timeString = `${diffDays}d ago`;
+                                else timeString = date.toLocaleDateString();
+
+                                return (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 rounded-md border border-gray-100 text-[10px] font-medium text-gray-500 ml-auto sm:ml-0" title={`Last visit: ${lastVisitDateStr}`}>
+                                        <Clock size={10} className="text-gray-400" />
+                                        Last visit: {timeString}
+                                    </span>
+                                );
                             })()}
                         </div>
                     </div>
@@ -1129,16 +1150,20 @@ function PureGuestCard({
 function GuestCardImpl(props: GuestCardProps) {
     const { mealStatusMap, serviceStatusMap, actionStatusMap, recentGuestsMap, guest } = props;
 
+    // Also fetch records when lastVisitDateMap is not provided so the fallback
+    // last-visit computation in PureGuestCard has data to work with.
+    const needsLastVisitRecords = !props.lastVisitDateMap;
+
     const needsMealRecords = !mealStatusMap || !recentGuestsMap;
-    const mealRecords = useMealsStore((s) => (needsMealRecords ? s.mealRecords : EMPTY_ARRAY));
-    const extraMealRecords = useMealsStore((s) => (!mealStatusMap ? s.extraMealRecords : EMPTY_ARRAY));
+    const mealRecords = useMealsStore((s) => (needsMealRecords || needsLastVisitRecords ? s.mealRecords : EMPTY_ARRAY));
+    const extraMealRecords = useMealsStore((s) => (!mealStatusMap || needsLastVisitRecords ? s.extraMealRecords : EMPTY_ARRAY));
 
     const needsServiceRecords = !serviceStatusMap;
-    const showerRecords = useServicesStore((s) => (needsServiceRecords ? s.showerRecords : EMPTY_ARRAY));
-    const laundryRecords = useServicesStore((s) => (needsServiceRecords ? s.laundryRecords : EMPTY_ARRAY));
-    const bicycleRecords = useServicesStore((s) => (needsServiceRecords ? (s.bicycleRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
-    const haircutRecords = useServicesStore((s) => (needsServiceRecords ? (s.haircutRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
-    const holidayRecords = useServicesStore((s) => (needsServiceRecords ? (s.holidayRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
+    const showerRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? s.showerRecords : EMPTY_ARRAY));
+    const laundryRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? s.laundryRecords : EMPTY_ARRAY));
+    const bicycleRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? (s.bicycleRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
+    const haircutRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? (s.haircutRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
+    const holidayRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? (s.holidayRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
 
     const { addMealRecord, addExtraMealRecord } = useMealsStore(
         useShallow((s) => ({ addMealRecord: s.addMealRecord, addExtraMealRecord: s.addExtraMealRecord }))
@@ -1252,6 +1277,12 @@ const recentSnapshot = (props: GuestCardProps) => {
     return props.recentGuestsMap?.has(id) ? '1' : '0';
 };
 
+const lastVisitSnapshot = (props: GuestCardProps) => {
+    const id = props.guest?.id;
+    if (!id) return '';
+    return props.lastVisitDateMap?.get(id) || '';
+};
+
 export const GuestCard = memo(GuestCardImpl, (prev, next) => {
     const prevId = prev.guest?.id;
     const nextId = next.guest?.id;
@@ -1278,6 +1309,7 @@ export const GuestCard = memo(GuestCardImpl, (prev, next) => {
         mealSnapshot(prev) === mealSnapshot(next) &&
         serviceSnapshot(prev) === serviceSnapshot(next) &&
         actionSnapshot(prev) === actionSnapshot(next) &&
-        recentSnapshot(prev) === recentSnapshot(next)
+        recentSnapshot(prev) === recentSnapshot(next) &&
+        lastVisitSnapshot(prev) === lastVisitSnapshot(next)
     );
 });

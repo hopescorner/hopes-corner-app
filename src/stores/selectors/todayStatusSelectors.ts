@@ -53,6 +53,8 @@ export type MealStatusMap = Map<string, TodayMealStatus>;
 export type ServiceStatusMap = Map<string, TodayServiceStatus>;
 export type ActionStatusMap = Map<string, TodayGuestActions>;
 export type RecentGuestsMap = Set<string>;
+/** Maps guestId → most recent service date string (YYYY-MM-DD Pacific) across all service types. */
+export type LastVisitDateMap = Map<string, string>;
 
 /**
  * Hook that returns a Set of guest IDs who have had a meal in the last 7 days.
@@ -277,6 +279,46 @@ export function useTodayActionStatusMap(): ActionStatusMap {
 }
 
 /**
+ * Hook that returns a map of guestId → most recent service date (YYYY-MM-DD Pacific)
+ * across all service types: meals, extra meals, showers, laundry, bicycle, haircuts, holidays.
+ * Call once at the list level, not per-card.
+ */
+export function useLastVisitDateMap(): LastVisitDateMap {
+    const mealRecords = useMealsStore((s) => s.mealRecords);
+    const extraMealRecords = useMealsStore((s) => s.extraMealRecords);
+    const showerRecords = useServicesStore((s) => s.showerRecords);
+    const laundryRecords = useServicesStore((s) => s.laundryRecords);
+    const bicycleRecords = useServicesStore((s) => s.bicycleRecords);
+    const haircutRecords = useServicesStore((s) => s.haircutRecords);
+    const holidayRecords = useServicesStore((s) => s.holidayRecords);
+
+    return useMemo(() => {
+        const map = new Map<string, string>();
+
+        const updateIfNewer = (guestId: string, dateStr: string) => {
+            if (!guestId || !dateStr) return;
+            const existing = map.get(guestId);
+            if (!existing || dateStr > existing) {
+                map.set(guestId, dateStr);
+            }
+        };
+
+        const dateOf = (record: any): string =>
+            record?.serviceDate || record?.dateKey || (record?.date ? pacificDateStringFrom(record.date) : '');
+
+        for (const r of mealRecords || []) updateIfNewer(r.guestId, dateOf(r));
+        for (const r of extraMealRecords || []) updateIfNewer(r.guestId, dateOf(r));
+        for (const r of showerRecords || []) updateIfNewer(r.guestId, dateOf(r));
+        for (const r of laundryRecords || []) updateIfNewer(r.guestId, dateOf(r));
+        for (const r of bicycleRecords || []) updateIfNewer(r.guestId, dateOf(r));
+        for (const r of haircutRecords || []) updateIfNewer(r.guestId, dateOf(r));
+        for (const r of holidayRecords || []) updateIfNewer(r.guestId, dateOf(r));
+
+        return map;
+    }, [mealRecords, extraMealRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords]);
+}
+
+/**
  * Combined hook that returns all precomputed status maps.
  * Most efficient when you need all three maps.
  */
@@ -285,8 +327,9 @@ export function useTodayStatusMaps() {
     const serviceStatus = useTodayServiceStatusMap();
     const actionStatus = useTodayActionStatusMap();
     const recentGuests = useRecentGuestsMap();
-    
-    return { mealStatus, serviceStatus, actionStatus, recentGuests };
+    const lastVisitDates = useLastVisitDateMap();
+
+    return { mealStatus, serviceStatus, actionStatus, recentGuests, lastVisitDates };
 }
 
 /**
