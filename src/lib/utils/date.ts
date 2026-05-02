@@ -98,6 +98,13 @@ export const formatDateForDisplay = (dateValue: string | Date, options: Intl.Dat
 };
 
 /**
+ * Extracts a YYYY-MM-DD Pacific date string from a service record, checking
+ * `serviceDate`, `dateKey`, and finally computing from the `date` timestamp field.
+ */
+export const serviceDateStringOf = (record: { serviceDate?: string; dateKey?: string; date?: string | Date }): string =>
+    record?.serviceDate || record?.dateKey || (record?.date ? pacificDateStringFrom(record.date) : '');
+
+/**
  * Parses a date string (YYYY-MM-DD or ISO timestamp) into { year, month, day, dayOfWeek }
  * using Pacific timezone for ISO timestamps, or direct parsing for YYYY-MM-DD strings.
  * This avoids day-shifting bugs where new Date(isoString).getDay() differs across timezones.

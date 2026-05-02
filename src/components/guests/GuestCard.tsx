@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import LinkedGuestsList from './LinkedGuestsList';
 import { cn } from '@/lib/utils/cn';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, serviceDateStringOf } from '@/lib/utils/date';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
@@ -597,8 +597,6 @@ function PureGuestCard({
                             {(() => {
                                 // Prefer precomputed lastVisitDateMap; fall back to scanning all available records.
                                 const lastVisitDateStr: string | null = lastVisitDateMap?.get(guest.id) ?? (() => {
-                                    const dateOf = (r: any): string =>
-                                        r?.serviceDate || r?.dateKey || (r?.date ? pacificDateStringFrom(r.date) : '');
                                     const allRecords = [
                                         ...mealRecords.filter(r => r.guestId === guest.id),
                                         ...extraMealRecords.filter(r => r.guestId === guest.id),
@@ -609,8 +607,9 @@ function PureGuestCard({
                                         ...holidayRecords.filter(r => r.guestId === guest.id),
                                     ];
                                     if (allRecords.length === 0) return null;
+                                    // YYYY-MM-DD strings sort correctly with plain `>` comparison.
                                     return allRecords.reduce((latest, r) => {
-                                        const d = dateOf(r);
+                                        const d = serviceDateStringOf(r);
                                         return d > latest ? d : latest;
                                     }, '') || null;
                                 })();

@@ -11,7 +11,7 @@ import { useMemo } from 'react';
 import { useMealsStore, MealRecord } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, serviceDateStringOf } from '@/lib/utils/date';
 import { MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
 
 export interface TodayMealStatus {
@@ -295,6 +295,8 @@ export function useLastVisitDateMap(): LastVisitDateMap {
     return useMemo(() => {
         const map = new Map<string, string>();
 
+        // YYYY-MM-DD strings sort correctly with plain `>` comparison because the
+        // format is lexicographically equivalent to chronological order.
         const updateIfNewer = (guestId: string, dateStr: string) => {
             if (!guestId || !dateStr) return;
             const existing = map.get(guestId);
@@ -303,16 +305,13 @@ export function useLastVisitDateMap(): LastVisitDateMap {
             }
         };
 
-        const dateOf = (record: any): string =>
-            record?.serviceDate || record?.dateKey || (record?.date ? pacificDateStringFrom(record.date) : '');
-
-        for (const r of mealRecords || []) updateIfNewer(r.guestId, dateOf(r));
-        for (const r of extraMealRecords || []) updateIfNewer(r.guestId, dateOf(r));
-        for (const r of showerRecords || []) updateIfNewer(r.guestId, dateOf(r));
-        for (const r of laundryRecords || []) updateIfNewer(r.guestId, dateOf(r));
-        for (const r of bicycleRecords || []) updateIfNewer(r.guestId, dateOf(r));
-        for (const r of haircutRecords || []) updateIfNewer(r.guestId, dateOf(r));
-        for (const r of holidayRecords || []) updateIfNewer(r.guestId, dateOf(r));
+        for (const r of mealRecords || []) updateIfNewer(r.guestId, serviceDateStringOf(r));
+        for (const r of extraMealRecords || []) updateIfNewer(r.guestId, serviceDateStringOf(r));
+        for (const r of showerRecords || []) updateIfNewer(r.guestId, serviceDateStringOf(r));
+        for (const r of laundryRecords || []) updateIfNewer(r.guestId, serviceDateStringOf(r));
+        for (const r of bicycleRecords || []) updateIfNewer(r.guestId, serviceDateStringOf(r));
+        for (const r of haircutRecords || []) updateIfNewer(r.guestId, serviceDateStringOf(r));
+        for (const r of holidayRecords || []) updateIfNewer(r.guestId, serviceDateStringOf(r));
 
         return map;
     }, [mealRecords, extraMealRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords]);
