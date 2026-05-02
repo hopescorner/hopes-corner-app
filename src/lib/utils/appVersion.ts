@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.29';
+export const APP_VERSION = '0.5.30';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.30',
+        date: 'May 2, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'More Reliable In-App GitHub Feedback',
+                description: 'Filing an issue or feature request now creates the GitHub issue first, then applies assignment and labels separately so optional GitHub metadata problems no longer block submission.',
+            },
+        ],
+    },
     {
         version: '0.5.29',
         date: 'May 2, 2026',

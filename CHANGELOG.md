@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.30] - 2026-05-02
+
+### Fixed
+
+- In-app issue and feature request submissions now create the GitHub issue before applying Copilot assignment and labels, preventing optional GitHub metadata validation failures from blocking the submission.
+- Staff now see a successful issue-created message even if GitHub accepts the issue but needs assignment or labels reviewed.
+
 ## [0.5.29] - 2026-05-02
 
 ### Added

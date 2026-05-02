@@ -32,6 +32,7 @@ export interface GitHubFeedbackConfig {
 export interface GitHubIssueResult {
     issueNumber: number;
     issueUrl: string;
+    warnings?: string[];
 }
 
 export type FeedbackIssueValidationResult =
@@ -158,36 +159,100 @@ export function resolveGitHubFeedbackConfig(env: NodeJS.ProcessEnv = process.env
     };
 }
 
-export async function createGitHubFeedbackIssue(
-    payload: FeedbackIssuePayload,
-    user: FeedbackIssueUser,
+class GitHubIssueRequestError extends Error {
+    constructor(
+        message: string,
+        readonly status: number,
+    ) {
+        super(message);
+        this.name = 'GitHubIssueRequestError';
+    }
+}
+
+const gitHubIssueUrl = (config: GitHubFeedbackConfig, issueNumber?: number) => {
+    const base = `https://api.github.com/repos/${config.owner}/${config.repo}/issues`;
+    return issueNumber ? `${base}/${issueNumber}` : base;
+};
+
+const parseGitHubResponse = async (response: Response) => {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const message = typeof data?.message === 'string' ? data.message : 'GitHub issue request failed.';
+        throw new GitHubIssueRequestError(message, response.status);
+    }
+    return data;
+};
+
+const gitHubIssueFetch = async (
+    url: string,
     config: GitHubFeedbackConfig,
-): Promise<GitHubIssueResult> {
-    const response = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/issues`, {
-        method: 'POST',
+    init: Omit<RequestInit, 'headers'>,
+) => {
+    const response = await fetch(url, {
+        ...init,
         headers: {
             Accept: 'application/vnd.github+json',
             Authorization: `Bearer ${config.token}`,
             'Content-Type': 'application/json',
             'X-GitHub-Api-Version': '2022-11-28',
         },
+    });
+
+    return parseGitHubResponse(response);
+};
+
+const applyGitHubIssueMetadata = async (
+    issueNumber: number,
+    payload: FeedbackIssuePayload,
+    config: GitHubFeedbackConfig,
+) => {
+    const warnings: string[] = [];
+    const issueUrl = gitHubIssueUrl(config, issueNumber);
+
+    if (config.assignee) {
+        try {
+            await gitHubIssueFetch(issueUrl, config, {
+                method: 'PATCH',
+                body: JSON.stringify({ assignees: [config.assignee] }),
+            });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'unknown error';
+            warnings.push(`Could not assign ${config.assignee}: ${message}`);
+        }
+    }
+
+    try {
+        await gitHubIssueFetch(issueUrl, config, {
+            method: 'PATCH',
+            body: JSON.stringify({ labels: ['app-feedback', payload.category] }),
+        });
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'unknown error';
+        warnings.push(`Could not apply feedback labels: ${message}`);
+    }
+
+    return warnings;
+};
+
+export async function createGitHubFeedbackIssue(
+    payload: FeedbackIssuePayload,
+    user: FeedbackIssueUser,
+    config: GitHubFeedbackConfig,
+): Promise<GitHubIssueResult> {
+    const data = await gitHubIssueFetch(gitHubIssueUrl(config), config, {
+        method: 'POST',
         body: JSON.stringify({
             title: buildFeedbackIssueTitle(payload),
             body: buildFeedbackIssueBody(payload, user),
-            assignees: [config.assignee],
-            labels: ['app-feedback', payload.category],
         }),
     });
 
-    const data = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-        const message = typeof data?.message === 'string' ? data.message : 'GitHub issue creation failed.';
-        throw new Error(message);
-    }
+    const issueNumber = Number(data.number);
+    const warnings = await applyGitHubIssueMetadata(issueNumber, payload, config);
 
     return {
-        issueNumber: Number(data.number),
+        issueNumber,
         issueUrl: String(data.html_url),
+        ...(warnings.length ? { warnings } : {}),
     };
 }

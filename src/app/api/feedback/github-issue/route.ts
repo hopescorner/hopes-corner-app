@@ -46,6 +46,10 @@ export async function POST(request: Request) {
             role,
         }, config);
 
+        if (issue.warnings?.length) {
+            console.warn('[FeedbackIssue] GitHub issue created with metadata warnings:', issue.warnings);
+        }
+
         return NextResponse.json(issue, { status: 201 });
     } catch (error) {
         console.error('[FeedbackIssue] Failed to create GitHub issue:', error);

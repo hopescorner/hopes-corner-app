@@ -92,7 +92,11 @@ export function FeedbackIssueModal({ isOpen, onClose }: FeedbackIssueModalProps)
                 throw new Error(body?.error || 'Unable to create the GitHub issue.');
             }
 
-            toast.success(`Created GitHub issue #${body.issueNumber}`);
+            toast.success(
+                Array.isArray(body?.warnings) && body.warnings.length > 0
+                    ? `Created GitHub issue #${body.issueNumber}; assignment or labels need review.`
+                    : `Created GitHub issue #${body.issueNumber}`,
+            );
             setSummary('');
             setDetails('');
             setCategory('issue');
