@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.26';
+export const APP_VERSION = '0.5.27';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.27',
+        date: 'May 2, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'In-App Feedback to GitHub',
+                description: 'Staff, admin, board, and bicycle users can now file issues or feature requests from the app with browser and device details attached for faster troubleshooting.',
+            },
+            {
+                type: 'feature',
+                title: 'Dashboard Time-Frame Comparisons',
+                description: 'The dashboard now compares any two selected time frames with cards, graphs, percent changes, and area filters for guest and service metrics.',
+            },
+        ],
+    },
     {
         version: '0.5.26',
         date: 'April 20, 2026',

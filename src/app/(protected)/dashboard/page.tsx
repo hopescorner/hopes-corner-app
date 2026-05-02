@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import {
     BarChart3,
+    ArrowLeftRight,
     Download,
     Activity,
     Utensils,
@@ -27,6 +28,7 @@ const TabSkeleton = () => (
     </div>
 );
 const AnalyticsSection = dynamic(() => import('@/components/admin/AnalyticsSection').then((m) => m.AnalyticsSection), { loading: TabSkeleton });
+const DashboardComparisonSection = dynamic(() => import('@/components/admin/DashboardComparisonSection').then((m) => m.DashboardComparisonSection), { loading: TabSkeleton });
 const DataExportSection = dynamic(() => import('@/components/admin/DataExportSection').then((m) => m.DataExportSection), { loading: TabSkeleton });
 const MealReport = dynamic(() => import('@/components/admin/reports/MealReport').then((m) => m.MealReport), { loading: TabSkeleton });
 const MonthlySummaryReport = dynamic(() => import('@/components/admin/reports/MonthlySummaryReport'), { loading: TabSkeleton });
@@ -34,6 +36,7 @@ const MonthlyReportGenerator = dynamic(() => import('@/components/admin/reports/
 
 const DASHBOARD_TABS = [
     { id: 'analytics', label: 'Analytics', icon: Activity, color: 'text-blue-600' },
+    { id: 'compare', label: 'Compare', icon: ArrowLeftRight, color: 'text-cyan-600' },
     { id: 'monthly-report', label: 'Monthly Report', icon: FileText, color: 'text-purple-600' },
     { id: 'meal-report', label: 'Meal Report', icon: Utensils, color: 'text-orange-600' },
     { id: 'monthly-summary', label: 'Summary', icon: ClipboardList, color: 'text-emerald-600' },
@@ -219,6 +222,11 @@ export default function DashboardPage() {
                 {visitedTabs.has('analytics') && (
                     <div hidden={activeTab !== 'analytics'}>
                         <AnalyticsSection />
+                    </div>
+                )}
+                {visitedTabs.has('compare') && (
+                    <div hidden={activeTab !== 'compare'}>
+                        <DashboardComparisonSection />
                     </div>
                 )}
                 {visitedTabs.has('monthly-report') && (

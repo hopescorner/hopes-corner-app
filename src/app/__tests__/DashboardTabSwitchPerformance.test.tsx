@@ -13,6 +13,7 @@ const {
     unmounts: {} as Record<string, number>,
     dynamicComponentNames: [
         'AnalyticsSection',
+        'DashboardComparisonSection',
         'DataExportSection',
         'MealReport',
         'MonthlySummaryReport',
