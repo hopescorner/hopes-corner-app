@@ -52,6 +52,14 @@ describe('proxy', () => {
         expect(mocks.updateSession).toHaveBeenCalled();
     });
 
+    it('returns early for api routes so handlers can enforce auth themselves', async () => {
+        const req = buildRequest('/api/feedback/github-issue');
+        const res = await proxy(req as any);
+        expect(res).toEqual({ type: 'next' });
+        expect(mocks.auth).not.toHaveBeenCalled();
+        expect(mocks.canAccessRoute).not.toHaveBeenCalled();
+    });
+
     it('redirects to login when no session on protected route', async () => {
         mocks.auth.mockResolvedValue(null);
         const req = buildRequest('/protected');
