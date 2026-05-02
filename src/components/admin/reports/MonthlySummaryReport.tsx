@@ -13,6 +13,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { getMonthlySummaryDatasets } from '@/lib/utils/dashboardReportCache';
+import { useShallow } from 'zustand/react/shallow';
 
 const MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -272,16 +273,15 @@ const ColumnTooltip = ({ label, description }: { label: string, description: str
 );
 
 export default function MonthlySummaryReport() {
-    const {
-        mealRecords,
-        extraMealRecords,
-        rvMealRecords,
-        unitedEffortMealRecords,
-        dayWorkerMealRecords,
-        lunchBagRecords,
-        shelterMealRecords
-    } = useMealsStore();
-
+    const meals = useMealsStore(useShallow((state) => ({
+        mealRecords: state.mealRecords,
+        extraMealRecords: state.extraMealRecords,
+        rvMealRecords: state.rvMealRecords,
+        unitedEffortMealRecords: state.unitedEffortMealRecords,
+        dayWorkerMealRecords: state.dayWorkerMealRecords,
+        lunchBagRecords: state.lunchBagRecords,
+        shelterMealRecords: state.shelterMealRecords,
+    })));
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
@@ -307,27 +307,15 @@ export default function MonthlySummaryReport() {
 
     const summaryDatasets = useMemo(() => {
         return getMonthlySummaryDatasets({
-            mealRecords,
-            extraMealRecords,
-            rvMealRecords,
-            unitedEffortMealRecords,
-            dayWorkerMealRecords,
-            lunchBagRecords,
-            shelterMealRecords,
+            ...meals,
             ...useServicesStore.getState(),
             guests: useGuestsStore.getState().guests,
         }, selectedYear, currentYear, currentMonth);
     }, [
         currentMonth,
         currentYear,
-        dayWorkerMealRecords,
-        extraMealRecords,
-        lunchBagRecords,
-        mealRecords,
-        rvMealRecords,
+        meals,
         selectedYear,
-        shelterMealRecords,
-        unitedEffortMealRecords,
     ]);
 
     const { monthlyData, bicycleSummary, showerLaundrySummary } = summaryDatasets;

@@ -35,6 +35,7 @@ import { exportToCSV } from "@/lib/utils/csv";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { getMealReportData } from "@/lib/utils/dashboardReportCache";
+import { useShallow } from "zustand/react/shallow";
 
 const DAYS_OF_WEEK = [
     { value: 1, label: "Monday", short: "Mon" },
@@ -94,12 +95,22 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
 };
 
 export const MealReport = () => {
-    const {
-        mealRecords, rvMealRecords, shelterMealRecords, unitedEffortMealRecords,
-        extraMealRecords, dayWorkerMealRecords, lunchBagRecords
-    } = useMealsStore();
+    const meals = useMealsStore(useShallow((state) => ({
+        mealRecords: state.mealRecords,
+        rvMealRecords: state.rvMealRecords,
+        shelterMealRecords: state.shelterMealRecords,
+        unitedEffortMealRecords: state.unitedEffortMealRecords,
+        extraMealRecords: state.extraMealRecords,
+        dayWorkerMealRecords: state.dayWorkerMealRecords,
+        lunchBagRecords: state.lunchBagRecords,
+    })));
     const { guests } = useGuestsStore();
-    const { showerRecords, laundryRecords, bicycleRecords, haircutRecords } = useServicesStore.getState();
+    const services = useServicesStore(useShallow((state) => ({
+        showerRecords: state.showerRecords,
+        laundryRecords: state.laundryRecords,
+        bicycleRecords: state.bicycleRecords,
+        haircutRecords: state.haircutRecords,
+    })));
     const chartRef = useRef<HTMLDivElement>(null);
 
     const currentDate = new Date();
@@ -155,17 +166,8 @@ export const MealReport = () => {
 
     const calculateMealData = useMemo(() => {
         return getMealReportData({
-            mealRecords,
-            extraMealRecords,
-            rvMealRecords,
-            dayWorkerMealRecords,
-            shelterMealRecords,
-            unitedEffortMealRecords,
-            lunchBagRecords,
-            showerRecords,
-            laundryRecords,
-            bicycleRecords,
-            haircutRecords,
+            ...meals,
+            ...services,
             guests,
         }, {
             selectedYear,
@@ -175,23 +177,14 @@ export const MealReport = () => {
             mealTypeFilters,
         });
     }, [
-        bicycleRecords,
         comparisonMonths,
-        dayWorkerMealRecords,
-        extraMealRecords,
         guests,
-        haircutRecords,
-        laundryRecords,
-        lunchBagRecords,
-        mealRecords,
+        meals,
         mealTypeFilters,
-        rvMealRecords,
         selectedDays,
         selectedMonth,
         selectedYear,
-        shelterMealRecords,
-        showerRecords,
-        unitedEffortMealRecords,
+        services,
     ]);
 
     const currentMonthData = useMemo(() => {

@@ -23,6 +23,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { cn } from '@/lib/utils/cn';
 import { getMonthlyReportData } from '@/lib/utils/dashboardReportCache';
+import { useShallow } from 'zustand/react/shallow';
 
 // Types
 interface MonthOption {
@@ -109,22 +110,22 @@ export default function MonthlyReportGenerator() {
     const [error, setError] = useState<string | null>(null);
 
     // Stores
-    const {
-        mealRecords,
-        extraMealRecords,
-        rvMealRecords,
-        dayWorkerMealRecords,
-        lunchBagRecords,
-        shelterMealRecords,
-        unitedEffortMealRecords,
-    } = useMealsStore();
+    const meals = useMealsStore(useShallow((state) => ({
+        mealRecords: state.mealRecords,
+        extraMealRecords: state.extraMealRecords,
+        rvMealRecords: state.rvMealRecords,
+        dayWorkerMealRecords: state.dayWorkerMealRecords,
+        lunchBagRecords: state.lunchBagRecords,
+        shelterMealRecords: state.shelterMealRecords,
+        unitedEffortMealRecords: state.unitedEffortMealRecords,
+    })));
 
-    const {
-        showerRecords,
-        laundryRecords,
-        bicycleRecords,
-        haircutRecords,
-    } = useServicesStore();
+    const services = useServicesStore(useShallow((state) => ({
+        showerRecords: state.showerRecords,
+        laundryRecords: state.laundryRecords,
+        bicycleRecords: state.bicycleRecords,
+        haircutRecords: state.haircutRecords,
+    })));
 
     const { guests } = useGuestsStore();
 
@@ -144,17 +145,8 @@ export default function MonthlyReportGenerator() {
             const { year, month } = selectedOption;
 
             setReportData(getMonthlyReportData({
-                mealRecords,
-                extraMealRecords,
-                rvMealRecords,
-                dayWorkerMealRecords,
-                lunchBagRecords,
-                shelterMealRecords,
-                unitedEffortMealRecords,
-                showerRecords,
-                laundryRecords,
-                bicycleRecords,
-                haircutRecords,
+                ...meals,
+                ...services,
                 guests,
             }, year, month));
             toast.success('Report generated successfully!');
@@ -166,20 +158,11 @@ export default function MonthlyReportGenerator() {
             setIsGenerating(false);
         }
     }, [
-        bicycleRecords,
-        dayWorkerMealRecords,
-        extraMealRecords,
         guests,
-        haircutRecords,
-        laundryRecords,
-        lunchBagRecords,
-        mealRecords,
+        meals,
         monthOptions,
-        rvMealRecords,
         selectedMonth,
-        shelterMealRecords,
-        showerRecords,
-        unitedEffortMealRecords,
+        services,
     ]);
 
     // Handle month change

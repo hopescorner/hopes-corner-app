@@ -46,6 +46,10 @@ const DASHBOARD_TABS = [
 const REPORT_TAB_IDS = new Set(['monthly-report', 'meal-report', 'monthly-summary', 'export']);
 // Keep dashboard/report data accurate for 2025+ while avoiding expensive all-time fetches.
 const REPORT_BASELINE_YEAR = 2025;
+type IdleWindow = Window & typeof globalThis & {
+    requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+    cancelIdleCallback?: (handle: number) => void;
+};
 
 export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState('analytics');
@@ -82,12 +86,13 @@ export default function DashboardPage() {
         reportModulesReadyRef.current = true;
     }, []);
 
-    const preloadReportsForYear = useCallback(async (year: number) => {
+    const preloadReportsForYear = useCallback(async (year: number, options: { showProgress?: boolean } = {}) => {
         if (loadedReportYears.has(year)) return;
         if (preloadingYearRef.current === year) return;
 
+        const showProgress = options.showProgress ?? false;
         preloadingYearRef.current = year;
-        setIsPreparingReports(true);
+        if (showProgress) setIsPreparingReports(true);
         try {
             // Always include baseline year data to preserve 2025 and current-month accuracy.
             const sinceYear = Math.min(year, REPORT_BASELINE_YEAR);
@@ -113,7 +118,7 @@ export default function DashboardPage() {
             });
         } finally {
             preloadingYearRef.current = null;
-            setIsPreparingReports(false);
+            if (showProgress) setIsPreparingReports(false);
         }
     }, [ensureGuestsLoaded, ensureMealsLoaded, ensureServicesLoaded, loadedReportYears, preloadReportModules]);
 
@@ -126,15 +131,34 @@ export default function DashboardPage() {
     }, [loadSettings, ensureMealsLoaded, ensureServicesLoaded, ensureGuestsLoaded]);
 
     useEffect(() => {
-        // Warm selected year's report window in the background.
-        preloadReportsForYear(preloadYear);
-    }, [preloadYear, preloadReportsForYear]);
+        if (REPORT_TAB_IDS.has(activeTab)) return;
+
+        const runPreload = () => {
+            void preloadReportsForYear(preloadYear, { showProgress: false });
+        };
+
+        if (typeof window === 'undefined') return;
+
+        const idleWindow = window as IdleWindow;
+        if (idleWindow.requestIdleCallback) {
+            const idleId = idleWindow.requestIdleCallback(runPreload, { timeout: 3500 });
+            return () => idleWindow.cancelIdleCallback?.(idleId);
+        }
+
+        const timerId = setTimeout(runPreload, 1200);
+        return () => clearTimeout(timerId);
+    }, [activeTab, preloadYear, preloadReportsForYear]);
 
     useEffect(() => {
         if (!REPORT_TAB_IDS.has(activeTab)) return;
         // Ensure selected year's report data is ready when opening report tabs.
-        preloadReportsForYear(preloadYear);
+        preloadReportsForYear(preloadYear, { showProgress: true });
     }, [activeTab, preloadYear, preloadReportsForYear]);
+
+    const preloadReportIntent = useCallback((tabId: string) => {
+        if (!REPORT_TAB_IDS.has(tabId)) return;
+        void preloadReportModules();
+    }, [preloadReportModules]);
 
     const handleTabChange = (tabId: string) => {
         if (!firstTabSwitchMarkRef.current) {
@@ -296,6 +320,8 @@ export default function DashboardPage() {
                                 key={tab.id}
                                 data-testid={`dashboard-tab-${tab.id}-desktop`}
                                 onClick={() => handleTabChange(tab.id)}
+                                onFocus={() => preloadReportIntent(tab.id)}
+                                onMouseEnter={() => preloadReportIntent(tab.id)}
                                 className={cn(
                                     "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black transition-all",
                                     isActive
@@ -339,6 +365,7 @@ export default function DashboardPage() {
                             key={tab.id}
                             data-testid={`dashboard-tab-${tab.id}-mobile`}
                             onClick={() => handleTabChange(tab.id)}
+                            onFocus={() => preloadReportIntent(tab.id)}
                             className={cn(
                                 "flex-shrink-0 flex items-center gap-2 px-5 py-3 rounded-2xl text-sm font-black transition-all border",
                                 isActive

@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.27';
+export const APP_VERSION = '0.5.28';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.28',
+        date: 'May 2, 2026',
+        highlights: [
+            {
+                type: 'performance',
+                title: 'Snappier Dashboard and Reports',
+                description: 'Dashboard cards now calculate totals with less CPU work, and report data warms up during idle time so the app stays more responsive on modest laptops.',
+            },
+            {
+                type: 'performance',
+                title: 'Quicker Repeat Report Generation',
+                description: 'Report generation now reuses parsed dates and focused store subscriptions to reduce repeated processing and memory churn when switching between report views.',
+            },
+        ],
+    },
     {
         version: '0.5.27',
         date: 'May 2, 2026',

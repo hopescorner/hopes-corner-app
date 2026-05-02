@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import {
@@ -16,7 +16,9 @@ import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { cn } from '@/lib/utils/cn';
+import { calculateDashboardOverviewMetrics } from '@/lib/utils/dashboardOverviewMetrics';
 import toast from 'react-hot-toast';
+import { useShallow } from 'zustand/react/shallow';
 
 interface MetricCardProps {
     title: string;
@@ -79,50 +81,26 @@ function MetricCard({ title, icon: Icon, value, target, color }: MetricCardProps
 
 export function DashboardOverview() {
     const { targets, updateTargets } = useSettingsStore();
-    const { mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords } = useMealsStore();
-    const { showerRecords, laundryRecords, bicycleRecords } = useServicesStore();
+    const meals = useMealsStore(useShallow((state) => ({
+        mealRecords: state.mealRecords,
+        rvMealRecords: state.rvMealRecords,
+        extraMealRecords: state.extraMealRecords,
+        unitedEffortMealRecords: state.unitedEffortMealRecords,
+    })));
+    const services = useServicesStore(useShallow((state) => ({
+        showerRecords: state.showerRecords,
+        laundryRecords: state.laundryRecords,
+        bicycleRecords: state.bicycleRecords,
+    })));
 
     const [isEditing, setIsEditing] = useState(false);
     const [editedTargets, setEditedTargets] = useState(targets);
     const prefersReducedMotion = useReducedMotion();
 
-    const now = new Date();
-    const month = now.getMonth();
-    const year = now.getFullYear();
-
-    const isThisMonth = useCallback((d: string) => {
-        const date = new Date(d);
-        return date.getMonth() === month && date.getFullYear() === year;
-    }, [month, year]);
-
-    const isThisYear = useCallback((d: string) => {
-        const date = new Date(d);
-        return date.getFullYear() === year;
-    }, [year]);
-
-    const monthMetrics = useMemo(() => ({
-        meals: [
-            ...mealRecords.filter(r => isThisMonth(r.date)),
-            ...rvMealRecords.filter(r => isThisMonth(r.date)),
-            ...extraMealRecords.filter(r => isThisMonth(r.date)),
-            ...unitedEffortMealRecords.filter(r => isThisMonth(r.date))
-        ].reduce((sum, r) => sum + (r.count || 0), 0),
-        showers: showerRecords.filter(r => isThisMonth(r.date) && r.status === 'done').length,
-        laundry: laundryRecords.filter(r => isThisMonth(r.date) && r.status === 'done').length,
-        bicycles: bicycleRecords.filter(r => isThisMonth(r.date) && r.status === 'done').length,
-    }), [mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, showerRecords, laundryRecords, bicycleRecords, isThisMonth]);
-
-    const yearMetrics = useMemo(() => ({
-        meals: [
-            ...mealRecords.filter(r => isThisYear(r.date)),
-            ...rvMealRecords.filter(r => isThisYear(r.date)),
-            ...extraMealRecords.filter(r => isThisYear(r.date)),
-            ...unitedEffortMealRecords.filter(r => isThisYear(r.date))
-        ].reduce((sum, r) => sum + (r.count || 0), 0),
-        showers: showerRecords.filter(r => isThisYear(r.date) && r.status === 'done').length,
-        laundry: laundryRecords.filter(r => isThisYear(r.date) && r.status === 'done').length,
-        bicycles: bicycleRecords.filter(r => isThisYear(r.date) && r.status === 'done').length,
-    }), [mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, showerRecords, laundryRecords, bicycleRecords, isThisYear]);
+    const { month: monthMetrics, year: yearMetrics } = useMemo(() => calculateDashboardOverviewMetrics({
+        ...meals,
+        ...services,
+    }), [meals, services]);
 
     const handleSave = async () => {
         await updateTargets(editedTargets);

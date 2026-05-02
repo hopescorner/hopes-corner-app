@@ -286,6 +286,8 @@ export interface DashboardReportCache {
 const EMPTY_LIST: readonly [] = [];
 
 let cachedReportCache: DashboardReportCache | null = null;
+const DATE_PARTS_CACHE_LIMIT = 4096;
+const cachedDateParts = new Map<string, ReturnType<typeof parsePacificDateParts>>();
 
 const normalizeInput = (input: DashboardReportCacheInput): DashboardReportRefs => ({
     mealRecords: input.mealRecords ?? EMPTY_LIST,
@@ -384,10 +386,27 @@ const rememberFirstMonth = (map: Map<string, MonthPointer>, guestId: string | nu
     }
 };
 
+const getCachedDateParts = (value: string) => {
+    const cached = cachedDateParts.get(value);
+    if (cached !== undefined) {
+        cachedDateParts.delete(value);
+        cachedDateParts.set(value, cached);
+        return cached;
+    }
+
+    const parsed = parsePacificDateParts(value);
+    if (cachedDateParts.size >= DATE_PARTS_CACHE_LIMIT) {
+        const oldestKey = cachedDateParts.keys().next().value;
+        if (oldestKey) cachedDateParts.delete(oldestKey);
+    }
+    cachedDateParts.set(value, parsed);
+    return parsed;
+};
+
 const getDateParts = (...values: Array<string | null | undefined>) => {
     for (const value of values) {
         if (!value) continue;
-        const parts = parsePacificDateParts(value);
+        const parts = getCachedDateParts(value);
         if (parts) return parts;
     }
     return null;

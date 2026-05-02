@@ -150,8 +150,25 @@ describe('Dashboard tab switching performance', () => {
     });
 
     it('warms the report cache while preloading report years', async () => {
+        const idleCallbacks: Array<() => void> = [];
+        vi.stubGlobal('requestIdleCallback', vi.fn((callback: IdleRequestCallback) => {
+            idleCallbacks.push(() => callback({ didTimeout: false, timeRemaining: () => 20 }));
+            return idleCallbacks.length;
+        }));
+        vi.stubGlobal('cancelIdleCallback', vi.fn());
+
         render(<DashboardPage />);
 
+        await waitFor(() => expect(loadSettings).toHaveBeenCalled());
+
+        expect(ensureMealsLoaded).not.toHaveBeenCalledWith(expect.objectContaining({ force: true }));
+        expect(warmDashboardReportCache).not.toHaveBeenCalled();
+
+        idleCallbacks.forEach((callback) => callback());
+
+        await waitFor(() => expect(ensureMealsLoaded).toHaveBeenCalledWith(expect.objectContaining({ force: true })));
         await waitFor(() => expect(warmDashboardReportCache).toHaveBeenCalledTimes(1));
+
+        vi.unstubAllGlobals();
     });
 });
