@@ -23,7 +23,7 @@ Roles: `checkin`, `staff`, `admin`, `board`, `bicycle`.
 To let non-check-in users file app issues and feature requests from inside the app, add these server-side environment variables in Vercel:
 
 - `GITHUB_FEEDBACK_TOKEN`: GitHub token with permission to create issues in this repository and assign Copilot.
-- `GITHUB_FEEDBACK_OWNER`: defaults to `karangattu`.
+- `GITHUB_FEEDBACK_OWNER`: defaults to `hopescorner`.
 - `GITHUB_FEEDBACK_REPO`: defaults to `hopes-corner-app`.
 - `GITHUB_FEEDBACK_ASSIGNEE`: defaults to `copilot`.
 
