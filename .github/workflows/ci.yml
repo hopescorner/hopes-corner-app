@@ -13,12 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6.4.0
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Verify release versions stay in sync
@@ -53,7 +53,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 2  # Need previous commit to detect changes
 
@@ -94,12 +94,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6.4.0
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -111,7 +111,7 @@ jobs:
       # https://github.com/amondnet/vercel-action
       # https://vercel.com/kb/guide/how-can-i-use-github-actions-with-vercel
       - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v42.2.0
+        uses: amondnet/vercel-action@v42.3.0
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -127,14 +127,14 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6.4.0
         with:
-          node-version: "20"
+          node-version: "24"
 
       - name: Determine release tag
         id: release-tag
@@ -160,4 +160,3 @@ jobs:
       - name: Skip existing release tag
         if: steps.tag-check.outputs.exists == 'true'
         run: echo "Release tag ${{ steps.release-tag.outputs.tag }} already exists; skipping"
-
