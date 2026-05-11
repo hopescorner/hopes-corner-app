@@ -102,8 +102,13 @@ test.describe('DonationsSection', () => {
     // Total weight: 15 + 5 = 20
     await expect(summarySection.getByText('20.0')).toBeVisible();
     await expect(summarySection.getByText('lbs total', { exact: true })).toBeVisible();
+    // Donation value: (15 + 5) * 1.97 = 39.40
+    const donationValueStat = summarySection.locator('div.text-center').filter({ hasText: 'donation value' });
+    await expect(donationValueStat.locator('p').first()).toContainText('$39.40');
+    await expect(summarySection.getByText('donation value')).toBeVisible();
     // Total trays: 3 + 1 = 4
-    await expect(summarySection.getByText('4')).toBeVisible();
+    const traysStat = summarySection.locator('div.text-center').filter({ hasText: 'trays' });
+    await expect(traysStat.locator('p').first()).toContainText('4');
     await expect(summarySection.getByText('trays', { exact: true })).toBeVisible();
     // Unique items: 2
     const uniqueItemsStat = summarySection.locator('div.text-center').filter({ hasText: 'unique items' });

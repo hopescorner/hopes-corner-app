@@ -83,7 +83,7 @@ test.describe('TutorialModal', () => {
       if (i > 0) {
         await component.getByLabel(`Go to step ${i + 1}`).click();
       }
-      await expect(component.getByText(stepTitles[i])).toBeVisible();
+      await expect(component.getByRole('heading', { name: stepTitles[i] })).toBeVisible();
       await expect(component.getByText(`Step ${i + 1} of 8`)).toBeVisible();
     }
   });
