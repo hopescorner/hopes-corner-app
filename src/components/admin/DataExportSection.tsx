@@ -22,6 +22,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { todayPacificDateString } from '@/lib/utils/date';
 import { createClient } from '@/lib/supabase/client';
+import { calculateDonationLineItemValue, formatDonationCurrency } from '@/lib/utils/donationUtils';
 
 // Helper to convert data to CSV and trigger download
 function exportToCSV(data: Record<string, unknown>[], filename: string) {
@@ -65,7 +66,7 @@ const EXPORT_OPTIONS = [
     { id: 'showers', label: 'Shower History', icon: ShowerHead, color: 'text-sky-600', bg: 'bg-sky-50', description: 'Log of all shower reservations, completions, and waitlist activity.' },
     { id: 'laundry', label: 'Laundry Records', icon: WashingMachine, color: 'text-purple-600', bg: 'bg-purple-50', description: 'Workflow history for all on-site and off-site laundry loads.' },
     { id: 'bicycles', label: 'Bicycle Repairs', icon: Bike, color: 'text-amber-600', bg: 'bg-amber-50', description: 'Historical bicycle repair services and outcomes.' },
-    { id: 'donations', label: 'Donations Log', icon: FileText, color: 'text-rose-600', bg: 'bg-rose-50', description: 'All recorded donations including donor, item, and weight.' },
+    { id: 'donations', label: 'Donations Log', icon: FileText, color: 'text-rose-600', bg: 'bg-rose-50', description: 'All recorded donations including donor, item, weight, and estimated value.' },
     { id: 'supplies', label: 'Shower Supplies', icon: Package, color: 'text-teal-600', bg: 'bg-teal-50', description: 'Items distributed during showers including t-shirts, jackets, sleeping bags, and more.' },
 ];
 
@@ -187,14 +188,18 @@ export function DataExportSection() {
 
                 case 'donations':
                     exportToCSV(
-                        (donationRecords || []).map(r => ({
-                            Date: new Date(r.date).toLocaleDateString(),
-                            Type: r.type || '-',
-                            Item: r.itemName || '-',
-                            Trays: r.trays || '-',
-                            'Weight (lbs)': r.weightLbs || '-',
-                            Donor: r.donor || '-',
-                        })),
+                        (donationRecords || []).map(r => {
+                            const lineItemValue = calculateDonationLineItemValue(r);
+                            return {
+                                Date: new Date(r.date).toLocaleDateString(),
+                                Type: r.type || '-',
+                                Item: r.itemName || '-',
+                                Trays: r.trays || '-',
+                                'Weight (lbs)': r.weightLbs || '-',
+                                'Donation Value': lineItemValue === null ? '' : formatDonationCurrency(lineItemValue),
+                                Donor: r.donor || '-',
+                            };
+                        }),
                         `hopes-corner-donations-${today}.csv`
                     );
                     break;

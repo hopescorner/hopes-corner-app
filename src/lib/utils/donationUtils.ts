@@ -42,6 +42,11 @@ export const calculateDonationValue = (records: any[] = []) => {
     return records.reduce((sum, record) => sum + getDonationWeightLbs(record) * DONATION_VALUE_PER_POUND, 0);
 };
 
+export const calculateDonationLineItemValue = (record: any) => {
+    const weight = getDonationWeightLbs(record);
+    return weight > 0 ? weight * DONATION_VALUE_PER_POUND : null;
+};
+
 export const formatDonationCurrency = (value: number) => {
     const roundedValue = Math.round((value + 1e-9) * 100) / 100;
     return roundedValue.toLocaleString('en-US', {

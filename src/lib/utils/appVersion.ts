@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.31';
+export const APP_VERSION = '0.5.32';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.32',
+        date: 'May 11, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Donation Log Line-Item Value',
+                description: 'The Donations Log export now includes a per-row estimated dollar value at $1.97 per pound, leaving the value blank for donations without a usable weight.',
+            },
+        ],
+    },
     {
         version: '0.5.31',
         date: 'May 11, 2026',

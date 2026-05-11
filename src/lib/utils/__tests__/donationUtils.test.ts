@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateDonationValue, calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, DENSITY_SERVINGS, MINIMAL_TYPES } from '../donationUtils';
+import { calculateDonationLineItemValue, calculateDonationValue, calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, DENSITY_SERVINGS, MINIMAL_TYPES } from '../donationUtils';
 
 describe('donationUtils', () => {
     describe('calculateDonationValue', () => {
@@ -14,6 +14,18 @@ describe('donationUtils', () => {
             ];
 
             expect(calculateDonationValue(records)).toBeCloseTo(30.535);
+        });
+    });
+
+    describe('calculateDonationLineItemValue', () => {
+        it('returns the estimated value for a valid weighted donation', () => {
+            expect(calculateDonationLineItemValue({ weightLbs: 12.5 })).toBeCloseTo(24.625);
+        });
+
+        it('returns null when a donation does not have a positive usable weight', () => {
+            expect(calculateDonationLineItemValue({ weightLbs: 0 })).toBeNull();
+            expect(calculateDonationLineItemValue({ weightLbs: null })).toBeNull();
+            expect(calculateDonationLineItemValue({})).toBeNull();
         });
     });
 
