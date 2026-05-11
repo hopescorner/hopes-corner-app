@@ -6,6 +6,7 @@ export const DENSITY_SERVINGS = {
 };
 
 export const MINIMAL_TYPES = new Set(["School Lunch", "Pastries", "Deli Foods"]);
+export const DONATION_VALUE_PER_POUND = 1.97;
 
 const formatLocalDateKey = (date: Date) => {
     if (Number.isNaN(date.getTime())) return null;
@@ -30,6 +31,25 @@ export const calculateServings = (type: string, weightLbs: any, trays: any = 0, 
         return weight * 5;
     }
     return weight;
+};
+
+export const getDonationWeightLbs = (record: any) => {
+    const weight = Number(record?.weightLbs ?? record?.weight_lbs);
+    return Number.isFinite(weight) && weight > 0 ? weight : 0;
+};
+
+export const calculateDonationValue = (records: any[] = []) => {
+    return records.reduce((sum, record) => sum + getDonationWeightLbs(record) * DONATION_VALUE_PER_POUND, 0);
+};
+
+export const formatDonationCurrency = (value: number) => {
+    const roundedValue = Math.round((value + 1e-9) * 100) / 100;
+    return roundedValue.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    });
 };
 
 export const deriveDonationDateKey = (record: any, DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/) => {

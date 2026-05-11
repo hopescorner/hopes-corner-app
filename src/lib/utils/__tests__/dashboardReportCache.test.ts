@@ -61,6 +61,13 @@ const createInput = () => ({
         { serviceDate: '2025-01-15', guestId: 'g1' },
         { dateKey: '2025-01-20', guestId: 'g2' },
     ],
+    donationRecords: [
+        { dateKey: '2025-01-05', weightLbs: 10 },
+        { date: '2025-01-06T12:00:00', weight_lbs: '5.5' },
+        { dateKey: '2025-01-07', weightLbs: 0 },
+        { dateKey: '2025-01-08', weightLbs: null },
+        { dateKey: '2025-02-01', weightLbs: 20 },
+    ],
     guests: [
         { id: 'g1', housingStatus: 'Unhoused', location: 'San Jose', age: 'Adult 18-59' },
         { id: 'g2', housingStatus: 'Housed', location: 'Sunnyvale', age: 'Senior 60+' },
@@ -129,7 +136,9 @@ describe('dashboardReportCache', () => {
         expect(reportData.monthStats.bikeService).toBe(1);
         expect(reportData.monthStats.newBicycles).toBe(1);
         expect(reportData.monthStats.haircuts).toBe(2);
+        expect(reportData.monthStats.donationValue).toBeCloseTo(30.535);
         expect(reportData.ytdStats.totalMeals).toBe(31);
+        expect(reportData.ytdStats.donationValue).toBeCloseTo(30.535);
         expect(reportData.totalActiveGuests).toBe(8);
         expect(reportData.housingBreakdown[0]).toMatchObject({ label: 'Unhoused', count: 4 });
         expect(reportData.topLocations[0]).toMatchObject({ label: 'San Jose', count: 4 });
@@ -155,9 +164,12 @@ describe('dashboardReportCache', () => {
         expect(januaryMeals.rvMonThu).toBe(5);
         expect(januaryMeals.totalHotMeals).toBe(28);
         expect(januaryMeals.totalWithLunchBags).toBe(31);
+        expect(januaryMeals.donationValue).toBeCloseTo(30.535);
         expect(februaryMeals.newGuests).toBe(0);
+        expect(februaryMeals.donationValue).toBeCloseTo(39.4);
         expect(monthlyData.totals.uniqueGuests).toBe(2);
         expect(monthlyData.totals.newGuests).toBe(2);
+        expect(monthlyData.totals.donationValue).toBeCloseTo(69.935);
 
         expect(januaryBicycles).toMatchObject({ month: 'January', newBikes: 1, services: 1, total: 2 });
         expect(bicycleSummary.totals).toMatchObject({ newBikes: 1, services: 1, total: 2 });

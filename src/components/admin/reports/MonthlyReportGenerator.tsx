@@ -16,13 +16,16 @@ import {
     Bike,
     Scissors,
     Gift,
+    DollarSign,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { useDonationsStore } from '@/stores/useDonationsStore';
 import { cn } from '@/lib/utils/cn';
 import { getMonthlyReportData } from '@/lib/utils/dashboardReportCache';
+import { formatDonationCurrency } from '@/lib/utils/donationUtils';
 import { useShallow } from 'zustand/react/shallow';
 
 // Types
@@ -46,6 +49,7 @@ interface ServiceStats {
     bikeService: number;
     newBicycles: number;
     haircuts: number;
+    donationValue: number;
 }
 
 interface DemographicBreakdown {
@@ -95,6 +99,10 @@ const formatNumber = (num: number): string => {
     return num.toLocaleString();
 };
 
+const formatServiceValue = (num: number, currency = false): string => {
+    return currency ? formatDonationCurrency(num) : formatNumber(num);
+};
+
 // Format percentage
 const formatPercentage = (num: number): string => {
     return `${num.toFixed(1)}%`;
@@ -128,6 +136,7 @@ export default function MonthlyReportGenerator() {
     })));
 
     const { guests } = useGuestsStore();
+    const { donationRecords = [] } = useDonationsStore() as { donationRecords?: any[] };
 
     const monthOptions = useMemo(() => generateMonthOptions(), []);
 
@@ -147,6 +156,7 @@ export default function MonthlyReportGenerator() {
             setReportData(getMonthlyReportData({
                 ...meals,
                 ...services,
+                donationRecords,
                 guests,
             }, year, month));
             toast.success('Report generated successfully!');
@@ -161,6 +171,7 @@ export default function MonthlyReportGenerator() {
         guests,
         meals,
         monthOptions,
+        donationRecords,
         selectedMonth,
         services,
     ]);
@@ -280,6 +291,7 @@ export default function MonthlyReportGenerator() {
                 bold: boolean;
                 indent?: boolean;
                 iconColor?: readonly [number, number, number];
+                currency?: boolean;
             }
 
             const statsRows: ServiceRow[] = [
@@ -295,6 +307,7 @@ export default function MonthlyReportGenerator() {
                 { label: 'Bike Service', month: reportData.monthStats.bikeService, ytd: reportData.ytdStats.bikeService, bold: true, iconColor: green600 },
                 { label: 'New Bicycles', month: reportData.monthStats.newBicycles, ytd: reportData.ytdStats.newBicycles, bold: true, iconColor: pink600 },
                 { label: 'Haircuts', month: reportData.monthStats.haircuts, ytd: reportData.ytdStats.haircuts, bold: true, iconColor: orange600 },
+                { label: 'Donation Value', month: reportData.monthStats.donationValue, ytd: reportData.ytdStats.donationValue, bold: true, iconColor: green600, currency: true },
             ];
 
             statsRows.forEach((row, idx) => {
@@ -336,10 +349,10 @@ export default function MonthlyReportGenerator() {
                 // Month value
                 doc.setFont('helvetica', row.bold ? 'bold' : 'normal');
                 doc.setTextColor(...gray900);
-                doc.text(formatNumber(row.month), monthColX + monthColW - 2, yPosition, { align: 'right' });
+                doc.text(formatServiceValue(row.month, row.currency), monthColX + monthColW - 2, yPosition, { align: 'right' });
 
                 // YTD value
-                doc.text(formatNumber(row.ytd), ytdColX + ytdColW - 2, yPosition, { align: 'right' });
+                doc.text(formatServiceValue(row.ytd, row.currency), ytdColX + ytdColW - 2, yPosition, { align: 'right' });
 
                 // Bottom border - thicker after the last sub-item, thin otherwise
                 const isLastMealSub = row.label === 'Day Worker';
@@ -688,6 +701,16 @@ export default function MonthlyReportGenerator() {
                                         </td>
                                         <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.monthStats.haircuts)}</td>
                                         <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatNumber(reportData.ytdStats.haircuts)}</td>
+                                    </tr>
+
+                                    {/* Donation Value */}
+                                    <tr className="border-l-4 border-l-emerald-500 bg-emerald-50/40">
+                                        <td className="py-3 px-4 font-semibold text-gray-900 flex items-center gap-2">
+                                            <DollarSign size={16} className="text-emerald-600" />
+                                            Donation Value
+                                        </td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatDonationCurrency(reportData.monthStats.donationValue)}</td>
+                                        <td className="text-right py-3 px-4 font-semibold text-gray-900">{formatDonationCurrency(reportData.ytdStats.donationValue)}</td>
                                     </tr>
                                 </tbody>
                             </table>

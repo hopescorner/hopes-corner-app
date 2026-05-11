@@ -37,7 +37,12 @@ vi.mock('@/lib/utils/date', () => ({
 
 vi.mock('@/lib/utils/donationUtils', () => ({
     calculateServings: () => 20,
+    calculateDonationValue: (records: any[] = []) => records.reduce((sum, r) => {
+        const weight = Number(r.weightLbs ?? r.weight_lbs);
+        return sum + (Number.isFinite(weight) && weight > 0 ? weight * 1.97 : 0);
+    }, 0),
     deriveDonationDateKey: (record: any) => record.dateKey || '2024-01-15',
+    formatDonationCurrency: (value: number) => `$${value.toFixed(2)}`,
     formatProteinAndCarbsClipboardText: () => 'Mock clipboard text',
     DENSITY_SERVINGS: { light: 10, medium: 20, high: 30 }
 }));
@@ -850,6 +855,8 @@ describe('DonationsSection Component', () => {
             });
 
             expect(screen.getByText('20.0')).toBeInTheDocument();
+            expect(screen.getByText('$39.40')).toBeInTheDocument();
+            expect(screen.getByText('donation value')).toBeInTheDocument();
             expect(screen.getByText('6')).toBeInTheDocument();
             expect(screen.getByText('~90')).toBeInTheDocument();
         });

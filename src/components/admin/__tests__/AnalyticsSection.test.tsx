@@ -528,6 +528,22 @@ describe('AnalyticsSection Overview and Trends data', () => {
         expect(screen.getByText('28')).toBeDefined();
     });
 
+    it('shows donation value for the selected analytics date range', () => {
+        vi.mocked(useDonationsStore).mockReturnValue({
+            donationRecords: [
+                { dateKey: today, weightLbs: 10 },
+                { date: `${today}T12:00:00`, weight_lbs: '5.5' },
+                { dateKey: today, weightLbs: 0 },
+                { dateKey: '2020-01-01', weightLbs: 100 },
+            ],
+        } as any);
+
+        render(<AnalyticsSection />);
+
+        expect(screen.getAllByText('Donations').length).toBeGreaterThan(0);
+        expect(screen.getByText('$30.54')).toBeDefined();
+    });
+
     it('counts only done bicycles in overview (matching dashboard logic)', () => {
         render(<AnalyticsSection />);
         // Only 'done' status bicycle records are counted (1 out of 4: pending, in_progress, done, cancelled)

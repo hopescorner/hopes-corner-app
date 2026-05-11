@@ -5,6 +5,7 @@ import MonthlyReportGenerator from '../MonthlyReportGenerator';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { useDonationsStore } from '@/stores/useDonationsStore';
 import toast from 'react-hot-toast';
 
 // Mock the stores
@@ -18,6 +19,10 @@ vi.mock('@/stores/useServicesStore', () => ({
 
 vi.mock('@/stores/useGuestsStore', () => ({
     useGuestsStore: vi.fn(),
+}));
+
+vi.mock('@/stores/useDonationsStore', () => ({
+    useDonationsStore: vi.fn(),
 }));
 
 // Mock hot-toast
@@ -63,6 +68,7 @@ vi.mock('lucide-react', () => ({
     Bike: () => <div data-testid="icon-bike" />,
     Scissors: () => <div data-testid="icon-scissors" />,
     Gift: () => <div data-testid="icon-gift" />,
+    DollarSign: () => <div data-testid="icon-dollar" />,
 }));
 
 describe('MonthlyReportGenerator', () => {
@@ -123,6 +129,13 @@ describe('MonthlyReportGenerator', () => {
         { date: '2026-01-17', guestId: 'g3' },
     ];
 
+    const mockDonationRecords = [
+        { dateKey: '2026-01-05', weightLbs: 10 },
+        { date: '2026-01-06T12:00:00', weight_lbs: '5.5' },
+        { dateKey: '2026-01-07', weightLbs: 0 },
+        { dateKey: '2026-01-08', weightLbs: null },
+    ];
+
     const mockGuests = [
         { id: 'g1', housingStatus: 'Unhoused', location: 'San Jose', age: 'Adult 18-59' },
         { id: 'g2', housingStatus: 'Unhoused', location: 'San Jose', age: 'Adult 18-59' },
@@ -154,6 +167,10 @@ describe('MonthlyReportGenerator', () => {
 
         vi.mocked(useGuestsStore).mockReturnValue({
             guests: mockGuests,
+        } as any);
+
+        vi.mocked(useDonationsStore).mockReturnValue({
+            donationRecords: mockDonationRecords,
         } as any);
     });
 
@@ -260,6 +277,20 @@ describe('MonthlyReportGenerator', () => {
                 // Use getAllByText since 'January 2026' appears in both the dropdown and the report header
                 const januaryTexts = screen.getAllByText(/January.*2026/);
                 expect(januaryTexts.length).toBeGreaterThanOrEqual(1);
+            });
+        });
+
+        it('displays monthly and YTD donation value from weighed donations', async () => {
+            render(<MonthlyReportGenerator />);
+
+            const select = screen.getByRole('combobox');
+            fireEvent.change(select, { target: { value: '2026-01' } });
+
+            fireEvent.click(screen.getByText('Generate Report'));
+
+            await waitFor(() => {
+                expect(screen.getByText('Donation Value')).toBeDefined();
+                expect(screen.getAllByText('$30.54')).toHaveLength(2);
             });
         });
 

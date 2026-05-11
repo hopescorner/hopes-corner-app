@@ -19,7 +19,9 @@ import { useDonationsStore, DonationRecord } from '@/stores/useDonationsStore';
 import { DonationTypeEnum } from '@/types/database';
 import {
     calculateServings,
+    calculateDonationValue,
     deriveDonationDateKey,
+    formatDonationCurrency,
     formatProteinAndCarbsClipboardText,
     DENSITY_SERVINGS
 } from '@/lib/utils/donationUtils';
@@ -439,6 +441,7 @@ export const DonationsSection = () => {
     const dailyTotals = useMemo(() => {
         return {
             totalWeight: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.weightLbs) || 0), 0),
+            donationValue: calculateDonationValue(displayedRecords as DonationRecord[]),
             totalTrays: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.trays) || 0), 0),
             totalServings: (displayedRecords as DonationRecord[]).reduce((sum, r) => sum + (Number(r.servings) || 0), 0),
             uniqueItems: groupedRecords.length,
@@ -595,6 +598,10 @@ export const DonationsSection = () => {
                     <div className="text-center">
                         <p className="text-2xl font-bold text-gray-900">{dailyTotals.totalWeight.toFixed(1)}</p>
                         <p className="text-xs font-medium text-gray-500 uppercase">lbs total</p>
+                    </div>
+                    <div className="text-center">
+                        <p className="text-2xl font-bold text-emerald-700">{formatDonationCurrency(dailyTotals.donationValue)}</p>
+                        <p className="text-xs font-medium text-gray-500 uppercase">donation value</p>
                     </div>
                     {dailyTotals.totalTrays > 0 && (
                         <div className="text-center">

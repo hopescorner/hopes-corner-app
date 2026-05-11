@@ -1,7 +1,22 @@
 import { describe, it, expect } from 'vitest';
-import { calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, DENSITY_SERVINGS, MINIMAL_TYPES } from '../donationUtils';
+import { calculateDonationValue, calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, DENSITY_SERVINGS, MINIMAL_TYPES } from '../donationUtils';
 
 describe('donationUtils', () => {
+    describe('calculateDonationValue', () => {
+        it('calculates donation dollar value from valid positive weights only', () => {
+            const records = [
+                { weightLbs: 10 },
+                { weight_lbs: '5.5' },
+                { weightLbs: 0 },
+                { weightLbs: null },
+                { weightLbs: undefined },
+                { weightLbs: 'not-a-number' },
+            ];
+
+            expect(calculateDonationValue(records)).toBeCloseTo(30.535);
+        });
+    });
+
     describe('DENSITY_SERVINGS constant', () => {
         it('has correct values for all densities', () => {
             expect(DENSITY_SERVINGS.light).toBe(10);

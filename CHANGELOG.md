@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.31] - 2026-05-11
+
+### Added
+
+- Donation totals now show an estimated dollar value at $1.97 per pound in the Donations section, Analytics, Monthly Report Generator, and Monthly Summary Report.
+- Donation value calculations ignore records without a usable positive weight, so incomplete rows do not skew totals.
+
 ## [0.5.30] - 2026-05-02
 
 ### Fixed

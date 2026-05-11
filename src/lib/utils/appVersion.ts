@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.30';
+export const APP_VERSION = '0.5.31';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.31',
+        date: 'May 11, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Donation Value Reporting',
+                description: 'Donation totals now show an estimated dollar value at $1.97 per pound across daily donations, analytics, and monthly reports, while records without a usable weight are ignored.',
+            },
+            {
+                type: 'feature',
+                title: 'Donation Value Summary Cards',
+                description: "The Donations section now shows the selected day's estimated value alongside weight, trays, and servings so staff can see pounds and dollars together.",
+            },
+        ],
+    },
     {
         version: '0.5.30',
         date: 'May 2, 2026',

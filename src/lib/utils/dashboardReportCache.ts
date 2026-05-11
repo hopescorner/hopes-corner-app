@@ -1,4 +1,5 @@
 import { parsePacificDateParts } from '@/lib/utils/date';
+import { getDonationWeightLbs, DONATION_VALUE_PER_POUND } from '@/lib/utils/donationUtils';
 
 const MONTH_NAMES = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -66,6 +67,17 @@ interface HaircutRecordLike {
     serviceDate?: string | null;
 }
 
+interface DonationRecordLike {
+    date?: string | null;
+    dateKey?: string | null;
+    donatedAt?: string | null;
+    donated_at?: string | null;
+    createdAt?: string | null;
+    created_at?: string | null;
+    weightLbs?: number | string | null;
+    weight_lbs?: number | string | null;
+}
+
 export interface DashboardReportCacheInput {
     mealRecords?: MaybeArray<MealRecordLike>;
     extraMealRecords?: MaybeArray<MealRecordLike>;
@@ -78,6 +90,7 @@ export interface DashboardReportCacheInput {
     laundryRecords?: MaybeArray<LaundryRecordLike>;
     bicycleRecords?: MaybeArray<BicycleRecordLike>;
     haircutRecords?: MaybeArray<HaircutRecordLike>;
+    donationRecords?: MaybeArray<DonationRecordLike>;
     guests?: MaybeArray<GuestLike>;
 }
 
@@ -104,6 +117,7 @@ export interface ServiceStats {
     bikeService: number;
     newBicycles: number;
     haircuts: number;
+    donationValue: number;
 }
 
 export interface DemographicBreakdown {
@@ -162,6 +176,7 @@ export interface MonthlySummaryRow {
     lunchBags: number;
     totalHotMeals: number;
     totalWithLunchBags: number;
+    donationValue: number;
 }
 
 export type MonthlySummaryTotals = MonthlySummaryRow;
@@ -234,6 +249,7 @@ type DashboardReportRefs = {
     laundryRecords: ReadonlyArray<LaundryRecordLike>;
     bicycleRecords: ReadonlyArray<BicycleRecordLike>;
     haircutRecords: ReadonlyArray<HaircutRecordLike>;
+    donationRecords: ReadonlyArray<DonationRecordLike>;
     guests: ReadonlyArray<GuestLike>;
 };
 
@@ -272,6 +288,7 @@ type MonthAggregate = {
     bicycleServiceItems: number;
     newBicycleItems: number;
     haircuts: number;
+    donationValue: number;
 };
 
 export interface DashboardReportCache {
@@ -301,6 +318,7 @@ const normalizeInput = (input: DashboardReportCacheInput): DashboardReportRefs =
     laundryRecords: input.laundryRecords ?? EMPTY_LIST,
     bicycleRecords: input.bicycleRecords ?? EMPTY_LIST,
     haircutRecords: input.haircutRecords ?? EMPTY_LIST,
+    donationRecords: input.donationRecords ?? EMPTY_LIST,
     guests: input.guests ?? EMPTY_LIST,
 });
 
@@ -316,6 +334,7 @@ const hasSameRefs = (left: DashboardReportRefs, right: DashboardReportRefs) => {
         && left.laundryRecords === right.laundryRecords
         && left.bicycleRecords === right.bicycleRecords
         && left.haircutRecords === right.haircutRecords
+        && left.donationRecords === right.donationRecords
         && left.guests === right.guests;
 };
 
@@ -357,6 +376,7 @@ const createMonthAggregate = (): MonthAggregate => ({
     bicycleServiceItems: 0,
     newBicycleItems: 0,
     haircuts: 0,
+    donationValue: 0,
 });
 
 const monthKeyFor = (year: number, month: number) => `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -473,6 +493,7 @@ const buildServiceStats = (cache: DashboardReportCache, year: number, endMonth: 
         bikeService: 0,
         newBicycles: 0,
         haircuts: 0,
+        donationValue: 0,
     };
 
     for (let month = startMonth; month <= endMonth; month++) {
@@ -493,6 +514,7 @@ const buildServiceStats = (cache: DashboardReportCache, year: number, endMonth: 
         totals.bikeService += aggregate.bicycleServiceRecords;
         totals.newBicycles += aggregate.newBicycleRecords;
         totals.haircuts += aggregate.haircuts;
+        totals.donationValue += aggregate.donationValue;
         totals.totalMeals += onsiteHotMeals
             + aggregate.rvMealsTotal
             + aggregate.dayWorkerMealsTotal
@@ -683,6 +705,17 @@ const buildDashboardReportCache = (refs: DashboardReportRefs): DashboardReportCa
         if (!parts) return;
         const aggregate = getOrCreateMonthAggregate(monthAggregates, parts.year, parts.month);
         aggregate.haircuts += 1;
+    });
+
+    refs.donationRecords.forEach((record) => {
+        const parts = getDateParts(record.dateKey, record.date, record.donatedAt, record.donated_at, record.createdAt, record.created_at);
+        if (!parts) return;
+
+        const weight = getDonationWeightLbs(record);
+        if (weight <= 0) return;
+
+        const aggregate = getOrCreateMonthAggregate(monthAggregates, parts.year, parts.month);
+        aggregate.donationValue += weight * DONATION_VALUE_PER_POUND;
     });
 
     return {
@@ -950,6 +983,7 @@ export const getMonthlySummaryDatasets = (
             lunchBags,
             totalHotMeals,
             totalWithLunchBags: totalHotMeals + lunchBags,
+            donationValue: aggregate?.donationValue ?? 0,
         });
     }
 
@@ -972,6 +1006,7 @@ export const getMonthlySummaryDatasets = (
         lunchBags: monthlyRows.reduce((sum, row) => sum + row.lunchBags, 0),
         totalHotMeals: monthlyRows.reduce((sum, row) => sum + row.totalHotMeals, 0),
         totalWithLunchBags: monthlyRows.reduce((sum, row) => sum + row.totalWithLunchBags, 0),
+        donationValue: monthlyRows.reduce((sum, row) => sum + row.donationValue, 0),
     };
 
     const bicycleRows: BicycleSummaryRow[] = [];

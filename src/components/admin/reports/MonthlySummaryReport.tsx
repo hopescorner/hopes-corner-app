@@ -11,8 +11,10 @@ import {
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { useDonationsStore } from '@/stores/useDonationsStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { getMonthlySummaryDatasets } from '@/lib/utils/dashboardReportCache';
+import { formatDonationCurrency } from '@/lib/utils/donationUtils';
 import { useShallow } from 'zustand/react/shallow';
 
 const MONTH_NAMES = [
@@ -31,6 +33,7 @@ interface MealColumnDefinition {
     bodyClass?: string;
     totalBodyClass?: string;
     isNumeric: boolean;
+    isCurrency?: boolean;
 }
 
 const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
@@ -221,6 +224,19 @@ const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
         totalBodyClass: 'font-black text-gray-900',
         isNumeric: true,
     },
+    {
+        key: 'donationValue',
+        label: 'Donation Value',
+        description: 'Estimated food donation value at $1.97 per pound; records with no positive weight are ignored.',
+        align: 'right',
+        headerBg: 'bg-emerald-50',
+        cellBg: 'bg-emerald-50/30',
+        totalCellBg: 'bg-emerald-50',
+        bodyClass: 'font-bold text-gray-900',
+        totalBodyClass: 'font-black text-gray-900',
+        isNumeric: true,
+        isCurrency: true,
+    },
 ];
 
 const MEAL_TABLE_GROUPS = [
@@ -247,6 +263,12 @@ const MEAL_TABLE_GROUPS = [
         title: 'Grand Totals',
         headerClass: 'bg-gray-100 text-gray-900',
         columns: ['totalHotMeals', 'totalWithLunchBags']
+    },
+    {
+        key: 'donations',
+        title: 'Donations',
+        headerClass: 'bg-emerald-50 text-emerald-900',
+        columns: ['donationValue']
     }
 ];
 
@@ -283,6 +305,7 @@ export default function MonthlySummaryReport() {
         shelterMealRecords: state.shelterMealRecords,
     })));
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const { donationRecords = [] } = useDonationsStore() as { donationRecords?: any[] };
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
 
@@ -309,11 +332,13 @@ export default function MonthlySummaryReport() {
         return getMonthlySummaryDatasets({
             ...meals,
             ...useServicesStore.getState(),
+            donationRecords,
             guests: useGuestsStore.getState().guests,
         }, selectedYear, currentYear, currentMonth);
     }, [
         currentMonth,
         currentYear,
+        donationRecords,
         meals,
         selectedYear,
     ]);
@@ -347,7 +372,14 @@ export default function MonthlySummaryReport() {
                     <p className="text-2xl font-bold text-gray-900">{formatNumber(monthlyData.totals.totalHotMeals)}</p>
                     <p className="text-xs text-gray-500 mt-1">Total meals served this year</p>
                 </div>
-                {/* Additional cards can be added here */}
+                <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Lightbulb size={16} className="text-emerald-500" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-gray-500">YTD Donation Value</span>
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900">{formatDonationCurrency(monthlyData.totals.donationValue)}</p>
+                    <p className="text-xs text-gray-500 mt-1">Food value from weighed donations</p>
+                </div>
             </div>
 
             {/* Main Table */}
@@ -399,7 +431,11 @@ export default function MonthlySummaryReport() {
                                             ${colIdx === 0 ? 'sticky left-0 z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'border-l'}
                                         `}
                                     >
-                                        {col.isNumeric ? formatNumber(row[col.key as keyof typeof row]) : row[col.key as keyof typeof row]}
+                                        {col.isCurrency
+                                            ? formatDonationCurrency(Number(row[col.key as keyof typeof row]) || 0)
+                                            : col.isNumeric
+                                                ? formatNumber(row[col.key as keyof typeof row])
+                                                : row[col.key as keyof typeof row]}
                                     </td>
                                 ))}
                             </tr>
@@ -416,7 +452,11 @@ export default function MonthlySummaryReport() {
                                         ${colIdx === 0 ? 'sticky left-0 z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'border-l'}
                                     `}
                                 >
-                                    {col.isNumeric ? formatNumber(monthlyData.totals[col.key as keyof typeof monthlyData.totals]) : 'Year to Date'}
+                                    {col.isCurrency
+                                        ? formatDonationCurrency(Number(monthlyData.totals[col.key as keyof typeof monthlyData.totals]) || 0)
+                                        : col.isNumeric
+                                            ? formatNumber(monthlyData.totals[col.key as keyof typeof monthlyData.totals])
+                                            : 'Year to Date'}
                                 </td>
                             ))}
                         </tr>

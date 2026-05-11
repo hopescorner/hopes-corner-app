@@ -32,16 +32,19 @@ import {
     Check,
     MapPin,
     Home,
-    UserCheck
+    UserCheck,
+    DollarSign
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useDailyNotesStore, DailyNote } from '@/stores/useDailyNotesStore';
 import { useModalStore } from '@/stores/useModalStore';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
 import { pacificDateStringFrom, todayPacificDateString } from '@/lib/utils/date';
+import { calculateDonationValue, deriveDonationDateKey, formatDonationCurrency } from '@/lib/utils/donationUtils';
 import { PeakTimesHeatmap } from './PeakTimesHeatmap';
 import { GuestRetentionChart } from './GuestRetentionChart';
 import {
@@ -69,6 +72,7 @@ const PROGRAMS = [
     { id: 'bicycles', label: 'Bicycles', icon: Bike, color: 'emerald', bgColor: 'bg-emerald-50', textColor: 'text-emerald-600', borderColor: 'border-emerald-200' },
     { id: 'haircuts', label: 'Haircuts', icon: Scissors, color: 'amber', bgColor: 'bg-amber-50', textColor: 'text-amber-600', borderColor: 'border-amber-200' },
     { id: 'holidays', label: 'Holidays', icon: Gift, color: 'pink', bgColor: 'bg-pink-50', textColor: 'text-pink-600', borderColor: 'border-pink-200' },
+    { id: 'donations', label: 'Donations', icon: DollarSign, color: 'rose', bgColor: 'bg-rose-50', textColor: 'text-rose-600', borderColor: 'border-rose-200' },
 ];
 
 // Views
@@ -129,6 +133,7 @@ export function AnalyticsSection() {
     );
 
     const guests = useGuestsStore((s) => s.guests);
+    const { donationRecords = [] } = useDonationsStore() as { donationRecords?: any[] };
 
     const { notes, getNotesForDateRange, loadFromSupabase: loadDailyNotes } = useDailyNotesStore(
         useShallow((s) => ({
@@ -144,7 +149,7 @@ export function AnalyticsSection() {
     const mobile = useIsMobile();
     const [activeView, setActiveView] = useState('overview');
     const [selectedPreset, setSelectedPreset] = useState('thisMonth');
-    const [selectedPrograms, setSelectedPrograms] = useState(['meals', 'showers', 'laundry', 'bicycles', 'haircuts', 'holidays']);
+    const [selectedPrograms, setSelectedPrograms] = useState(['meals', 'showers', 'laundry', 'bicycles', 'haircuts', 'holidays', 'donations']);
     const [showComparison, setShowComparison] = useState(true);
 
     // Demographic filter state
@@ -327,6 +332,13 @@ export function AnalyticsSection() {
             .filter((r: { date: string; dateKey?: string; guestId?: string }) => isRecordInRange(r) && isGuestIncluded((r as any).guestId))
             .length;
 
+        const donationValue = calculateDonationValue(
+            (donationRecords as any[]).filter((record) => {
+                const dateKey = deriveDonationDateKey(record);
+                return dateKey ? isInRange(dateKey, start, end) : false;
+            })
+        );
+
         // Get unique guest IDs from selected programs
         const guestIds = new Set<string>();
         const addGuestIds = (records: Array<{ guestId?: string; date?: string; dateKey?: string }>) => {
@@ -375,8 +387,8 @@ export function AnalyticsSection() {
                 .forEach((r: { guestId?: string }) => r.guestId && guestIds.add(r.guestId));
         }
 
-        return { meals, showers, laundry, bicycles, bicycleServices, haircuts, holidays, uniqueGuests: guestIds.size };
-    }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, isInRange, dateKeyOf, countBicycleServices, selectedPrograms, demoMealTypeFilters, isGuestIncluded]);
+        return { meals, showers, laundry, bicycles, bicycleServices, haircuts, holidays, donationValue, uniqueGuests: guestIds.size };
+    }, [dateRange, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords, donationRecords, isInRange, dateKeyOf, countBicycleServices, selectedPrograms, demoMealTypeFilters, isGuestIncluded]);
 
     // Calculate comparison metrics (previous period)
     const prevPeriod = useMemo(() => {
@@ -422,6 +434,12 @@ export function AnalyticsSection() {
             .filter(r => isRecordInPreviousRange(r) && r.status === 'done' && isGuestIncluded(r.guestId));
         const prevBicycles = prevDoneBicycles.length;
         const prevBicycleServices = prevDoneBicycles.reduce((sum, r) => sum + countBicycleServices(r), 0);
+        const prevDonationValue = calculateDonationValue(
+            (donationRecords as any[]).filter((record) => {
+                const dateKey = deriveDonationDateKey(record);
+                return dateKey ? isInRange(dateKey, pStart, pEnd) : false;
+            })
+        );
 
         return {
             meals: metrics.meals - prevMeals,
@@ -429,8 +447,9 @@ export function AnalyticsSection() {
             laundry: metrics.laundry - prevLaundry,
             bicycles: metrics.bicycles - prevBicycles,
             bicycleServices: metrics.bicycleServices - prevBicycleServices,
+            donationValue: metrics.donationValue - prevDonationValue,
         };
-    }, [dateRange, showComparison, metrics, prevPeriod, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, isInRange, dateKeyOf, countBicycleServices, demoMealTypeFilters, isGuestIncluded]);
+    }, [dateRange, showComparison, metrics, prevPeriod, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, donationRecords, isInRange, dateKeyOf, countBicycleServices, demoMealTypeFilters, isGuestIncluded]);
 
     // Daily breakdown for trends
     const dailyData = useMemo(() => {
@@ -687,6 +706,22 @@ export function AnalyticsSection() {
                             <span className="font-bold text-xs uppercase tracking-wider">Holidays</span>
                         </div>
                         <p className="text-3xl font-black text-pink-900">{metrics.holidays.toLocaleString()}</p>
+                    </div>
+                )}
+
+                {selectedPrograms.includes('donations') && (
+                    <div className="bg-rose-50 rounded-2xl p-4 border border-rose-100">
+                        <div className="flex items-center gap-2 text-rose-600 mb-2">
+                            <DollarSign size={18} />
+                            <span className="font-bold text-xs uppercase tracking-wider">Donations</span>
+                        </div>
+                        <p className="text-3xl font-black text-rose-900">{formatDonationCurrency(metrics.donationValue)}</p>
+                        {comparison && (
+                            <div className={cn("flex items-center gap-1 mt-2 text-xs font-bold", comparison.donationValue >= 0 ? "text-emerald-600" : "text-red-600")}>
+                                {comparison.donationValue >= 0 ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                                {formatDonationCurrency(Math.abs(comparison.donationValue))} vs prev
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
