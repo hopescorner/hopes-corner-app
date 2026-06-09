@@ -233,6 +233,7 @@ export interface MonthlySummaryDatasets {
         months: ShowerLaundrySummaryRow[];
         totals: ShowerLaundrySummaryTotals;
     };
+    cumulativeHotMeals: number;
 }
 
 type MonthPointer = { year: number; month: number };
@@ -924,6 +925,22 @@ export const getMonthlyReportData = (
     };
 };
 
+export const getCumulativeHotMealsTotal = (input: DashboardReportCacheInput): number => {
+    const cache = warmDashboardReportCache(input);
+    let total = 0;
+    cache.monthAggregates.forEach((aggregate) => {
+        const guestMeals = aggregate.guestMealsByDay.reduce((sum, count) => sum + count, 0);
+        total +=
+            guestMeals +
+            aggregate.extraMealsTotal +
+            aggregate.rvMealsTotal +
+            aggregate.dayWorkerMealsTotal +
+            aggregate.shelterMealsTotal +
+            aggregate.unitedEffortMealsTotal;
+    });
+    return total;
+};
+
 export const getMonthlySummaryDatasets = (
     input: DashboardReportCacheInput,
     selectedYear: number,
@@ -1183,5 +1200,6 @@ export const getMonthlySummaryDatasets = (
             months: showerLaundryRows,
             totals: showerLaundryTotals,
         },
+        cumulativeHotMeals: getCumulativeHotMealsTotal(input),
     };
 };

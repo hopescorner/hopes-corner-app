@@ -343,7 +343,7 @@ export default function MonthlySummaryReport() {
         selectedYear,
     ]);
 
-    const { monthlyData, bicycleSummary, showerLaundrySummary } = summaryDatasets;
+    const { monthlyData, bicycleSummary, showerLaundrySummary, cumulativeHotMeals } = summaryDatasets;
 
     return (
         <div className="space-y-6">
@@ -379,6 +379,14 @@ export default function MonthlySummaryReport() {
                     </div>
                     <p className="text-2xl font-bold text-gray-900">{formatDonationCurrency(monthlyData.totals.donationValue)}</p>
                     <p className="text-xs text-gray-500 mt-1">Food value from weighed donations</p>
+                </div>
+                <div className="bg-rose-50 p-4 rounded-xl border border-rose-100 shadow-sm md:col-span-2">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Lightbulb size={16} className="text-rose-500" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-rose-600">Cumulative Hot Meals</span>
+                    </div>
+                    <p className="text-3xl font-black text-rose-900">{formatNumber(cumulativeHotMeals)}</p>
+                    <p className="text-xs text-rose-600/80 mt-1">Total hot meals served since program inception</p>
                 </div>
             </div>
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+    getCumulativeHotMealsTotal,
     getMealReportData,
     getMonthlyReportData,
     getMonthlySummaryDatasets,
@@ -184,5 +185,31 @@ describe('dashboardReportCache', () => {
         expect(januaryServices.offsiteLoads).toBe(1);
         expect(showerLaundrySummary.totals.totalParticipants).toBe(3);
         expect(showerLaundrySummary.totals.uniqueLaundryGuests).toBe(2);
+    });
+
+    it('getCumulativeHotMealsTotal returns all-time hot meal count across all months', () => {
+        const input = createInput();
+        // January 2025:
+        //   guestMeals: 2 (Mon) + 1 (Wed) = 3
+        //   extraMeals: 1
+        //   rvMeals: 5 (Thu) + 6 (Sat) = 11
+        //   dayWorkerMeals: 7
+        //   shelterMeals: 4
+        //   unitedEffortMeals: 2
+        //   → January hot meals = 3 + 1 + 11 + 7 + 4 + 2 = 28
+        // February 2025:
+        //   guestMeals: 1 (Mon)
+        //   all others: 0
+        //   → February hot meals = 1
+        // Cumulative = 28 + 1 = 29
+        const total = getCumulativeHotMealsTotal(input);
+        expect(total).toBe(29);
+    });
+
+    it('getMonthlySummaryDatasets includes cumulativeHotMeals in the return value', () => {
+        const input = createInput();
+        const result = getMonthlySummaryDatasets(input, 2025, 2025, 11);
+        expect(typeof result.cumulativeHotMeals).toBe('number');
+        expect(result.cumulativeHotMeals).toBe(29);
     });
 });

@@ -34,7 +34,7 @@ import { useServicesStore } from "@/stores/useServicesStore";
 import { exportToCSV } from "@/lib/utils/csv";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { getMealReportData } from "@/lib/utils/dashboardReportCache";
+import { getMealReportData, getCumulativeHotMealsTotal } from "@/lib/utils/dashboardReportCache";
 import { useShallow } from "zustand/react/shallow";
 
 const DAYS_OF_WEEK = [
@@ -191,6 +191,14 @@ export const MealReport = () => {
         if (!calculateMealData.length) return null;
         return calculateMealData[calculateMealData.length - 1];
     }, [calculateMealData]);
+
+    const cumulativeHotMeals = useMemo(() => {
+        return getCumulativeHotMealsTotal({
+            ...meals,
+            ...services,
+            guests,
+        });
+    }, [guests, meals, services]);
 
     // Pie chart data for meal type breakdown
     const mealTypePieData = useMemo(() => {
@@ -534,6 +542,21 @@ export const MealReport = () => {
                     </div>
                 </div>
             )}
+
+            {/* Cumulative Hot Meals Milestone Banner */}
+            <div className="bg-gradient-to-r from-rose-50 to-orange-50 rounded-2xl border border-rose-100 p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                    <div className="flex-1">
+                        <p className="text-xs font-bold uppercase tracking-wider text-rose-500 mb-1">Cumulative Hot Meals</p>
+                        <p className="text-5xl font-black text-rose-900">{cumulativeHotMeals.toLocaleString()}</p>
+                        <p className="text-rose-600/80 text-sm mt-2">Total hot meals served since program inception</p>
+                    </div>
+                    <div className="text-xs text-rose-500/70 sm:text-right">
+                        <p>Includes guest, extra, RV, day worker,</p>
+                        <p>shelter, and United Effort meals</p>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };
