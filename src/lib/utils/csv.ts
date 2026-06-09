@@ -1,3 +1,16 @@
+/**
+ * Escapes a single CSV cell value.
+ * Wraps in double-quotes when the value contains a comma, double-quote, or newline.
+ */
+export const csvCell = (value: string | number | undefined | null): string => {
+    if (value === null || value === undefined) return '';
+    const str = String(value);
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+};
+
 export const exportToCSV = (data: any[], filename: string) => {
     if (!data || !data.length) {
         return;

@@ -20,6 +20,7 @@ vi.mock('@/stores/useServicesStore', () => ({
 vi.mock('lucide-react', () => ({
     Bike: () => <div data-testid="icon-bike" />,
     Download: () => <div data-testid="icon-download" />,
+    FileText: () => <div data-testid="icon-file-text" />,
     Info: () => <div data-testid="icon-info" />,
     Lightbulb: () => <div data-testid="icon-lightbulb" />,
     ShowerHead: () => <div data-testid="icon-shower" />,
@@ -457,6 +458,138 @@ describe('MonthlySummaryReport', () => {
             const janRow = rows[0];
             expect(janRow?.textContent).toContain('January');
             // Should only count 1 service (the done one)
+        });
+    });
+
+    describe('Export buttons', () => {
+        it('renders Export Full Report, Export CSV for Meals, Bicycle, and Shower sections', () => {
+            render(<MonthlySummaryReport />);
+
+            expect(screen.getByText('Export Full Report')).toBeDefined();
+            const exportCsvButtons = screen.getAllByText('Export CSV');
+            // Meals Summary, Bicycle Services, and Shower & Laundry each have one
+            expect(exportCsvButtons.length).toBe(3);
+        });
+
+        it('clicking Export Full Report creates a Blob and triggers a download', () => {
+            const origBlob = global.Blob;
+            let capturedContent = '';
+            global.Blob = class extends origBlob {
+                constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+                    super(parts, options);
+                    capturedContent = (parts ?? []).join('');
+                }
+            } as typeof Blob;
+            global.URL.createObjectURL = vi.fn(() => 'blob:mock');
+            global.URL.revokeObjectURL = vi.fn();
+            const origCreateElement = Document.prototype.createElement.bind(document);
+            const elemSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+                const el = origCreateElement(tag);
+                if (tag === 'a') Object.defineProperty(el, 'click', { value: vi.fn(), writable: true });
+                return el;
+            });
+
+            render(<MonthlySummaryReport />);
+            fireEvent.click(screen.getByText('Export Full Report'));
+
+            expect(global.URL.createObjectURL).toHaveBeenCalled();
+            expect(capturedContent).toContain('MEALS SUMMARY');
+            expect(capturedContent).toContain('BICYCLE SERVICES SUMMARY');
+            expect(capturedContent).toContain('SHOWER & LAUNDRY SERVICES SUMMARY');
+            expect(capturedContent).toContain('SUMMARY METRICS');
+
+            elemSpy.mockRestore();
+            global.Blob = origBlob;
+        });
+
+        it('clicking Meals Export CSV creates a Blob with meal headers', () => {
+            const origBlob = global.Blob;
+            let capturedContent = '';
+            global.Blob = class extends origBlob {
+                constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+                    super(parts, options);
+                    capturedContent = (parts ?? []).join('');
+                }
+            } as typeof Blob;
+            global.URL.createObjectURL = vi.fn(() => 'blob:mock');
+            global.URL.revokeObjectURL = vi.fn();
+            const origCreateElement = Document.prototype.createElement.bind(document);
+            const elemSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+                const el = origCreateElement(tag);
+                if (tag === 'a') Object.defineProperty(el, 'click', { value: vi.fn(), writable: true });
+                return el;
+            });
+
+            render(<MonthlySummaryReport />);
+            fireEvent.click(screen.getAllByText('Export CSV')[0]); // Meals Summary
+
+            expect(global.URL.createObjectURL).toHaveBeenCalled();
+            expect(capturedContent).toContain('Month');
+            expect(capturedContent).toContain('Monday');
+            expect(capturedContent).toContain('Year to Date');
+
+            elemSpy.mockRestore();
+            global.Blob = origBlob;
+        });
+
+        it('clicking Bicycle Export CSV creates a Blob with bicycle headers', () => {
+            const origBlob = global.Blob;
+            let capturedContent = '';
+            global.Blob = class extends origBlob {
+                constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+                    super(parts, options);
+                    capturedContent = (parts ?? []).join('');
+                }
+            } as typeof Blob;
+            global.URL.createObjectURL = vi.fn(() => 'blob:mock');
+            global.URL.revokeObjectURL = vi.fn();
+            const origCreateElement = Document.prototype.createElement.bind(document);
+            const elemSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+                const el = origCreateElement(tag);
+                if (tag === 'a') Object.defineProperty(el, 'click', { value: vi.fn(), writable: true });
+                return el;
+            });
+
+            render(<MonthlySummaryReport />);
+            fireEvent.click(screen.getAllByText('Export CSV')[1]); // Bicycle Services
+
+            expect(global.URL.createObjectURL).toHaveBeenCalled();
+            expect(capturedContent).toContain('New Bicycles');
+            expect(capturedContent).toContain('Services');
+            expect(capturedContent).toContain('Year to Date');
+
+            elemSpy.mockRestore();
+            global.Blob = origBlob;
+        });
+
+        it('clicking Shower & Laundry Export CSV creates a Blob with shower/laundry headers', () => {
+            const origBlob = global.Blob;
+            let capturedContent = '';
+            global.Blob = class extends origBlob {
+                constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+                    super(parts, options);
+                    capturedContent = (parts ?? []).join('');
+                }
+            } as typeof Blob;
+            global.URL.createObjectURL = vi.fn(() => 'blob:mock');
+            global.URL.revokeObjectURL = vi.fn();
+            const origCreateElement = Document.prototype.createElement.bind(document);
+            const elemSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+                const el = origCreateElement(tag);
+                if (tag === 'a') Object.defineProperty(el, 'click', { value: vi.fn(), writable: true });
+                return el;
+            });
+
+            render(<MonthlySummaryReport />);
+            fireEvent.click(screen.getAllByText('Export CSV')[2]); // Shower & Laundry
+
+            expect(global.URL.createObjectURL).toHaveBeenCalled();
+            expect(capturedContent).toContain('Program Days');
+            expect(capturedContent).toContain('Laundry Loads');
+            expect(capturedContent).toContain('Year to Date');
+
+            elemSpy.mockRestore();
+            global.Blob = origBlob;
         });
     });
 });

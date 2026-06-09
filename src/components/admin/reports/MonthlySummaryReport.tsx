@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import {
     Bike,
     Download,
+    FileText,
     Info,
     Lightbulb,
     ShowerHead,
@@ -15,6 +16,7 @@ import { useDonationsStore } from '@/stores/useDonationsStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { getMonthlySummaryDatasets } from '@/lib/utils/dashboardReportCache';
 import { formatDonationCurrency } from '@/lib/utils/donationUtils';
+import { csvCell } from '@/lib/utils/csv';
 import { useShallow } from 'zustand/react/shallow';
 
 const MONTH_NAMES = [
@@ -345,6 +347,215 @@ export default function MonthlySummaryReport() {
 
     const { monthlyData, bicycleSummary, showerLaundrySummary } = summaryDatasets;
 
+    function downloadCSV(content: string, filename: string) {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function handleExportMealsSummary() {
+        const headers = MEAL_COLUMN_DEFINITIONS.map(col => csvCell(col.label)).join(',');
+        const dataRows = monthlyData.months.map(row =>
+            MEAL_COLUMN_DEFINITIONS.map(col => {
+                const val = row[col.key as keyof typeof row];
+                return col.isCurrency
+                    ? csvCell((Number(val) || 0).toFixed(2))
+                    : csvCell(val);
+            }).join(',')
+        );
+        const totalsRow = MEAL_COLUMN_DEFINITIONS.map(col => {
+            if (col.key === 'month') return csvCell('Year to Date');
+            const val = monthlyData.totals[col.key as keyof typeof monthlyData.totals];
+            return col.isCurrency
+                ? csvCell((Number(val) || 0).toFixed(2))
+                : csvCell(val);
+        }).join(',');
+        const content = [headers, ...dataRows, totalsRow].join('\n');
+        downloadCSV(content, `meals-summary-${selectedYear}.csv`);
+    }
+
+    function handleExportBicycleSummary() {
+        const headers = ['Month', 'New Bicycles', 'Services', 'Total'].join(',');
+        const dataRows = bicycleSummary.months.map(row =>
+            [csvCell(row.month), csvCell(row.newBikes), csvCell(row.services), csvCell(row.total)].join(',')
+        );
+        const totalsRow = [
+            csvCell('Year to Date'),
+            csvCell(bicycleSummary.totals.newBikes),
+            csvCell(bicycleSummary.totals.services),
+            csvCell(bicycleSummary.totals.total),
+        ].join(',');
+        const content = [headers, ...dataRows, totalsRow].join('\n');
+        downloadCSV(content, `bicycle-summary-${selectedYear}.csv`);
+    }
+
+    function handleExportShowerLaundry() {
+        const headers = [
+            'Month', 'Program Days', 'Showers', 'Avg Showers/Day', 'New Guests',
+            'Participants', 'Adult', 'Senior', 'Child',
+            'Laundry Loads', 'On-site', 'Off-site', 'Avg Loads/Day',
+            'Unique Laundry Users', 'Adult', 'Senior', 'Child', 'New Laundry Guests',
+        ].join(',');
+        const dataRows = showerLaundrySummary.months.map(row =>
+            [
+                csvCell(row.month),
+                csvCell(row.programDays),
+                csvCell(row.showers),
+                csvCell(row.avgShowersPerDay.toFixed(1)),
+                csvCell(row.newGuests),
+                csvCell(row.totalParticipants),
+                csvCell(row.participantsAdult),
+                csvCell(row.participantsSenior),
+                csvCell(row.participantsChild),
+                csvCell(row.laundryLoads),
+                csvCell(row.onsiteLoads),
+                csvCell(row.offsiteLoads),
+                csvCell(row.avgLaundryLoadsPerDay.toFixed(1)),
+                csvCell(row.uniqueLaundryGuests),
+                csvCell(row.laundryAdult),
+                csvCell(row.laundrySenior),
+                csvCell(row.laundryChild),
+                csvCell(row.newLaundryGuests),
+            ].join(',')
+        );
+        const totals = showerLaundrySummary.totals;
+        const totalsRow = [
+            csvCell('Year to Date'),
+            csvCell(totals.programDays),
+            csvCell(totals.showers),
+            csvCell(totals.avgShowersPerDay.toFixed(1)),
+            csvCell(totals.newGuests),
+            csvCell(totals.totalParticipants),
+            csvCell(totals.participantsAdult),
+            csvCell(totals.participantsSenior),
+            csvCell(totals.participantsChild),
+            csvCell(totals.laundryLoads),
+            csvCell(totals.onsiteLoads),
+            csvCell(totals.offsiteLoads),
+            csvCell(totals.avgLaundryLoadsPerDay.toFixed(1)),
+            csvCell(totals.uniqueLaundryGuests),
+            csvCell(totals.laundryAdult),
+            csvCell(totals.laundrySenior),
+            csvCell(totals.laundryChild),
+            csvCell(totals.newLaundryGuests),
+        ].join(',');
+        const content = [headers, ...dataRows, totalsRow].join('\n');
+        downloadCSV(content, `shower-laundry-summary-${selectedYear}.csv`);
+    }
+
+    function handleExportFullReport() {
+        const lines: string[] = [];
+        const generatedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        // Title
+        lines.push(`Monthly Summary Report - ${selectedYear}`);
+        lines.push(`Generated: ${generatedDate}`);
+        lines.push('');
+
+        // Summary Metrics
+        lines.push('SUMMARY METRICS');
+        lines.push('Metric,Value');
+        lines.push(`YTD Hot Meals,${monthlyData.totals.totalHotMeals}`);
+        lines.push(`YTD Total w/ Lunch Bags,${monthlyData.totals.totalWithLunchBags}`);
+        lines.push(`YTD Donation Value ($),${(monthlyData.totals.donationValue ?? 0).toFixed(2)}`);
+        lines.push(`YTD Bicycle Services,${bicycleSummary.totals.total}`);
+        lines.push(`YTD Showers,${showerLaundrySummary.totals.showers}`);
+        lines.push(`YTD Laundry Loads,${showerLaundrySummary.totals.laundryLoads}`);
+        lines.push('');
+
+        // Meals Summary
+        lines.push('MEALS SUMMARY');
+        lines.push(MEAL_COLUMN_DEFINITIONS.map(col => csvCell(col.label)).join(','));
+        for (const row of monthlyData.months) {
+            lines.push(MEAL_COLUMN_DEFINITIONS.map(col => {
+                const val = row[col.key as keyof typeof row];
+                return col.isCurrency
+                    ? csvCell((Number(val) || 0).toFixed(2))
+                    : csvCell(val);
+            }).join(','));
+        }
+        lines.push(MEAL_COLUMN_DEFINITIONS.map(col => {
+            if (col.key === 'month') return csvCell('Year to Date');
+            const val = monthlyData.totals[col.key as keyof typeof monthlyData.totals];
+            return col.isCurrency
+                ? csvCell((Number(val) || 0).toFixed(2))
+                : csvCell(val);
+        }).join(','));
+        lines.push('');
+
+        // Bicycle Services
+        lines.push('BICYCLE SERVICES SUMMARY');
+        lines.push('Month,New Bicycles,Services,Total');
+        for (const row of bicycleSummary.months) {
+            lines.push([csvCell(row.month), csvCell(row.newBikes), csvCell(row.services), csvCell(row.total)].join(','));
+        }
+        lines.push([
+            csvCell('Year to Date'),
+            csvCell(bicycleSummary.totals.newBikes),
+            csvCell(bicycleSummary.totals.services),
+            csvCell(bicycleSummary.totals.total),
+        ].join(','));
+        lines.push('');
+
+        // Shower & Laundry
+        lines.push('SHOWER & LAUNDRY SERVICES SUMMARY');
+        lines.push([
+            'Month', 'Program Days', 'Showers', 'Avg Showers/Day', 'New Guests',
+            'Participants', 'Adult', 'Senior', 'Child',
+            'Laundry Loads', 'On-site', 'Off-site', 'Avg Loads/Day',
+            'Unique Laundry Users', 'Adult', 'Senior', 'Child', 'New Laundry Guests',
+        ].join(','));
+        for (const row of showerLaundrySummary.months) {
+            lines.push([
+                csvCell(row.month),
+                csvCell(row.programDays),
+                csvCell(row.showers),
+                csvCell(row.avgShowersPerDay.toFixed(1)),
+                csvCell(row.newGuests),
+                csvCell(row.totalParticipants),
+                csvCell(row.participantsAdult),
+                csvCell(row.participantsSenior),
+                csvCell(row.participantsChild),
+                csvCell(row.laundryLoads),
+                csvCell(row.onsiteLoads),
+                csvCell(row.offsiteLoads),
+                csvCell(row.avgLaundryLoadsPerDay.toFixed(1)),
+                csvCell(row.uniqueLaundryGuests),
+                csvCell(row.laundryAdult),
+                csvCell(row.laundrySenior),
+                csvCell(row.laundryChild),
+                csvCell(row.newLaundryGuests),
+            ].join(','));
+        }
+        const showerLaundryTotals = showerLaundrySummary.totals;
+        lines.push([
+            csvCell('Year to Date'),
+            csvCell(showerLaundryTotals.programDays),
+            csvCell(showerLaundryTotals.showers),
+            csvCell(showerLaundryTotals.avgShowersPerDay.toFixed(1)),
+            csvCell(showerLaundryTotals.newGuests),
+            csvCell(showerLaundryTotals.totalParticipants),
+            csvCell(showerLaundryTotals.participantsAdult),
+            csvCell(showerLaundryTotals.participantsSenior),
+            csvCell(showerLaundryTotals.participantsChild),
+            csvCell(showerLaundryTotals.laundryLoads),
+            csvCell(showerLaundryTotals.onsiteLoads),
+            csvCell(showerLaundryTotals.offsiteLoads),
+            csvCell(showerLaundryTotals.avgLaundryLoadsPerDay.toFixed(1)),
+            csvCell(showerLaundryTotals.uniqueLaundryGuests),
+            csvCell(showerLaundryTotals.laundryAdult),
+            csvCell(showerLaundryTotals.laundrySenior),
+            csvCell(showerLaundryTotals.laundryChild),
+            csvCell(showerLaundryTotals.newLaundryGuests),
+        ].join(','));
+
+        downloadCSV(lines.join('\n'), `monthly-summary-report-${selectedYear}.csv`);
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -360,6 +571,13 @@ export default function MonthlySummaryReport() {
                         ))}
                     </select>
                 </div>
+                <button
+                    onClick={handleExportFullReport}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition-colors"
+                >
+                    <FileText size={16} />
+                    Export Full Report
+                </button>
             </div>
 
             {/* Insights Cards (Simplified) */}
@@ -384,6 +602,16 @@ export default function MonthlySummaryReport() {
 
             {/* Main Table */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto overflow-y-visible">
+                <div className="flex items-center justify-between px-4 pt-4 pb-2">
+                    <h3 className="text-base font-bold text-gray-800">Meals Summary</h3>
+                    <button
+                        onClick={handleExportMealsSummary}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
+                    >
+                        <Download size={14} />
+                        Export CSV
+                    </button>
+                </div>
                 <table className="min-w-full text-sm">
                     <thead>
                         {/* Group Headers */}
@@ -471,6 +699,13 @@ export default function MonthlySummaryReport() {
                         <Bike size={20} className="text-amber-600" />
                         <span>Bicycle Services Summary</span>
                     </h3>
+                    <button
+                        onClick={handleExportBicycleSummary}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition-colors"
+                    >
+                        <Download size={14} />
+                        Export CSV
+                    </button>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -505,69 +740,20 @@ export default function MonthlySummaryReport() {
 
             {/* ============== SHOWER & LAUNDRY SECTION ============== */}
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
-                <div className="flex flex-col items-center mb-6">
-                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                        <ShowerHead size={20} className="text-sky-600" />
-                        <span>Shower & Laundry Services Summary</span>
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">Participant trends and laundry loads from January through YTD {selectedYear}</p>
+                <div className="flex items-start justify-between mb-4">
+                    <div>
+                        <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                            <ShowerHead size={20} className="text-sky-600" />
+                            <span>Shower & Laundry Services Summary</span>
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-1">Participant trends and laundry loads from January through YTD {selectedYear}</p>
+                    </div>
                     <button
-                        onClick={() => {
-                            // Generate CSV content
-                            const headers = ['Month', 'Program Days', 'Showers', 'Avg/Day', 'New Guests', 'Participants', 'Adult', 'Senior', 'Child', 'Loads', 'On-site', 'Off-site', 'Avg/Day', 'Unique Users', 'Adult', 'Senior', 'Child', 'New Laundry Guests'];
-                            const rows = showerLaundrySummary.months.map(row => [
-                                row.month,
-                                row.programDays,
-                                row.showers,
-                                row.avgShowersPerDay.toFixed(1),
-                                row.newGuests,
-                                row.totalParticipants,
-                                row.participantsAdult,
-                                row.participantsSenior,
-                                row.participantsChild,
-                                row.laundryLoads,
-                                row.onsiteLoads,
-                                row.offsiteLoads,
-                                row.avgLaundryLoadsPerDay.toFixed(1),
-                                row.uniqueLaundryGuests,
-                                row.laundryAdult,
-                                row.laundrySenior,
-                                row.laundryChild,
-                                row.newLaundryGuests
-                            ]);
-                            const totalsRow = [
-                                'Year to Date',
-                                showerLaundrySummary.totals.programDays,
-                                showerLaundrySummary.totals.showers,
-                                showerLaundrySummary.totals.avgShowersPerDay.toFixed(1),
-                                showerLaundrySummary.totals.newGuests,
-                                showerLaundrySummary.totals.totalParticipants,
-                                showerLaundrySummary.totals.participantsAdult,
-                                showerLaundrySummary.totals.participantsSenior,
-                                showerLaundrySummary.totals.participantsChild,
-                                showerLaundrySummary.totals.laundryLoads,
-                                showerLaundrySummary.totals.onsiteLoads,
-                                showerLaundrySummary.totals.offsiteLoads,
-                                showerLaundrySummary.totals.avgLaundryLoadsPerDay.toFixed(1),
-                                showerLaundrySummary.totals.uniqueLaundryGuests,
-                                showerLaundrySummary.totals.laundryAdult,
-                                showerLaundrySummary.totals.laundrySenior,
-                                showerLaundrySummary.totals.laundryChild,
-                                showerLaundrySummary.totals.newLaundryGuests
-                            ];
-                            const csvContent = [headers.join(','), ...rows.map(r => r.join(',')), totalsRow.join(',')].join('\n');
-                            const blob = new Blob([csvContent], { type: 'text/csv' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = `shower-laundry-summary-${selectedYear}.csv`;
-                            a.click();
-                            URL.revokeObjectURL(url);
-                        }}
-                        className="mt-4 flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-lg transition-colors"
+                        onClick={handleExportShowerLaundry}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-lg transition-colors shrink-0"
                     >
-                        <Download size={16} />
-                        Export Shower & Laundry CSV
+                        <Download size={14} />
+                        Export CSV
                     </button>
                 </div>
 
