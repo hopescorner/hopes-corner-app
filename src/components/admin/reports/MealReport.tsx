@@ -164,18 +164,18 @@ export const MealReport = () => {
 
     const isCurrentMonth = selectedYear === currentDate.getFullYear() && selectedMonth === currentDate.getMonth();
 
-    const calculateMealData = useMemo(() => {
-        return getMealReportData({
-            ...meals,
-            ...services,
-            guests,
-        }, {
-            selectedYear,
-            selectedMonth,
-            comparisonMonths,
-            selectedDays,
-            mealTypeFilters,
-        });
+    const { mealRows: calculateMealData, cumulativeHotMeals } = useMemo(() => {
+        const input = { ...meals, ...services, guests };
+        return {
+            mealRows: getMealReportData(input, {
+                selectedYear,
+                selectedMonth,
+                comparisonMonths,
+                selectedDays,
+                mealTypeFilters,
+            }),
+            cumulativeHotMeals: getCumulativeHotMealsTotal(input),
+        };
     }, [
         comparisonMonths,
         guests,
@@ -191,14 +191,6 @@ export const MealReport = () => {
         if (!calculateMealData.length) return null;
         return calculateMealData[calculateMealData.length - 1];
     }, [calculateMealData]);
-
-    const cumulativeHotMeals = useMemo(() => {
-        return getCumulativeHotMealsTotal({
-            ...meals,
-            ...services,
-            guests,
-        });
-    }, [guests, meals, services]);
 
     // Pie chart data for meal type breakdown
     const mealTypePieData = useMemo(() => {

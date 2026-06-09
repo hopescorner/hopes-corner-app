@@ -925,8 +925,7 @@ export const getMonthlyReportData = (
     };
 };
 
-export const getCumulativeHotMealsTotal = (input: DashboardReportCacheInput): number => {
-    const cache = warmDashboardReportCache(input);
+const computeCumulativeHotMeals = (cache: DashboardReportCache): number => {
     let total = 0;
     cache.monthAggregates.forEach((aggregate) => {
         const guestMeals = aggregate.guestMealsByDay.reduce((sum, count) => sum + count, 0);
@@ -939,6 +938,10 @@ export const getCumulativeHotMealsTotal = (input: DashboardReportCacheInput): nu
             aggregate.unitedEffortMealsTotal;
     });
     return total;
+};
+
+export const getCumulativeHotMealsTotal = (input: DashboardReportCacheInput): number => {
+    return computeCumulativeHotMeals(warmDashboardReportCache(input));
 };
 
 export const getMonthlySummaryDatasets = (
@@ -1200,6 +1203,6 @@ export const getMonthlySummaryDatasets = (
             months: showerLaundryRows,
             totals: showerLaundryTotals,
         },
-        cumulativeHotMeals: getCumulativeHotMealsTotal(input),
+        cumulativeHotMeals: computeCumulativeHotMeals(cache),
     };
 };
