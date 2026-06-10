@@ -34,7 +34,7 @@ import { useServicesStore } from "@/stores/useServicesStore";
 import { exportToCSV } from "@/lib/utils/csv";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { getMealReportData } from "@/lib/utils/dashboardReportCache";
+import { getMealReportData, getMealReportYTDData } from "@/lib/utils/dashboardReportCache";
 import { useShallow } from "zustand/react/shallow";
 
 const DAYS_OF_WEEK = [
@@ -178,6 +178,27 @@ export const MealReport = () => {
         });
     }, [
         comparisonMonths,
+        guests,
+        meals,
+        mealTypeFilters,
+        selectedDays,
+        selectedMonth,
+        selectedYear,
+        services,
+    ]);
+
+    const ytdData = useMemo(() => {
+        return getMealReportYTDData({
+            ...meals,
+            ...services,
+            guests,
+        }, {
+            selectedYear,
+            selectedMonth,
+            selectedDays,
+            mealTypeFilters,
+        });
+    }, [
         guests,
         meals,
         mealTypeFilters,
@@ -506,31 +527,66 @@ export const MealReport = () => {
             )}
 
             {/* Summary Cards */}
-            {currentMonthData && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
-                        <p className="text-blue-600 font-medium text-sm mb-1">Total Meals Served</p>
-                        <p className="text-4xl font-black text-blue-900">{currentMonthData.totalMeals.toLocaleString()}</p>
-                        <p className="text-blue-600/80 text-xs mt-2">{currentMonthData.month}</p>
+            {currentMonthData && ytdData && (
+                <div className="space-y-6">
+                    <div>
+                        <h4 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
+                            Monthly Summary — {currentMonthData.month}
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 hover:shadow-md transition-shadow">
+                                <p className="text-blue-600 font-medium text-sm mb-1">Total Meals Served</p>
+                                <p className="text-4xl font-black text-blue-900">{currentMonthData.totalMeals.toLocaleString()}</p>
+                                <p className="text-blue-600/80 text-xs mt-2">{currentMonthData.month}</p>
+                            </div>
+                            <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 hover:shadow-md transition-shadow">
+                                <p className="text-emerald-600 font-medium text-sm mb-1">Unique Guests</p>
+                                <p className="text-4xl font-black text-emerald-900">{currentMonthData.uniqueGuests.toLocaleString()}</p>
+                                <p className="text-emerald-600/80 text-xs mt-2">~{currentMonthData.uniqueGuestsPerServiceDay.toFixed(0)} per day</p>
+                            </div>
+                            <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 hover:shadow-md transition-shadow">
+                                <p className="text-purple-600 font-medium text-sm mb-1">RV & Outreach</p>
+                                <p className="text-4xl font-black text-purple-900">
+                                    {(currentMonthData.rvMeals + currentMonthData.shelterMeals + currentMonthData.dayWorkerMeals).toLocaleString()}
+                                </p>
+                                <p className="text-purple-600/80 text-xs mt-2">Off-site meals</p>
+                            </div>
+                            <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100 hover:shadow-md transition-shadow">
+                                <p className="text-orange-600 font-medium text-sm mb-1">Extras & Lunch Bags</p>
+                                <p className="text-4xl font-black text-orange-900">
+                                    {(currentMonthData.extras + currentMonthData.lunchBags).toLocaleString()}
+                                </p>
+                                <p className="text-orange-600/80 text-xs mt-2">Supplemental</p>
+                            </div>
+                        </div>
                     </div>
-                    <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
-                        <p className="text-emerald-600 font-medium text-sm mb-1">Unique Guests</p>
-                        <p className="text-4xl font-black text-emerald-900">{currentMonthData.uniqueGuests.toLocaleString()}</p>
-                        <p className="text-emerald-600/80 text-xs mt-2">~{currentMonthData.uniqueGuestsPerServiceDay.toFixed(0)} per day</p>
-                    </div>
-                    <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100">
-                        <p className="text-purple-600 font-medium text-sm mb-1">RV & Outreach</p>
-                        <p className="text-4xl font-black text-purple-900">
-                            {(currentMonthData.rvMeals + currentMonthData.shelterMeals + currentMonthData.dayWorkerMeals).toLocaleString()}
-                        </p>
-                        <p className="text-purple-600/80 text-xs mt-2">Off-site meals</p>
-                    </div>
-                    <div className="bg-orange-50 p-6 rounded-2xl border border-orange-100">
-                        <p className="text-orange-600 font-medium text-sm mb-1">Extras & Lunch Bags</p>
-                        <p className="text-4xl font-black text-orange-900">
-                            {(currentMonthData.extras + currentMonthData.lunchBags).toLocaleString()}
-                        </p>
-                        <p className="text-orange-600/80 text-xs mt-2">Supplemental</p>
+
+                    <div>
+                        <h4 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
+                            Year-to-Date (YTD) Cumulative — {selectedYear}
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 hover:shadow-md transition-shadow">
+                                <p className="text-indigo-600 font-medium text-sm mb-1">YTD Meals (Excl. Lunch Bags)</p>
+                                <p className="text-4xl font-black text-indigo-900">{ytdData.mealsExcludingLunchBags.toLocaleString()}</p>
+                                <p className="text-indigo-600/80 text-xs mt-2">Jan – {months[selectedMonth]} {selectedYear}</p>
+                            </div>
+                            <div className="bg-sky-50 p-6 rounded-2xl border border-sky-100 hover:shadow-md transition-shadow">
+                                <p className="text-sky-600 font-medium text-sm mb-1">YTD Total Meals</p>
+                                <p className="text-4xl font-black text-sky-900">{ytdData.totalMeals.toLocaleString()}</p>
+                                <p className="text-sky-600/80 text-xs mt-2">Jan – {months[selectedMonth]} {selectedYear}</p>
+                            </div>
+                            <div className="bg-teal-50 p-6 rounded-2xl border border-teal-100 hover:shadow-md transition-shadow">
+                                <p className="text-teal-600 font-medium text-sm mb-1">YTD Unique Guests</p>
+                                <p className="text-4xl font-black text-teal-900">{ytdData.uniqueGuests.toLocaleString()}</p>
+                                <p className="text-teal-600/80 text-xs mt-2">Unduplicated</p>
+                            </div>
+                            <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 hover:shadow-md transition-shadow">
+                                <p className="text-amber-600 font-medium text-sm mb-1">YTD Lunch Bags</p>
+                                <p className="text-4xl font-black text-amber-900">{ytdData.lunchBags.toLocaleString()}</p>
+                                <p className="text-amber-600/80 text-xs mt-2">Supplemental</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

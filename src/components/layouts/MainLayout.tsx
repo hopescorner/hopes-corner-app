@@ -102,6 +102,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                             <Link
                                 href={defaultRoute}
                                 prefetch={false}
+                                onClick={async (e) => {
+                                    e.preventDefault();
+                                    if ('caches' in window) {
+                                        try {
+                                            const keys = await caches.keys();
+                                            await Promise.all(keys.map((key) => caches.delete(key)));
+                                        } catch {
+                                            // Ignore error
+                                        }
+                                    }
+                                    window.location.reload();
+                                }}
                                 className="inline-flex items-center p-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
                             >
                                 <img

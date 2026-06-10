@@ -26,6 +26,22 @@ const mockSupabase = {
         },
         error: null
     }),
+    maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+            id: 'new-id',
+            external_id: 'G123',
+            first_name: 'Test',
+            last_name: 'User',
+            full_name: 'Test User',
+            housing_status: 'housed',
+            age_group: 'Adult 18-59',
+            gender: 'Male',
+            location: 'Mountain View',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        },
+        error: null
+    }),
 };
 
 // 2. Mock Dependencies
@@ -86,6 +102,9 @@ describe('useGuestsStore', () => {
         // Reset specific mocks with logic
         mockSupabase.single.mockReset();
         mockSupabase.single.mockResolvedValue({ data: {}, error: null });
+
+        mockSupabase.maybeSingle.mockReset();
+        mockSupabase.maybeSingle.mockResolvedValue({ data: {}, error: null });
 
         mockSupabase.or.mockReset();
         mockSupabase.or.mockResolvedValue({ error: null });
@@ -204,6 +223,53 @@ describe('useGuestsStore', () => {
             });
             it('requires firstName', async () => {
                 await expect(useGuestsStore.getState().addGuest({ lastName: 'Test' } as any)).rejects.toThrow();
+            });
+        });
+
+        describe('fetchGuestById', () => {
+            it('returns existing guest from store without querying Supabase', async () => {
+                const existing = createMockGuest({ id: 'g-existing' });
+                useGuestsStore.setState({ guests: [existing] });
+
+                const res = await useGuestsStore.getState().fetchGuestById('g-existing');
+                expect(res).toEqual(existing);
+                expect(mockSupabase.from).not.toHaveBeenCalled();
+            });
+
+            it('queries Supabase and adds guest to store if not present', async () => {
+                const mockDbGuest = {
+                    id: 'g-new',
+                    external_id: 'G999',
+                    first_name: 'Jane',
+                    last_name: 'Smith',
+                    full_name: 'Jane Smith',
+                    housing_status: 'housed',
+                    age_group: 'Adult 18-59',
+                    gender: 'Female',
+                    location: 'Mountain View',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                };
+
+                mockSupabase.maybeSingle.mockResolvedValueOnce({
+                    data: mockDbGuest,
+                    error: null,
+                });
+
+                const res = await useGuestsStore.getState().fetchGuestById('g-new');
+                expect(res).toBeDefined();
+                expect(res?.id).toBe('g-new');
+                expect(useGuestsStore.getState().guests.some((g) => g.id === 'g-new')).toBe(true);
+            });
+
+            it('returns null if guest not found in Supabase', async () => {
+                mockSupabase.maybeSingle.mockResolvedValueOnce({
+                    data: null,
+                    error: { message: 'Not found' },
+                });
+
+                const res = await useGuestsStore.getState().fetchGuestById('g-nonexistent');
+                expect(res).toBeNull();
             });
         });
 

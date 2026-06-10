@@ -124,6 +124,12 @@ export function useRealtimeSync() {
                     if (!row?.id) throw new Error('missing shower row payload');
                     const mapped = mapShowerRow(row);
                     const isNew = payload.eventType === 'INSERT';
+                    if (row.guest_id) {
+                        const guestStore = useGuestsStore.getState();
+                        if (!guestStore.guests.some((g) => g.id === row.guest_id)) {
+                            guestStore.fetchGuestById(row.guest_id).catch(() => {});
+                        }
+                    }
                     useServicesStore.setState((state: any) => ({
                         showerRecords: [mapped, ...state.showerRecords.filter((r: any) => r.id !== mapped.id)],
                     }));
@@ -159,6 +165,12 @@ export function useRealtimeSync() {
                     if (!row?.id) throw new Error('missing laundry row payload');
                     const mapped = mapLaundryRow(row);
                     const isNew = payload.eventType === 'INSERT';
+                    if (row.guest_id) {
+                        const guestStore = useGuestsStore.getState();
+                        if (!guestStore.guests.some((g) => g.id === row.guest_id)) {
+                            guestStore.fetchGuestById(row.guest_id).catch(() => {});
+                        }
+                    }
                     useServicesStore.setState((state: any) => ({
                         laundryRecords: [mapped, ...state.laundryRecords.filter((r: any) => r.id !== mapped.id)],
                     }));
@@ -210,6 +222,12 @@ export function useRealtimeSync() {
                     const row = payload.new as any;
                     if (!row?.id) throw new Error('missing meal row payload');
                     const mapped = mapMealRow(row);
+                    if (row.guest_id) {
+                        const guestStore = useGuestsStore.getState();
+                        if (!guestStore.guests.some((g) => g.id === row.guest_id)) {
+                            guestStore.fetchGuestById(row.guest_id).catch(() => {});
+                        }
+                    }
                     const bucket = bucketOf(mapped.type);
                     useMealsStore.setState((state: any) => {
                         const cleared = {
@@ -247,6 +265,12 @@ export function useRealtimeSync() {
                     const row = payload.new as any;
                     if (!row?.id) throw new Error('missing bicycle row payload');
                     const mapped = mapBicycleRow(row);
+                    if (row.guest_id) {
+                        const guestStore = useGuestsStore.getState();
+                        if (!guestStore.guests.some((g) => g.id === row.guest_id)) {
+                            guestStore.fetchGuestById(row.guest_id).catch(() => {});
+                        }
+                    }
                     useServicesStore.setState((state: any) => ({
                         bicycleRecords: [mapped, ...state.bicycleRecords.filter((r: any) => r.id !== mapped.id)],
                     }));

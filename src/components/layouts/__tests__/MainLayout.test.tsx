@@ -143,6 +143,49 @@ describe('MainLayout', () => {
         expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/login' });
     });
 
+    it('reloads the page and clears caches when the logo is clicked', async () => {
+        vi.mocked(useSession).mockReturnValue({
+            data: { user: { role: 'admin', name: 'Admin' } },
+            status: 'authenticated',
+        } as any);
+
+        const reloadSpy = vi.fn();
+        const originalLocation = window.location;
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            value: { ...originalLocation, reload: reloadSpy },
+        });
+
+        const deleteSpy = vi.fn().mockResolvedValue(true);
+        const keysSpy = vi.fn().mockResolvedValue(['cache-1', 'cache-2']);
+        const mockCaches = {
+            keys: keysSpy,
+            delete: deleteSpy,
+        };
+        vi.stubGlobal('caches', mockCaches);
+
+        render(<MainLayout>Content</MainLayout>);
+
+        const logo = screen.getByAltText("Hope's Corner logo");
+        const logoLink = logo.closest('a');
+        expect(logoLink).toBeDefined();
+
+        await act(async () => {
+            fireEvent.click(logoLink!);
+        });
+
+        expect(keysSpy).toHaveBeenCalled();
+        expect(deleteSpy).toHaveBeenCalledWith('cache-1');
+        expect(deleteSpy).toHaveBeenCalledWith('cache-2');
+        expect(reloadSpy).toHaveBeenCalled();
+
+        Object.defineProperty(window, 'location', {
+            configurable: true,
+            value: originalLocation,
+        });
+        vi.unstubAllGlobals();
+    });
+
     it('updates bottom padding based on fixed element height', async () => {
         vi.mocked(useSession).mockReturnValue({
             data: { user: { role: 'admin', name: 'Admin' } },

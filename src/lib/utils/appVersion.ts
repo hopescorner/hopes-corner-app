@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.32';
+export const APP_VERSION = '0.5.34';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,33 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.34',
+        date: 'June 10, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Self-Healing Queue Guest Names',
+                description: 'Implemented a background-fetching mechanism to resolve and display guest names correctly in shower and laundry queues instead of falling back to "Unknown Guest".',
+            },
+            {
+                type: 'feature',
+                title: 'Header Logo App Refresh',
+                description: 'Clicking the Hope\'s Corner logo in the top left header now triggers a page reload, enabling PWA users to easily refresh the application.',
+            },
+        ],
+    },
+    {
+        version: '0.5.33',
+        date: 'June 9, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'YTD Cumulative Meal Metrics',
+                description: 'Added Year-to-Date (YTD) cumulative metrics on the Meal Services Report page, featuring a dedicated count of all meals served excluding lunch bags for the YTD.',
+            },
+        ],
+    },
     {
         version: '0.5.32',
         date: 'May 11, 2026',

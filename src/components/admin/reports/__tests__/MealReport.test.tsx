@@ -127,4 +127,11 @@ describe('MealReport', () => {
         const allButton = screen.getByText(/all/i);
         fireEvent.click(allButton);
     });
+
+    it('renders monthly and YTD cumulative meal summary cards', () => {
+        render(<MealReport />);
+        expect(screen.getByText(/Year-to-Date \(YTD\) Cumulative/i)).toBeDefined();
+        expect(screen.getByText('YTD Meals (Excl. Lunch Bags)')).toBeDefined();
+        expect(screen.getByText('YTD Total Meals')).toBeDefined();
+    });
 });

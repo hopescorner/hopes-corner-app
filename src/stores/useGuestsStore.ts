@@ -119,6 +119,7 @@ interface GuestsState {
     getLinkedGuestsCount: (guestId: string) => number;
     linkGuests: (guestId: string, proxyId: string) => Promise<GuestProxy>;
     unlinkGuests: (guestId: string, proxyId: string) => Promise<boolean>;
+    fetchGuestById: (id: string) => Promise<Guest | null>;
 
     // Helpers
     generateGuestId: () => string;
@@ -141,6 +142,31 @@ export const useGuestsStore = create<GuestsState>()(
                         state.guests = externalGuests;
                     });
                     clearSearchIndexCache();
+                },
+
+                fetchGuestById: async (id) => {
+                    const existing = get().guests.find((g) => g.id === id);
+                    if (existing) return existing;
+
+                    const supabase = createClient();
+                    const { data, error } = await supabase
+                        .from('guests')
+                        .select('*')
+                        .eq('id', id)
+                        .maybeSingle();
+
+                    if (error || !data) {
+                        return null;
+                    }
+
+                    const mapped = mapGuestRow(data) as any;
+                    set((state) => {
+                        if (!state.guests.some((g) => g.id === id)) {
+                            state.guests.push(mapped);
+                        }
+                    });
+                    clearSearchIndexCache();
+                    return mapped;
                 },
 
                 generateGuestId: () => {

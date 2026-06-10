@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.5.34] - 2026-06-10
+
+### Fixed
+
+- Implemented a self-healing background guest loading mechanism. If a shower reservation, laundry booking, meal record, or bicycle repair references a guest ID not present in the local store, it is fetched dynamically in the background, resolving "Unknown Guest" names in the queues.
+
+### Added
+
+- Clicking the Hope's Corner logo in the top-left header now triggers a page reload, enabling PWA users to easily refresh the application.
+
+## [0.5.33] - 2026-06-09
+
+### Added
+
+- Added Year-to-Date (YTD) cumulative metrics on the Meal Services Report page, featuring a dedicated count of all meals served excluding lunch bags for the YTD.
+
+## [0.5.32] - 2026-05-11
+
+### Added
+
+- The Donations Log export now includes a per-row estimated dollar value at $1.97 per pound, leaving the value blank for donations without a usable weight.
+
 ## [0.5.31] - 2026-05-11
 
 ### Added

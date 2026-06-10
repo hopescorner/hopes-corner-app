@@ -843,6 +843,103 @@ export const getMealReportData = (
     return results.reverse();
 };
 
+export interface MealReportYTDData {
+    totalMeals: number;
+    guestMeals: number;
+    extras: number;
+    rvMeals: number;
+    dayWorkerMeals: number;
+    shelterMeals: number;
+    unitedEffortMeals: number;
+    lunchBags: number;
+    mealsExcludingLunchBags: number;
+    uniqueGuests: number;
+}
+
+export const getMealReportYTDData = (
+    input: DashboardReportCacheInput,
+    options: {
+        selectedYear: number;
+        selectedMonth: number;
+        selectedDays: number[];
+        mealTypeFilters: MealTypeFilters;
+    }
+): MealReportYTDData => {
+    const cache = warmDashboardReportCache(input);
+    const { selectedYear, selectedMonth, selectedDays, mealTypeFilters } = options;
+
+    let totalMeals = 0;
+    let guestMeals = 0;
+    let extras = 0;
+    let rvMeals = 0;
+    let dayWorkerMeals = 0;
+    let shelterMeals = 0;
+    let unitedEffortMeals = 0;
+    let lunchBags = 0;
+    const uniqueGuestIds = new Set<string>();
+
+    for (let m = 0; m <= selectedMonth; m++) {
+        const aggregate = cache.monthAggregates.get(monthKeyFor(selectedYear, m));
+        if (!aggregate) continue;
+
+        const gMeals = mealTypeFilters.guest ? sumDays(aggregate.guestMealsByDay, selectedDays) : 0;
+        const exMeals = mealTypeFilters.extras ? sumDays(aggregate.extraMealsByDay, selectedDays) : 0;
+        const rvM = mealTypeFilters.rv ? aggregate.rvMealsTotal : 0;
+        const dwM = mealTypeFilters.dayWorker ? aggregate.dayWorkerMealsTotal : 0;
+        const shM = mealTypeFilters.shelter ? aggregate.shelterMealsTotal : 0;
+        const ueM = mealTypeFilters.unitedEffort ? aggregate.unitedEffortMealsTotal : 0;
+        const lb = mealTypeFilters.lunchBags ? aggregate.lunchBagMealsTotal : 0;
+
+        guestMeals += gMeals;
+        extras += exMeals;
+        rvMeals += rvM;
+        dayWorkerMeals += dwM;
+        shelterMeals += shM;
+        unitedEffortMeals += ueM;
+        lunchBags += lb;
+
+        totalMeals += gMeals + exMeals + rvM + dwM + shM + ueM + lb;
+
+        if (mealTypeFilters.guest) {
+            addDaysToGuestSet(uniqueGuestIds, aggregate.guestMealGuestIdsByDay, selectedDays);
+        }
+        if (mealTypeFilters.extras) {
+            addDaysToGuestSet(uniqueGuestIds, aggregate.extraMealGuestIdsByDay, selectedDays);
+        }
+        if (mealTypeFilters.rv) {
+            addSetToSet(uniqueGuestIds, aggregate.rvGuestIds);
+        }
+        if (mealTypeFilters.dayWorker) {
+            addSetToSet(uniqueGuestIds, aggregate.dayWorkerGuestIds);
+        }
+        if (mealTypeFilters.shelter) {
+            addSetToSet(uniqueGuestIds, aggregate.shelterGuestIds);
+        }
+        if (mealTypeFilters.unitedEffort) {
+            addSetToSet(uniqueGuestIds, aggregate.unitedEffortGuestIds);
+        }
+        if (mealTypeFilters.lunchBags) {
+            addSetToSet(uniqueGuestIds, aggregate.lunchBagGuestIds);
+        }
+    }
+
+    const mealsExcludingLunchBags = guestMeals + extras + rvMeals + dayWorkerMeals + shelterMeals + unitedEffortMeals;
+
+    return {
+        totalMeals,
+        guestMeals,
+        extras,
+        rvMeals,
+        dayWorkerMeals,
+        shelterMeals,
+        unitedEffortMeals,
+        lunchBags,
+        mealsExcludingLunchBags,
+        uniqueGuests: uniqueGuestIds.size,
+    };
+};
+
+
 export const getMonthlyReportData = (
     input: DashboardReportCacheInput,
     year: number,

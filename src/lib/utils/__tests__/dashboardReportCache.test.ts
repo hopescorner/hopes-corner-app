@@ -5,6 +5,7 @@ import {
     getMonthlyReportData,
     getMonthlySummaryDatasets,
     warmDashboardReportCache,
+    getMealReportYTDData,
 } from '../dashboardReportCache';
 
 const mealTypeFilters = {
@@ -185,4 +186,27 @@ describe('dashboardReportCache', () => {
         expect(showerLaundrySummary.totals.totalParticipants).toBe(3);
         expect(showerLaundrySummary.totals.uniqueLaundryGuests).toBe(2);
     });
+
+    it('calculates YTD meal numbers excluding lunch bags correctly', () => {
+        const input = createInput();
+
+        const ytdData = getMealReportYTDData(input, {
+            selectedYear: 2025,
+            selectedMonth: 1, // Feb (up to Feb, which includes Jan and Feb)
+            selectedDays: [1, 3], // Mon, Wed
+            mealTypeFilters,
+        });
+
+        // January total meals = 31, lunch bags = 3, extras = 1, rv = 11, dayWorker = 7, shelter = 4, unitedEffort = 2, guest = 3.
+        // Wait, total except lunch bags = 31 - 3 = 28.
+        // Let's verify Feb data in createInput:
+        // Guest meal on 2025-02-03: count = 1.
+        // So guest meals YTD = 3 (Jan) + 1 (Feb) = 4.
+        // Lunch bags YTD = 3 (Jan) + 0 (Feb) = 3.
+        // Meals excluding lunch bags = 28 (Jan) + 1 (Feb) = 29.
+        expect(ytdData.totalMeals).toBe(32);
+        expect(ytdData.mealsExcludingLunchBags).toBe(29);
+        expect(ytdData.lunchBags).toBe(3);
+    });
 });
+

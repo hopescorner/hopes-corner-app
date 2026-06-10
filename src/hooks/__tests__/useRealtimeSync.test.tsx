@@ -71,6 +71,7 @@ const mockGuestsGetState = vi.fn(() => ({
         { id: 'g-1', firstName: 'John', lastName: 'Doe', preferredName: '' },
         { id: 'g-2', firstName: 'Jane', lastName: 'Smith', preferredName: 'Janey' },
     ],
+    fetchGuestById: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('@/stores/useGuestsStore', () => ({
@@ -441,7 +442,10 @@ describe('useRealtimeSync', () => {
     });
 
     it('shows generic name when guest not found in store', async () => {
-        mockGuestsGetState.mockReturnValueOnce({ guests: [] });
+        mockGuestsGetState.mockReturnValueOnce({
+            guests: [],
+            fetchGuestById: vi.fn().mockResolvedValue(null),
+        });
 
         let capturedOnChange: ((payload: any) => void) | undefined;
         mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {

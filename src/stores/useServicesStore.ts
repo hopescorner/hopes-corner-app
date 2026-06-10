@@ -3,6 +3,7 @@ import { persist, devtools, subscribeWithSelector } from 'zustand/middleware';
 import { immer } from 'zustand/middleware/immer';
 import { createClient } from '@/lib/supabase/client';
 import { fetchAllPaginated } from '@/lib/utils/supabasePagination';
+import { useGuestsStore } from '@/stores/useGuestsStore';
 import {
     getCachedShowerRecords,
     getCachedLaundryRecords,
@@ -858,6 +859,25 @@ export const useServicesStore = create<ServicesState>()(
                                 state.isLoaded = true;
                                 state.lastLoadedAt = new Date().toISOString();
                             });
+
+                            const guestIds = new Set<string>();
+                            const addGuestId = (r: any) => { if (r?.guestId) guestIds.add(r.guestId); };
+                            (showerRows || []).forEach(addGuestId);
+                            (laundryRows || []).forEach(addGuestId);
+                            (bicycleRows || []).forEach(addGuestId);
+                            (haircutRows || []).forEach(addGuestId);
+                            (holidayRows || []).forEach(addGuestId);
+
+                            if (guestIds.size > 0) {
+                                const guestStore = useGuestsStore.getState();
+                                const loadedGuestIds = new Set(guestStore.guests.map(g => g.id));
+                                const missingGuestIds = Array.from(guestIds).filter(id => !loadedGuestIds.has(id));
+                                if (missingGuestIds.length > 0) {
+                                    Promise.all(missingGuestIds.map(id => guestStore.fetchGuestById(id))).catch(err => {
+                                        console.error('Failed to fetch missing guests in ensureLoaded:', err);
+                                    });
+                                }
+                            }
                         } catch (error) {
                             console.error('Failed to load service records from Supabase:', error);
                         } finally {
