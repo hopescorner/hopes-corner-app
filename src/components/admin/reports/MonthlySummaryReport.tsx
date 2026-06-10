@@ -4,7 +4,6 @@ import React, { useMemo, useState } from 'react';
 import {
     Bike,
     Download,
-    FileText,
     Info,
     Lightbulb,
     ShowerHead,
@@ -447,115 +446,6 @@ export default function MonthlySummaryReport() {
         downloadCSV(content, `shower-laundry-summary-${selectedYear}.csv`);
     }
 
-    function handleExportFullReport() {
-        const lines: string[] = [];
-        const generatedDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-
-        // Title
-        lines.push(`Monthly Summary Report - ${selectedYear}`);
-        lines.push(`Generated: ${generatedDate}`);
-        lines.push('');
-
-        // Summary Metrics
-        lines.push('SUMMARY METRICS');
-        lines.push('Metric,Value');
-        lines.push(`YTD Hot Meals,${monthlyData.totals.totalHotMeals}`);
-        lines.push(`YTD Total w/ Lunch Bags,${monthlyData.totals.totalWithLunchBags}`);
-        lines.push(`YTD Donation Value ($),${(monthlyData.totals.donationValue ?? 0).toFixed(2)}`);
-        lines.push(`YTD Bicycle Services,${bicycleSummary.totals.total}`);
-        lines.push(`YTD Showers,${showerLaundrySummary.totals.showers}`);
-        lines.push(`YTD Laundry Loads,${showerLaundrySummary.totals.laundryLoads}`);
-        lines.push('');
-
-        // Meals Summary
-        lines.push('MEALS SUMMARY');
-        lines.push(MEAL_COLUMN_DEFINITIONS.map(col => csvCell(col.label)).join(','));
-        for (const row of monthlyData.months) {
-            lines.push(MEAL_COLUMN_DEFINITIONS.map(col => {
-                const val = row[col.key as keyof typeof row];
-                return col.isCurrency
-                    ? csvCell((Number(val) || 0).toFixed(2))
-                    : csvCell(val);
-            }).join(','));
-        }
-        lines.push(MEAL_COLUMN_DEFINITIONS.map(col => {
-            if (col.key === 'month') return csvCell('Year to Date');
-            const val = monthlyData.totals[col.key as keyof typeof monthlyData.totals];
-            return col.isCurrency
-                ? csvCell((Number(val) || 0).toFixed(2))
-                : csvCell(val);
-        }).join(','));
-        lines.push('');
-
-        // Bicycle Services
-        lines.push('BICYCLE SERVICES SUMMARY');
-        lines.push('Month,New Bicycles,Services,Total');
-        for (const row of bicycleSummary.months) {
-            lines.push([csvCell(row.month), csvCell(row.newBikes), csvCell(row.services), csvCell(row.total)].join(','));
-        }
-        lines.push([
-            csvCell('Year to Date'),
-            csvCell(bicycleSummary.totals.newBikes),
-            csvCell(bicycleSummary.totals.services),
-            csvCell(bicycleSummary.totals.total),
-        ].join(','));
-        lines.push('');
-
-        // Shower & Laundry
-        lines.push('SHOWER & LAUNDRY SERVICES SUMMARY');
-        lines.push([
-            'Month', 'Program Days', 'Showers', 'Avg Showers/Day', 'New Guests',
-            'Participants', 'Adult', 'Senior', 'Child',
-            'Laundry Loads', 'On-site', 'Off-site', 'Avg Loads/Day',
-            'Unique Laundry Users', 'Adult', 'Senior', 'Child', 'New Laundry Guests',
-        ].join(','));
-        for (const row of showerLaundrySummary.months) {
-            lines.push([
-                csvCell(row.month),
-                csvCell(row.programDays),
-                csvCell(row.showers),
-                csvCell(row.avgShowersPerDay.toFixed(1)),
-                csvCell(row.newGuests),
-                csvCell(row.totalParticipants),
-                csvCell(row.participantsAdult),
-                csvCell(row.participantsSenior),
-                csvCell(row.participantsChild),
-                csvCell(row.laundryLoads),
-                csvCell(row.onsiteLoads),
-                csvCell(row.offsiteLoads),
-                csvCell(row.avgLaundryLoadsPerDay.toFixed(1)),
-                csvCell(row.uniqueLaundryGuests),
-                csvCell(row.laundryAdult),
-                csvCell(row.laundrySenior),
-                csvCell(row.laundryChild),
-                csvCell(row.newLaundryGuests),
-            ].join(','));
-        }
-        const showerLaundryTotals = showerLaundrySummary.totals;
-        lines.push([
-            csvCell('Year to Date'),
-            csvCell(showerLaundryTotals.programDays),
-            csvCell(showerLaundryTotals.showers),
-            csvCell(showerLaundryTotals.avgShowersPerDay.toFixed(1)),
-            csvCell(showerLaundryTotals.newGuests),
-            csvCell(showerLaundryTotals.totalParticipants),
-            csvCell(showerLaundryTotals.participantsAdult),
-            csvCell(showerLaundryTotals.participantsSenior),
-            csvCell(showerLaundryTotals.participantsChild),
-            csvCell(showerLaundryTotals.laundryLoads),
-            csvCell(showerLaundryTotals.onsiteLoads),
-            csvCell(showerLaundryTotals.offsiteLoads),
-            csvCell(showerLaundryTotals.avgLaundryLoadsPerDay.toFixed(1)),
-            csvCell(showerLaundryTotals.uniqueLaundryGuests),
-            csvCell(showerLaundryTotals.laundryAdult),
-            csvCell(showerLaundryTotals.laundrySenior),
-            csvCell(showerLaundryTotals.laundryChild),
-            csvCell(showerLaundryTotals.newLaundryGuests),
-        ].join(','));
-
-        downloadCSV(lines.join('\n'), `monthly-summary-report-${selectedYear}.csv`);
-    }
-
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -571,13 +461,6 @@ export default function MonthlySummaryReport() {
                         ))}
                     </select>
                 </div>
-                <button
-                    onClick={handleExportFullReport}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-lg transition-colors"
-                >
-                    <FileText size={16} />
-                    Export Full Report
-                </button>
             </div>
 
             {/* Insights Cards (Simplified) */}

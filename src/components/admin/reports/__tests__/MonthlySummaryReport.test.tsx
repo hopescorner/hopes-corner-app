@@ -20,7 +20,6 @@ vi.mock('@/stores/useServicesStore', () => ({
 vi.mock('lucide-react', () => ({
     Bike: () => <div data-testid="icon-bike" />,
     Download: () => <div data-testid="icon-download" />,
-    FileText: () => <div data-testid="icon-file-text" />,
     Info: () => <div data-testid="icon-info" />,
     Lightbulb: () => <div data-testid="icon-lightbulb" />,
     ShowerHead: () => <div data-testid="icon-shower" />,
@@ -462,44 +461,12 @@ describe('MonthlySummaryReport', () => {
     });
 
     describe('Export buttons', () => {
-        it('renders Export Full Report, Export CSV for Meals, Bicycle, and Shower sections', () => {
+        it('renders Export CSV for Meals, Bicycle, and Shower sections', () => {
             render(<MonthlySummaryReport />);
 
-            expect(screen.getByText('Export Full Report')).toBeDefined();
             const exportCsvButtons = screen.getAllByText('Export CSV');
             // Meals Summary, Bicycle Services, and Shower & Laundry each have one
             expect(exportCsvButtons.length).toBe(3);
-        });
-
-        it('clicking Export Full Report creates a Blob and triggers a download', () => {
-            const origBlob = global.Blob;
-            let capturedContent = '';
-            global.Blob = class extends origBlob {
-                constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
-                    super(parts, options);
-                    capturedContent = (parts ?? []).join('');
-                }
-            } as typeof Blob;
-            global.URL.createObjectURL = vi.fn(() => 'blob:mock');
-            global.URL.revokeObjectURL = vi.fn();
-            const origCreateElement = Document.prototype.createElement.bind(document);
-            const elemSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
-                const el = origCreateElement(tag);
-                if (tag === 'a') Object.defineProperty(el, 'click', { value: vi.fn(), writable: true });
-                return el;
-            });
-
-            render(<MonthlySummaryReport />);
-            fireEvent.click(screen.getByText('Export Full Report'));
-
-            expect(global.URL.createObjectURL).toHaveBeenCalled();
-            expect(capturedContent).toContain('MEALS SUMMARY');
-            expect(capturedContent).toContain('BICYCLE SERVICES SUMMARY');
-            expect(capturedContent).toContain('SHOWER & LAUNDRY SERVICES SUMMARY');
-            expect(capturedContent).toContain('SUMMARY METRICS');
-
-            elemSpy.mockRestore();
-            global.Blob = origBlob;
         });
 
         it('clicking Meals Export CSV creates a Blob with meal headers', () => {
