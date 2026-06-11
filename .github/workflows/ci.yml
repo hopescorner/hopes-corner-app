@@ -11,6 +11,7 @@ on:
 jobs:
   test-and-lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -33,8 +34,27 @@ jobs:
       - name: Test
         run: npm run test
 
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps chromium
+      # Cache the downloaded browser binaries keyed on the installed Playwright
+      # version so we only re-download when the dependency actually changes.
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+
+      # System dependencies (fonts, xvfb, etc.) are not cached, so always install
+      # them; only download the browser binary when the cache missed.
+      - name: Install Playwright system dependencies
+        run: npx playwright install-deps chromium
+
+      - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium
 
       - name: Run Playwright Component Tests
         run: npm run test:ct
