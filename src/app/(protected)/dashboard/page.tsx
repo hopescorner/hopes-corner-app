@@ -57,6 +57,10 @@ export default function DashboardPage() {
     const currentYear = new Date().getFullYear();
     const [preloadYear, setPreloadYear] = useState(currentYear);
     const [loadedReportYears, setLoadedReportYears] = useState<Set<number>>(() => new Set());
+    const loadedReportYearsRef = useRef(loadedReportYears);
+    useEffect(() => {
+        loadedReportYearsRef.current = loadedReportYears;
+    }, [loadedReportYears]);
     const [isPreparingReports, setIsPreparingReports] = useState(false);
     const firstTabSwitchMarkRef = useRef(false);
     const preloadingYearRef = useRef<number | null>(null);
@@ -87,14 +91,13 @@ export default function DashboardPage() {
     }, []);
 
     const preloadReportsForYear = useCallback(async (year: number, options: { showProgress?: boolean } = {}) => {
-        if (loadedReportYears.has(year)) return;
+        if (loadedReportYearsRef.current.has(year)) return;
         if (preloadingYearRef.current === year) return;
 
         const showProgress = options.showProgress ?? false;
         preloadingYearRef.current = year;
         if (showProgress) setIsPreparingReports(true);
         try {
-            // Always include baseline year data to preserve 2025 and current-month accuracy.
             const sinceYear = Math.min(year, REPORT_BASELINE_YEAR);
             const since = `${sinceYear}-01-01T00:00:00.000Z`;
             await Promise.all([
@@ -120,7 +123,7 @@ export default function DashboardPage() {
             preloadingYearRef.current = null;
             if (showProgress) setIsPreparingReports(false);
         }
-    }, [ensureGuestsLoaded, ensureMealsLoaded, ensureServicesLoaded, loadedReportYears, preloadReportModules]);
+    }, [ensureGuestsLoaded, ensureMealsLoaded, ensureServicesLoaded, preloadReportModules]);
 
     useEffect(() => {
         loadSettings();

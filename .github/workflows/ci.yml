@@ -34,7 +34,7 @@ jobs:
         run: npm run test
 
       - name: Install Playwright Browsers
-        run: npx playwright install chromium --with-deps
+        run: npx playwright install --with-deps chromium
 
       - name: Run Playwright Component Tests
         run: npm run test:ct
