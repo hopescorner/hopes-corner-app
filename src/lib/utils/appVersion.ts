@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.35';
+export const APP_VERSION = '0.5.36';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.36',
+        date: 'June 11, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Dashboard Board-Role Render Loop Fix',
+                description: 'Resolved client-side infinite render loop (React error 185) on the admin dashboard, specifically affecting the board role upon direct login, by deferring chart mounting until transitions complete.',
+            },
+        ],
+    },
     {
         version: '0.5.35',
         date: 'June 11, 2026',

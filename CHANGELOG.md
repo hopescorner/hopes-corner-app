@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.36] - 2026-06-11
+
+### Fixed
+
+- Resolved client-side infinite render loop (React error #185) on the admin dashboard, specifically affecting the `board` role upon direct login. Chart mounting is now deferred by 500ms (completed entrance transitions) to prevent measuring shifting elements.
+
 ## [0.5.35] - 2026-06-11
 
 ### Fixed
