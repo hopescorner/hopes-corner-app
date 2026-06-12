@@ -1,9 +1,13 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   turbopack: {
-    // Empty config to silence warnings
+    // Pin the workspace root to this project. Without this, Next/Turbopack can
+    // infer the wrong root when a stray lockfile exists in a parent directory
+    // (e.g. ~/package-lock.json), which breaks module/CSS resolution.
+    root: path.resolve(__dirname),
   },
   trailingSlash: false,
   skipTrailingSlashRedirect: true,

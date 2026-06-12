@@ -213,7 +213,7 @@ export function GuestRetentionChart({ isMounted = true }: Props) {
             {/* Chart */}
             <div className="h-[280px] sm:h-[340px] w-full">
                 {isMounted && hasData ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                         <BarChart data={data} barGap={2}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                             <XAxis

@@ -384,9 +384,17 @@ export default function DashboardPage() {
             </div>
 
             {/* Main Content Area */}
+            {/*
+              Entrance uses opacity + y only (no `scale`). A `scale` transform
+              continuously changes the rendered size of descendants while it
+              animates, which makes recharts' ResponsiveContainer ResizeObserver
+              fire repeatedly and can trigger an infinite render loop
+              (React error #185) — most visible for the board role, which lands
+              directly on this dashboard.
+            */}
             <motion.div
-                initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: prefersReducedMotion ? 0 : 0.4, ease: [0.19, 1, 0.22, 1] }}
             >
                 {renderContent()}

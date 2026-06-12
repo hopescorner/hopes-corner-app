@@ -166,8 +166,19 @@ export function AnalyticsSection() {
     const [customEndDate, setCustomEndDate] = useState(todayPacificDateString());
 
     useEffect(() => {
-        const timer = setTimeout(() => setIsMounted(true), 0);
-        return () => clearTimeout(timer);
+        // Mount charts only after a painted layout frame. recharts'
+        // ResponsiveContainer measures its parent on mount; mounting it before
+        // the container has a stable, non-zero size makes its ResizeObserver
+        // re-measure in a loop (seen as the width(-1)/height(-1) warning and,
+        // under React 19, an infinite update loop -> error #185).
+        let raf2 = 0;
+        const raf1 = requestAnimationFrame(() => {
+            raf2 = requestAnimationFrame(() => setIsMounted(true));
+        });
+        return () => {
+            cancelAnimationFrame(raf1);
+            cancelAnimationFrame(raf2);
+        };
     }, []);
 
     // Load daily notes on mount
@@ -841,7 +852,7 @@ export function AnalyticsSection() {
                 </h3>
                 <div className="h-[300px] md:h-[400px] w-full">
                     {isMounted && dailyData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <AreaChart data={dailyData}>
                                 <defs>
                                     <linearGradient id="colorMeals" x1="0" y1="0" x2="0" y2="1">
