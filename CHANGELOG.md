@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.35] - 2026-06-11
+
+### Fixed
+
+- Prevented Recharts' `ResponsiveContainer` from triggering repeated `ResizeObserver` measurements and infinite-render loops (React error #185) by replacing entrance animation `scale` with `translateY` + `opacity`, deferring chart mounting with double `requestAnimationFrame` in `AnalyticsSection`, and enforcing explicit `minWidth` and `minHeight` on responsive charts.
+
+### Added
+
+- Added Monthly Summary Report export as CSV, supporting detailed per-section exports.
+- Pinned Turbopack's workspace root configuration in `next.config.ts`.
+
+### Performance
+
+- Improved dashboard report preloading by replacing direct state usage with `loadedReportYearsRef` to eliminate unnecessary dependencies and stale-closure issues.
+
 ## [0.5.34] - 2026-06-10
 
 ### Fixed

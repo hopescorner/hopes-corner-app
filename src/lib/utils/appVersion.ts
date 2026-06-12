@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.34';
+export const APP_VERSION = '0.5.35';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.35',
+        date: 'June 11, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Responsive Chart & Infinite-Render Fix',
+                description: 'Prevented repeated ResizeObserver measurements and infinite loops by disabling chart entrance animation scale, deferring mounting via requestAnimationFrame, and enforcing explicit minWidth/minHeight constraints.',
+            },
+            {
+                type: 'feature',
+                title: 'CSV Export for Monthly Summary Report',
+                description: 'Added a dedicated CSV export feature for the Monthly Summary Report to support detailed per-section offline spreadsheets.',
+            },
+            {
+                type: 'performance',
+                title: 'Ref-Based Report Preloading',
+                description: 'Optimized preloading inside the dashboard by migrating loadedReportYears to a ref (loadedReportYearsRef), eliminating unnecessary state dependency tracking.',
+            },
+        ],
+    },
     {
         version: '0.5.34',
         date: 'June 10, 2026',
