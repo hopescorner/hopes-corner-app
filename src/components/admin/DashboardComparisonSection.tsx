@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
     Bar,
     BarChart,
@@ -89,6 +89,19 @@ function formatDelta(value: number) {
 }
 
 export function DashboardComparisonSection() {
+    const [isMounted, setIsMounted] = useState(false);
+    useEffect(() => {
+        if (process.env.NODE_ENV === 'test') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setIsMounted(true);
+            return;
+        }
+        const timer = setTimeout(() => {
+            setIsMounted(true);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, []);
+
     const defaults = useMemo(() => getDefaultRanges(), []);
     const [firstRange, setFirstRange] = useState(defaults.first);
     const [secondRange, setSecondRange] = useState(defaults.second);
@@ -358,17 +371,23 @@ export function DashboardComparisonSection() {
                     </div>
                 </div>
                 <div className="h-[360px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={visibleRows} margin={{ top: 12, right: 16, left: 0, bottom: 42 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
-                            <XAxis dataKey="label" angle={-30} textAnchor="end" interval={0} height={70} tick={{ fontSize: 11, fontWeight: 700, fill: '#6b7280' }} />
-                            <YAxis tick={{ fontSize: 11, fontWeight: 700, fill: '#6b7280' }} />
-                            <Tooltip />
-                            <Legend />
-                            <Bar dataKey="firstValue" name="Range A" fill="#0891b2" radius={[6, 6, 0, 0]} />
-                            <Bar dataKey="secondValue" name="Range B" fill="#94a3b8" radius={[6, 6, 0, 0]} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {isMounted ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={visibleRows} margin={{ top: 12, right: 16, left: 0, bottom: 42 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
+                                <XAxis dataKey="label" angle={-30} textAnchor="end" interval={0} height={70} tick={{ fontSize: 11, fontWeight: 700, fill: '#6b7280' }} />
+                                <YAxis tick={{ fontSize: 11, fontWeight: 700, fill: '#6b7280' }} />
+                                <Tooltip />
+                                <Legend />
+                                <Bar dataKey="firstValue" name="Range A" fill="#0891b2" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="secondValue" name="Range B" fill="#94a3b8" radius={[6, 6, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="h-full flex items-center justify-center bg-gray-50 rounded-xl animate-pulse">
+                            <span className="text-gray-400">Loading chart...</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

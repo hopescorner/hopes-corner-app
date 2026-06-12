@@ -122,7 +122,16 @@ export const MealReport = () => {
     const [isMounted, setIsMounted] = useState(false);
     const mobile = useIsMobile();
 
-    React.useEffect(() => { setIsMounted(true); }, []);
+    React.useEffect(() => {
+        if (process.env.NODE_ENV === 'test') {
+            setIsMounted(true);
+            return;
+        }
+        const timer = setTimeout(() => {
+            setIsMounted(true);
+        }, 500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const toggleMealType = useCallback((key: MealTypeKey) => {
         setMealTypeFilters((prev) => ({ ...prev, [key]: !prev[key] }));

@@ -166,19 +166,15 @@ export function AnalyticsSection() {
     const [customEndDate, setCustomEndDate] = useState(todayPacificDateString());
 
     useEffect(() => {
-        // Mount charts only after a painted layout frame. recharts'
-        // ResponsiveContainer measures its parent on mount; mounting it before
-        // the container has a stable, non-zero size makes its ResizeObserver
-        // re-measure in a loop (seen as the width(-1)/height(-1) warning and,
-        // under React 19, an infinite update loop -> error #185).
-        let raf2 = 0;
-        const raf1 = requestAnimationFrame(() => {
-            raf2 = requestAnimationFrame(() => setIsMounted(true));
-        });
-        return () => {
-            cancelAnimationFrame(raf1);
-            cancelAnimationFrame(raf2);
-        };
+        if (process.env.NODE_ENV === 'test') {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setIsMounted(true);
+            return;
+        }
+        const timer = setTimeout(() => {
+            setIsMounted(true);
+        }, 500);
+        return () => clearTimeout(timer);
     }, []);
 
     // Load daily notes on mount
