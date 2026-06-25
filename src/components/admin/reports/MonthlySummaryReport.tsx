@@ -202,6 +202,16 @@ const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
         isNumeric: true,
     },
     {
+        key: 'familyMeals',
+        label: 'Family Meals',
+        description: 'Meals distributed through the family meal program.',
+        align: 'right',
+        headerBg: 'bg-purple-50',
+        cellBg: 'bg-purple-50/30',
+        totalCellBg: 'bg-purple-50',
+        isNumeric: true,
+    },
+    {
         key: 'totalHotMeals',
         label: 'TOTAL HOT MEALS',
         description: 'All hot meals served across all programs.',
@@ -257,7 +267,7 @@ const MEAL_TABLE_GROUPS = [
         key: 'production',
         title: 'Production Extras',
         headerClass: 'bg-purple-50 text-purple-900',
-        columns: ['extraMeals', 'lunchBags']
+        columns: ['extraMeals', 'familyMeals', 'lunchBags']
     },
     {
         key: 'totals',
@@ -303,6 +313,7 @@ export default function MonthlySummaryReport() {
         unitedEffortMealRecords: state.unitedEffortMealRecords,
         dayWorkerMealRecords: state.dayWorkerMealRecords,
         lunchBagRecords: state.lunchBagRecords,
+        familyMealRecords: state.familyMealRecords,
         shelterMealRecords: state.shelterMealRecords,
     })));
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());

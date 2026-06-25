@@ -85,6 +85,7 @@ export function DashboardOverview() {
         mealRecords: state.mealRecords,
         rvMealRecords: state.rvMealRecords,
         extraMealRecords: state.extraMealRecords,
+        familyMealRecords: state.familyMealRecords,
         unitedEffortMealRecords: state.unitedEffortMealRecords,
     })));
     const services = useServicesStore(useShallow((state) => ({

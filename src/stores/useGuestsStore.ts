@@ -7,6 +7,8 @@ import {
     getCachedGuests,
     getCachedGuestWarnings,
     getCachedGuestProxies,
+    getCachedGuestFamilies,
+    getCachedGuestFamilyMembers,
 } from '@/lib/supabase/cachedQueries';
 import toast from 'react-hot-toast';
 import {
@@ -20,7 +22,9 @@ import {
 import {
     mapGuestRow,
     mapGuestProxyRow,
-    mapGuestWarningRow
+    mapGuestWarningRow,
+    mapGuestFamilyRow,
+    mapGuestFamilyMemberRow,
 } from '@/lib/utils/mappers';
 import {
     HOUSING_STATUSES,
@@ -76,6 +80,21 @@ interface GuestWarning {
     updatedAt: string;
 }
 
+export interface GuestFamily {
+    id: string;
+    primaryGuestId: string;
+    enrolledInFamilyMeal: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface GuestFamilyMember {
+    id: string;
+    familyId: string;
+    guestId: string;
+    createdAt?: string;
+}
+
 export interface GuestRecordCounts {
     meals: number;
     showers: number;
@@ -93,6 +112,8 @@ export interface GuestRecordCounts {
 interface GuestsState {
     guests: Guest[];
     guestProxies: GuestProxy[];
+    guestFamilies: GuestFamily[];
+    guestFamilyMembers: GuestFamilyMember[];
     warnings: GuestWarning[];
     isLoaded: boolean;
     isLoading: boolean;
@@ -111,6 +132,7 @@ interface GuestsState {
     loadFromSupabase: () => Promise<void>;
     loadGuestWarningsFromSupabase: () => Promise<void>;
     loadGuestProxiesFromSupabase: () => Promise<void>;
+    loadGuestFamiliesFromSupabase: () => Promise<void>;
     clearGuests: () => void;
     getWarningsForGuest: (guestId: string) => GuestWarning[];
     addGuestWarning: (guestId: string, options: any) => Promise<GuestWarning>;
@@ -119,6 +141,13 @@ interface GuestsState {
     getLinkedGuestsCount: (guestId: string) => number;
     linkGuests: (guestId: string, proxyId: string) => Promise<GuestProxy>;
     unlinkGuests: (guestId: string, proxyId: string) => Promise<boolean>;
+    getFamilyForGuest: (guestId: string) => GuestFamily | null;
+    getFamilyMembers: (familyId: string) => Guest[];
+    getEnrolledFamilies: () => GuestFamily[];
+    getFamilyMemberCount: (familyId: string) => number;
+    createFamilyForPrimary: (primaryGuestId: string, enrolled?: boolean) => Promise<GuestFamily>;
+    addGuestToFamily: (familyId: string, guestId: string) => Promise<GuestFamilyMember>;
+    setFamilyEnrollment: (familyId: string, enrolled: boolean) => Promise<boolean>;
     fetchGuestById: (id: string) => Promise<Guest | null>;
 
     // Helpers
@@ -132,6 +161,8 @@ export const useGuestsStore = create<GuestsState>()(
                 // State
                 guests: [],
                 guestProxies: [],
+                guestFamilies: [],
+                guestFamilyMembers: [],
                 warnings: [],
                 isLoaded: false,
                 isLoading: false,
@@ -253,6 +284,11 @@ export const useGuestsStore = create<GuestsState>()(
                     set((state) => {
                         state.guests.push(mapped as any);
                     });
+                    if (guestData.enrollInFamilyMeal) {
+                        await get().createFamilyForPrimary((mapped as any).id, true);
+                    } else if (guestData.familyId) {
+                        await get().addGuestToFamily(guestData.familyId, (mapped as any).id);
+                    }
                     clearSearchIndexCache();
                     return mapped as any;
                 },
@@ -322,12 +358,16 @@ export const useGuestsStore = create<GuestsState>()(
                     set((state) => {
                         state.guests = state.guests.filter((g) => g.id !== id);
                         state.guestProxies = state.guestProxies.filter(p => p.guestId !== id && p.proxyId !== id);
+                        state.guestFamilies = state.guestFamilies.filter(f => f.primaryGuestId !== id);
+                        state.guestFamilyMembers = state.guestFamilyMembers.filter(m => m.guestId !== id);
                         state.warnings = state.warnings.filter(w => w.guestId !== id);
                     });
                     clearSearchIndexCache();
 
                     // Cleanup related data in Supabase
                     await supabase.from('guest_proxies').delete().or(`guest_id.eq.${id},proxy_id.eq.${id}`);
+                    await supabase.from('guest_family_members').delete().eq('guest_id', id);
+                    await supabase.from('guest_families').delete().eq('primary_guest_id', id);
                     await supabase.from('guest_warnings').delete().eq('guest_id', id);
                     await supabase.from('guest_reminders').delete().eq('guest_id', id);
                     const { error } = await supabase.from('guests').delete().eq('id', id);
@@ -402,6 +442,8 @@ export const useGuestsStore = create<GuestsState>()(
                             supabase.from('guest_warnings').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
                             supabase.from('guest_proxies').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
                             supabase.from('guest_proxies').update({ proxy_id: toGuestId }).eq('proxy_id', fromGuestId),
+                            supabase.from('guest_families').update({ primary_guest_id: toGuestId }).eq('primary_guest_id', fromGuestId),
+                            supabase.from('guest_family_members').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
                             // Also update meal pickups where this guest picked up meals for others
                             supabase.from('meal_attendance').update({ picked_up_by_guest_id: toGuestId }).eq('picked_up_by_guest_id', fromGuestId)
                         ]);
@@ -437,12 +479,16 @@ export const useGuestsStore = create<GuestsState>()(
                         set((state) => {
                             state.guests = state.guests.filter((g) => g.id !== guestId);
                             state.guestProxies = state.guestProxies.filter(p => p.guestId !== guestId && p.proxyId !== guestId);
+                            state.guestFamilies = state.guestFamilies.filter(f => f.primaryGuestId !== guestId);
+                            state.guestFamilyMembers = state.guestFamilyMembers.filter(m => m.guestId !== guestId);
                             state.warnings = state.warnings.filter(w => w.guestId !== guestId);
                         });
                         clearSearchIndexCache();
 
                         // Cleanup related data in Supabase
                         await supabase.from('guest_proxies').delete().or(`guest_id.eq.${guestId},proxy_id.eq.${guestId}`);
+                        await supabase.from('guest_family_members').delete().eq('guest_id', guestId);
+                        await supabase.from('guest_families').delete().eq('primary_guest_id', guestId);
                         await supabase.from('guest_warnings').delete().eq('guest_id', guestId);
                         await supabase.from('guest_reminders').delete().eq('guest_id', guestId);
                         const { error } = await supabase.from('guests').delete().eq('id', guestId);
@@ -555,13 +601,19 @@ export const useGuestsStore = create<GuestsState>()(
 
                     try {
                         // Use cached query to prevent duplicate fetches
-                        const guestsData = await getCachedGuests();
+                        const [guestsData, familiesData, membersData] = await Promise.all([
+                            getCachedGuests(),
+                            getCachedGuestFamilies(),
+                            getCachedGuestFamilyMembers(),
+                        ]);
 
                         set((state) => {
                             state.guests = (guestsData || []).map((g: any) => ({
                                 ...g,
                                 housingStatus: normalizeHousingStatus(g.housingStatus),
                             })) as any;
+                            state.guestFamilies = familiesData as any;
+                            state.guestFamilyMembers = membersData as any;
                             state.isLoaded = true;
                             state.lastLoadedAt = new Date().toISOString();
                         });
@@ -605,9 +657,27 @@ export const useGuestsStore = create<GuestsState>()(
                     }
                 },
 
+                loadGuestFamiliesFromSupabase: async () => {
+                    try {
+                        const [familiesData, membersData] = await Promise.all([
+                            getCachedGuestFamilies(),
+                            getCachedGuestFamilyMembers(),
+                        ]);
+
+                        set((state) => {
+                            state.guestFamilies = familiesData as any;
+                            state.guestFamilyMembers = membersData as any;
+                        });
+                    } catch (error) {
+                        console.error('Failed to load guest families from Supabase:', error);
+                    }
+                },
+
                 clearGuests: () => {
                     set((state) => {
                         state.guests = [];
+                        state.guestFamilies = [];
+                        state.guestFamilyMembers = [];
                     });
                     clearSearchIndexCache();
                 },
@@ -722,6 +792,114 @@ export const useGuestsStore = create<GuestsState>()(
                             p => !(p.guestId === guestId && p.proxyId === proxyId) &&
                                 !(p.guestId === proxyId && p.proxyId === guestId)
                         );
+                    });
+                    return true;
+                },
+
+                getFamilyForGuest: (guestId) => {
+                    const { guestFamilies, guestFamilyMembers } = get();
+                    const membership = guestFamilyMembers.find((m) => m.guestId === guestId);
+                    if (membership) {
+                        return guestFamilies.find((f) => f.id === membership.familyId) || null;
+                    }
+                    return guestFamilies.find((f) => f.primaryGuestId === guestId) || null;
+                },
+
+                getFamilyMembers: (familyId) => {
+                    const { guests, guestFamilyMembers } = get();
+                    const memberIds = new Set(
+                        guestFamilyMembers
+                            .filter((m) => m.familyId === familyId)
+                            .map((m) => m.guestId)
+                    );
+                    return guests.filter((g) => g && memberIds.has(g.id));
+                },
+
+                getEnrolledFamilies: () => {
+                    return get().guestFamilies.filter((f) => f.enrolledInFamilyMeal);
+                },
+
+                getFamilyMemberCount: (familyId) => {
+                    return get().guestFamilyMembers.filter((m) => m.familyId === familyId).length;
+                },
+
+                createFamilyForPrimary: async (primaryGuestId, enrolled = false) => {
+                    const existing = get().guestFamilies.find((f) => f.primaryGuestId === primaryGuestId);
+                    if (existing) {
+                        if (existing.enrolledInFamilyMeal !== enrolled) {
+                            await get().setFamilyEnrollment(existing.id, enrolled);
+                        }
+                        if (!get().guestFamilyMembers.some((m) => m.familyId === existing.id && m.guestId === primaryGuestId)) {
+                            await get().addGuestToFamily(existing.id, primaryGuestId);
+                        }
+                        return get().guestFamilies.find((f) => f.id === existing.id) || existing;
+                    }
+
+                    const supabase = createClient();
+                    const { data, error } = await supabase
+                        .from('guest_families')
+                        .insert({ primary_guest_id: primaryGuestId, enrolled_in_family_meal: enrolled })
+                        .select()
+                        .single();
+
+                    if (error) {
+                        console.error('Failed to create guest family in Supabase:', error);
+                        throw new Error('Unable to create family.');
+                    }
+
+                    const mapped = mapGuestFamilyRow(data);
+                    set((state) => {
+                        state.guestFamilies.push(mapped as any);
+                    });
+                    await get().addGuestToFamily((mapped as any).id, primaryGuestId);
+                    return mapped as any;
+                },
+
+                addGuestToFamily: async (familyId, guestId) => {
+                    const existing = get().guestFamilyMembers.find((m) => m.familyId === familyId && m.guestId === guestId);
+                    if (existing) return existing;
+
+                    const supabase = createClient();
+                    const { data, error } = await supabase
+                        .from('guest_family_members')
+                        .upsert({ family_id: familyId, guest_id: guestId }, { onConflict: 'guest_id' })
+                        .select()
+                        .single();
+
+                    if (error) {
+                        console.error('Failed to add guest family member in Supabase:', error);
+                        throw new Error('Unable to add family member.');
+                    }
+
+                    const mapped = mapGuestFamilyMemberRow(data);
+                    set((state) => {
+                        state.guestFamilyMembers = [
+                            ...state.guestFamilyMembers.filter((m) => m.guestId !== guestId),
+                            mapped as any,
+                        ];
+                    });
+                    return mapped as any;
+                },
+
+                setFamilyEnrollment: async (familyId, enrolled) => {
+                    const supabase = createClient();
+                    const { data, error } = await supabase
+                        .from('guest_families')
+                        .update({ enrolled_in_family_meal: enrolled })
+                        .eq('id', familyId)
+                        .select()
+                        .single();
+
+                    if (error) {
+                        console.error('Failed to update family enrollment in Supabase:', error);
+                        return false;
+                    }
+
+                    const mapped = mapGuestFamilyRow(data);
+                    set((state) => {
+                        const idx = state.guestFamilies.findIndex((f) => f.id === familyId);
+                        if (idx === -1) state.guestFamilies.push(mapped as any);
+                        else state.guestFamilies[idx] = mapped as any;
                     });
                     return true;
                 },

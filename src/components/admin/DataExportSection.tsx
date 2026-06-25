@@ -62,7 +62,8 @@ function exportToCSV(data: Record<string, unknown>[], filename: string) {
 const EXPORT_OPTIONS = [
     { id: 'guests', label: 'Guest Roster', icon: Users, color: 'text-blue-600', bg: 'bg-blue-50', description: 'Complete record of all registered guests including housing status and demographics.' },
     { id: 'services', label: 'Service History', icon: ClipboardList, color: 'text-emerald-600', bg: 'bg-emerald-50', description: 'All meals, showers, laundry, bicycles, and haircuts in one CSV.' },
-    { id: 'meals', label: 'Meal Logs', icon: Utensils, color: 'text-orange-600', bg: 'bg-orange-50', description: 'Detailed meal distributions including guest meals, extras, and RV meals.' },
+    { id: 'meals', label: 'Meal Logs', icon: Utensils, color: 'text-orange-600', bg: 'bg-orange-50', description: 'Detailed meal distributions including guest meals, extras, RV meals, and family meals.' },
+    { id: 'family-meals', label: 'Family Meal Logs', icon: Users, color: 'text-teal-600', bg: 'bg-teal-50', description: 'Household-level family meal program distributions with per-member counts.' },
     { id: 'showers', label: 'Shower History', icon: ShowerHead, color: 'text-sky-600', bg: 'bg-sky-50', description: 'Log of all shower reservations, completions, and waitlist activity.' },
     { id: 'laundry', label: 'Laundry Records', icon: WashingMachine, color: 'text-purple-600', bg: 'bg-purple-50', description: 'Workflow history for all on-site and off-site laundry loads.' },
     { id: 'bicycles', label: 'Bicycle Repairs', icon: Bike, color: 'text-amber-600', bg: 'bg-amber-50', description: 'Historical bicycle repair services and outcomes.' },
@@ -72,7 +73,7 @@ const EXPORT_OPTIONS = [
 
 export function DataExportSection() {
     const { guests } = useGuestsStore();
-    const { mealRecords } = useMealsStore();
+    const { mealRecords, familyMealRecords = [] } = useMealsStore();
     const { showerRecords, laundryRecords, bicycleRecords } = useServicesStore();
     const { donationRecords } = useDonationsStore();
     const [exporting, setExporting] = useState<string | null>(null);
@@ -108,6 +109,14 @@ export function DataExportSection() {
                             Type: r.type || 'standard',
                             Details: '-',
                         })),
+                        ...familyMealRecords.map(r => ({
+                            Date: new Date(r.date).toLocaleDateString(),
+                            Service: 'Family Meal',
+                            'Guest ID': r.primaryGuestId || '-',
+                            Quantity: r.count || 0,
+                            Type: 'family',
+                            Details: `${r.memberCountSnapshot || 0} member${r.memberCountSnapshot === 1 ? '' : 's'} x ${r.mealsPerMember || 0}`,
+                        })),
                         ...showerRecords.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
                             Service: 'Shower',
@@ -138,13 +147,40 @@ export function DataExportSection() {
 
                 case 'meals':
                     exportToCSV(
-                        mealRecords.map(r => ({
-                            Date: new Date(r.date).toLocaleDateString(),
-                            'Guest ID': r.guestId || '-',
-                            'Meal Type': r.type || 'standard',
-                            Count: r.count || 1,
-                        })),
+                        [
+                            ...mealRecords.map(r => ({
+                                Date: new Date(r.date).toLocaleDateString(),
+                                'Guest ID': r.guestId || '-',
+                                'Meal Type': r.type || 'standard',
+                                Count: r.count || 1,
+                                'Meals Per Member': '',
+                                'Member Count Snapshot': '',
+                            })),
+                            ...familyMealRecords.map(r => ({
+                                Date: new Date(r.date).toLocaleDateString(),
+                                'Guest ID': r.primaryGuestId || '-',
+                                'Meal Type': 'family',
+                                Count: r.count || 0,
+                                'Meals Per Member': r.mealsPerMember || 0,
+                                'Member Count Snapshot': r.memberCountSnapshot || 0,
+                            })),
+                        ],
                         `hopes-corner-meals-${today}.csv`
+                    );
+                    break;
+
+                case 'family-meals':
+                    exportToCSV(
+                        familyMealRecords.map(r => ({
+                            Date: new Date(r.date).toLocaleDateString(),
+                            'Primary Guest ID': r.primaryGuestId || '-',
+                            'Family ID': r.familyId || '-',
+                            'Meals Per Member': r.mealsPerMember || 0,
+                            'Member Count Snapshot': r.memberCountSnapshot || 0,
+                            'Total Meals': r.count || 0,
+                            Notes: r.notes || '',
+                        })),
+                        `hopes-corner-family-meals-${today}.csv`
                     );
                     break;
 
@@ -317,7 +353,7 @@ export function DataExportSection() {
                 </div>
                 <div className="w-px h-8 bg-gray-200" />
                 <div>
-                    <div className="text-2xl font-black text-gray-900">{mealRecords.length.toLocaleString()}</div>
+                    <div className="text-2xl font-black text-gray-900">{(mealRecords.length + familyMealRecords.length).toLocaleString()}</div>
                     <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Meal Records</div>
                 </div>
                 <div className="w-px h-8 bg-gray-200" />

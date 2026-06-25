@@ -26,7 +26,7 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
     const [duplicateWarning, setDuplicateWarning] = useState('');
     const prefersReducedMotion = useReducedMotion();
 
-    const { guests, addGuest } = useGuestsStore();
+    const { guests, guestFamilies, addGuest } = useGuestsStore();
 
     const nameParts = useMemo(() => initialName.trim().split(/\s+/), [initialName]);
     const initialFirstName = nameParts[0] || '';
@@ -42,7 +42,10 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
         location: defaultLocation || '',
         notes: '',
         bicycleDescription: '',
+        enrollInFamilyMeal: false,
+        familyId: '',
     });
+    const [familyMode, setFamilyMode] = useState<'primary' | 'member'>('primary');
 
     const toTitleCase = (str: string) => {
         return str.replace(/\b\w/g, char => char.toUpperCase());
@@ -77,7 +80,16 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
 
         setIsSubmitting(true);
         try {
-            await addGuest(formData);
+            if (formData.enrollInFamilyMeal && familyMode === 'member' && !formData.familyId) {
+                toast.error('Please select a family household');
+                return;
+            }
+
+            await addGuest({
+                ...formData,
+                enrollInFamilyMeal: formData.enrollInFamilyMeal && familyMode === 'primary',
+                familyId: formData.enrollInFamilyMeal && familyMode === 'member' ? formData.familyId : '',
+            });
             toast.success('Guest added successfully');
             onClose();
         } catch (error: any) {
@@ -86,6 +98,19 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
             setIsSubmitting(false);
         }
     };
+
+    const familyOptions = useMemo(() => {
+        return (guestFamilies || [])
+            .filter((family) => family.enrolledInFamilyMeal)
+            .map((family) => {
+                const primaryGuest = guests.find((guest) => guest.id === family.primaryGuestId);
+                const name = primaryGuest
+                    ? (primaryGuest.preferredName || primaryGuest.name || `${primaryGuest.firstName || ''} ${primaryGuest.lastName || ''}`.trim())
+                    : 'Unknown Primary';
+                return { id: family.id, name };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [guestFamilies, guests]);
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
@@ -233,6 +258,61 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
                                         <option key={city} value={city}>{city}</option>
                                     ))}
                                 </select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-teal-700 uppercase tracking-wider flex items-center gap-2">
+                                <Users size={14} /> Family Meal Program
+                            </h3>
+                            <div className="rounded-2xl border border-teal-100 bg-teal-50/50 p-4 space-y-3">
+                                <label className="flex items-start gap-3 text-sm font-semibold text-gray-800">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.enrollInFamilyMeal}
+                                        onChange={(e) => setFormData({ ...formData, enrollInFamilyMeal: e.target.checked })}
+                                        className="mt-0.5 h-4 w-4 rounded border-teal-300 text-teal-600"
+                                    />
+                                    <span>
+                                        Enroll in Family Meal Program
+                                        <span className="block text-xs font-medium text-gray-500">Household meals are tracked separately from check-in buddies.</span>
+                                    </span>
+                                </label>
+
+                                {formData.enrollInFamilyMeal && (
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFamilyMode('primary')}
+                                                className={`rounded-xl border px-3 py-2 text-left text-xs font-black uppercase tracking-wider transition-all ${familyMode === 'primary' ? 'border-teal-500 bg-white text-teal-700' : 'border-teal-100 bg-white/70 text-gray-500'}`}
+                                            >
+                                                New Household Primary
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFamilyMode('member')}
+                                                className={`rounded-xl border px-3 py-2 text-left text-xs font-black uppercase tracking-wider transition-all ${familyMode === 'member' ? 'border-teal-500 bg-white text-teal-700' : 'border-teal-100 bg-white/70 text-gray-500'}`}
+                                            >
+                                                Add to Existing Family
+                                            </button>
+                                        </div>
+
+                                        {familyMode === 'member' && (
+                                            <select
+                                                value={formData.familyId}
+                                                onChange={(e) => setFormData({ ...formData, familyId: e.target.value })}
+                                                className="w-full px-4 py-2.5 rounded-xl border border-teal-200 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 transition-all outline-none bg-white text-sm font-semibold"
+                                                aria-label="Family household"
+                                            >
+                                                <option value="">Select household</option>
+                                                {familyOptions.map((family) => (
+                                                    <option key={family.id} value={family.id}>{family.name} Household</option>
+                                                ))}
+                                            </select>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
