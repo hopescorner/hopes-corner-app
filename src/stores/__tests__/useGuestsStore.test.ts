@@ -5,6 +5,7 @@ import { useGuestsStore } from '../useGuestsStore';
 const mockSupabase = {
     from: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
+    upsert: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
     delete: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
@@ -94,6 +95,7 @@ describe('useGuestsStore', () => {
         // Reset chainable mocks
         mockSupabase.from.mockReturnThis();
         mockSupabase.insert.mockReturnThis();
+        mockSupabase.upsert.mockReturnThis();
         mockSupabase.update.mockReturnThis();
         mockSupabase.delete.mockReturnThis();
         mockSupabase.select.mockReturnThis();
@@ -111,8 +113,10 @@ describe('useGuestsStore', () => {
 
         useGuestsStore.setState({
             guests: [],
-            guestProxies: [],
-            warnings: [],
+        guestProxies: [],
+        guestFamilies: [],
+        guestFamilyMembers: [],
+        warnings: [],
         });
     });
 
@@ -207,6 +211,53 @@ describe('useGuestsStore', () => {
 
         it('returns 0 if no links', () => {
             expect(useGuestsStore.getState().getLinkedGuestsCount('g1')).toBe(0);
+        });
+    });
+
+    describe('family meal enrollment', () => {
+        it('treats guests as unenrolled when no family row exists', () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'g1' })],
+                guestFamilies: [],
+                guestFamilyMembers: [],
+            } as any);
+
+            expect(useGuestsStore.getState().getFamilyForGuest('g1')).toBeNull();
+            expect(useGuestsStore.getState().getEnrolledFamilies()).toEqual([]);
+        });
+
+        it('creates an enrolled primary household with the primary as a member', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'g1' })],
+            } as any);
+
+            mockSupabase.single
+                .mockResolvedValueOnce({
+                    data: {
+                        id: 'family-1',
+                        primary_guest_id: 'g1',
+                        enrolled_in_family_meal: true,
+                        created_at: '2025-01-01T00:00:00Z',
+                        updated_at: '2025-01-01T00:00:00Z',
+                    },
+                    error: null,
+                })
+                .mockResolvedValueOnce({
+                    data: {
+                        id: 'member-1',
+                        family_id: 'family-1',
+                        guest_id: 'g1',
+                        created_at: '2025-01-01T00:00:00Z',
+                    },
+                    error: null,
+                });
+
+            const family = await useGuestsStore.getState().createFamilyForPrimary('g1', true);
+
+            expect(family).toMatchObject({ id: 'family-1', primaryGuestId: 'g1', enrolledInFamilyMeal: true });
+            expect(useGuestsStore.getState().guestFamilies).toHaveLength(1);
+            expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(1);
+            expect(useGuestsStore.getState().getFamilyMembers('family-1')).toHaveLength(1);
         });
     });
 

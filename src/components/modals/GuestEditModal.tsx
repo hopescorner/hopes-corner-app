@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, User, Loader2, Bike, Trash2 } from 'lucide-react';
+import { X, User, Loader2, Bike, Trash2, Users } from 'lucide-react';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { GuestDeleteWithTransferModal } from './GuestDeleteWithTransferModal';
 import toast from 'react-hot-toast';
@@ -25,9 +25,42 @@ const toTitleCase = (str: string) => {
 };
 
 export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
-    const { updateGuest } = useGuestsStore();
+    const {
+        updateGuest,
+        guests,
+        guestFamilies,
+        guestFamilyMembers,
+        createFamilyForPrimary,
+        addGuestToFamily,
+        setFamilyEnrollment,
+    } = useGuestsStore();
+    const currentMembership = useMemo(
+        () => (guestFamilyMembers || []).find((member) => member.guestId === guest.id),
+        [guestFamilyMembers, guest.id],
+    );
+    const currentFamily = useMemo(
+        () => (guestFamilies || []).find((family) => family.id === currentMembership?.familyId || family.primaryGuestId === guest.id),
+        [guestFamilies, currentMembership?.familyId, guest.id],
+    );
+    const familyOptions = useMemo(() => {
+        return (guestFamilies || [])
+            .filter((family) => family.enrolledInFamilyMeal || family.id === currentFamily?.id)
+            .map((family) => {
+                const primaryGuest = guests.find((candidate) => candidate.id === family.primaryGuestId);
+                const name = primaryGuest
+                    ? (primaryGuest.preferredName || primaryGuest.name || `${primaryGuest.firstName || ''} ${primaryGuest.lastName || ''}`.trim())
+                    : 'Unknown Primary';
+                return { id: family.id, name };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [guestFamilies, guests, currentFamily?.id]);
     const [isPending, setIsPending] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [familyEnrolled, setFamilyEnrolled] = useState(currentFamily?.enrolledInFamilyMeal === true);
+    const [familyMode, setFamilyMode] = useState<'primary' | 'member'>(
+        currentFamily && currentFamily.primaryGuestId !== guest.id ? 'member' : 'primary'
+    );
+    const [selectedFamilyId, setSelectedFamilyId] = useState(currentFamily?.id || '');
     const [formData, setFormData] = useState({
         firstName: guest.firstName || '',
         lastName: guest.lastName || '',
@@ -60,6 +93,10 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
             toast.error('Please select age and gender');
             return;
         }
+        if (familyEnrolled && familyMode === 'member' && !selectedFamilyId) {
+            toast.error('Please select a family household');
+            return;
+        }
 
         setIsPending(true);
         try {
@@ -72,6 +109,20 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                 name: `${toTitleCase(formData.firstName.trim())} ${toTitleCase(formData.lastName.trim())}`.trim(),
             };
             await updateGuest(guest.id, updates);
+            if (familyEnrolled) {
+                if (familyMode === 'member') {
+                    await addGuestToFamily(selectedFamilyId, guest.id);
+                    await setFamilyEnrollment(selectedFamilyId, true);
+                } else {
+                    const family = currentFamily?.primaryGuestId === guest.id
+                        ? currentFamily
+                        : await createFamilyForPrimary(guest.id, true);
+                    if (!family?.id) throw new Error('Unable to create family household');
+                    await setFamilyEnrollment(family.id, true);
+                }
+            } else if (currentFamily) {
+                await setFamilyEnrollment(currentFamily.id, false);
+            }
             toast.success('Guest updated');
             onClose();
         } catch (error: any) {
@@ -215,6 +266,60 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                                 ))}
                             </select>
                         </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-teal-100 bg-teal-50/50 p-4 space-y-3">
+                        <h3 className="text-xs font-black text-teal-700 uppercase tracking-wider flex items-center gap-2">
+                            <Users size={14} />
+                            Family Meal Program
+                        </h3>
+                        <label className="flex items-start gap-3 text-sm font-semibold text-gray-800">
+                            <input
+                                type="checkbox"
+                                checked={familyEnrolled}
+                                onChange={(event) => setFamilyEnrolled(event.target.checked)}
+                                className="mt-0.5 h-4 w-4 rounded border-teal-300 text-teal-600"
+                            />
+                            <span>
+                                Enroll household in Family Meal Program
+                                <span className="block text-xs font-medium text-gray-500">Separate from check-in buddies and regular guest meals.</span>
+                            </span>
+                        </label>
+
+                        {familyEnrolled && (
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setFamilyMode('primary')}
+                                        className={`rounded-xl border px-3 py-2 text-left text-xs font-black uppercase tracking-wider transition-all ${familyMode === 'primary' ? 'border-teal-500 bg-white text-teal-700' : 'border-teal-100 bg-white/70 text-gray-500'}`}
+                                    >
+                                        Primary Household Member
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFamilyMode('member')}
+                                        className={`rounded-xl border px-3 py-2 text-left text-xs font-black uppercase tracking-wider transition-all ${familyMode === 'member' ? 'border-teal-500 bg-white text-teal-700' : 'border-teal-100 bg-white/70 text-gray-500'}`}
+                                    >
+                                        Member of Existing Family
+                                    </button>
+                                </div>
+
+                                {familyMode === 'member' && (
+                                    <select
+                                        value={selectedFamilyId}
+                                        onChange={(event) => setSelectedFamilyId(event.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border-2 border-teal-100 focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 transition-all font-bold outline-none bg-white"
+                                        aria-label="Family household"
+                                    >
+                                        <option value="">Select household</option>
+                                        {familyOptions.map((family) => (
+                                            <option key={family.id} value={family.id}>{family.name} Household</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Notes */}

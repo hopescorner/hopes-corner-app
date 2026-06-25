@@ -208,5 +208,37 @@ describe('dashboardReportCache', () => {
         expect(ytdData.mealsExcludingLunchBags).toBe(29);
         expect(ytdData.lunchBags).toBe(3);
     });
-});
 
+    it('tracks family meal totals separately while including them in total meals', () => {
+        const input = {
+            ...createInput(),
+            familyMealRecords: [
+                { dateKey: '2025-01-06', count: 6, familyId: 'family-1', primaryGuestId: 'g1' },
+            ],
+        };
+        const filtersWithFamilyMeals = { ...mealTypeFilters, familyMeals: true };
+
+        const [january] = getMealReportData(input, {
+            selectedYear: 2025,
+            selectedMonth: 0,
+            comparisonMonths: 0,
+            selectedDays: [1, 3],
+            mealTypeFilters: filtersWithFamilyMeals,
+        });
+        const monthlyReport = getMonthlyReportData(input, 2025, 0);
+        const { monthlyData } = getMonthlySummaryDatasets(input, 2025, 2025, 0);
+        const ytdData = getMealReportYTDData(input, {
+            selectedYear: 2025,
+            selectedMonth: 0,
+            selectedDays: [1, 3],
+            mealTypeFilters: filtersWithFamilyMeals,
+        });
+
+        expect(january.familyMeals).toBe(6);
+        expect(january.totalMeals).toBe(37);
+        expect(monthlyReport.monthStats.familyMeals).toBe(6);
+        expect(monthlyData.months[0].familyMeals).toBe(6);
+        expect(ytdData.familyMeals).toBe(6);
+        expect(ytdData.mealsExcludingLunchBags).toBe(34);
+    });
+});

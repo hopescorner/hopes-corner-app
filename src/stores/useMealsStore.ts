@@ -5,11 +5,13 @@ import { createClient } from '@/lib/supabase/client';
 import { fetchAllPaginated } from '@/lib/utils/supabasePagination';
 import {
     getCachedMealRecords,
+    getCachedFamilyMealRecords,
     getCachedHolidayRecords,
     getCachedHaircutRecords,
 } from '@/lib/supabase/cachedQueries';
 import {
     mapMealRow,
+    mapFamilyMealRow,
     mapHolidayRow,
     mapHaircutRow,
 } from '@/lib/utils/mappers';
@@ -58,6 +60,23 @@ export interface MealRecord {
     deduplicationKey?: string | null;
 }
 
+export interface FamilyMealRecord {
+    id: string;
+    familyId: string;
+    primaryGuestId?: string | null;
+    mealsPerMember: number;
+    memberCountSnapshot: number;
+    count: number;
+    date: string;
+    dateKey?: string;
+    servedOn?: string | null;
+    recordedAt?: string | null;
+    notes?: string | null;
+    createdAt?: string | null;
+    updatedAt?: string | null;
+    type?: string | null;
+}
+
 interface HolidayRecord {
     id: string;
     guestId: string;
@@ -82,6 +101,7 @@ interface MealsState {
     shelterMealRecords: MealRecord[];
     unitedEffortMealRecords: MealRecord[];
     lunchBagRecords: MealRecord[];
+    familyMealRecords: FamilyMealRecord[];
     holidayRecords: HolidayRecord[];
     haircutRecords: HaircutRecord[];
     isLoaded: boolean;
@@ -96,6 +116,9 @@ interface MealsState {
     deleteExtraMealRecord: (recordId: string) => Promise<void>;
     addBulkMealRecord: (mealType: string, quantity: number, label?: string, deduplicationKey?: string, date?: string) => Promise<Partial<MealRecord>>;
     deleteBulkMealRecord: (recordId: string, mealType: string) => Promise<void>;
+    addFamilyMealRecord: (familyId: string, mealsPerMember: number, memberCountSnapshot: number, serviceDate?: string, notes?: string | null) => Promise<FamilyMealRecord>;
+    updateFamilyMealRecord: (recordId: string, updates: Partial<FamilyMealRecord>) => Promise<void>;
+    deleteFamilyMealRecord: (recordId: string) => Promise<void>;
     addHolidayRecord: (guestId: string) => Promise<HolidayRecord | Partial<HolidayRecord>>;
     deleteHolidayRecord: (recordId: string) => Promise<void>;
     addHaircutRecord: (guestId: string) => Promise<HaircutRecord | Partial<HaircutRecord>>;
@@ -123,6 +146,7 @@ interface MealsState {
         shelter: MealRecord[];
         unitedEffort: MealRecord[];
         lunchBags: MealRecord[];
+        familyMeals: FamilyMealRecord[];
     };
 }
 
@@ -139,6 +163,7 @@ export const useMealsStore = create<MealsState>()(
                     shelterMealRecords: [],
                     unitedEffortMealRecords: [],
                     lunchBagRecords: [],
+                    familyMealRecords: [],
                     holidayRecords: [],
                     haircutRecords: [],
                     isLoaded: false,
@@ -484,6 +509,79 @@ export const useMealsStore = create<MealsState>()(
                         }
                     },
 
+                    addFamilyMealRecord: async (familyId, mealsPerMember, memberCountSnapshot, serviceDate, notes = null) => {
+                        if (!familyId) throw new Error('Family ID is required');
+                        if (mealsPerMember <= 0) throw new Error('Meals per member must be at least 1');
+                        if (memberCountSnapshot <= 0) throw new Error('Family must have at least one member');
+
+                        const targetDate = serviceDate || todayPacificDateString();
+                        const supabase = createClient();
+                        const payload = {
+                            family_id: familyId,
+                            meals_per_member: mealsPerMember,
+                            member_count_snapshot: memberCountSnapshot,
+                            served_on: targetDate,
+                            recorded_at: new Date().toISOString(),
+                            notes,
+                        };
+
+                        const { data, error } = await supabase
+                            .from('family_meal_distributions')
+                            .upsert(payload, { onConflict: 'family_id,served_on' })
+                            .select('id,family_id,meals_per_member,member_count_snapshot,total_meals,served_on,recorded_at,notes,created_at,updated_at,guest_families(primary_guest_id)')
+                            .single();
+
+                        if (error) {
+                            console.error('Failed to save family meal record:', error);
+                            throw new Error('Unable to save family meal record');
+                        }
+
+                        const mapped = mapFamilyMealRow(data);
+                        set((state) => {
+                            state.familyMealRecords = [
+                                mapped as any,
+                                ...state.familyMealRecords.filter((r) => r.id !== mapped.id && !(r.familyId === familyId && (r.dateKey || pacificDateStringFrom(r.date)) === targetDate)),
+                            ];
+                        });
+                        return mapped as FamilyMealRecord;
+                    },
+
+                    updateFamilyMealRecord: async (recordId, updates) => {
+                        const supabase = createClient();
+                        const payload: any = {};
+                        if (updates.mealsPerMember !== undefined) payload.meals_per_member = updates.mealsPerMember;
+                        if (updates.memberCountSnapshot !== undefined) payload.member_count_snapshot = updates.memberCountSnapshot;
+                        if (updates.notes !== undefined) payload.notes = updates.notes;
+
+                        const { data, error } = await supabase
+                            .from('family_meal_distributions')
+                            .update(payload)
+                            .eq('id', recordId)
+                            .select('id,family_id,meals_per_member,member_count_snapshot,total_meals,served_on,recorded_at,notes,created_at,updated_at,guest_families(primary_guest_id)')
+                            .single();
+
+                        if (error) {
+                            console.error('Failed to update family meal record:', error);
+                            throw new Error('Unable to update family meal record');
+                        }
+
+                        const mapped = mapFamilyMealRow(data);
+                        set((state) => {
+                            state.familyMealRecords = [mapped as any, ...state.familyMealRecords.filter((r) => r.id !== recordId)];
+                        });
+                    },
+
+                    deleteFamilyMealRecord: async (recordId) => {
+                        set((state) => {
+                            state.familyMealRecords = state.familyMealRecords.filter((r) => r.id !== recordId);
+                        });
+                        const supabase = createClient();
+                        const { error } = await supabase.from('family_meal_distributions').delete().eq('id', recordId);
+                        if (error) {
+                            console.error('Failed to delete family meal record:', error);
+                        }
+                    },
+
                     // Holiday Records
                     addHolidayRecord: async (guestId: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
@@ -695,8 +793,9 @@ export const useMealsStore = create<MealsState>()(
                         try {
                             const effectiveSince = since || getOperationalSince();
                             // Use cached queries to prevent duplicate fetches in parallel loads
-                            const [mealRows, holidayRows, haircutRows] = await Promise.all([
+                            const [mealRows, familyMealRows, holidayRows, haircutRows] = await Promise.all([
                                 getCachedMealRecords({ since: effectiveSince, pageSize: 500 }),
+                                getCachedFamilyMealRecords({ since: effectiveSince, pageSize: 500 }),
                                 getCachedHolidayRecords({ since: effectiveSince, pageSize: 500 }),
                                 getCachedHaircutRecords({ since: effectiveSince, pageSize: 500 }),
                             ]);
@@ -712,6 +811,7 @@ export const useMealsStore = create<MealsState>()(
                                 state.shelterMealRecords = allMeals.filter(r => r.type === 'shelter');
                                 state.unitedEffortMealRecords = allMeals.filter(r => r.type === 'united_effort');
                                 state.lunchBagRecords = allMeals.filter(r => r.type === 'lunch_bag');
+                                state.familyMealRecords = (familyMealRows || []) as any;
 
                                 state.holidayRecords = (holidayRows || []) as any;
                                 state.haircutRecords = (haircutRows || []) as any;
@@ -736,6 +836,7 @@ export const useMealsStore = create<MealsState>()(
                             state.mealRecords = [];
                             state.rvMealRecords = [];
                             state.extraMealRecords = [];
+                            state.familyMealRecords = [];
                             state.holidayRecords = [];
                             state.haircutRecords = [];
                         });
@@ -746,10 +847,10 @@ export const useMealsStore = create<MealsState>()(
                         const {
                             mealRecords, rvMealRecords, extraMealRecords,
                             dayWorkerMealRecords, shelterMealRecords,
-                            unitedEffortMealRecords, lunchBagRecords
+                            unitedEffortMealRecords, lunchBagRecords, familyMealRecords
                         } = get();
 
-                        const check = (r: MealRecord) => pacificDateStringFrom(r.date) === dateStr;
+                        const check = (r: { date: string; dateKey?: string }) => (r.dateKey || pacificDateStringFrom(r.date)) === dateStr;
 
                         return {
                             meals: mealRecords.filter(check),
@@ -759,6 +860,7 @@ export const useMealsStore = create<MealsState>()(
                             shelter: shelterMealRecords.filter(check),
                             unitedEffort: unitedEffortMealRecords.filter(check),
                             lunchBags: lunchBagRecords.filter(check),
+                            familyMeals: familyMealRecords.filter(check),
                         };
                     },
                 })),

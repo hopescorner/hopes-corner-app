@@ -216,6 +216,9 @@ describe('Realtime Table Configurations', () => {
             'guests',
             'guest_warnings',
             'guest_proxies',
+            'guest_families',
+            'guest_family_members',
+            'family_meal_distributions',
         ] as const;
 
         tables.forEach((table) => {
