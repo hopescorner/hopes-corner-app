@@ -100,6 +100,12 @@ const DEMO_MEAL_TYPE_DEFAULTS: Record<DemoMealTypeKey, boolean> = {
     shelter: true, unitedEffort: true, lunchBags: true,
 };
 
+const matchesSelectedFilter = (selected: string[], value: string) =>
+    selected.length === 0 || selected.includes(value);
+
+const nextSelectedFilter = (selected: string[], value: string) =>
+    value === 'all' ? [] : selected.includes(value) ? selected.filter(v => v !== value) : [...selected, value];
+
 export function AnalyticsSection() {
     const {
         mealRecords,
@@ -153,10 +159,10 @@ export function AnalyticsSection() {
     const [showComparison, setShowComparison] = useState(true);
 
     // Demographic filter state
-    const [filterLocation, setFilterLocation] = useState<string>('all');
-    const [filterAgeGroup, setFilterAgeGroup] = useState<string>('all');
-    const [filterGender, setFilterGender] = useState<string>('all');
-    const [filterHousing, setFilterHousing] = useState<string>('all');
+    const [filterLocation, setFilterLocation] = useState<string[]>([]);
+    const [filterAgeGroup, setFilterAgeGroup] = useState<string[]>([]);
+    const [filterGender, setFilterGender] = useState<string[]>([]);
+    const [filterHousing, setFilterHousing] = useState<string[]>([]);
     const [demoMealTypeFilters, setDemoMealTypeFilters] = useState(DEMO_MEAL_TYPE_DEFAULTS);
 
     // Custom date range state
@@ -234,13 +240,13 @@ export function AnalyticsSection() {
 
     // Set of guest IDs matching demographic filters (null = no filtering active)
     const demographicFilteredGuestIds = useMemo(() => {
-        if (filterLocation === 'all' && filterAgeGroup === 'all' && filterGender === 'all' && filterHousing === 'all') return null;
+        if (filterLocation.length === 0 && filterAgeGroup.length === 0 && filterGender.length === 0 && filterHousing.length === 0) return null;
         const filtered = new Set<string>();
         guests.forEach(g => {
-            if (filterLocation !== 'all' && (g.location || 'Unknown') !== filterLocation) return;
-            if (filterAgeGroup !== 'all' && (g.age || 'Unknown') !== filterAgeGroup) return;
-            if (filterGender !== 'all' && (g.gender || 'Unknown') !== filterGender) return;
-            if (filterHousing !== 'all' && (g.housingStatus || 'Unknown') !== filterHousing) return;
+            if (!matchesSelectedFilter(filterLocation, g.location || 'Unknown')) return;
+            if (!matchesSelectedFilter(filterAgeGroup, g.age || 'Unknown')) return;
+            if (!matchesSelectedFilter(filterGender, g.gender || 'Unknown')) return;
+            if (!matchesSelectedFilter(filterHousing, g.housingStatus || 'Unknown')) return;
             filtered.add(g.id);
         });
         return filtered;
@@ -546,10 +552,10 @@ export function AnalyticsSection() {
         // Apply demographic filters to active guests
         const activeGuests = guests.filter(g => {
             if (!activeGuestIds.has(g.id)) return false;
-            if (filterLocation !== 'all' && (g.location || 'Unknown') !== filterLocation) return false;
-            if (filterAgeGroup !== 'all' && (g.age || 'Unknown') !== filterAgeGroup) return false;
-            if (filterGender !== 'all' && (g.gender || 'Unknown') !== filterGender) return false;
-            if (filterHousing !== 'all' && (g.housingStatus || 'Unknown') !== filterHousing) return false;
+            if (!matchesSelectedFilter(filterLocation, g.location || 'Unknown')) return false;
+            if (!matchesSelectedFilter(filterAgeGroup, g.age || 'Unknown')) return false;
+            if (!matchesSelectedFilter(filterGender, g.gender || 'Unknown')) return false;
+            if (!matchesSelectedFilter(filterHousing, g.housingStatus || 'Unknown')) return false;
             return true;
         });
 
@@ -612,13 +618,13 @@ export function AnalyticsSection() {
     }, []);
 
     const clearDemographicFilters = useCallback(() => {
-        setFilterLocation('all');
-        setFilterAgeGroup('all');
-        setFilterGender('all');
-        setFilterHousing('all');
+        setFilterLocation([]);
+        setFilterAgeGroup([]);
+        setFilterGender([]);
+        setFilterHousing([]);
     }, []);
 
-    const hasActiveDemoFilters = filterLocation !== 'all' || filterAgeGroup !== 'all' || filterGender !== 'all' || filterHousing !== 'all';
+    const hasActiveDemoFilters = filterLocation.length > 0 || filterAgeGroup.length > 0 || filterGender.length > 0 || filterHousing.length > 0;
     const hasActiveMealTypeFilters = Object.values(demoMealTypeFilters).some(v => !v);
 
     const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
@@ -1149,11 +1155,11 @@ export function AnalyticsSection() {
                             <MapPin size={12} /> Location
                         </label>
                         <select
-                            value={filterLocation}
-                            onChange={e => setFilterLocation(e.target.value)}
+                            value={filterLocation[0] || 'all'}
+                            onChange={e => setFilterLocation(prev => nextSelectedFilter(prev, e.target.value))}
                             className={cn(
                                 "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
-                                filterLocation !== 'all'
+                                filterLocation.length > 0
                                     ? "border-blue-300 bg-blue-50 text-blue-700"
                                     : "border-gray-200 bg-white text-gray-700"
                             )}
@@ -1172,11 +1178,11 @@ export function AnalyticsSection() {
                             <Users size={12} /> Age Group
                         </label>
                         <select
-                            value={filterAgeGroup}
-                            onChange={e => setFilterAgeGroup(e.target.value)}
+                            value={filterAgeGroup[0] || 'all'}
+                            onChange={e => setFilterAgeGroup(prev => nextSelectedFilter(prev, e.target.value))}
                             className={cn(
                                 "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
-                                filterAgeGroup !== 'all'
+                                filterAgeGroup.length > 0
                                     ? "border-blue-300 bg-blue-50 text-blue-700"
                                     : "border-gray-200 bg-white text-gray-700"
                             )}
@@ -1195,11 +1201,11 @@ export function AnalyticsSection() {
                             <UserCheck size={12} /> Gender
                         </label>
                         <select
-                            value={filterGender}
-                            onChange={e => setFilterGender(e.target.value)}
+                            value={filterGender[0] || 'all'}
+                            onChange={e => setFilterGender(prev => nextSelectedFilter(prev, e.target.value))}
                             className={cn(
                                 "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
-                                filterGender !== 'all'
+                                filterGender.length > 0
                                     ? "border-blue-300 bg-blue-50 text-blue-700"
                                     : "border-gray-200 bg-white text-gray-700"
                             )}
@@ -1217,11 +1223,11 @@ export function AnalyticsSection() {
                             <Home size={12} /> Housing Status
                         </label>
                         <select
-                            value={filterHousing}
-                            onChange={e => setFilterHousing(e.target.value)}
+                            value={filterHousing[0] || 'all'}
+                            onChange={e => setFilterHousing(prev => nextSelectedFilter(prev, e.target.value))}
                             className={cn(
                                 "w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors",
-                                filterHousing !== 'all'
+                                filterHousing.length > 0
                                     ? "border-blue-300 bg-blue-50 text-blue-700"
                                     : "border-gray-200 bg-white text-gray-700"
                             )}
@@ -1236,30 +1242,30 @@ export function AnalyticsSection() {
                 </div>
                 {(hasActiveDemoFilters || hasActiveMealTypeFilters) && (
                     <div className="mt-3 flex flex-wrap gap-2">
-                        {filterLocation !== 'all' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                                <MapPin size={10} /> {filterLocation}
-                                <button onClick={() => setFilterLocation('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
+                        {filterLocation.map(location => (
+                            <span key={`location-${location}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                <MapPin size={10} /> {location}
+                                <button onClick={() => setFilterLocation(prev => prev.filter(v => v !== location))} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
                             </span>
-                        )}
-                        {filterAgeGroup !== 'all' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                                <Users size={10} /> {filterAgeGroup}
-                                <button onClick={() => setFilterAgeGroup('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
+                        ))}
+                        {filterAgeGroup.map(ageGroup => (
+                            <span key={`age-${ageGroup}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                <Users size={10} /> {ageGroup}
+                                <button onClick={() => setFilterAgeGroup(prev => prev.filter(v => v !== ageGroup))} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
                             </span>
-                        )}
-                        {filterGender !== 'all' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                                <UserCheck size={10} /> {filterGender}
-                                <button onClick={() => setFilterGender('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
+                        ))}
+                        {filterGender.map(gender => (
+                            <span key={`gender-${gender}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                <UserCheck size={10} /> {gender}
+                                <button onClick={() => setFilterGender(prev => prev.filter(v => v !== gender))} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
                             </span>
-                        )}
-                        {filterHousing !== 'all' && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                                <Home size={10} /> {filterHousing}
-                                <button onClick={() => setFilterHousing('all')} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
+                        ))}
+                        {filterHousing.map(housing => (
+                            <span key={`housing-${housing}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                                <Home size={10} /> {housing}
+                                <button onClick={() => setFilterHousing(prev => prev.filter(v => v !== housing))} className="ml-0.5 hover:text-blue-900"><X size={10} /></button>
                             </span>
-                        )}
+                        ))}
                     </div>
                 )}
             </div>

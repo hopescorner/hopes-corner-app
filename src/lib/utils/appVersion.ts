@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.36';
+export const APP_VERSION = '0.5.37';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.37',
+        date: 'June 27, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Multi-Select Analytics Demographic Filters',
+                description: 'Analytics demographic filters now allow more than one selection, so reports can include multiple cities, age groups, genders, or housing statuses at the same time.',
+            },
+        ],
+    },
     {
         version: '0.5.36',
         date: 'June 11, 2026',

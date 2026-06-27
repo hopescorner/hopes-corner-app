@@ -171,6 +171,19 @@ describe('AnalyticsSection Demographic Filters', () => {
         expect(mountainViewPills.length).toBeGreaterThan(0);
     });
 
+    it('allows selecting multiple location filters', () => {
+        render(<AnalyticsSection />);
+
+        const locationSelect = screen.getAllByRole('combobox')[0];
+        fireEvent.change(locationSelect, { target: { value: 'Mountain View' } });
+        fireEvent.change(locationSelect, { target: { value: 'Palo Alto' } });
+
+        const uniqueGuestsCard = screen.getByText('Unique Guests Served').closest('div')!;
+        expect(uniqueGuestsCard.querySelector('.text-4xl')?.textContent).toBe('3');
+        expect(screen.getAllByText('Mountain View').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Palo Alto').length).toBeGreaterThan(0);
+    });
+
     it('allows selecting age group filter', () => {
         render(<AnalyticsSection />);
 
