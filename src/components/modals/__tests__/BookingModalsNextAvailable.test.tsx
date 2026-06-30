@@ -61,6 +61,14 @@ vi.mock('@/stores/useServicesStore', () => ({
         addShowerWaitlist: mockAddShowerWaitlist,
         addLaundryRecord: mockAddLaundryRecord,
         loadFromSupabase: vi.fn(),
+        getLaundryWeeklyUsage: vi.fn(() => ({
+            count: 0,
+            max: 2,
+            remaining: 2,
+            limitReached: false,
+            weekStart: '2026-06-29',
+            nextWeekStart: '2026-07-06',
+        })),
     })),
 }));
 

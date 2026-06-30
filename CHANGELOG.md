@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.38] - 2026-06-29
+
+### Added
+
+- Guests are now limited to 2 laundry loads per week (onsite + offsite combined). The week resets every Monday (Pacific time). The laundry booking modal and admin backfill form show the guest load count, remaining slots, and a clear "limit reached" banner that blocks further assignments until next Monday. The cap is enforced at the store on every write, so it is respected even when multiple staff book concurrently.
+
 ## [0.5.36] - 2026-06-11
 
 ### Fixed

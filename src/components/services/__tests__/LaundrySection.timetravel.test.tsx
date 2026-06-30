@@ -46,6 +46,14 @@ vi.mock('@/stores/useServicesStore', () => ({
         updateLaundryBagNumber: vi.fn(),
         cancelMultipleLaundry: vi.fn(),
         deleteLaundryRecord: vi.fn(),
+        getLaundryWeeklyUsage: () => ({
+            count: 0,
+            max: 2,
+            remaining: 2,
+            limitReached: false,
+            weekStart: '2026-06-29',
+            nextWeekStart: '2026-07-06',
+        }),
     }),
 }));
 

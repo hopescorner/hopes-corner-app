@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.37';
+export const APP_VERSION = '0.5.38';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.38',
+        date: 'June 29, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Weekly Laundry Limit per Guest',
+                description: 'Each guest is now limited to 2 laundry loads per week (onsite + offsite combined). The week resets on Monday, and the laundry booking modal and admin backfill form show the guest load count, remaining slots, and a clear "limit reached" banner that blocks further assignments until next Monday.',
+            },
+        ],
+    },
     {
         version: '0.5.37',
         date: 'June 27, 2026',

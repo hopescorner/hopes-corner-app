@@ -13,6 +13,9 @@ const mockSupabase = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
+    not: vi.fn().mockResolvedValue({ count: 0, error: null }),
+    gte: vi.fn().mockReturnThis(),
+    lt: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -39,7 +42,10 @@ vi.mock('@/lib/utils/mappers', () => ({
 
 vi.mock('@/lib/utils/date', () => ({
     todayPacificDateString: () => '2025-01-06',
-    pacificDateStringFrom: (d: string) => d.split('T')[0],
+    pacificDateStringFrom: (d: string | Date = new Date()) => (typeof d === 'string' ? d.split('T')[0] : '2025-01-06'),
+    weekStartPacificDateString: () => '2025-01-06',
+    nextWeekStartPacificDateString: () => '2025-01-13',
+    formatDateForDisplay: () => 'Jan 13',
     formatTimeInPacific: () => '12:00 PM',
     formatPacificTimeString: (timeStr: string) => timeStr,
 }));
@@ -881,6 +887,156 @@ describe('useServicesStore', () => {
                     await expect(
                         useServicesStore.getState().addLaundryRecord('g1', 'onsite', '09:00', 'B2')
                     ).rejects.toThrow('Unable to verify slot availability');
+                });
+
+                // ── Weekly per-guest laundry limit (onsite + offsite combined) ──
+                it('rejects booking when guest has reached the weekly laundry limit', async () => {
+                    // Weekly count query returns 2 (= MAX_LAUNDRY_LOADS_PER_WEEK)
+                    mockSupabase.not.mockResolvedValueOnce({ count: 2, error: null });
+
+                    await expect(
+                        useServicesStore.getState().addLaundryRecord('g1', 'offsite')
+                    ).rejects.toThrow('Weekly laundry limit reached');
+
+                    // Insert must never run when the cap is hit
+                    expect(mockSupabase.insert).not.toHaveBeenCalled();
+                });
+
+                it('allows booking when guest is one load under the weekly limit', async () => {
+                    // Guest already has 1 load this week — 1 remaining
+                    mockSupabase.not.mockResolvedValueOnce({ count: 1, error: null });
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l500' }, error: null });
+
+                    const result = await useServicesStore.getState().addLaundryRecord('g1', 'offsite');
+                    expect(result.id).toBe('l500');
+                    expect(mockSupabase.insert).toHaveBeenCalled();
+                });
+
+                it('rejects onsite booking when weekly limit is reached even if slot is free', async () => {
+                    // Slot capacity check passes...
+                    mockSupabase.in.mockResolvedValueOnce({ count: 0, error: null });
+                    // ...but weekly count says the guest is at the cap
+                    mockSupabase.not.mockResolvedValueOnce({ count: 2, error: null });
+
+                    await expect(
+                        useServicesStore.getState().addLaundryRecord('g1', 'onsite', '08:00', 'B1')
+                    ).rejects.toThrow('Weekly laundry limit reached');
+
+                    expect(mockSupabase.insert).not.toHaveBeenCalled();
+                });
+
+                it('throws when the weekly laundry count query fails', async () => {
+                    mockSupabase.not.mockResolvedValueOnce({ count: null, error: { message: 'DB error' } });
+
+                    await expect(
+                        useServicesStore.getState().addLaundryRecord('g1', 'offsite')
+                    ).rejects.toThrow('Unable to verify weekly laundry limit');
+                });
+
+                it('skips the weekly limit check when adding to the waitlist', async () => {
+                    // addLaundryWaitlist inserts directly with status 'waitlisted' and
+                    // should never invoke the weekly count query.
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'wl-1', status: 'waitlisted' }, error: null });
+                    await useServicesStore.getState().addLaundryWaitlist('g1');
+                    expect(mockSupabase.not).not.toHaveBeenCalled();
+                });
+
+                it('skips the weekly limit check inside addLaundryRecord when initialStatus is waitlisted', async () => {
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'wl-2' }, error: null });
+                    await useServicesStore.getState().addLaundryRecord('g1', 'onsite', null, '', undefined, 'waitlisted');
+                    expect(mockSupabase.not).not.toHaveBeenCalled();
+                });
+            });
+
+            describe('getLaundryWeeklyUsage', () => {
+                it('returns zero usage for a guest with no records', () => {
+                    useServicesStore.setState({ laundryRecords: [] });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage).toEqual({
+                        count: 0,
+                        max: 2,
+                        remaining: 2,
+                        limitReached: false,
+                        weekStart: '2025-01-06',
+                        nextWeekStart: '2025-01-13',
+                    });
+                });
+
+                it('counts both onsite and offsite records within the current week', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06', laundryType: 'onsite' },
+                            { id: 'l2', guestId: 'g1', status: 'pending', dateKey: '2025-01-08', laundryType: 'offsite' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(2);
+                    expect(usage.remaining).toBe(0);
+                    expect(usage.limitReached).toBe(true);
+                });
+
+                it('ignores void statuses (cancelled, no_show, waitlisted)', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06' },
+                            { id: 'l2', guestId: 'g1', status: 'cancelled', dateKey: '2025-01-07' },
+                            { id: 'l3', guestId: 'g1', status: 'no_show', dateKey: '2025-01-08' },
+                            { id: 'l4', guestId: 'g1', status: 'waitlisted', dateKey: '2025-01-09' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(1);
+                    expect(usage.remaining).toBe(1);
+                    expect(usage.limitReached).toBe(false);
+                });
+
+                it('ignores records belonging to other guests', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06' },
+                            { id: 'l2', guestId: 'g2', status: 'waiting', dateKey: '2025-01-06' },
+                            { id: 'l3', guestId: 'g3', status: 'done', dateKey: '2025-01-08' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(1);
+                });
+
+                it('ignores records outside the current week (before Monday and on/after next Monday)', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-05' }, // before weekStart
+                            { id: 'l2', guestId: 'g1', status: 'waiting', dateKey: '2025-01-13' }, // == nextWeekStart (excluded)
+                            { id: 'l3', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06' }, // in-week
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(1);
+                });
+
+                it('falls back to scheduledFor (plain date) when dateKey is missing', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'done', scheduledFor: '2025-01-10' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(1);
+                });
+
+                it('respects an explicit dateLike argument to query a different week', () => {
+                    // The date mock pins weekStart to 2025-01-06 regardless of input,
+                    // but passing a dateLike exercises the code path so we can assert
+                    // the returned weekStart matches the mocked helper output.
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1', '2025-01-08');
+                    expect(usage.count).toBe(1);
+                    expect(usage.weekStart).toBe('2025-01-06');
+                    expect(usage.nextWeekStart).toBe('2025-01-13');
                 });
             });
         });

@@ -10,17 +10,17 @@ import { generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots'
 import { cn } from '@/lib/utils/cn';
 import { useSession } from 'next-auth/react';
 import { type UserRole } from '@/lib/auth/types';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, AlertTriangle } from 'lucide-react';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatDateForDisplay } from '@/lib/utils/date';
 
 export function LaundryBookingModal() {
     const { laundryPickerGuest, setLaundryPickerGuest } = useModalStore();
-    const { laundryRecords, addLaundryRecord } = useServicesStore();
+    const { laundryRecords, addLaundryRecord, getLaundryWeeklyUsage } = useServicesStore();
     const { addAction } = useActionHistoryStore();
     const { fetchBlockedSlots, isSlotBlocked } = useBlockedSlotsStore();
 
@@ -62,6 +62,13 @@ export function LaundryBookingModal() {
     const nextAvailableSlot = useMemo(() => {
         return slotsWithStatus.find(s => !s.isBooked && !s.isBlocked);
     }, [slotsWithStatus]);
+
+    // Weekly per-guest laundry limit (onsite + offsite combined, resets Monday)
+    const weeklyUsage = useMemo(
+        () => (laundryPickerGuest ? getLaundryWeeklyUsage(laundryPickerGuest.id, today) : null),
+        [laundryPickerGuest, getLaundryWeeklyUsage, laundryRecords, today]
+    );
+    const weeklyLimitReached = !!weeklyUsage?.limitReached;
 
     if (!laundryPickerGuest) return null;
 
@@ -117,7 +124,34 @@ export function LaundryBookingModal() {
                 <div className="flex-1 overflow-y-auto p-6">
                     {/* Guest Reminders */}
                     <ServiceCardReminder guestId={laundryPickerGuest.id} serviceType="laundry" />
-                    
+
+                    {/* Weekly limiting banner — shows used / remaining / reset-on-Monday */}
+                    {weeklyUsage && weeklyUsage.limitReached && (
+                        <div className="mb-4 flex items-start gap-3 p-4 rounded-2xl border-2 bg-red-50 border-red-200">
+                            <div className="p-2 rounded-xl shrink-0 bg-red-100 text-red-600">
+                                <AlertTriangle size={18} />
+                            </div>
+                            <div className="space-y-0.5">
+                                <p className="font-black text-red-700">
+                                    Weekly laundry limit reached ({weeklyUsage.count}/{weeklyUsage.max} loads)
+                                </p>
+                                <p className="text-sm text-red-700 font-medium">
+                                    This guest cannot be assigned more laundry this week. New laundry can be booked again on Monday, {formatDateForDisplay(weeklyUsage.nextWeekStart, { month: 'short', day: 'numeric' })}.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    {weeklyUsage && !weeklyUsage.limitReached && (
+                        <div className="mb-4 flex items-center gap-3 p-3 rounded-xl bg-indigo-50 border border-indigo-100">
+                            <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-600">
+                                <WashingMachine size={16} />
+                            </div>
+                            <p className="text-sm font-bold text-indigo-700">
+                                Weekly laundry: {weeklyUsage.count}/{weeklyUsage.max} loads · {weeklyUsage.remaining} remaining this week
+                            </p>
+                        </div>
+                    )}
+
                     {isCheckinRole ? (
                         <div className="space-y-8">
                             <div className="flex p-1 bg-gray-100 rounded-2xl">
@@ -170,7 +204,7 @@ export function LaundryBookingModal() {
                                             nextAvailableSlot ? (
                                                 <button
                                                     onClick={() => handleBook(nextAvailableSlot.label)}
-                                                    disabled={isPending}
+                                                    disabled={isPending || weeklyLimitReached}
                                                     className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-black text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                                                 >
                                                     {isPending ? <Loader2 className="animate-spin" /> : <WashingMachine size={20} />}
@@ -182,7 +216,7 @@ export function LaundryBookingModal() {
                                         ) : (
                                             <button
                                                 onClick={() => handleBook()}
-                                                disabled={isPending}
+                                                disabled={isPending || weeklyLimitReached}
                                                 className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-black text-lg hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                                             >
                                                 {isPending ? <Loader2 className="animate-spin" /> : <WashingMachine size={20} />}
@@ -245,10 +279,10 @@ export function LaundryBookingModal() {
                                     {/* Book Next Available */}
                                     <button
                                         onClick={() => nextAvailableSlot && handleBook(nextAvailableSlot.label)}
-                                        disabled={!nextAvailableSlot || isPending}
+                                        disabled={!nextAvailableSlot || isPending || weeklyLimitReached}
                                         className={cn(
                                             'w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all active:scale-[0.98]',
-                                            nextAvailableSlot
+                                            nextAvailableSlot && !weeklyLimitReached
                                                 ? 'bg-indigo-50 border-indigo-200 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-100'
                                                 : 'bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed'
                                         )}
@@ -295,7 +329,7 @@ export function LaundryBookingModal() {
                                                 {slotsWithStatus.map((slot) => (
                                                     <button
                                                         key={slot.label}
-                                                        disabled={slot.isBooked || slot.isBlocked || isPending}
+                                                        disabled={slot.isBooked || slot.isBlocked || isPending || weeklyLimitReached}
                                                         onClick={() => handleBook(slot.label)}
                                                         className={cn(
                                                             'flex items-center justify-between p-4 rounded-xl border-2 transition-all group',
@@ -303,7 +337,9 @@ export function LaundryBookingModal() {
                                                                 ? 'bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed'
                                                                 : slot.isBlocked
                                                                     ? 'bg-red-50 border-red-100 opacity-80 cursor-not-allowed'
-                                                                    : 'bg-white border-gray-100 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-50 active:scale-[0.98]'
+                                                                    : weeklyLimitReached
+                                                                        ? 'bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed'
+                                                                        : 'bg-white border-gray-100 hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-50 active:scale-[0.98]'
                                                         )}
                                                     >
                                                         <div className="flex items-center gap-3">
@@ -350,8 +386,8 @@ export function LaundryBookingModal() {
                                                 </p>
                                                 <button
                                                     onClick={() => handleBook()}
-                                                    disabled={isPending}
-                                                    className="w-full py-4 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95 flex items-center justify-center gap-2"
+                                                    disabled={isPending || weeklyLimitReached}
+                                                    className="w-full py-4 rounded-xl bg-indigo-600 text-white font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                                                 >
                                                     {isPending ? <Loader2 size={20} className="animate-spin" /> : <WashingMachine size={20} />}
                                                     Book Off-site Now

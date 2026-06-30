@@ -63,6 +63,25 @@ export const LAUNDRY_SLOT_OCCUPYING_STATUSES = new Set([
   'waiting', 'washer', 'dryer', 'done', 'picked_up',
 ]);
 
+/**
+ * Maximum number of laundry loads (onsite + offsite combined) a guest can be
+ * assigned per rolling week. The week resets on Monday (Pacific time).
+ */
+export const MAX_LAUNDRY_LOADS_PER_WEEK = 2;
+
+/**
+ * Laundry statuses that do NOT count toward a guest's weekly laundry limit.
+ * A record with one of these statuses is considered voided / unoccupied and
+ * the assosiated load is returned to the guest's weekly allowance.
+ * Everything else (waiting, washer, dryer, done, picked_up, pending,
+ * transported, returned, offsite_picked_up) counts as a consumed load.
+ */
+export const LAUNDRY_WEEKLY_VOID_STATUSES = new Set([
+  'cancelled',
+  'no_show',
+  'waitlisted',
+]);
+
 /** Maximum number of base (non-extra) meals a guest can receive per service day. */
 export const MAX_BASE_MEALS_PER_DAY = 2;
 

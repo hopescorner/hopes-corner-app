@@ -17,8 +17,8 @@ import {
     mapHolidayRow,
     mapShowerStatusToDb,
 } from '@/lib/utils/mappers';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
-import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { todayPacificDateString, pacificDateStringFrom, weekStartPacificDateString, nextWeekStartPacificDateString } from '@/lib/utils/date';
+import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES, MAX_LAUNDRY_LOADS_PER_WEEK, LAUNDRY_WEEKLY_VOID_STATUSES } from '@/lib/constants/constants';
 
 const OPERATIONAL_WINDOW_DAYS = 45;
 
@@ -53,6 +53,21 @@ interface LaundryRecord {
     status: string;
     createdAt?: string;
     lastUpdated?: string;
+}
+
+export interface LaundryWeeklyUsage {
+    /** Total loads (onsite + offsite, non-void) the guest already has for the week. */
+    count: number;
+    /** Configured per-week cap. */
+    max: number;
+    /** Loads the guest can still be assigned this week (max - count, floored at 0). */
+    remaining: number;
+    /** True when count >= max — UI should block further assignments. */
+    limitReached: boolean;
+    /** Pacific date string (YYYY-MM-DD) for the Monday that starts the week. */
+    weekStart: string;
+    /** Pacific date string (YYYY-MM-DD) for the Monday that starts the next week. */
+    nextWeekStart: string;
 }
 
 interface BicycleRecord {
@@ -135,6 +150,8 @@ interface ServicesState {
     getTodayLaundry: () => LaundryRecord[];
     getTodayOnsiteLaundry: () => LaundryRecord[];
     getTodayOffsiteLaundry: () => LaundryRecord[];
+    /** Returns the guest's weekly laundry load usage for the week containing the given date (defaults to today). */
+    getLaundryWeeklyUsage: (guestId: string, dateLike?: string | Date) => LaundryWeeklyUsage;
     getActiveBicycles: () => BicycleRecord[];
     getTodayBicycles: () => BicycleRecord[];
 }
@@ -294,6 +311,34 @@ export const useServicesStore = create<ServicesState>()(
                             if ((count ?? 0) >= MAX_GUESTS_PER_LAUNDRY_SLOT) {
                                 throw new Error(
                                     `This laundry slot is already booked. Please choose another time.`
+                                );
+                            }
+                        }
+
+                        // ── Weekly per-guest laundry limit ──
+                        // Guests are capped at MAX_LAUNDRY_LOADS_PER_WEEK (onsite + offsite
+                        // combined) per rolling week. The week resets every Monday (Pacific).
+                        // Void statuses (cancelled / no_show / waitlisted) do not count.
+                        if (initialStatus !== 'waitlisted') {
+                            const weekStart = weekStartPacificDateString(targetDate);
+                            const nextWeekStart = nextWeekStartPacificDateString(targetDate);
+                            const { count: weekCount, error: weekCountError } = await supabase
+                                .from('laundry_bookings')
+                                .select('*', { count: 'exact', head: true })
+                                .eq('guest_id', guestId)
+                                .gte('scheduled_for', weekStart)
+                                .lt('scheduled_for', nextWeekStart)
+                                .not('status', 'in', Array.from(LAUNDRY_WEEKLY_VOID_STATUSES));
+
+                            if (weekCountError) {
+                                console.error('Failed to check weekly laundry limit:', weekCountError);
+                                throw new Error('Unable to verify weekly laundry limit');
+                            }
+
+                            if ((weekCount ?? 0) >= MAX_LAUNDRY_LOADS_PER_WEEK) {
+                                throw new Error(
+                                    `Weekly laundry limit reached (${MAX_LAUNDRY_LOADS_PER_WEEK} loads). ` +
+                                    `This guest can be assigned laundry again on Monday.`
                                 );
                             }
                         }
@@ -932,6 +977,39 @@ export const useServicesStore = create<ServicesState>()(
                                 pacificDateStringFrom(r.date) === today &&
                                 r.laundryType === 'offsite'
                         );
+                    },
+
+                    getLaundryWeeklyUsage: (guestId: string, dateLike: string | Date = new Date()) => {
+                        const weekStart = weekStartPacificDateString(dateLike);
+                        const nextWeekStart = nextWeekStartPacificDateString(dateLike);
+                        const count = get().laundryRecords.reduce((acc, r) => {
+                            if (r.guestId !== guestId) return acc;
+                            if (LAUNDRY_WEEKLY_VOID_STATUSES.has(r.status)) return acc;
+                            // Resolve the booking's Pacific YYYY-MM-DD. dateKey is the
+                            // mapper-populated Pacific date string; scheduledFor may be
+                            // either a plain date or ISO timestamp, so normalize carefully
+                            // to avoid UTC-midnight day-shifting.
+                            let recordDate = '';
+                            if (r.dateKey) {
+                                recordDate = r.dateKey;
+                            } else if (r.scheduledFor && /^\d{4}-\d{2}-\d{2}$/.test(r.scheduledFor)) {
+                                recordDate = r.scheduledFor;
+                            } else {
+                                recordDate = pacificDateStringFrom(r.scheduledFor || r.date);
+                            }
+                            return recordDate >= weekStart && recordDate < nextWeekStart
+                                ? acc + 1
+                                : acc;
+                        }, 0);
+                        const remaining = Math.max(MAX_LAUNDRY_LOADS_PER_WEEK - count, 0);
+                        return {
+                            count,
+                            max: MAX_LAUNDRY_LOADS_PER_WEEK,
+                            remaining,
+                            limitReached: count >= MAX_LAUNDRY_LOADS_PER_WEEK,
+                            weekStart,
+                            nextWeekStart,
+                        } as LaundryWeeklyUsage;
                     },
 
                     getActiveBicycles: () => {

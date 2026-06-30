@@ -18,7 +18,7 @@ import {
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatDateForDisplay } from '@/lib/utils/date';
 import { generateLaundrySlots } from '@/lib/utils/serviceSlots';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
@@ -72,7 +72,7 @@ const formatTimeElapsed = (isoTimestamp: string | null): string | null => {
 };
 
 export function LaundrySection() {
-    const { laundryRecords, updateLaundryStatus, updateLaundryBagNumber, cancelMultipleLaundry, loadFromSupabase, addLaundryRecord } = useServicesStore();
+    const { laundryRecords, updateLaundryStatus, updateLaundryBagNumber, cancelMultipleLaundry, loadFromSupabase, addLaundryRecord, getLaundryWeeklyUsage } = useServicesStore();
     const { guests } = useGuestsStore();
     const { data: session } = useSession();
 
@@ -125,15 +125,22 @@ export function LaundrySection() {
         return generateLaundrySlots(selectedDateObject);
     }, [selectedDate]);
 
-    const selectableGuests = useMemo(() => {
+const selectableGuests = useMemo(() => {
         return (guests || [])
             .filter((guest) => guest?.id)
             .sort((firstGuest, secondGuest) => {
-                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${firstGuest.lastName || ''}`).toString();
+                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
                 const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
                 return firstName.localeCompare(secondName);
             });
     }, [guests]);
+
+    // Per-guest weekly laundry usage for the *selected* backfill date's week
+    const backfillWeeklyUsage = useMemo(() => {
+        if (!backfillGuestId) return null;
+        return getLaundryWeeklyUsage(backfillGuestId, selectedDate);
+    }, [backfillGuestId, selectedDate, getLaundryWeeklyUsage, laundryRecords]);
+    const backfillWeeklyLimitReached = !!backfillWeeklyUsage?.limitReached;
 
     // Calculate pending on-site laundry for End Service Day (only 'waiting' status, only for today)
     const todaysRecords = laundryRecords.filter(r => pacificDateStringFrom(r.date) === today);
@@ -718,10 +725,10 @@ export function LaundrySection() {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={handleAddLaundryRecord}
-                                        disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
+                                        disabled={!backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
                                         className={cn(
                                             "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
-                                            !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
+                                            !backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
                                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                 : 'bg-indigo-600 text-white hover:bg-indigo-700'
                                         )}
@@ -730,10 +737,10 @@ export function LaundrySection() {
                                     </button>
                                     <button
                                         onClick={handleAddCompletedLaundryRecord}
-                                        disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
+                                        disabled={!backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
                                         className={cn(
                                             "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
-                                            !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
+                                            !backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
                                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                 : 'bg-emerald-600 text-white hover:bg-emerald-700'
                                         )}
@@ -742,6 +749,22 @@ export function LaundrySection() {
                                     </button>
                                 </div>
                             </div>
+                            {backfillWeeklyUsage && (
+                                <div className={cn(
+                                    'mt-3 flex items-start gap-3 p-3 rounded-xl border text-xs',
+                                    backfillWeeklyUsage.limitReached
+                                        ? 'bg-red-50 border-red-200 text-red-700'
+                                        : 'bg-indigo-50 border-indigo-100 text-indigo-700'
+                                )}>
+                                    <AlertTriangle size={16} className={cn('shrink-0 mt-0.5', backfillWeeklyUsage.limitReached ? 'text-red-500' : 'text-indigo-500')} />
+                                    <p className="font-medium leading-relaxed">
+                                        Weekly laundry for this guest: <span className="font-black">{backfillWeeklyUsage.count}/{backfillWeeklyUsage.max} loads</span>.
+                                        {backfillWeeklyUsage.limitReached
+                                            ? <> Limit reached — cannot assign more laundry until Monday, {formatDateForDisplay(backfillWeeklyUsage.nextWeekStart, { month: 'short', day: 'numeric' })}.</>
+                                            : <> {backfillWeeklyUsage.remaining} remaining in this week.</>}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
