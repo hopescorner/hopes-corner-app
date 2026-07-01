@@ -18,7 +18,7 @@ import {
     mapShowerStatusToDb,
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom, weekStartPacificDateString, nextWeekStartPacificDateString } from '@/lib/utils/date';
-import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES, MAX_LAUNDRY_LOADS_PER_WEEK, LAUNDRY_WEEKLY_VOID_STATUSES } from '@/lib/constants/constants';
+import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES, MAX_LAUNDRY_LOADS_PER_WEEK, LAUNDRY_WEEKLY_COUNT_STATUSES, LAUNDRY_WEEKLY_VOID_STATUSES } from '@/lib/constants/constants';
 
 const OPERATIONAL_WINDOW_DAYS = 45;
 
@@ -318,18 +318,17 @@ export const useServicesStore = create<ServicesState>()(
                         // ── Weekly per-guest laundry limit ──
                         // Guests are capped at MAX_LAUNDRY_LOADS_PER_WEEK (onsite + offsite
                         // combined) per rolling week. The week resets every Monday (Pacific).
-                        // Void statuses (cancelled / no_show / waitlisted) do not count.
+                        // Count only statuses that exist in the DB enum; invalid enum filters block booking.
                         if (initialStatus !== 'waitlisted') {
                             const weekStart = weekStartPacificDateString(targetDate);
                             const nextWeekStart = nextWeekStartPacificDateString(targetDate);
-                            const weeklyVoidStatusesFilter = `(${Array.from(LAUNDRY_WEEKLY_VOID_STATUSES).join(',')})`;
                             const { count: weekCount, error: weekCountError } = await supabase
                                 .from('laundry_bookings')
                                 .select('*', { count: 'exact', head: true })
                                 .eq('guest_id', guestId)
                                 .gte('scheduled_for', weekStart)
                                 .lt('scheduled_for', nextWeekStart)
-                                .not('status', 'in', weeklyVoidStatusesFilter);
+                                .in('status', LAUNDRY_WEEKLY_COUNT_STATUSES);
 
                             if (weekCountError) {
                                 console.error('Failed to check weekly laundry limit:', weekCountError);

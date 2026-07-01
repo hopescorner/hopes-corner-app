@@ -143,7 +143,7 @@ END$$;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'laundry_status_enum') THEN
     CREATE TYPE public.laundry_status_enum AS enum (
-      'waiting','washer','dryer','done','picked_up','pending','transported','returned','offsite_picked_up'
+      'waiting','washer','dryer','done','picked_up','pending','transported','returned','offsite_picked_up','cancelled','no_show','waitlisted'
     );
   END IF;
 END$$;

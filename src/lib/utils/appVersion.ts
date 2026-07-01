@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.39';
+export const APP_VERSION = '0.5.40';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.40',
+        date: 'July 1, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Laundry Booking Weekly Limit Query Fix',
+                description: 'Laundry bookings now verify weekly usage with valid database statuses only, preventing the weekly-limit check from blocking valid onsite and offsite bookings.',
+            },
+        ],
+    },
     {
         version: '0.5.39',
         date: 'July 1, 2026',

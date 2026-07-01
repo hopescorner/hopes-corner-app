@@ -892,7 +892,7 @@ describe('useServicesStore', () => {
                 // ── Weekly per-guest laundry limit (onsite + offsite combined) ──
                 it('rejects booking when guest has reached the weekly laundry limit', async () => {
                     // Weekly count query returns 2 (= MAX_LAUNDRY_LOADS_PER_WEEK)
-                    mockSupabase.not.mockResolvedValueOnce({ count: 2, error: null });
+                    mockSupabase.in.mockResolvedValueOnce({ count: 2, error: null });
 
                     await expect(
                         useServicesStore.getState().addLaundryRecord('g1', 'offsite')
@@ -904,7 +904,7 @@ describe('useServicesStore', () => {
 
                 it('allows booking when guest is one load under the weekly limit', async () => {
                     // Guest already has 1 load this week — 1 remaining
-                    mockSupabase.not.mockResolvedValueOnce({ count: 1, error: null });
+                    mockSupabase.in.mockResolvedValueOnce({ count: 1, error: null });
                     mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l500' }, error: null });
 
                     const result = await useServicesStore.getState().addLaundryRecord('g1', 'offsite');
@@ -912,24 +912,32 @@ describe('useServicesStore', () => {
                     expect(mockSupabase.insert).toHaveBeenCalled();
                 });
 
-                it('formats the weekly void-status filter for Supabase not-in queries', async () => {
-                    mockSupabase.not.mockResolvedValueOnce({ count: 1, error: null });
-                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l501' }, error: null });
+                it('checks weekly usage with only valid laundry enum statuses', async () => {
+                    mockSupabase.in.mockResolvedValueOnce({ count: 1, error: null });
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l502' }, error: null });
 
-                    await useServicesStore.getState().addLaundryRecord('g1', 'offsite');
+                    const result = await useServicesStore.getState().addLaundryRecord('g1', 'offsite');
 
-                    expect(mockSupabase.not).toHaveBeenCalledWith(
-                        'status',
-                        'in',
-                        '(cancelled,no_show,waitlisted)'
-                    );
+                    expect(result.id).toBe('l502');
+                    expect(mockSupabase.in).toHaveBeenCalledWith('status', [
+                        'waiting',
+                        'washer',
+                        'dryer',
+                        'done',
+                        'picked_up',
+                        'pending',
+                        'transported',
+                        'returned',
+                        'offsite_picked_up',
+                    ]);
+                    expect(mockSupabase.not).not.toHaveBeenCalled();
                 });
 
                 it('rejects onsite booking when weekly limit is reached even if slot is free', async () => {
                     // Slot capacity check passes...
                     mockSupabase.in.mockResolvedValueOnce({ count: 0, error: null });
                     // ...but weekly count says the guest is at the cap
-                    mockSupabase.not.mockResolvedValueOnce({ count: 2, error: null });
+                    mockSupabase.in.mockResolvedValueOnce({ count: 2, error: null });
 
                     await expect(
                         useServicesStore.getState().addLaundryRecord('g1', 'onsite', '08:00', 'B1')
@@ -939,7 +947,7 @@ describe('useServicesStore', () => {
                 });
 
                 it('throws when the weekly laundry count query fails', async () => {
-                    mockSupabase.not.mockResolvedValueOnce({ count: null, error: { message: 'DB error' } });
+                    mockSupabase.in.mockResolvedValueOnce({ count: null, error: { message: 'DB error' } });
 
                     await expect(
                         useServicesStore.getState().addLaundryRecord('g1', 'offsite')
@@ -951,13 +959,13 @@ describe('useServicesStore', () => {
                     // should never invoke the weekly count query.
                     mockSupabase.single.mockResolvedValueOnce({ data: { id: 'wl-1', status: 'waitlisted' }, error: null });
                     await useServicesStore.getState().addLaundryWaitlist('g1');
-                    expect(mockSupabase.not).not.toHaveBeenCalled();
+                    expect(mockSupabase.in).not.toHaveBeenCalled();
                 });
 
                 it('skips the weekly limit check inside addLaundryRecord when initialStatus is waitlisted', async () => {
                     mockSupabase.single.mockResolvedValueOnce({ data: { id: 'wl-2' }, error: null });
                     await useServicesStore.getState().addLaundryRecord('g1', 'onsite', null, '', undefined, 'waitlisted');
-                    expect(mockSupabase.not).not.toHaveBeenCalled();
+                    expect(mockSupabase.in).not.toHaveBeenCalled();
                 });
             });
 

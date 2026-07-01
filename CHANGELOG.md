@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.40] - 2026-07-01
+
+### Fixed
+
+- Laundry bookings now verify weekly usage with valid database statuses only, preventing the weekly-limit check from blocking valid onsite and offsite bookings.
+
 ## [0.5.39] - 2026-07-01
 
 ### Fixed

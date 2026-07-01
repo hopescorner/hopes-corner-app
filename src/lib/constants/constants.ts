@@ -19,6 +19,9 @@ export const LAUNDRY_STATUS = {
   TRANSPORTED: "transported",
   RETURNED: "returned",
   OFFSITE_PICKED_UP: "offsite_picked_up",
+  CANCELLED: "cancelled",
+  NO_SHOW: "no_show",
+  WAITLISTED: "waitlisted",
 };
 
 export const DONATION_TYPES = [
@@ -81,6 +84,10 @@ export const LAUNDRY_WEEKLY_VOID_STATUSES = new Set([
   'no_show',
   'waitlisted',
 ]);
+
+export const LAUNDRY_WEEKLY_COUNT_STATUSES = Object.values(LAUNDRY_STATUS).filter(
+  (status) => !LAUNDRY_WEEKLY_VOID_STATUSES.has(status)
+);
 
 /** Maximum number of base (non-extra) meals a guest can receive per service day. */
 export const MAX_BASE_MEALS_PER_DAY = 2;
