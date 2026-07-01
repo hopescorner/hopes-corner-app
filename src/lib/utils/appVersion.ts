@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.40';
+export const APP_VERSION = '0.5.41';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.41',
+        date: 'July 1, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Dashboard Chunk Load Recovery',
+                description: 'The app now clears cached assets and reloads once when a stale dashboard JavaScript chunk fails to load, preventing board users from getting stuck on a client-side application error after deploys.',
+            },
+        ],
+    },
     {
         version: '0.5.40',
         date: 'July 1, 2026',

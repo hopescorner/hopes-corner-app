@@ -7,15 +7,48 @@ import { APP_VERSION } from '@/lib/utils/appVersion';
 /** How often to poll /api/version (5 minutes) */
 const VERSION_POLL_INTERVAL = 5 * 60 * 1000;
 
+function isChunkLoadError(value: unknown) {
+    const message = value instanceof Error ? `${value.name} ${value.message}` : String(value || '');
+    return /ChunkLoadError|Loading chunk \d+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i.test(message);
+}
+
 export function ServiceWorkerRegistration() {
     const [updateAvailable, setUpdateAvailable] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const chunkReloadedRef = useRef(false);
 
     const handleRefresh = useCallback(() => {
         window.location.reload();
     }, []);
 
+    const recoverFromChunkLoadError = useCallback(async () => {
+        if (chunkReloadedRef.current) return;
+        chunkReloadedRef.current = true;
+        try {
+            if ('caches' in window) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map((key) => caches.delete(key)));
+            }
+        } finally {
+            window.location.reload();
+        }
+    }, []);
+
     useEffect(() => {
+        const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+            if (isChunkLoadError(event.reason)) {
+                void recoverFromChunkLoadError();
+            }
+        };
+        const handleError = (event: ErrorEvent) => {
+            if (isChunkLoadError(event.error) || isChunkLoadError(event.message)) {
+                void recoverFromChunkLoadError();
+            }
+        };
+
+        window.addEventListener('unhandledrejection', handleUnhandledRejection);
+        window.addEventListener('error', handleError);
+
         // ── Version polling (works regardless of SW) ──────────────
         // Fetches /api/version and compares with the client-side
         // APP_VERSION constant. This catches every new deployment
@@ -88,10 +121,12 @@ export function ServiceWorkerRegistration() {
         }
 
         return () => {
+            window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+            window.removeEventListener('error', handleError);
             clearTimeout(initialTimer);
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, []);
+    }, [recoverFromChunkLoadError]);
 
     if (!updateAvailable) return null;
 
