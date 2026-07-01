@@ -322,13 +322,14 @@ export const useServicesStore = create<ServicesState>()(
                         if (initialStatus !== 'waitlisted') {
                             const weekStart = weekStartPacificDateString(targetDate);
                             const nextWeekStart = nextWeekStartPacificDateString(targetDate);
+                            const weeklyVoidStatusesFilter = `(${Array.from(LAUNDRY_WEEKLY_VOID_STATUSES).join(',')})`;
                             const { count: weekCount, error: weekCountError } = await supabase
                                 .from('laundry_bookings')
                                 .select('*', { count: 'exact', head: true })
                                 .eq('guest_id', guestId)
                                 .gte('scheduled_for', weekStart)
                                 .lt('scheduled_for', nextWeekStart)
-                                .not('status', 'in', Array.from(LAUNDRY_WEEKLY_VOID_STATUSES));
+                                .not('status', 'in', weeklyVoidStatusesFilter);
 
                             if (weekCountError) {
                                 console.error('Failed to check weekly laundry limit:', weekCountError);
