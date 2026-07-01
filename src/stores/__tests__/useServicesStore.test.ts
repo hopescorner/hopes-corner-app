@@ -912,6 +912,19 @@ describe('useServicesStore', () => {
                     expect(mockSupabase.insert).toHaveBeenCalled();
                 });
 
+                it('formats the weekly void-status filter for Supabase not-in queries', async () => {
+                    mockSupabase.not.mockResolvedValueOnce({ count: 1, error: null });
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l501' }, error: null });
+
+                    await useServicesStore.getState().addLaundryRecord('g1', 'offsite');
+
+                    expect(mockSupabase.not).toHaveBeenCalledWith(
+                        'status',
+                        'in',
+                        '(cancelled,no_show,waitlisted)'
+                    );
+                });
+
                 it('rejects onsite booking when weekly limit is reached even if slot is free', async () => {
                     // Slot capacity check passes...
                     mockSupabase.in.mockResolvedValueOnce({ count: 0, error: null });

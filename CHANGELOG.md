@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.39] - 2026-07-01
+
+### Fixed
+
+- Fixed a laundry booking bug that could incorrectly block valid onsite and offsite assignments when checking a guest's weekly laundry limit.
+
 ## [0.5.38] - 2026-06-29
 
 ### Added
