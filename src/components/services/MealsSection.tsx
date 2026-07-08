@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import {
     Utensils,
     Users,
@@ -18,6 +19,7 @@ import {
     Package,
     Building2,
     HandHeart,
+    Handshake,
     Trash2,
     Check,
     Search,
@@ -224,10 +226,12 @@ export function MealsSection() {
             }
             return sum;
         }, 0);
+        const guestCount = sumCount(guestMeals);
+        const proxyPickupPercent = guestCount > 0 ? Math.round((proxyPickupCount / guestCount) * 100) : 0;
 
         return {
             total: sumCount([...guestMeals, ...rvMeals, ...extraMeals, ...dayWorkerMeals, ...shelterMeals, ...ueMeals]),
-            guestCount: sumCount(guestMeals),
+            guestCount,
             rvCount: sumCount(rvMeals),
             dayWorkerCount: sumCount(dayWorkerMeals),
             shelterCount: sumCount(shelterMeals),
@@ -235,6 +239,8 @@ export function MealsSection() {
             lunchBagCount: sumCount(lunchBags),
             extraCount: sumCount(extraMeals),
             proxyPickups: proxyPickupCount,
+            proxyPickupPercent,
+            directGuestMeals: guestCount - proxyPickupCount,
             uniqueGuests: new Set(guestMeals.map(r => r.guestId)).size
         };
     }, [selectedDate, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords]);
@@ -888,20 +894,47 @@ export function MealsSection() {
             {/* Service Summary */}
             <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" />
-                    <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" />
-                    <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" />
-                    <StatCard label="Lunch Bags" value={dayMetrics.lunchBagCount} color="amber" />
+                    <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" icon={Utensils} />
+                    <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" icon={Users} />
+                    <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" icon={Handshake} />
+                    <StatCard label="Lunch Bags" value={dayMetrics.lunchBagCount} color="amber" icon={Package} />
+                </div>
+
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Proxy Share</p>
+                            <p className="mt-1 text-2xl font-black tracking-tight text-indigo-700">
+                                {dayMetrics.proxyPickupPercent}% of guest meals
+                            </p>
+                            <p className="mt-1 text-xs font-bold text-indigo-900/70">
+                                {dayMetrics.guestCount > 0
+                                    ? `${dayMetrics.proxyPickups.toLocaleString()} of ${dayMetrics.guestCount.toLocaleString()} guest meals were picked up by a linked guest.`
+                                    : 'No guest meals logged for this date.'}
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center sm:min-w-72">
+                            <CompactStat label="Proxy" value={dayMetrics.proxyPickups} color="indigo" icon={Handshake} />
+                            <CompactStat label="Direct" value={dayMetrics.directGuestMeals} color="blue" icon={User} />
+                            <CompactStat label="Guest Total" value={dayMetrics.guestCount} color="emerald" icon={Users} />
+                        </div>
+                    </div>
+                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
+                        <div
+                            className="h-full rounded-full bg-indigo-500"
+                            style={{ width: `${dayMetrics.proxyPickupPercent}%` }}
+                        />
+                    </div>
                 </div>
 
                 <div className="border-t border-gray-100 pt-4">
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Distribution Details</p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                        <CompactStat label="Extra" value={dayMetrics.extraCount} color="amber" />
-                        <CompactStat label="RV" value={dayMetrics.rvCount} color="purple" />
-                        <CompactStat label="Day Worker" value={dayMetrics.dayWorkerCount} color="sky" />
-                        <CompactStat label="Shelter" value={dayMetrics.shelterCount} color="rose" />
-                        <CompactStat label="United Effort" value={dayMetrics.ueCount} color="rose" />
+                        <CompactStat label="Extra" value={dayMetrics.extraCount} color="amber" icon={Plus} />
+                        <CompactStat label="RV" value={dayMetrics.rvCount} color="purple" icon={Truck} />
+                        <CompactStat label="Day Worker" value={dayMetrics.dayWorkerCount} color="sky" icon={Building2} />
+                        <CompactStat label="Shelter" value={dayMetrics.shelterCount} color="rose" icon={Home} />
+                        <CompactStat label="United Effort" value={dayMetrics.ueCount} color="rose" icon={HandHeart} />
                     </div>
                 </div>
             </div>
@@ -993,7 +1026,7 @@ export function MealsSection() {
 
                                             {record?.isProxyPickup && (
                                                 <p className="text-xs text-emerald-700 font-bold mt-1 flex items-center gap-1">
-                                                    <span aria-hidden>🤝</span>
+                                                    <Handshake size={13} aria-hidden />
                                                     <span>Picked up by {getPickedUpByName(record)}</span>
                                                 </p>
                                             )}
@@ -1013,7 +1046,7 @@ export function MealsSection() {
                                             record.type === 'guest' && record?.isProxyPickup && "bg-emerald-100 text-emerald-700",
                                         )}>
                                             {record.type === 'guest' && record?.isProxyPickup
-                                                ? '🤝 Proxy Pickup'
+                                                ? 'Proxy Pickup'
                                                 : record.type === 'day_worker'
                                                     ? 'Day Worker'
                                                     : record.type === 'lunch_bag'
@@ -1065,7 +1098,9 @@ export function MealsSection() {
     );
 }
 
-function StatCard({ label, value, color }: { label: string, value: number, color: 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose' }) {
+type StatColor = 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose';
+
+function StatCard({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: LucideIcon }) {
     const textColors: Record<string, string> = {
         emerald: 'text-emerald-600',
         blue: 'text-blue-600',
@@ -1074,17 +1109,37 @@ function StatCard({ label, value, color }: { label: string, value: number, color
         sky: 'text-sky-600',
         amber: 'text-amber-600',
         rose: 'text-rose-600',
+    };
+    const iconColors: Record<string, string> = {
+        emerald: 'bg-emerald-100 text-emerald-600',
+        blue: 'bg-blue-100 text-blue-600',
+        indigo: 'bg-indigo-100 text-indigo-600',
+        purple: 'bg-purple-100 text-purple-600',
+        sky: 'bg-sky-100 text-sky-600',
+        amber: 'bg-amber-100 text-amber-600',
+        rose: 'bg-rose-100 text-rose-600',
     };
 
     return (
         <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
-            <p className={cn("text-2xl font-black tracking-tight", textColors[color])}>{value.toLocaleString()}</p>
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+                    <p className={cn("text-2xl font-black tracking-tight", textColors[color])}>{value.toLocaleString()}</p>
+                </div>
+                <Icon
+                    aria-hidden={false}
+                    aria-label={`${label} icon`}
+                    role="img"
+                    size={18}
+                    className={cn("shrink-0 rounded-xl p-2", iconColors[color])}
+                />
+            </div>
         </div>
     );
 }
 
-function CompactStat({ label, value, color }: { label: string, value: number, color: 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose' }) {
+function CompactStat({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: LucideIcon }) {
     const textColors: Record<string, string> = {
         emerald: 'text-emerald-600',
         blue: 'text-blue-600',
@@ -1094,10 +1149,28 @@ function CompactStat({ label, value, color }: { label: string, value: number, co
         amber: 'text-amber-600',
         rose: 'text-rose-600',
     };
+    const iconColors: Record<string, string> = {
+        emerald: 'bg-emerald-50 text-emerald-600',
+        blue: 'bg-blue-50 text-blue-600',
+        indigo: 'bg-indigo-50 text-indigo-600',
+        purple: 'bg-purple-50 text-purple-600',
+        sky: 'bg-sky-50 text-sky-600',
+        amber: 'bg-amber-50 text-amber-600',
+        rose: 'bg-rose-50 text-rose-600',
+    };
 
     return (
-        <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>
+        <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between gap-3">
+            <span className="min-w-0 flex items-center gap-2">
+                <Icon
+                    aria-hidden={false}
+                    aria-label={`${label} icon`}
+                    role="img"
+                    size={14}
+                    className={cn("shrink-0 rounded-lg p-1", iconColors[color])}
+                />
+                <span className="truncate text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>
+            </span>
             <span className={cn('text-sm font-black', textColors[color])}>{value.toLocaleString()}</span>
         </div>
     );

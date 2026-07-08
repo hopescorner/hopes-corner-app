@@ -53,7 +53,7 @@ test.describe('MealsSection', () => {
     const component = await mount(<MealsSectionStory />);
     // Primary stat cards
     await expect(component.getByText('Total Meals')).toBeVisible();
-    await expect(component.getByRole('paragraph').filter({ hasText: 'Guest Meals' })).toBeVisible();
+    await expect(component.getByRole('paragraph').filter({ hasText: /^Guest Meals$/ })).toBeVisible();
     await expect(component.getByText('Proxy Pickups')).toBeVisible();
     await expect(component.getByRole('paragraph').filter({ hasText: /^Lunch Bags$/ })).toBeVisible();
     // Distribution details (compact stats) — scope to stats section to avoid filter dropdown collisions
@@ -75,7 +75,8 @@ test.describe('MealsSection', () => {
       />
     );
 
-    await expect(component.getByText('🤝 Proxy Pickup', { exact: true })).toBeVisible();
+    await expect(component.getByText('Proxy Pickup', { exact: true })).toBeVisible();
+    await expect(component.getByText('\u{1F91D} Proxy Pickup', { exact: true })).not.toBeVisible();
     await expect(component.getByText('Picked up by Jane', { exact: false })).toBeVisible();
   });
 
@@ -95,7 +96,7 @@ test.describe('MealsSection', () => {
     // Total should be 3 + 2 + 10 = 15
     await expect(component.getByText('15', { exact: true })).toBeVisible();
     // Guest count should be 5
-    await expect(component.getByText('5', { exact: true })).toBeVisible();
+    await expect(component.getByRole('paragraph').filter({ hasText: /^5$/ })).toBeVisible();
     // RV count should be 10
     await expect(component.getByText('10', { exact: true })).toBeVisible();
   });

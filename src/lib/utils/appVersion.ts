@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.41';
+export const APP_VERSION = '0.5.42';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.42',
+        date: 'July 8, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Meal Proxy Share Summary',
+                description: 'The Meals service summary now shows what percentage of guest meals were proxy pickups, with direct and proxy counts shown side by side.',
+            },
+            {
+                type: 'improvement',
+                title: 'Professional Meal Summary Icons',
+                description: 'Meal summary and distribution cards now use clear Lucide icons, and proxy pickup labels no longer rely on emoji.',
+            },
+        ],
+    },
     {
         version: '0.5.41',
         date: 'July 1, 2026',

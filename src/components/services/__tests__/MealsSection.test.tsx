@@ -18,13 +18,21 @@ const mockAddMealRecord = vi.fn().mockResolvedValue({ id: 'meal-new' });
 const mockUpdateAutoMealAdditionsEnabled = vi.fn().mockResolvedValue(undefined);
 const mockLoadSettings = vi.fn().mockResolvedValue(undefined);
 let mockAutoMealAdditionsEnabled = true;
+let mockMealRecords: Array<{
+    id: string;
+    guestId: string;
+    pickedUpByGuestId?: string | null;
+    count: number;
+    date: string;
+    type: string;
+}> = [
+    { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
+];
 
 vi.mock('@/stores/useMealsStore', () => ({
     useMealsStore: vi.fn((selector) => {
         const state = {
-            mealRecords: [
-                { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
-            ],
+            mealRecords: mockMealRecords,
             extraMealRecords: [],
             rvMealRecords: [
                 { id: 'rv1', type: 'rv_delivery', count: 50, date: '2026-01-08' },
@@ -85,6 +93,9 @@ describe('MealsSection Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockAutoMealAdditionsEnabled = true;
+        mockMealRecords = [
+            { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
+        ];
         mockUpdateAutoMealAdditionsEnabled.mockResolvedValue(undefined);
         mockLoadSettings.mockResolvedValue(undefined);
     });
@@ -131,6 +142,36 @@ describe('MealsSection Component', () => {
             render(<MealsSection />);
             expect(screen.getByText('125')).toBeDefined();
         });
+
+        it('shows professional icons in meal summary cards', () => {
+            render(<MealsSection />);
+
+            [
+                'Total Meals icon',
+                'Guest Meals icon',
+                'Proxy Pickups icon',
+                'Lunch Bags icon',
+                'Extra icon',
+                'RV icon',
+                'Day Worker icon',
+                'Shelter icon',
+                'United Effort icon',
+            ].forEach((label) => {
+                expect(screen.getByLabelText(label)).toBeDefined();
+            });
+        });
+
+        it('shows proxy pickups as a percentage of guest meals', () => {
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
+                { id: 'm2', guestId: 'g2', pickedUpByGuestId: null, count: 3, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            expect(screen.getByText('40% of guest meals')).toBeDefined();
+            expect(screen.getByText('2 of 5 guest meals were picked up by a linked guest.')).toBeDefined();
+        });
     });
 
     describe('Meal Records', () => {
@@ -141,8 +182,9 @@ describe('MealsSection Component', () => {
 
         it('highlights proxy pickups with handshake type', () => {
             render(<MealsSection />);
-            expect(screen.getByText('🤝 Proxy Pickup')).toBeDefined();
-            expect(screen.getByText(/Picked up by/i)).toBeDefined();
+            expect(screen.getByText('Proxy Pickup')).toBeDefined();
+            expect(screen.queryByText('\u{1F91D} Proxy Pickup')).toBeNull();
+            expect(screen.getByText('Picked up by Jane Smith')).toBeDefined();
         });
     });
 
