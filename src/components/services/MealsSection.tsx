@@ -1127,13 +1127,13 @@ function StatCard({ label, value, color, icon: Icon }: { label: string, value: n
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
                     <p className={cn("text-2xl font-black tracking-tight", textColors[color])}>{value.toLocaleString()}</p>
                 </div>
-                <Icon
-                    aria-hidden={false}
+                <span
                     aria-label={`${label} icon`}
                     role="img"
-                    size={18}
-                    className={cn("shrink-0 rounded-xl p-2", iconColors[color])}
-                />
+                    className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", iconColors[color])}
+                >
+                    <Icon size={24} strokeWidth={2.25} aria-hidden />
+                </span>
             </div>
         </div>
     );
@@ -1162,13 +1162,13 @@ function CompactStat({ label, value, color, icon: Icon }: { label: string, value
     return (
         <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between gap-3">
             <span className="min-w-0 flex items-center gap-2">
-                <Icon
-                    aria-hidden={false}
+                <span
                     aria-label={`${label} icon`}
                     role="img"
-                    size={14}
-                    className={cn("shrink-0 rounded-lg p-1", iconColors[color])}
-                />
+                    className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", iconColors[color])}
+                >
+                    <Icon size={16} strokeWidth={2.25} aria-hidden />
+                </span>
                 <span className="truncate text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>
             </span>
             <span className={cn('text-sm font-black', textColors[color])}>{value.toLocaleString()}</span>
