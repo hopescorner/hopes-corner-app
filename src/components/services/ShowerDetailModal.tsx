@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { X, Shirt, Package, Tent, Footprints, AlertCircle, CheckCircle, Loader2, Clock, Undo2, Check } from 'lucide-react';
 import { JacketIcon } from '@/components/icons/JacketIcon';
+import { SleepingBagIcon } from '@/components/icons/SleepingBagIcon';
 import { SweatpantsIcon } from '@/components/icons/SweatpantsIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaiverBadge } from '@/components/ui/WaiverBadge';
@@ -26,7 +27,7 @@ const AMENITY_ITEMS = [
     { key: 'tshirt', label: 'T-Shirt', icon: Shirt, limit: 'Weekly (Mon)' },
     { key: 'jacket', label: 'Jacket', icon: JacketIcon, limit: '15 Days' },
     { key: 'tent', label: 'Tent', icon: Tent, limit: '30 Days' },
-    { key: 'sleeping_bag', label: 'Sleeping Bag', icon: Package, limit: '30 Days' },
+    { key: 'sleeping_bag', label: 'Sleeping Bag', icon: SleepingBagIcon, limit: '30 Days' },
     { key: 'backpack', label: 'Backpack', icon: Package, limit: '30 Days' },
     { key: 'flipflops', label: 'Flip Flops', icon: Footprints, limit: '30 Days' },
     { key: 'sweatpants', label: 'Sweatpants', icon: SweatpantsIcon, limit: '30 Days' },

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.43] - 2026-07-08
+
+### Improved
+
+- The Sleeping Bag amenity on the Showers detail view now uses a custom sleeping bag icon instead of a generic package icon.
+
 ## [0.5.40] - 2026-07-01
 
 ### Fixed

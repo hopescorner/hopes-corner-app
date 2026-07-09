@@ -115,9 +115,10 @@ describe('ShowerDetailModal', () => {
             expect(screen.getByText('Tent')).toBeDefined();
         });
 
-        it('displays Sleeping Bag amenity with 30-day limit', () => {
+        it('displays Sleeping Bag amenity with custom sleeping bag icon', () => {
             render(<ShowerDetailModal {...defaultProps} />);
             expect(screen.getByText('Sleeping Bag')).toBeDefined();
+            expect(screen.getByTestId('sleeping-bag-icon')).toBeDefined();
         });
 
         it('displays Backpack amenity with 30-day limit', () => {
