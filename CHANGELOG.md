@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.45] - 2026-07-08
+
+### Fixed
+
+- Resolved the client-side crash ("Application error: a client-side exception has occurred") that affected the board role when landing directly on the dashboard. Each dashboard section (Analytics, Compare, reports, Data Export) is now wrapped in an error boundary that renders a graceful "couldn't load right now" fallback with a Try again button instead of taking down the whole page, and the Analytics charts now defer mounting until after hydration and a layout-stable paint frame to avoid the recharts ResponsiveContainer infinite-render loop (React error #185).
+
 ## [0.5.44] - 2026-07-08
 
 ### Improved

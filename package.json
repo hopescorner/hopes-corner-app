@@ -1,6 +1,6 @@
 {
   "name": "hopes-corner-nextjs",
-  "version": "0.5.44",
+  "version": "0.5.45",
   "private": true,
   "scripts": {
     "dev": "next dev",

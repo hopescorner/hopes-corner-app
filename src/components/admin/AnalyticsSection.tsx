@@ -177,10 +177,53 @@ export function AnalyticsSection() {
             setIsMounted(true);
             return;
         }
-        const timer = setTimeout(() => {
-            setIsMounted(true);
-        }, 500);
-        return () => clearTimeout(timer);
+        let cancelled = false;
+        let rafId = 0;
+        let timer = 0;
+
+        // Defer chart mounting until *after* hydration + a stable layout frame.
+        // The previous fixed 500ms setTimeout could fire mid-layout-shift when
+        // the board role lands directly on this dashboard via a full-page
+        // (server-redirect) load, which let recharts' ResponsiveContainer
+        // observe a container width that was still settling and trigger the
+        // infinite-render loop (React error #185).
+        const mountOnceStable = () => {
+            if (cancelled) return;
+            // Double requestAnimationFrame waits for two paint frames so the
+            // container has a committed, non-fluctuating width before recharts
+            // attaches its ResizeObserver.
+            rafId = requestAnimationFrame(() => {
+                if (cancelled) return;
+                rafId = requestAnimationFrame(() => {
+                    if (cancelled) return;
+                    setIsMounted(true);
+                });
+            });
+        };
+
+        // Prefer waiting for fonts (a major source of late layout shifts) when
+        // the browser exposes the Font Loading API; otherwise fall back to the
+        // double-rAF gate alone.
+        const fontsReady = (document as Document & { fonts?: { ready?: Promise<unknown> } }).fonts?.ready;
+        if (fontsReady && typeof fontsReady.then === 'function') {
+            fontsReady.then(mountOnceStable).catch(() => {
+                if (!cancelled) setIsMounted(true);
+            });
+        } else {
+            mountOnceStable();
+        }
+
+        // Safety net: never let charts stay unmounted longer than ~1s even if a
+        // browser delays rAF/fonts indefinitely (e.g. background tabs).
+        timer = window.setTimeout(() => {
+            if (!cancelled) setIsMounted(true);
+        }, 1000);
+
+        return () => {
+            cancelled = true;
+            cancelAnimationFrame(rafId);
+            clearTimeout(timer);
+        };
     }, []);
 
     // Load daily notes on mount

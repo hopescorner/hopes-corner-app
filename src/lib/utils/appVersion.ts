@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.44';
+export const APP_VERSION = '0.5.45';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.45',
+        date: 'July 8, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Board Dashboard Crash Fix',
+                description: 'Resolved the client-side crash that affected the board role when landing directly on the dashboard. Each dashboard section is now wrapped in an error boundary that shows a graceful fallback instead of taking down the page, and the Analytics charts now defer mounting until after a layout-stable paint frame to avoid the recharts infinite-render loop (React error #185).',
+            },
+        ],
+    },
     {
         version: '0.5.44',
         date: 'July 8, 2026',
