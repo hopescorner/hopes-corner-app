@@ -32,10 +32,10 @@ describe('JacketIcon', () => {
         expect(svg.className.baseVal || svg.getAttribute('class')).toContain('mb-1');
     });
 
-    it('uses default stroke width of 2', () => {
+    it('uses default stroke width of 0.5', () => {
         render(<JacketIcon />);
         const svg = screen.getByTestId('jacket-icon');
-        expect(svg.getAttribute('stroke-width') || svg.getAttribute('strokeWidth')).toBe('2');
+        expect(svg.getAttribute('stroke-width') || svg.getAttribute('strokeWidth')).toBe('0.5');
     });
 
     it('applies custom strokeWidth', () => {

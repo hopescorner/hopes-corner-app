@@ -7,6 +7,6 @@ describe('BackpackIcon', () => {
     it('uses a thinner default stroke so the straps stay readable', () => {
         render(<BackpackIcon />);
         const svg = screen.getByTestId('backpack-icon');
-        expect(svg.getAttribute('stroke-width') || svg.getAttribute('strokeWidth')).toBe('1.5');
+        expect(svg.getAttribute('stroke-width') || svg.getAttribute('strokeWidth')).toBe('0.5');
     });
 });

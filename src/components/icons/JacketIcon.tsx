@@ -14,7 +14,7 @@ interface JacketIconProps {
  * drawstrings hanging from the collar, and a center front zipper.
  * Reads clearly at small sizes in the amenity grid.
  */
-export function JacketIcon({ size = 24, className = '', strokeWidth = 2 }: JacketIconProps) {
+export function JacketIcon({ size = 24, className = '', strokeWidth = 0.5 }: JacketIconProps) {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
