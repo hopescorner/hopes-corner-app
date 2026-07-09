@@ -13,7 +13,7 @@ interface BackpackIconProps {
  * sizes: a top carry handle, a rounded main body, two shoulder
  * straps hooking over the sides, and a front pocket with a zipper.
  */
-export function BackpackIcon({ size = 24, className = '', strokeWidth = 1.5 }: BackpackIconProps) {
+export function BackpackIcon({ size = 24, className = '', strokeWidth = 0.75 }: BackpackIconProps) {
     return (
         <svg
             xmlns="http://www.w3.org/2000/svg"
