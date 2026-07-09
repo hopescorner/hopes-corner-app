@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.46] - 2026-07-08
+
+### Improved
+
+- Replaced the Sleeping Bag amenity icon on the Showers detail view with a detailed silhouette of a person curled up inside a mummy sleeping bag (fill-based design), giving the amenity grid a more recognizable sleeping bag graphic.
+
 ## [0.5.45] - 2026-07-08
 
 ### Fixed

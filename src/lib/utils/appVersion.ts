@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.45';
+export const APP_VERSION = '0.5.46';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.46',
+        date: 'July 8, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Redesigned Sleeping Bag Amenity Icon',
+                description: 'The Sleeping Bag amenity on the Showers detail view now uses a detailed silhouette of a person curled inside a mummy sleeping bag, replacing the previous abstract line icon.',
+            },
+        ],
+    },
     {
         version: '0.5.45',
         date: 'July 8, 2026',

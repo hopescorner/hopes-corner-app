@@ -32,29 +32,21 @@ describe('SleepingBagIcon', () => {
         expect(svg.className.baseVal || svg.getAttribute('class')).toContain('mb-1');
     });
 
-    it('uses default stroke width of 2', () => {
+    it('uses the 512x512 viewBox from the upstream silhouette', () => {
         render(<SleepingBagIcon />);
         const svg = screen.getByTestId('sleeping-bag-icon');
-        expect(svg.getAttribute('stroke-width') || svg.getAttribute('strokeWidth')).toBe('2');
+        expect(svg.getAttribute('viewBox')).toBe('0 0 512 512');
     });
 
-    it('applies custom strokeWidth', () => {
-        render(<SleepingBagIcon strokeWidth={1.5} />);
-        const svg = screen.getByTestId('sleeping-bag-icon');
-        expect(svg.getAttribute('stroke-width') || svg.getAttribute('strokeWidth')).toBe('1.5');
-    });
-
-    it('includes bag body, hood opening, and zipper paths', () => {
+    it('renders the sleeping bag silhouette path', () => {
         const { container } = render(<SleepingBagIcon />);
         const paths = container.querySelectorAll('path');
-        // Body, hood, zipper, and three zipper pulls
-        expect(paths.length).toBeGreaterThanOrEqual(5);
+        expect(paths.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('uses currentColor stroke so parent text color controls the icon', () => {
+    it('uses currentColor fill so parent text color controls the icon', () => {
         render(<SleepingBagIcon />);
         const svg = screen.getByTestId('sleeping-bag-icon');
-        expect(svg.getAttribute('stroke')).toBe('currentColor');
-        expect(svg.getAttribute('fill')).toBe('none');
+        expect(svg.getAttribute('fill')).toBe('currentColor');
     });
 });
