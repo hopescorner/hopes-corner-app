@@ -9,8 +9,10 @@ interface JacketIconProps {
 /**
  * Custom jacket icon used in shower essentials.
  *
- * Kept intentionally simple so it reads clearly at small sizes in the
- * amenity grid.
+ * Drawn as a hooded rain jacket: a rounded hood with a visible
+ * opening on top, sleeves extending out past the torso, two
+ * drawstrings hanging from the collar, and a center front zipper.
+ * Reads clearly at small sizes in the amenity grid.
  */
 export function JacketIcon({ size = 24, className = '', strokeWidth = 2 }: JacketIconProps) {
     return (
@@ -25,14 +27,26 @@ export function JacketIcon({ size = 24, className = '', strokeWidth = 2 }: Jacke
             strokeLinecap="round"
             strokeLinejoin="round"
             className={className}
+            data-testid="jacket-icon"
+            aria-hidden="true"
         >
-            <path d="M9.5 3.5 12 5l2.5-1.5 3 2.3-1.4 4.5-2.1-1V20h-4V9.3l-2.1 1-1.4-4.5z" />
-            <path d="M10 3V2h4v1" />
-            <path d="M12 5v15" />
-            <path d="M10 10.5h1.1" />
-            <path d="M12.9 10.5H14" />
-            <path d="M9.7 14.5h1.8" />
-            <path d="M12.5 14.5h1.8" />
+            {/* Body silhouette: neck notch, shoulders, sleeves extending out, cuffs, armpits, straight hem */}
+            <path d="M9.5 6 Q12 5.4 14.5 6 L15.6 6.5 L19 8 L19 20 L16.5 20 L16 13 L16 21 L8 21 L8 13 L7.5 20 L4.5 20 L4.5 8 L8.4 6.5 Z" />
+
+            {/* Hood — outer top arch */}
+            <path d="M8.5 6 C8.5 2 15.5 2 15.5 6" />
+
+            {/* Hood opening — inner arch (the face hole) */}
+            <path d="M10 6 C10 4 14 4 14 6" />
+
+            {/* Left hoodie drawstring hanging from the collar */}
+            <path d="M10.5 6.5 L10.3 10" />
+
+            {/* Right hoodie drawstring hanging from the collar */}
+            <path d="M13.5 6.5 L13.7 10" />
+
+            {/* Center front zipper running from collar to hem */}
+            <path d="M12 6.5 V20" />
         </svg>
     );
 }

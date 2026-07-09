@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.43';
+export const APP_VERSION = '0.5.44';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.44',
+        date: 'July 8, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Redesigned Jacket Amenity Icon',
+                description: 'The Jacket amenity on the Showers detail view now uses a hooded rain jacket silhouette with a visible hood, sleeves extending past the torso, drawstrings, and a center zipper instead of the previous vest-like shape.',
+            },
+            {
+                type: 'improvement',
+                title: 'Backpack Amenity Icon',
+                description: 'The Backpack amenity on the Showers detail view now uses a custom backpack icon instead of a generic package icon.',
+            },
+        ],
+    },
     {
         version: '0.5.43',
         date: 'July 8, 2026',

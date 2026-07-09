@@ -5,6 +5,7 @@ import { X, Shirt, Package, Tent, Footprints, AlertCircle, CheckCircle, Loader2,
 import { JacketIcon } from '@/components/icons/JacketIcon';
 import { SleepingBagIcon } from '@/components/icons/SleepingBagIcon';
 import { SweatpantsIcon } from '@/components/icons/SweatpantsIcon';
+import { BackpackIcon } from '@/components/icons/BackpackIcon';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaiverBadge } from '@/components/ui/WaiverBadge';
 import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
@@ -28,7 +29,7 @@ const AMENITY_ITEMS = [
     { key: 'jacket', label: 'Jacket', icon: JacketIcon, limit: '15 Days' },
     { key: 'tent', label: 'Tent', icon: Tent, limit: '30 Days' },
     { key: 'sleeping_bag', label: 'Sleeping Bag', icon: SleepingBagIcon, limit: '30 Days' },
-    { key: 'backpack', label: 'Backpack', icon: Package, limit: '30 Days' },
+    { key: 'backpack', label: 'Backpack', icon: BackpackIcon, limit: '30 Days' },
     { key: 'flipflops', label: 'Flip Flops', icon: Footprints, limit: '30 Days' },
     { key: 'sweatpants', label: 'Sweatpants', icon: SweatpantsIcon, limit: '30 Days' },
 ];

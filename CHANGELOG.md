@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.44] - 2026-07-08
+
+### Improved
+
+- Redesigned the Jacket amenity icon on the Showers detail view as a hooded rain jacket silhouette with a visible hood, sleeves extending past the torso, drawstrings, and a center zipper, replacing the previous vest-like shape.
+- Added a custom backpack icon for the Backpack amenity on the Showers detail view, replacing the generic package icon.
+
 ## [0.5.43] - 2026-07-08
 
 ### Improved
