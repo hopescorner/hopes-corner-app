@@ -54,7 +54,7 @@ test.describe('MealsSection', () => {
     // Primary stat cards
     await expect(component.getByText('Total Meals')).toBeVisible();
     await expect(component.getByRole('paragraph').filter({ hasText: /^Guest Meals$/ })).toBeVisible();
-    await expect(component.getByText('Proxy Pickups')).toBeVisible();
+    await expect(component.getByText('Proxy Pickups', { exact: true })).toBeVisible();
     await expect(component.getByRole('paragraph').filter({ hasText: /^Lunch Bags$/ })).toBeVisible();
     // Distribution details (compact stats) — scope to stats section to avoid filter dropdown collisions
     const distributionSection = component.locator('.border-t').first();
