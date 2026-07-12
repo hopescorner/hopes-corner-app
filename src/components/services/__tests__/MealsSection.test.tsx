@@ -151,6 +151,9 @@ describe('MealsSection Component', () => {
                 'Guest Meals icon',
                 'Proxy Pickups icon',
                 'Lunch Bags icon',
+                'Proxy Pickers icon',
+                'Self Meals icon',
+                'Collective Pickups icon',
                 'Extra icon',
                 'RV icon',
                 'Day Worker icon',
@@ -161,7 +164,7 @@ describe('MealsSection Component', () => {
             });
         });
 
-        it('shows proxy pickups as a percentage of guest meals', () => {
+        it('shows proxy picker count, self meals and collective pickups', () => {
             mockMealRecords = [
                 { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
                 { id: 'm2', guestId: 'g2', pickedUpByGuestId: null, count: 3, date: '2026-01-08', type: 'guest' },
@@ -169,8 +172,34 @@ describe('MealsSection Component', () => {
 
             render(<MealsSection />);
 
-            expect(screen.getByText('40% of guest meals')).toBeDefined();
-            expect(screen.getByText('2 of 5 guest meals were picked up by a linked guest.')).toBeDefined();
+            // 1 picker (g2), 2 collective pickups, 3 self meals, 40% of 5 guest meals
+            expect(screen.getByText('1 person picked up 2 meals for others')).toBeDefined();
+            expect(screen.getByText('3 meals also collected for themselves · 40% of guest meals.')).toBeDefined();
+            expect(screen.getByText('Proxy Pickers')).toBeDefined();
+            expect(screen.getByText('Self Meals')).toBeDefined();
+            expect(screen.getByText('Collective Pickups')).toBeDefined();
+        });
+
+        it('tracks multiple proxy pickers in a single day', () => {
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
+                { id: 'm2', guestId: 'g2', pickedUpByGuestId: 'g1', count: 1, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            // 2 pickers (g1 and g2), 3 collective pickups, 3 self meals (each picker has self meal as recipient)
+            expect(screen.getByText('2 people picked up 3 meals for others')).toBeDefined();
+        });
+
+        it('shows "No proxy pickups" empty state when no proxy records exist', () => {
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', pickedUpByGuestId: null, count: 2, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            expect(screen.getByText('No proxy pickups logged for this date.')).toBeDefined();
         });
     });
 

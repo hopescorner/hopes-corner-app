@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.46';
+export const APP_VERSION = '0.5.48';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,28 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.48',
+        date: 'July 11, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Custom Handshake Icon for Proxy Pickups',
+                description: 'Proxy pickup stat cards on the Meals service summary now use a custom two-handed handshake glyph instead of the generic Lucide icon, matching the visual style of other custom amenity icons throughout the app.',
+            },
+        ],
+    },
+    {
+        version: '0.5.47',
+        date: 'July 11, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Proxy Pickup Activity Card',
+                description: 'The Meals service summary now shows how many people performed proxy pickups, the meals they collected for themselves, and the collective pickup total — replacing the previous percentage-only Proxy Share card with clearer per-person and per-meal breakdowns.',
+            },
+        ],
+    },
     {
         version: '0.5.46',
         date: 'July 8, 2026',

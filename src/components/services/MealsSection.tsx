@@ -35,6 +35,8 @@ import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import { MAX_BASE_MEALS_PER_DAY } from '@/lib/constants/constants';
 import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
+import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
+import type React from 'react';
 
 // Meal category configurations
 const MEAL_CATEGORIES = [
@@ -220,10 +222,16 @@ export function MealsSection() {
 
         const sumCount = (arr: any[]) => arr.reduce((sum, r) => sum + (r.count || 0), 0);
 
-        const proxyPickupCount = guestMeals.reduce((sum, r) => {
+const proxyPickerIds = new Set<string>();
+        let proxyPickupCount = 0;
+        guestMeals.forEach((r) => {
             if (r?.pickedUpByGuestId && r.pickedUpByGuestId !== r.guestId) {
-                return sum + (r.count || 0);
+                proxyPickerIds.add(r.pickedUpByGuestId);
+                proxyPickupCount += r.count || 0;
             }
+        });
+        const proxyPickerSelfMeals = guestMeals.reduce((sum, r) => {
+            if (r && proxyPickerIds.has(r.guestId)) return sum + (r.count || 0);
             return sum;
         }, 0);
         const guestCount = sumCount(guestMeals);
@@ -234,14 +242,16 @@ export function MealsSection() {
             guestCount,
             rvCount: sumCount(rvMeals),
             dayWorkerCount: sumCount(dayWorkerMeals),
-            shelterCount: sumCount(shelterMeals),
+            shelterCount: sumCount(shelterMealRecords),
             ueCount: sumCount(ueMeals),
             lunchBagCount: sumCount(lunchBags),
             extraCount: sumCount(extraMeals),
             proxyPickups: proxyPickupCount,
             proxyPickupPercent,
             directGuestMeals: guestCount - proxyPickupCount,
-            uniqueGuests: new Set(guestMeals.map(r => r.guestId)).size
+            uniqueGuests: new Set(guestMeals.map(r => r.guestId)).size,
+            proxyPickerCount: proxyPickerIds.size,
+            proxyPickerSelfMeals,
         };
     }, [selectedDate, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords]);
 
@@ -896,34 +906,34 @@ export function MealsSection() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" icon={Utensils} />
                     <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" icon={Users} />
-                    <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" icon={Handshake} />
+                    <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" icon={HandshakeIcon} />
                     <StatCard label="Lunch Bags" value={dayMetrics.lunchBagCount} color="amber" icon={Package} />
                 </div>
 
                 <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3">
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Proxy Share</p>
-                            <p className="mt-1 text-2xl font-black tracking-tight text-indigo-700">
-                                {dayMetrics.proxyPickupPercent}% of guest meals
-                            </p>
-                            <p className="mt-1 text-xs font-bold text-indigo-900/70">
-                                {dayMetrics.guestCount > 0
-                                    ? `${dayMetrics.proxyPickups.toLocaleString()} of ${dayMetrics.guestCount.toLocaleString()} guest meals were picked up by a linked guest.`
-                                    : 'No guest meals logged for this date.'}
-                            </p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Proxy Pickup Activity</p>
+                            {dayMetrics.proxyPickups > 0 ? (
+                                <>
+                                    <p className="mt-1 text-2xl font-black tracking-tight text-indigo-700">
+                                        {dayMetrics.proxyPickerCount.toLocaleString()} {dayMetrics.proxyPickerCount === 1 ? 'person' : 'people'} picked up {dayMetrics.proxyPickups.toLocaleString()} meal{dayMetrics.proxyPickups === 1 ? '' : 's'} for others
+                                    </p>
+                                    <p className="mt-1 text-xs font-bold text-indigo-900/70">
+                                        {dayMetrics.proxyPickerSelfMeals.toLocaleString()} meal{dayMetrics.proxyPickerSelfMeals === 1 ? '' : 's'} also collected for themselves · {dayMetrics.proxyPickupPercent}% of guest meals.
+                                    </p>
+                                </>
+                            ) : (
+                                <p className="mt-1 text-2xl font-black tracking-tight text-indigo-700">
+                                    No proxy pickups logged for this date.
+                                </p>
+                            )}
                         </div>
-                        <div className="grid grid-cols-3 gap-2 text-center sm:min-w-72">
-                            <CompactStat label="Proxy" value={dayMetrics.proxyPickups} color="indigo" icon={Handshake} />
-                            <CompactStat label="Direct" value={dayMetrics.directGuestMeals} color="blue" icon={User} />
-                            <CompactStat label="Guest Total" value={dayMetrics.guestCount} color="emerald" icon={Users} />
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                            <CompactStat label="Proxy Pickers" value={dayMetrics.proxyPickerCount} color="indigo" icon={Users} />
+                            <CompactStat label="Self Meals" value={dayMetrics.proxyPickerSelfMeals} color="blue" icon={User} />
+                            <CompactStat label="Collective Pickups" value={dayMetrics.proxyPickups} color="emerald" icon={HandshakeIcon} />
                         </div>
-                    </div>
-                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
-                        <div
-                            className="h-full rounded-full bg-indigo-500"
-                            style={{ width: `${dayMetrics.proxyPickupPercent}%` }}
-                        />
                     </div>
                 </div>
 
@@ -1100,7 +1110,14 @@ export function MealsSection() {
 
 type StatColor = 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose';
 
-function StatCard({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: LucideIcon }) {
+type IconComponentType = LucideIcon | React.ComponentType<{
+    size?: number;
+    className?: string;
+    strokeWidth?: number;
+    'aria-hidden'?: boolean;
+}>;
+
+function StatCard({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: IconComponentType }) {
     const textColors: Record<string, string> = {
         emerald: 'text-emerald-600',
         blue: 'text-blue-600',
@@ -1139,7 +1156,7 @@ function StatCard({ label, value, color, icon: Icon }: { label: string, value: n
     );
 }
 
-function CompactStat({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: LucideIcon }) {
+function CompactStat({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: IconComponentType }) {
     const textColors: Record<string, string> = {
         emerald: 'text-emerald-600',
         blue: 'text-blue-600',
