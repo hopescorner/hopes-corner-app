@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Mock next-auth session
@@ -28,15 +28,18 @@ vi.mock('@/lib/utils/date', () => ({
 }));
 
 // Mock stores
-const mockLaundryRecords = [
-    { id: '1', guestId: 'g1', date: '2024-01-15', status: 'waiting', laundryType: 'onsite', bagNumber: null },
-    { id: '2', guestId: 'g2', date: '2024-01-15', status: 'washer', laundryType: 'onsite', bagNumber: '101' },
-    { id: '3', guestId: 'g3', date: '2024-01-15', status: 'picked_up', laundryType: 'onsite', bagNumber: '102' },
-    { id: '4', guestId: 'g4', date: '2024-01-14', status: 'done', laundryType: 'onsite', bagNumber: '103' },
-    { id: '5', guestId: 'g5', date: '2024-01-14', status: 'picked_up', laundryType: 'onsite', bagNumber: '104' },
-];
-
-const mockAddLaundryRecord = vi.fn().mockResolvedValue({ id: 'new-laundry' });
+const { mockDeleteLaundryRecord, mockLaundryRecords, mockAddLaundryRecord } = vi.hoisted(() => ({
+    mockDeleteLaundryRecord: vi.fn(),
+    mockAddLaundryRecord: vi.fn().mockResolvedValue({ id: 'new-laundry' }),
+    mockLaundryRecords: [
+        { id: '1', guestId: 'g1', date: '2024-01-15', status: 'waiting', laundryType: 'onsite', bagNumber: null },
+        { id: '2', guestId: 'g2', date: '2024-01-15', status: 'washer', laundryType: 'onsite', bagNumber: '101' },
+        { id: '3', guestId: 'g3', date: '2024-01-15', status: 'picked_up', laundryType: 'onsite', bagNumber: '102' },
+        { id: '4', guestId: 'g4', date: '2024-01-14', status: 'done', laundryType: 'onsite', bagNumber: '103' },
+        { id: '5', guestId: 'g5', date: '2024-01-14', status: 'picked_up', laundryType: 'onsite', bagNumber: '104' },
+        { id: '6', guestId: 'g1', date: '2024-01-14', status: 'waiting', laundryType: 'onsite', bagNumber: null },
+    ]
+}));
 
 vi.mock('@/stores/useServicesStore', () => ({
     useServicesStore: () => ({
@@ -45,7 +48,7 @@ vi.mock('@/stores/useServicesStore', () => ({
         updateLaundryStatus: vi.fn(),
         updateLaundryBagNumber: vi.fn(),
         cancelMultipleLaundry: vi.fn(),
-        deleteLaundryRecord: vi.fn(),
+        deleteLaundryRecord: mockDeleteLaundryRecord,
         getLaundryWeeklyUsage: () => ({
             count: 0,
             max: 2,
@@ -280,6 +283,50 @@ describe('LaundrySection Time Travel', () => {
             expect(screen.getByTestId('end-service-panel')).toBeInTheDocument();
             // Manage Slots should be back
             expect(screen.getByText('Manage Slots')).toBeInTheDocument();
+        });
+
+        it('allows canceling past waiting/pending laundry bookings but blocks processed ones', async () => {
+            render(<LaundrySection />);
+
+            // Go to yesterday (historical view)
+            await act(async () => {
+                fireEvent.click(screen.getByTestId('go-to-yesterday'));
+            });
+
+            // Find John Doe's card (status: waiting)
+            const johnCard = screen.getByText('John Doe').closest('div[class*="bg-white"]');
+            expect(johnCard).toBeInTheDocument();
+
+            // Expand John Doe's card details
+            const johnExpandBtn = within(johnCard!).getByLabelText(/Expand laundry details/);
+            fireEvent.click(johnExpandBtn);
+
+            // Cancel Booking button should be visible
+            const cancelBtn = within(johnCard!).getByRole('button', { name: 'Cancel Booking' });
+            expect(cancelBtn).toBeInTheDocument();
+
+            // Mock window.confirm to return true
+            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+            // Click Cancel Booking
+            await act(async () => {
+                fireEvent.click(cancelBtn);
+            });
+
+            // Verify deleteLaundryRecord was called
+            expect(mockDeleteLaundryRecord).toHaveBeenCalledWith('6');
+            confirmSpy.mockRestore();
+
+            // Find Alice Brown's card (status: done)
+            const aliceCard = screen.getByText('Alice Brown').closest('div[class*="bg-white"]');
+            expect(aliceCard).toBeInTheDocument();
+
+            // Expand Alice Brown's card details
+            const aliceExpandBtn = within(aliceCard!).getByLabelText(/Expand laundry details/);
+            fireEvent.click(aliceExpandBtn);
+
+            // Cancel Booking button should NOT be visible
+            expect(within(aliceCard!).queryByRole('button', { name: 'Cancel Booking' })).not.toBeInTheDocument();
         });
     });
 

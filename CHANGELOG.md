@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.50] - 2026-07-15
+
+### Added
+
+- Allowed staff to cancel past laundry slots that were assigned in the waiting lane but never processed, preventing those stale entries from showing up as legacy Action Required items on subsequent service days.
+
 ## [0.5.49] - 2026-07-15
 
 ### Fixed

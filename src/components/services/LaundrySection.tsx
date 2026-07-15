@@ -1083,36 +1083,36 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                             </div>
 
                             {!readOnly && (
-                                <>
-                                    <div>
-                                        <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                                            Status
-                                        </label>
-                                        <select
-                                            value={record.status}
-                                            onChange={(e) => onStatusChange(e.target.value)}
-                                            className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
-                                        >
-                                            {columns.map((col) => (
-                                                <option key={col.id} value={col.id}>{col.title}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (confirm(`Cancel laundry booking for ${guestDetails.primaryName}?`)) {
-                                                deleteLaundryRecord(record.id);
-                                                toast.success('Laundry booking cancelled');
-                                            }
-                                        }}
-                                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded px-3 py-1.5 transition-colors"
+                                <div>
+                                    <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                                        Status
+                                    </label>
+                                    <select
+                                        value={record.status}
+                                        onChange={(e) => onStatusChange(e.target.value)}
+                                        className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
                                     >
-                                        <Trash2 size={12} />
-                                        Cancel Booking
-                                    </button>
-                                </>
+                                        {columns.map((col) => (
+                                            <option key={col.id} value={col.id}>{col.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {(!readOnly || (readOnly && (record.status === 'waiting' || record.status === 'pending'))) && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (confirm(`Cancel laundry booking for ${guestDetails.primaryName}?`)) {
+                                            deleteLaundryRecord(record.id);
+                                            toast.success('Laundry booking cancelled');
+                                        }
+                                    }}
+                                    className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded px-3 py-1.5 transition-colors"
+                                >
+                                    <Trash2 size={12} />
+                                    Cancel Booking
+                                </button>
                             )}
                         </div>
                     )}

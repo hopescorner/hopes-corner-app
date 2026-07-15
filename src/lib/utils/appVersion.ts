@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.49';
+export const APP_VERSION = '0.5.50';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.50',
+        date: 'July 15, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Cancel Historical Waiting Laundry Bookings',
+                description: 'Allowed staff to cancel past laundry slots that were assigned in the waiting lane but never processed, preventing those stale entries from showing up as legacy Action Required items on subsequent service days.',
+            },
+        ],
+    },
     {
         version: '0.5.49',
         date: 'July 15, 2026',
