@@ -26,10 +26,10 @@ interface ShowerDetailModalProps {
 // so they are not shown here (guests can get them anytime without tracking)
 const AMENITY_ITEMS = [
     { key: 'tshirt', label: 'T-Shirt', icon: Shirt, limit: 'Weekly (Mon)' },
-    { key: 'jacket', label: 'Jacket', icon: JacketIcon, limit: '15 Days' },
+    { key: 'jacket', label: 'Jacket', icon: JacketIcon, limit: '15 Days', size: 36, strokeWidth: 1.0 },
     { key: 'tent', label: 'Tent', icon: Tent, limit: '30 Days' },
     { key: 'sleeping_bag', label: 'Sleeping Bag', icon: SleepingBagIcon, limit: '30 Days' },
-    { key: 'backpack', label: 'Backpack', icon: BackpackIcon, limit: '30 Days' },
+    { key: 'backpack', label: 'Backpack', icon: BackpackIcon, limit: '30 Days', size: 36, strokeWidth: 1.0 },
     { key: 'flipflops', label: 'Flip Flops', icon: Footprints, limit: '30 Days' },
     { key: 'sweatpants', label: 'Sweatpants', icon: SweatpantsIcon, limit: '30 Days' },
 ];
@@ -213,9 +213,13 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                                         )}
                                     >
                                         {isProcessing ? (
-                                            <Loader2 className="animate-spin text-purple-600 mb-1" size={24} />
+                                            <Loader2 className="animate-spin text-purple-600 mb-1" size={item.size || 24} />
                                         ) : (
-                                            <Icon size={24} className={cn("mb-1", isAvailable ? "text-purple-600" : "text-gray-400")} />
+                                            <Icon 
+                                                size={item.size || 24} 
+                                                strokeWidth={item.strokeWidth}
+                                                className={cn("mb-1", isAvailable ? "text-purple-600" : "text-gray-400")} 
+                                            />
                                         )}
 
                                         <span className={cn("font-bold text-sm", isAvailable ? "text-gray-900" : "text-gray-400")}>{item.label}</span>

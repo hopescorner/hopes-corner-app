@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.52] - 2026-07-15
+
+### Improved
+
+- Increased the rendering size and stroke width of the Jacket and Backpack icons in the amenities grid, making them significantly easier to see against thin-line styles.
+
 ## [0.5.51] - 2026-07-15
 
 ### Improved

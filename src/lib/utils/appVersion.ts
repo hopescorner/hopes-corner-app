@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.51';
+export const APP_VERSION = '0.5.52';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.52',
+        date: 'July 15, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Enhanced Visibility for Jacket and Backpack Icons',
+                description: 'Increased the rendering size and stroke width of the Jacket and Backpack icons in the amenities grid, making them significantly easier to see against thin-line styles.',
+            },
+        ],
+    },
     {
         version: '0.5.51',
         date: 'July 15, 2026',
