@@ -1,10 +1,22 @@
 # Changelog
 
-## [0.5.51] - 2026-07-15
+## [0.5.53] - 2026-07-15
 
 ### Removed
 
 - Removed the in-app GitHub issue filing feature that used Copilot to triage feedback.
+
+## [0.5.52] - 2026-07-15
+
+### Improved
+
+- Increased the rendering size and stroke width of the Jacket and Backpack icons in the amenities grid, making them significantly easier to see against thin-line styles.
+
+## [0.5.51] - 2026-07-15
+
+### Improved
+
+- Assigned supplies (backpack, jacket, sleeping bag, etc.) now display in a distinct, muted gray style when unavailable or on cooldown, providing clearer visual separation from available items.
 
 ## [0.5.50] - 2026-07-15
 
