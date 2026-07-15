@@ -43,4 +43,3 @@ next-env.d.ts
 /playwright/.cache
 /test-results
 /playwright-report
-node_modules/
