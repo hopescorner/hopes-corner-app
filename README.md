@@ -29,4 +29,4 @@ To let non-check-in users file app issues and feature requests from inside the a
 
 ## Docs
 
-[Wiki](https://deepwiki.com/hopescorner/hopes-corner-app)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hopescorner/hopes-corner-app)
