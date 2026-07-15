@@ -209,7 +209,7 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                                             "flex flex-col items-center justify-center p-3 rounded-xl border-2 transition-all relative overflow-hidden",
                                             isAvailable
                                                 ? "bg-white border-gray-100 hover:border-purple-200 hover:bg-purple-50 hover:shadow-sm cursor-pointer active:scale-95"
-                                                : "bg-gray-50 border-gray-100 opacity-60 cursor-not-allowed"
+                                                : "bg-gray-100 border-gray-200 opacity-70 cursor-not-allowed"
                                         )}
                                     >
                                         {isProcessing ? (
@@ -218,7 +218,7 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                                             <Icon size={24} className={cn("mb-1", isAvailable ? "text-purple-600" : "text-gray-400")} />
                                         )}
 
-                                        <span className="font-bold text-sm text-gray-900">{item.label}</span>
+                                        <span className={cn("font-bold text-sm", isAvailable ? "text-gray-900" : "text-gray-400")}>{item.label}</span>
 
                                         {!isAvailable && availability.daysRemaining !== undefined && (
                                             <span className="text-[10px] font-bold text-amber-600 mt-1 flex items-center gap-1">

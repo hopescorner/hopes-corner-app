@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.50';
+export const APP_VERSION = '0.5.51';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.51',
+        date: 'July 15, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Distinct Color for Distributed Amenities',
+                description: 'Assigned supplies (backpack, jacket, sleeping bag, etc.) now display in a distinct, muted gray style when unavailable or on cooldown, providing clearer visual separation from available items.',
+            },
+        ],
+    },
     {
         version: '0.5.50',
         date: 'July 15, 2026',

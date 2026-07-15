@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.51] - 2026-07-15
+
+### Improved
+
+- Assigned supplies (backpack, jacket, sleeping bag, etc.) now display in a distinct, muted gray style when unavailable or on cooldown, providing clearer visual separation from available items.
+
 ## [0.5.50] - 2026-07-15
 
 ### Added
