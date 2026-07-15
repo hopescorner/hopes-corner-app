@@ -65,6 +65,20 @@ describe('supabasePagination', () => {
         expect(mockQuery.neq).toHaveBeenCalledWith('type', 'internal');
     });
 
+    it('adds id as a tiebreaker order so pagination is stable across tied sort values', async () => {
+        await fetchAllPaginated(mockClient, { table: 'test', orderBy: 'updated_at' });
+
+        expect(mockQuery.order).toHaveBeenNthCalledWith(1, 'updated_at', { ascending: false, nullsFirst: false });
+        expect(mockQuery.order).toHaveBeenNthCalledWith(2, 'id', { ascending: true });
+    });
+
+    it('does not add a duplicate order when already ordering by id', async () => {
+        await fetchAllPaginated(mockClient, { table: 'test', orderBy: 'id' });
+
+        expect(mockQuery.order).toHaveBeenCalledTimes(1);
+        expect(mockQuery.order).toHaveBeenCalledWith('id', { ascending: false, nullsFirst: false });
+    });
+
     it('respects maxPages constraint', async () => {
         const pageRows = [{ id: 1 }];
         mockQuery.then.mockImplementation((resolve) => resolve({ data: pageRows, error: null }));

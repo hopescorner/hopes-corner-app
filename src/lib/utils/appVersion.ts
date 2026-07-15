@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.48';
+export const APP_VERSION = '0.5.49';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.49',
+        date: 'July 15, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Stable Pagination Tiebreaker',
+                description: 'Added stable tiebreaker ordering to database pagination queries when ordering by a non-unique column, resolving potential skipped or duplicated rows across pagination pages.',
+            },
+        ],
+    },
     {
         version: '0.5.48',
         date: 'July 11, 2026',

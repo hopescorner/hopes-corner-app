@@ -48,6 +48,13 @@ export const fetchAllPaginated = async (
 
         if (orderBy) {
             query = query.order(orderBy, { ascending, nullsFirst: false });
+            // Tiebreaker: offset pagination over a non-unique sort key can skip or
+            // duplicate rows when many rows share the same value (e.g. bulk-migrated
+            // updated_at timestamps), because Postgres does not guarantee a stable
+            // order among ties across separate page queries.
+            if (orderBy !== "id") {
+                query = query.order("id", { ascending: true });
+            }
         }
 
         if (sinceColumn && sinceValue) {

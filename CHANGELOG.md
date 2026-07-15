@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.49] - 2026-07-15
+
+### Fixed
+
+- Added stable tiebreaker ordering to database pagination queries when ordering by a non-unique column, resolving potential skipped or duplicated rows across pagination pages.
+
+## [0.5.48] - 2026-07-11
+
+### Improved
+
+- Proxy pickup stat cards on the Meals service summary now use a custom two-handed handshake icon, matching the visual style of other custom amenity icons throughout the app.
+
+## [0.5.47] - 2026-07-11
+
+### Added
+
+- The Meals service summary now shows how many people performed proxy pickups, the meals they collected for themselves, and the collective pickup total — replacing the previous percentage-only Proxy Share card with clearer per-person and per-meal breakdowns.
+
 ## [0.5.46] - 2026-07-08
 
 ### Improved
