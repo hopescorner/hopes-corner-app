@@ -18,15 +18,6 @@ Roles: `checkin`, `staff`, `admin`, `board`, `bicycle`.
    - `role = checkin | staff | admin | board | bicycle`
 3. Ask users to sign out and sign back in to refresh role-based access.
 
-## GitHub Feedback Setup
-
-To let non-check-in users file app issues and feature requests from inside the app, add these server-side environment variables in Vercel:
-
-- `GITHUB_FEEDBACK_TOKEN`: GitHub token with permission to create issues in this repository and assign Copilot.
-- `GITHUB_FEEDBACK_OWNER`: defaults to `hopescorner`.
-- `GITHUB_FEEDBACK_REPO`: defaults to `hopes-corner-app`.
-- `GITHUB_FEEDBACK_ASSIGNEE`: defaults to `copilot`.
-
 ## Docs
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hopescorner/hopes-corner-app)

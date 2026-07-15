@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.51] - 2026-07-15
+
+### Removed
+
+- Removed the in-app GitHub issue filing feature that used Copilot to triage feedback.
+
 ## [0.5.50] - 2026-07-15
 
 ### Added

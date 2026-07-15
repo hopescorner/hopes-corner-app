@@ -32,7 +32,6 @@ vi.mock('lucide-react', async (importOriginal) => {
         BarChart3: () => <div data-testid="icon-dashboard" />,
         UserPlus: () => <div data-testid="icon-checkin" />,
         HelpCircle: () => <div data-testid="icon-help" />,
-        MessageSquarePlus: () => <div data-testid="icon-feedback" />,
         LogOut: () => <div data-testid="icon-logout" />,
         Menu: () => <div data-testid="icon-menu" />,
         X: () => <div data-testid="icon-x" />,
@@ -105,28 +104,6 @@ describe('MainLayout', () => {
         expect(screen.getAllByText('Check In')[0]).toBeDefined();
         expect(screen.queryByText('Services')).toBeNull();
         expect(screen.queryByText('Dashboard')).toBeNull();
-    });
-
-    it('shows the feedback issue button for non-checkin users', () => {
-        vi.mocked(useSession).mockReturnValue({
-            data: { user: { role: 'staff', name: 'Staff' } },
-            status: 'authenticated',
-        } as any);
-
-        render(<MainLayout>Content</MainLayout>);
-
-        expect(screen.getAllByLabelText('File issue or feature request').length).toBeGreaterThan(0);
-    });
-
-    it('hides the feedback issue button for checkin users', () => {
-        vi.mocked(useSession).mockReturnValue({
-            data: { user: { role: 'checkin', name: 'Checkin Staff' } },
-            status: 'authenticated',
-        } as any);
-
-        render(<MainLayout>Content</MainLayout>);
-
-        expect(screen.queryByLabelText('File issue or feature request')).toBeNull();
     });
 
     it('calls signOut on logout button click', () => {
