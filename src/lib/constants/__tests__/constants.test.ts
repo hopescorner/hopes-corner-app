@@ -309,7 +309,6 @@ describe('constants', () => {
     describe('AUTOMATIC_MEALS_CONFIG', () => {
         const config = {
             monday: { rv: 100, lunchBags: 120 },
-            wednesday: { rv: 40, lunchBags: 120 },
             thursday: { rv: 100 },
             saturday: { rv: 100, lunchBags: 220, dayWorker: 50 },
         };
@@ -322,8 +321,8 @@ describe('constants', () => {
             expect(config.monday.lunchBags).toBe(120);
         });
 
-        it('Wednesday has 40 RV meals', () => {
-            expect(config.wednesday.rv).toBe(40);
+        it('Wednesday has no automatic RV meals (distribution removed)', () => {
+            expect(Object.prototype.hasOwnProperty.call(config, 'wednesday')).toBe(false);
         });
 
         it('Saturday has 50 day worker meals', () => {

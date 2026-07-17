@@ -234,22 +234,17 @@ describe('useMealsStore', () => {
                 expect(dayWorkerMealRecords).toHaveLength(0);
             });
 
-            it('adds 40 RV meals on Wednesday', async () => {
+            it('does not add RV meals on Wednesday (distribution removed)', async () => {
                 vi.useFakeTimers();
                 const wednesday = new Date('2025-01-08T12:00:00Z');
                 vi.setSystemTime(wednesday);
                 vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-08');
                 vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-08');
 
-                mockSupabase.single.mockResolvedValueOnce({
-                    data: { id: 'new-rv', quantity: 40, meal_type: 'rv', served_on: '2025-01-08' },
-                    error: null
-                });
-
                 await useMealsStore.getState().checkAndAddAutomaticMeals();
 
-                expect(useMealsStore.getState().rvMealRecords).toHaveLength(1);
-                expect(useMealsStore.getState().rvMealRecords[0].count).toBe(40);
+                expect(mockSupabase.insert).not.toHaveBeenCalled();
+                expect(useMealsStore.getState().rvMealRecords).toHaveLength(0);
             });
 
             it('adds 100 RV meals on Thursday', async () => {

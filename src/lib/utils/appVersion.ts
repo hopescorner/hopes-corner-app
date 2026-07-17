@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.52';
+export const APP_VERSION = '0.5.53';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.53',
+        date: 'July 17, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Disable RV Meal Distribution on Wednesdays',
+                description: 'RV meals (40) are no longer automatically added on Wednesdays, and the RV bulk entry option is hidden when the selected date falls on a Wednesday.',
+            },
+        ],
+    },
     {
         version: '0.5.52',
         date: 'July 15, 2026',

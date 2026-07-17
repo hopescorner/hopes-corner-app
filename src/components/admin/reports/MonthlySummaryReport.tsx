@@ -143,8 +143,8 @@ const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
     },
     {
         key: 'rvWedSat',
-        label: 'RV Wed+Sat',
-        description: 'Meals delivered to RV community on Wed/Sat.',
+        label: 'RV Sat',
+        description: 'Meals delivered to RV community on Sat.',
         align: 'right',
         headerBg: 'bg-orange-50',
         cellBg: 'bg-orange-50/30',
@@ -164,7 +164,7 @@ const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
     {
         key: 'rvOther',
         label: 'RV Other',
-        description: 'Meals delivered to RV community on days other than Mon/Thu/Wed/Sat.',
+        description: 'Meals delivered to RV community on days other than Mon/Thu/Sat.',
         align: 'right',
         headerBg: 'bg-orange-50',
         cellBg: 'bg-orange-50/30',

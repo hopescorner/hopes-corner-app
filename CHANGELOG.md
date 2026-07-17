@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.53] - 2026-07-17
+
+### Fixed
+
+- RV meals (40) are no longer automatically added on Wednesdays, and the RV bulk entry option is hidden when the selected date falls on a Wednesday.
+
 ## [0.5.52] - 2026-07-15
 
 ### Improved
