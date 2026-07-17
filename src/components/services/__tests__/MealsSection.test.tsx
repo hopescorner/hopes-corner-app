@@ -87,6 +87,10 @@ vi.mock('@/lib/utils/date', () => ({
     pacificDateStringFrom: (date: string) => date ? date.slice(0, 10) : null,
     formatTimeInPacific: () => '12:00 PM',
     formatPacificTimeString: (timeStr: string) => timeStr,
+    parsePacificDateParts: (dateStr: string) => {
+        const d = new Date(dateStr + 'T12:00:00');
+        return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), dayOfWeek: d.getDay() };
+    },
 }));
 
 describe('MealsSection Component', () => {
