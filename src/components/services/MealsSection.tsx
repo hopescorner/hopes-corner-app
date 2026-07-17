@@ -29,7 +29,7 @@ import {
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific, parsePacificDateParts } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import { MAX_BASE_MEALS_PER_DAY } from '@/lib/constants/constants';
@@ -148,7 +148,7 @@ export function MealsSection() {
     const isToday = selectedDate === todayPacificDateString();
 
     // RV meals are not distributed on Wednesdays
-    const isWednesdayDate = new Date(selectedDate + 'T12:00:00').getDay() === 3;
+    const isWednesdayDate = parsePacificDateParts(selectedDate)?.dayOfWeek === 3;
 
     // Set of guest IDs that already have a guest meal record on the selected date
     const guestsWithMealOnDateSet = useMemo(() => {
