@@ -649,17 +649,13 @@ export const useMealsStore = create<MealsState>()(
 
                         // Schedule Logic (from older app's automaticMealEntries.js)
                         // Mon (1): 100 RV
-                        // Wed (3): 40 RV
+                        // Wed (3): RV distribution removed — no longer distributed on Wednesdays
                         // Thu (4): 100 RV
                         // Sat (6): 100 Lunch Bags, 100 RV, 50 Day Worker
 
                         if (dayOfWeek === 1) { // Mon
                             if (automaticSupportMealsEnabled && todaysRv.length === 0) {
                                 await addBulkMealRecord('rv', 100, 'Automatic Entry (Mon)', `rv_${todayStr}`);
-                            }
-                        } else if (dayOfWeek === 3) { // Wed
-                            if (automaticSupportMealsEnabled && todaysRv.length === 0) {
-                                await addBulkMealRecord('rv', 40, 'Automatic Entry (Wed)', `rv_${todayStr}`);
                             }
                         } else if (dayOfWeek === 4) { // Thu
                             if (automaticSupportMealsEnabled && todaysRv.length === 0) {
