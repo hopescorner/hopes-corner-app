@@ -148,12 +148,12 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                 {!readOnly && isCancelledOrNoShow && (
                     <button
                         disabled={isUpdating}
-                        onClick={(e) => handleStatusUpdate(e, 'booked')}
-                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-500 hover:bg-sky-50 hover:text-sky-600 transition-colors flex items-center gap-1"
-                        aria-label="Rebook shower"
+                        onClick={(e) => handleStatusUpdate(e, 'done')}
+                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                        aria-label="Complete cancelled shower"
                     >
-                        {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />}
-                        Rebook
+                        {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle size={10} />}
+                        Mark Done
                     </button>
                 )}
 

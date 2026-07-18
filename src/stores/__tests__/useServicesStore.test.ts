@@ -837,6 +837,50 @@ describe('useServicesStore', () => {
                     expect(useServicesStore.getState().showerRecords[0].status).toBe('showering');
                 });
 
+                it('retries a cancelled shower as an unscheduled waitlist completion when its old slot is full', async () => {
+                    useServicesStore.setState({
+                        showerRecords: [createMockShowerRecord({
+                            id: 's1',
+                            time: '09:00',
+                            status: 'cancelled',
+                        })],
+                    });
+                    mockSupabase.eq
+                        .mockResolvedValueOnce({
+                            error: { message: 'Shower slot 09:00 on 2026-07-18 is full (2/2 taken)' },
+                        })
+                        .mockResolvedValueOnce({ error: null });
+
+                    const success = await useServicesStore.getState().updateShowerStatus('s1', 'done');
+
+                    expect(success).toBe(true);
+                    expect(mockSupabase.update).toHaveBeenNthCalledWith(1, { status: 'done' });
+                    expect(mockSupabase.update).toHaveBeenNthCalledWith(2, {
+                        scheduled_time: null,
+                        status: 'done',
+                    });
+                    expect(useServicesStore.getState().showerRecords[0]).toEqual(expect.objectContaining({
+                        status: 'done',
+                        time: null,
+                    }));
+                });
+
+                it('keeps the original time when a cancelled shower can be completed in its slot', async () => {
+                    useServicesStore.setState({
+                        showerRecords: [createMockShowerRecord({
+                            id: 's1',
+                            time: '09:00',
+                            status: 'cancelled',
+                        })],
+                    });
+
+                    const success = await useServicesStore.getState().updateShowerStatus('s1', 'done');
+
+                    expect(success).toBe(true);
+                    expect(mockSupabase.update).toHaveBeenCalledWith({ status: 'done' });
+                    expect(useServicesStore.getState().showerRecords[0].time).toBe('09:00');
+                });
+
                 it('reverts shower status update on failure', async () => {
                     useServicesStore.setState({ showerRecords: [createMockShowerRecord({ id: 's1', status: 'waiting' })] });
                     // update().eq() chain without .single()

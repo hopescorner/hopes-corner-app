@@ -618,12 +618,12 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                 {(record.status === 'cancelled' || record.status === 'no_show') && !readOnly && (
                     <button
                         disabled={isUpdating}
-                        onClick={() => handleStatusUpdate('booked')}
-                        className="w-full py-2 rounded-xl bg-gray-50 text-gray-500 hover:bg-sky-50 hover:text-sky-600 text-xs font-black flex items-center justify-center gap-2 transition-all"
+                        onClick={() => handleStatusUpdate('done')}
+                        className="w-full py-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
                     >
                         {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
                             <>
-                                <RotateCcw size={14} /> REBOOK
+                                <CheckCircle size={14} /> MARK DONE
                             </>
                         )}
                     </button>

@@ -26,7 +26,7 @@ export const CHANGELOG: ChangelogEntry[] = [
             {
                 type: 'fix',
                 title: 'Rebook Cancelled Showers',
-                description: 'Guests with a cancelled or no-show shower can now be rebooked or returned to the waitlist and subsequently marked as completed without creating a duplicate reservation.',
+                description: 'Guests with a cancelled or no-show shower can now be rebooked or marked completed. If the original slot has filled, the completion is recorded as an unscheduled waitlist shower instead of failing.',
             },
         ],
     },

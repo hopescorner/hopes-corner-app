@@ -520,6 +520,10 @@ export const useServicesStore = create<ServicesState>()(
                         const target = showerRecords.find((r) => r.id === recordId);
                         if (!target) return false;
 
+                        const canCompleteAsWaitlistGuest =
+                            status === 'done' &&
+                            (target.status === 'cancelled' || target.status === 'no_show');
+
                         set((state) => {
                             const index = state.showerRecords.findIndex((r) => r.id === recordId);
                             if (index !== -1) {
@@ -530,17 +534,39 @@ export const useServicesStore = create<ServicesState>()(
                         const supabase = createClient();
                         // Map app status to DB status (e.g., 'awaiting' -> 'booked')
                         const dbStatus = mapShowerStatusToDb(status as any);
-                        const { error } = await supabase
+                        let { error: updateError } = await supabase
                             .from('shower_reservations')
                             .update({ status: dbStatus })
                             .eq('id', recordId);
 
-                        if (error) {
-                            console.error('Failed to update shower status:', error);
+                        if (
+                            updateError &&
+                            canCompleteAsWaitlistGuest &&
+                            updateError.message?.toLowerCase().includes('full')
+                        ) {
+                            const { error: waitlistError } = await supabase
+                                .from('shower_reservations')
+                                .update({ scheduled_time: null, status: dbStatus })
+                                .eq('id', recordId);
+                            updateError = waitlistError;
+
+                            if (!updateError) {
+                                set((state) => {
+                                    const index = state.showerRecords.findIndex((r) => r.id === recordId);
+                                    if (index !== -1) state.showerRecords[index].time = null;
+                                });
+                            }
+                        }
+
+                        if (updateError) {
+                            console.error('Failed to update shower status:', updateError);
                             // Revert
                             set((state) => {
                                 const index = state.showerRecords.findIndex((r) => r.id === recordId);
-                                if (index !== -1) state.showerRecords[index].status = target.status;
+                                if (index !== -1) {
+                                    state.showerRecords[index].status = target.status;
+                                    state.showerRecords[index].time = target.time;
+                                }
                             });
                             return false;
                         }

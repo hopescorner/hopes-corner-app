@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- Guests with a cancelled or no-show shower can now be rebooked or returned to the waitlist and subsequently marked as completed, while reusing the original reservation to avoid duplicate-booking conflicts.
+- Guests with a cancelled or no-show shower can now be rebooked or marked completed. If their original slot has since filled, the completion is automatically recorded as an unscheduled waitlist shower instead of failing with a capacity error.
 
 ## [0.5.53] - 2026-07-17
 
