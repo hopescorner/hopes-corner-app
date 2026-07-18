@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.53';
+export const APP_VERSION = '0.5.54';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.54',
+        date: 'July 18, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Rebook Cancelled Showers',
+                description: 'Guests with a cancelled or no-show shower can now be rebooked or returned to the waitlist and subsequently marked as completed without creating a duplicate reservation.',
+            },
+        ],
+    },
     {
         version: '0.5.53',
         date: 'July 17, 2026',

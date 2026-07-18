@@ -681,6 +681,35 @@ describe('useServicesStore', () => {
                     });
                 });
 
+                it('replaces a cancelled shower when the booking RPC reactivates it', async () => {
+                    useServicesStore.setState({
+                        showerRecords: [createMockShowerRecord({
+                            id: 's1',
+                            guestId: 'g1',
+                            date: '2025-01-06',
+                            status: 'cancelled',
+                        })],
+                    });
+                    mockRpcResult.single.mockResolvedValueOnce({
+                        data: {
+                            id: 's1',
+                            guest_id: 'g1',
+                            scheduled_for: '2025-01-06',
+                            scheduled_time: '09:00',
+                            status: 'booked',
+                        },
+                        error: null,
+                    });
+
+                    await useServicesStore.getState().addShowerRecord('g1', '09:00');
+
+                    expect(useServicesStore.getState().showerRecords).toHaveLength(1);
+                    expect(useServicesStore.getState().showerRecords[0]).toEqual(expect.objectContaining({
+                        id: 's1',
+                        status: 'booked',
+                    }));
+                });
+
                 it('adds a shower record for a selected past date via RPC', async () => {
                     const mockData = { id: 's124', guest_id: 'g1', scheduled_for: '2025-01-04' };
                     mockRpcResult.single.mockResolvedValueOnce({ data: mockData, error: null });
@@ -712,6 +741,36 @@ describe('useServicesStore', () => {
                 it('adds a shower waitlist record successfully', async () => {
                     mockSupabase.single.mockResolvedValueOnce({ data: { id: 'w1', status: 'waitlisted' }, error: null });
                     await useServicesStore.getState().addShowerWaitlist('g1');
+                    expect(useServicesStore.getState().showerRecords[0].status).toBe('waitlisted');
+                });
+
+                it('reactivates a cancelled shower when adding the guest to the waitlist', async () => {
+                    useServicesStore.setState({
+                        showerRecords: [createMockShowerRecord({
+                            id: 's1',
+                            guestId: 'g1',
+                            date: '2025-01-06',
+                            status: 'cancelled',
+                        })],
+                    });
+                    mockSupabase.single.mockResolvedValueOnce({
+                        data: {
+                            id: 's1',
+                            guest_id: 'g1',
+                            scheduled_for: '2025-01-06',
+                            scheduled_time: null,
+                            status: 'waitlisted',
+                        },
+                        error: null,
+                    });
+
+                    await useServicesStore.getState().addShowerWaitlist('g1');
+
+                    expect(mockSupabase.update).toHaveBeenCalledWith({
+                        scheduled_time: null,
+                        status: 'waitlisted',
+                    });
+                    expect(useServicesStore.getState().showerRecords).toHaveLength(1);
                     expect(useServicesStore.getState().showerRecords[0].status).toBe('waitlisted');
                 });
 

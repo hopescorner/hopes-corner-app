@@ -202,7 +202,12 @@ export const useServicesStore = create<ServicesState>()(
 
                             const mapped = mapShowerRow(data as any);
                             set((state) => {
-                                state.showerRecords.push(mapped as any);
+                                const existingIndex = state.showerRecords.findIndex((record) => record.id === mapped.id);
+                                if (existingIndex === -1) {
+                                    state.showerRecords.push(mapped as any);
+                                } else {
+                                    state.showerRecords[existingIndex] = mapped as any;
+                                }
                             });
                             return mapped;
                         }
@@ -237,6 +242,34 @@ export const useServicesStore = create<ServicesState>()(
                         if (!guestId) throw new Error('Guest ID is required');
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
+
+                        const cancelledRecord = get().showerRecords.find((record) => {
+                            const recordDate = record.dateKey || record.scheduledFor || pacificDateStringFrom(record.date);
+                            return record.guestId === guestId &&
+                                recordDate === targetDate &&
+                                (record.status === 'cancelled' || record.status === 'no_show');
+                        });
+
+                        if (cancelledRecord) {
+                            const { data, error } = await supabase
+                                .from('shower_reservations')
+                                .update({ scheduled_time: null, status: 'waitlisted' })
+                                .eq('id', cancelledRecord.id)
+                                .select()
+                                .single();
+
+                            if (error) {
+                                console.error('Failed to re-add shower waitlist record:', error);
+                                throw new Error('Unable to add to waitlist');
+                            }
+
+                            const mapped = mapShowerRow(data);
+                            set((state) => {
+                                const existingIndex = state.showerRecords.findIndex((record) => record.id === mapped.id);
+                                if (existingIndex !== -1) state.showerRecords[existingIndex] = mapped as any;
+                            });
+                            return mapped;
+                        }
 
                         const payload = {
                             guest_id: guestId,

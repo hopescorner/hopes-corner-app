@@ -214,7 +214,11 @@ function PureGuestCard({
     const localServiceStatus = useMemo(() => {
         if (serviceStatusMap) return defaultServiceStatus;
         const shower = showerRecords.find(
-            (r) => r.guestId === guest.id && pacificDateStringFrom(r.date) === today
+            (r) =>
+                r.guestId === guest.id &&
+                pacificDateStringFrom(r.date) === today &&
+                r.status !== 'cancelled' &&
+                r.status !== 'no_show'
         );
         const laundry = laundryRecords.find(
             (r) => r.guestId === guest.id && pacificDateStringFrom(r.date) === today
