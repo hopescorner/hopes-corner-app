@@ -245,7 +245,7 @@ const proxyPickerIds = new Set<string>();
             guestCount,
             rvCount: sumCount(rvMeals),
             dayWorkerCount: sumCount(dayWorkerMeals),
-            shelterCount: sumCount(shelterMealRecords),
+            shelterCount: sumCount(shelterMeals),
             ueCount: sumCount(ueMeals),
             lunchBagCount: sumCount(lunchBags),
             extraCount: sumCount(extraMeals),

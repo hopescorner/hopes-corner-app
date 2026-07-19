@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.5.55] - 2026-07-18
+
+### Fixed
+
+- The Meals service summary now shows shelter meals only for the selected date instead of displaying the total across all loaded dates.
+
 ## [0.5.54] - 2026-07-18
 
 ### Fixed

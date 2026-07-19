@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.54';
+export const APP_VERSION = '0.5.55';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.5.55',
+        date: 'July 18, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Correct Shelter Meal Daily Totals',
+                description: 'The Meals service summary now shows shelter meals only for the selected date instead of displaying the total across all loaded dates.',
+            },
+        ],
+    },
     {
         version: '0.5.54',
         date: 'July 18, 2026',
