@@ -20,6 +20,22 @@ export interface ChangelogEntry {
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: '0.6.5',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Laundry Bag Numbers No Longer Disappear',
+                description: 'The bag number Edit field now always starts from the latest saved value, and updates from other devices are no longer dropped when several laundry records change at nearly the same time.',
+            },
+            {
+                type: 'improvement',
+                title: 'Off-site Laundry Board Always Visible',
+                description: 'The Off-site Laundry board now appears on the Laundry tab even when no off-site loads are booked yet, matching the on-site board.',
+            },
+        ],
+    },
+    {
         version: '0.6.4',
         date: 'July 20, 2026',
         highlights: [
