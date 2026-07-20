@@ -27,12 +27,19 @@ interface CheckInState {
     realtimeServiceVersions: Record<string, string>;
     realtimeMealQuantities: Record<string, number>;
     acknowledgedMealRecordIds: Set<string>;
+    acknowledgedUndoRecordIds: Set<string>;
     hydrate: (snapshot: CheckInSnapshot) => void;
     searchGuests: (query: string) => CheckInGuestSummary[];
     optimisticMeal: (guestId: string, quantity: number, extra: boolean) => () => void;
     replaceMealCounts: (guestId: string, mealCount: number, extraMealCount: number) => void;
     replaceGuestStatus: (guestId: string, status: CheckInTodayStatus) => void;
     acknowledgeMealRecord: (recordId: string) => void;
+    applyUndo: (action: {
+        type: 'MEAL_ADDED' | 'EXTRA_MEALS_ADDED' | 'SHOWER_BOOKED' | 'LAUNDRY_BOOKED' | 'BICYCLE_LOGGED' | 'HAIRCUT_LOGGED' | 'HOLIDAY_LOGGED';
+        guestId: string;
+        recordId: string;
+        quantity?: number;
+    }) => void;
     applyRealtimeMealRecord: (event: {
         id: string;
         guestId: string;
@@ -65,6 +72,7 @@ const initialState = {
     realtimeServiceVersions: {} as Record<string, string>,
     realtimeMealQuantities: {} as Record<string, number>,
     acknowledgedMealRecordIds: new Set<string>(),
+    acknowledgedUndoRecordIds: new Set<string>(),
 };
 
 export const useCheckInStore = create<CheckInState>()((set, get) => ({
@@ -132,11 +140,49 @@ export const useCheckInStore = create<CheckInState>()((set, get) => ({
     acknowledgeMealRecord: (recordId) => set((state) => ({
         acknowledgedMealRecordIds: new Set(state.acknowledgedMealRecordIds).add(recordId),
     })),
+    applyUndo: (action) => set((state) => {
+        const current = state.todayByGuest[action.guestId] || emptyStatus();
+        const next = { ...current };
+
+        switch (action.type) {
+            case 'MEAL_ADDED':
+                next.mealCount = 0;
+                break;
+            case 'EXTRA_MEALS_ADDED':
+                next.extraMealCount = Math.max(0, next.extraMealCount - (action.quantity ?? 1));
+                break;
+            case 'SHOWER_BOOKED':
+                next.shower = null;
+                break;
+            case 'LAUNDRY_BOOKED':
+                next.laundry = null;
+                break;
+            case 'BICYCLE_LOGGED':
+                next.bicycle = null;
+                break;
+            case 'HAIRCUT_LOGGED':
+                next.haircut = null;
+                break;
+            case 'HOLIDAY_LOGGED':
+                next.holiday = null;
+                break;
+        }
+        next.totalMeals = next.mealCount + next.extraMealCount;
+
+        return {
+            acknowledgedUndoRecordIds: new Set(state.acknowledgedUndoRecordIds).add(action.recordId),
+            todayByGuest: { ...state.todayByGuest, [action.guestId]: next },
+        };
+    }),
     applyRealtimeMealRecord: (event) => set((state) => {
         const previousVersion = state.realtimeMealVersions[event.id];
         if (previousVersion && previousVersion >= event.version) return state;
 
         const versions = { ...state.realtimeMealVersions, [event.id]: event.version };
+        const undone = new Set(state.acknowledgedUndoRecordIds);
+        if (event.eventType === 'DELETE' && undone.delete(event.id)) {
+            return { realtimeMealVersions: versions, acknowledgedUndoRecordIds: undone };
+        }
         const acknowledged = new Set(state.acknowledgedMealRecordIds);
         if (acknowledged.delete(event.id)) {
             return { realtimeMealVersions: versions, acknowledgedMealRecordIds: acknowledged };
@@ -179,6 +225,13 @@ export const useCheckInStore = create<CheckInState>()((set, get) => ({
         const key = `${event.service}:${event.id}`;
         const previousVersion = state.realtimeServiceVersions[key];
         if (previousVersion && previousVersion >= event.version) return state;
+        const undone = new Set(state.acknowledgedUndoRecordIds);
+        if (event.record === null && undone.delete(event.id)) {
+            return {
+                realtimeServiceVersions: { ...state.realtimeServiceVersions, [key]: event.version },
+                acknowledgedUndoRecordIds: undone,
+            };
+        }
         const current = state.todayByGuest[event.guestId] || emptyStatus();
         return {
             realtimeServiceVersions: { ...state.realtimeServiceVersions, [key]: event.version },

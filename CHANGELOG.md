@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.2] - 2026-07-20
+
+### Fixed
+
+- Undoing a meal or service now updates the guest card immediately and stays in sync when the real-time confirmation arrives.
+
 ## [0.6.1] - 2026-07-20
 
 ### Removed

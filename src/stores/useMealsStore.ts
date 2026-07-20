@@ -271,9 +271,6 @@ export const useMealsStore = create<MealsState>()(
                     },
 
                     deleteMealRecord: async (recordId: string) => {
-                        const { mealRecords } = get();
-                        const target = mealRecords.find((r) => r.id === recordId);
-
                         set((state) => {
                             state.mealRecords = state.mealRecords.filter(
                                 (r) => r.id !== recordId
@@ -281,15 +278,13 @@ export const useMealsStore = create<MealsState>()(
                         });
 
                         const supabase = createClient();
-                        if (target) {
-                            const { error } = await supabase
-                                .from('meal_attendance')
-                                .delete()
-                                .eq('id', recordId);
+                        const { error } = await supabase
+                            .from('meal_attendance')
+                            .delete()
+                            .eq('id', recordId);
 
-                            if (error) {
-                                console.error('Failed to delete meal record from Supabase:', error);
-                            }
+                        if (error) {
+                            console.error('Failed to delete meal record from Supabase:', error);
                         }
                     },
 

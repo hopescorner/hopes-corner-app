@@ -806,6 +806,16 @@ describe('useMealsStore', () => {
             });
         });
 
+        describe('snapshot-backed undo', () => {
+            it('deletes a meal from Supabase even before realtime adds it to the legacy store', async () => {
+                await useMealsStore.getState().deleteMealRecord('snapshot-meal-1');
+
+                expect(mockSupabase.from).toHaveBeenCalledWith('meal_attendance');
+                expect(mockSupabase.delete).toHaveBeenCalled();
+                expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'snapshot-meal-1');
+            });
+        });
+
         // Error handling integration
         it('handles DB insert error in addMealRecord', async () => {
             mockSupabase.single.mockResolvedValueOnce({ data: null, error: { message: 'DB Error' } });

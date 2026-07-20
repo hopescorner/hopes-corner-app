@@ -1155,6 +1155,7 @@ function GuestCardImpl(props: GuestCardProps) {
     const optimisticMeal = useCheckInStore((s) => s.optimisticMeal);
     const replaceMealCounts = useCheckInStore((s) => s.replaceMealCounts);
     const acknowledgeMealRecord = useCheckInStore((s) => s.acknowledgeMealRecord);
+    const applySnapshotUndo = useCheckInStore((s) => s.applyUndo);
     const executeSnapshotMeal = useCallback((guestId: string, count = 1, extra = false) => {
         const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? `${guestId}-${Date.now()}-${Math.random()}`;
         return executeOptimisticMeal({
@@ -1240,6 +1241,21 @@ function GuestCardImpl(props: GuestCardProps) {
             getActionsForGuestToday: s.getActionsForGuestToday,
         }))
     );
+    const effectiveUndoAction = useCallback(async (actionId: string) => {
+        const action = snapshotReady
+            ? getActionsForGuestToday(guest.id).find((entry) => entry.id === actionId)
+            : undefined;
+        const success = await undoAction(actionId);
+        if (success && action) {
+            applySnapshotUndo({
+                type: action.type,
+                guestId: action.data.guestId,
+                recordId: action.data.recordId,
+                quantity: action.data.quantity,
+            });
+        }
+        return success;
+    }, [snapshotReady, getActionsForGuestToday, guest.id, undoAction, applySnapshotUndo]);
 
     const warningsCount = useGuestsStore((s) => {
         if (props.warningsCount != null) return props.warningsCount;
@@ -1280,7 +1296,7 @@ function GuestCardImpl(props: GuestCardProps) {
             setLaundryPickerGuest={setLaundryPickerGuest}
             setBicyclePickerGuest={setBicyclePickerGuest}
             addAction={addAction}
-            undoAction={undoAction}
+            undoAction={effectiveUndoAction}
             getActionsForGuestToday={getActionsForGuestToday}
             loadGuestContext={loadGuestContext}
             warningsCount={warningsCount}

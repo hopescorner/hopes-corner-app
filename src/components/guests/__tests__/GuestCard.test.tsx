@@ -27,6 +27,7 @@ let snapshotReady = false;
 const mockOptimisticMeal = vi.fn(() => vi.fn());
 const mockReplaceMealCounts = vi.fn();
 const mockAcknowledgeMealRecord = vi.fn();
+const mockApplyUndo = vi.fn();
 
 vi.mock('@/stores/useCheckInStore', () => ({
     useCheckInStore: (selector: any) => selector({
@@ -34,6 +35,7 @@ vi.mock('@/stores/useCheckInStore', () => ({
         optimisticMeal: mockOptimisticMeal,
         replaceMealCounts: mockReplaceMealCounts,
         acknowledgeMealRecord: mockAcknowledgeMealRecord,
+        applyUndo: mockApplyUndo,
     }),
 }));
 
@@ -865,6 +867,43 @@ describe('GuestCard Component', () => {
                     expect(mockUndoAction).toHaveBeenCalledWith('action-extra-1');
                 });
             }
+        });
+
+        it('updates the snapshot status after undo succeeds', async () => {
+            snapshotReady = true;
+            mockGetActionsForGuestToday.mockReturnValueOnce([{
+                id: 'action-extra-1',
+                type: 'EXTRA_MEALS_ADDED',
+                data: { recordId: 'extra-1', guestId: 'g1', quantity: 1 },
+            }]);
+            const mealStatusMap = new Map([
+                ['g1', {
+                    hasMeal: true,
+                    mealRecord: { id: 'meal-1', count: 1 },
+                    mealCount: 1,
+                    extraMealCount: 1,
+                    totalMeals: 2,
+                }],
+            ]);
+            const actionStatusMap = new Map([
+                ['g1', { extraMealActionId: 'action-extra-1' }],
+            ]);
+            render(
+                <GuestCard
+                    guest={baseGuest}
+                    mealStatusMap={mealStatusMap}
+                    actionStatusMap={actionStatusMap}
+                />
+            );
+
+            fireEvent.click(document.querySelector('button[title="Undo extra meal"]')!);
+
+            await waitFor(() => expect(mockApplyUndo).toHaveBeenCalledWith({
+                type: 'EXTRA_MEALS_ADDED',
+                guestId: 'g1',
+                recordId: 'extra-1',
+                quantity: 1,
+            }));
         });
 
         it('shows extra meal undo at meal limit on desktop', () => {

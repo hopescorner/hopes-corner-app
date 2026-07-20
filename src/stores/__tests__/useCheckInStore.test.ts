@@ -63,6 +63,126 @@ describe('useCheckInStore', () => {
         expect(useCheckInStore.getState().todayByGuest['guest-1']).toBeUndefined();
     });
 
+    it('updates meal counts after undo and consumes the matching realtime delete', () => {
+        useCheckInStore.getState().hydrate({
+            ...snapshot,
+            todayByGuest: {
+                'guest-1': {
+                    mealCount: 1,
+                    extraMealCount: 2,
+                    totalMeals: 3,
+                    shower: null,
+                    laundry: null,
+                    bicycle: null,
+                    haircut: null,
+                    holiday: null,
+                },
+            },
+        });
+
+        useCheckInStore.getState().applyUndo({
+            type: 'EXTRA_MEALS_ADDED',
+            guestId: 'guest-1',
+            recordId: 'extra-1',
+            quantity: 1,
+        });
+
+        expect(useCheckInStore.getState().todayByGuest['guest-1']).toMatchObject({
+            mealCount: 1,
+            extraMealCount: 1,
+            totalMeals: 2,
+        });
+
+        useCheckInStore.getState().applyRealtimeMealRecord({
+            id: 'extra-1',
+            guestId: 'guest-1',
+            extra: true,
+            quantity: 1,
+            eventType: 'DELETE',
+            version: '2026-07-19T18:01:00.000Z',
+        });
+
+        expect(useCheckInStore.getState().todayByGuest['guest-1']).toMatchObject({
+            mealCount: 1,
+            extraMealCount: 1,
+            totalMeals: 2,
+        });
+    });
+
+    it('clears the base meal count after undo', () => {
+        useCheckInStore.getState().hydrate({
+            ...snapshot,
+            todayByGuest: {
+                'guest-1': {
+                    mealCount: 2,
+                    extraMealCount: 1,
+                    totalMeals: 3,
+                    shower: null,
+                    laundry: null,
+                    bicycle: null,
+                    haircut: null,
+                    holiday: null,
+                },
+            },
+        });
+
+        useCheckInStore.getState().applyUndo({
+            type: 'MEAL_ADDED',
+            guestId: 'guest-1',
+            recordId: 'meal-1',
+        });
+
+        expect(useCheckInStore.getState().todayByGuest['guest-1']).toMatchObject({
+            mealCount: 0,
+            extraMealCount: 1,
+            totalMeals: 1,
+        });
+    });
+
+    it.each([
+        ['SHOWER_BOOKED', 'shower'],
+        ['LAUNDRY_BOOKED', 'laundry'],
+        ['BICYCLE_LOGGED', 'bicycle'],
+        ['HAIRCUT_LOGGED', 'haircut'],
+        ['HOLIDAY_LOGGED', 'holiday'],
+    ] as const)('clears the %s snapshot status and consumes its realtime delete', (type, service) => {
+        useCheckInStore.getState().hydrate({
+            ...snapshot,
+            todayByGuest: {
+                'guest-1': {
+                    mealCount: 0,
+                    extraMealCount: 0,
+                    totalMeals: 0,
+                    shower: null,
+                    laundry: null,
+                    bicycle: null,
+                    haircut: null,
+                    holiday: null,
+                    [service]: { id: `${service}-1`, status: 'booked' },
+                },
+            },
+        });
+
+        useCheckInStore.getState().applyUndo({
+            type,
+            guestId: 'guest-1',
+            recordId: `${service}-1`,
+        });
+
+        expect(useCheckInStore.getState().todayByGuest['guest-1'][service]).toBeNull();
+        expect(useCheckInStore.getState().acknowledgedUndoRecordIds.has(`${service}-1`)).toBe(true);
+
+        useCheckInStore.getState().applyRealtimeServiceRecord({
+            id: `${service}-1`,
+            guestId: 'guest-1',
+            service,
+            record: null,
+            version: '2026-07-19T18:01:00.000Z',
+        });
+
+        expect(useCheckInStore.getState().acknowledgedUndoRecordIds.has(`${service}-1`)).toBe(false);
+    });
+
     it('ignores an older snapshot received after a newer reconciliation', () => {
         useCheckInStore.getState().hydrate(snapshot);
         useCheckInStore.getState().hydrate({
