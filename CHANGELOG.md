@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.1] - 2026-07-20
+
+### Removed
+
+- Removed the in-app GitHub issue filing feature that used Copilot to triage feedback.
+
 ## [0.6.0] - 2026-07-19
 
 ### Performance
@@ -27,6 +33,7 @@
 ### Fixed
 
 - RV meals (40) are no longer automatically added on Wednesdays, and the RV bulk entry option is hidden when the selected date falls on a Wednesday.
+
 
 ## [0.5.52] - 2026-07-15
 

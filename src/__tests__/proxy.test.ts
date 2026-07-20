@@ -53,7 +53,7 @@ describe('proxy', () => {
     });
 
     it('returns early for api routes so handlers can enforce auth themselves', async () => {
-        const req = buildRequest('/api/feedback/github-issue');
+        const req = buildRequest('/api/auth/session');
         const res = await proxy(req as any);
         expect(res).toEqual({ type: 'next' });
         expect(mocks.auth).not.toHaveBeenCalled();

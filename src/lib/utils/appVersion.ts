@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.6.0';
+export const APP_VERSION = '0.6.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.6.1',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Remove GitHub Feedback Feature',
+                description: 'Removed the in-app GitHub issue filing feature that used Copilot to triage feedback.',
+            },
+        ],
+    },
     {
         version: '0.6.0',
         date: 'July 19, 2026',

@@ -4,13 +4,12 @@ import { useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut, MessageSquarePlus } from 'lucide-react';
+import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut } from 'lucide-react';
 import { getDefaultRoute, getRoleLabel, ROLE_ACCESS, type UserRole } from '@/lib/auth/types';
 import { AppVersion } from '@/components/pwa/AppVersion';
 import dynamic from 'next/dynamic';
 
 const TutorialModal = dynamic(() => import('@/components/modals/TutorialModal').then((module) => module.TutorialModal));
-const FeedbackIssueModal = dynamic(() => import('@/components/modals/FeedbackIssueModal').then((module) => module.FeedbackIssueModal));
 
 interface NavItem {
     id: string;
@@ -29,13 +28,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const { data: session } = useSession();
     const pathname = usePathname();
     const [showTutorial, setShowTutorial] = useState(false);
-    const [showFeedbackIssue, setShowFeedbackIssue] = useState(false);
 
     const role = (session?.user?.role as UserRole) || 'checkin';
     const roleLabel = getRoleLabel(role);
     const allowedTabs = ROLE_ACCESS[role];
     const defaultRoute = getDefaultRoute(role);
-    const canFileIssue = role !== 'checkin';
 
     const navItems = allNavItems.filter((item) =>
         (allowedTabs as readonly string[]).includes(item.id)
@@ -109,16 +106,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                                 {roleLabel}
                             </span>
                             <div className="w-px h-5 bg-emerald-700/50" />
-                            {canFileIssue && (
-                                <button
-                                    onClick={() => setShowFeedbackIssue(true)}
-                                    className="p-2 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-800/50 transition-colors"
-                                    aria-label="File issue or feature request"
-                                    title="File issue or feature request"
-                                >
-                                    <MessageSquarePlus size={18} />
-                                </button>
-                            )}
                             <button
                                 onClick={() => setShowTutorial(true)}
                                 className="p-2 rounded-lg text-emerald-200 hover:text-white hover:bg-emerald-800/50 transition-colors"
@@ -186,16 +173,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 <div className="px-2 pb-3 space-y-2">
                     <div className="flex justify-center items-center gap-3">
                         <AppVersion />
-                        {canFileIssue && (
-                            <button
-                                onClick={() => setShowFeedbackIssue(true)}
-                                className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700"
-                                aria-label="File issue or feature request"
-                            >
-                                <MessageSquarePlus size={14} />
-                                <span>Feedback</span>
-                            </button>
-                        )}
                         <button
                             onClick={() => setShowTutorial(true)}
                             className="flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-700"
@@ -229,10 +206,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <TutorialModal
                 isOpen={showTutorial}
                 onClose={() => setShowTutorial(false)}
-            />
-            <FeedbackIssueModal
-                isOpen={showFeedbackIssue}
-                onClose={() => setShowFeedbackIssue(false)}
             />
         </div>
     );
