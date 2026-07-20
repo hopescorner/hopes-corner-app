@@ -356,8 +356,8 @@ function PureGuestCard({
         }
     };
 
-    const handleUndo = async (e: React.MouseEvent, actionId: string, label: string) => {
-        e.stopPropagation();
+    const handleUndo = async (e: React.MouseEvent | undefined, actionId: string, label: string) => {
+        if (e) e.stopPropagation();
         if (isPending) return;
 
         // Simple haptic feedback if available (simulated)
@@ -1119,12 +1119,15 @@ function PureGuestCard({
                 mealCount={totalMeals}
                 isPendingMeal={isPending}
                 isBannedFromMeals={isBannedFromMeals}
+                onMealUndo={mealAction ? () => handleUndo(undefined, mealAction.id, 'Check-in') : undefined}
                 onShowerSelect={(g) => setShowerPickerGuest(g)}
                 hasShowerToday={!!todayShower}
                 isBannedFromShower={isBannedFromShower}
+                onShowerUndo={showerAction ? () => handleUndo(undefined, showerAction.id, 'Shower booking') : undefined}
                 onLaundrySelect={(g) => setLaundryPickerGuest(g)}
                 hasLaundryToday={!!todayLaundry}
                 isBannedFromLaundry={isBannedFromLaundry}
+                onLaundryUndo={laundryAction ? () => handleUndo(undefined, laundryAction.id, 'Laundry booking') : undefined}
             />
         </div>
     );

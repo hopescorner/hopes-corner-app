@@ -61,6 +61,21 @@ describe('MobileServiceSheet', () => {
             expect(screen.getByText('2 Meals Today')).toBeDefined();
         });
 
+        it('calls onMealUndo and onClose when undo button clicked', () => {
+            const onMealUndo = vi.fn();
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasMealToday={true}
+                    mealCount={2}
+                    onMealUndo={onMealUndo}
+                />
+            );
+            fireEvent.click(screen.getByRole('button', { name: /undo/i }));
+            expect(onMealUndo).toHaveBeenCalled();
+            expect(defaultProps.onClose).toHaveBeenCalled();
+        });
+
         it('calls onMealSelect and onClose when meal button clicked', () => {
             render(<MobileServiceSheet {...defaultProps} />);
             fireEvent.click(screen.getByText('1 Meal'));
@@ -93,6 +108,20 @@ describe('MobileServiceSheet', () => {
             expect(screen.getByText('Shower Booked Today')).toBeDefined();
         });
 
+        it('calls onShowerUndo and onClose when undo button clicked', () => {
+            const onShowerUndo = vi.fn();
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasShowerToday={true}
+                    onShowerUndo={onShowerUndo}
+                />
+            );
+            fireEvent.click(screen.getByRole('button', { name: /undo/i }));
+            expect(onShowerUndo).toHaveBeenCalled();
+            expect(defaultProps.onClose).toHaveBeenCalled();
+        });
+
         it('calls onShowerSelect and onClose when shower button clicked', () => {
             render(<MobileServiceSheet {...defaultProps} hasShowerToday={false} />);
             fireEvent.click(screen.getByText('Book Shower'));
@@ -115,6 +144,20 @@ describe('MobileServiceSheet', () => {
         it('shows booked message when laundry already booked', () => {
             render(<MobileServiceSheet {...defaultProps} hasLaundryToday={true} />);
             expect(screen.getByText('Laundry Booked Today')).toBeDefined();
+        });
+
+        it('calls onLaundryUndo and onClose when undo button clicked', () => {
+            const onLaundryUndo = vi.fn();
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasLaundryToday={true}
+                    onLaundryUndo={onLaundryUndo}
+                />
+            );
+            fireEvent.click(screen.getByRole('button', { name: /undo/i }));
+            expect(onLaundryUndo).toHaveBeenCalled();
+            expect(defaultProps.onClose).toHaveBeenCalled();
         });
 
         it('calls onLaundrySelect and onClose when laundry button clicked', () => {

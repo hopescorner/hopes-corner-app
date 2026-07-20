@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.6.3';
+export const APP_VERSION = '0.6.4';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.6.4',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Mobile/Tablet Undo Actions',
+                description: 'Exposed direct Undo buttons inside the mobile/tablet bottom sheet (MobileServiceSheet) for checked-in meals, shower bookings, and laundry bookings.',
+            },
+        ],
+    },
     {
         version: '0.6.3',
         date: 'July 20, 2026',

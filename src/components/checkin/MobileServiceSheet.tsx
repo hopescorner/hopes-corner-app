@@ -11,6 +11,7 @@ import {
     Check,
     Loader2,
     ChevronDown,
+    RotateCcw,
 } from 'lucide-react';
 
 interface Guest {
@@ -33,14 +34,17 @@ interface MobileServiceSheetProps {
     mealCount?: number;
     isPendingMeal?: boolean;
     isBannedFromMeals?: boolean;
+    onMealUndo?: () => void;
     // Shower props
     onShowerSelect: (guest: Guest) => void;
     hasShowerToday?: boolean;
     isBannedFromShower?: boolean;
+    onShowerUndo?: () => void;
     // Laundry props
     onLaundrySelect: (guest: Guest) => void;
     hasLaundryToday?: boolean;
     isBannedFromLaundry?: boolean;
+    onLaundryUndo?: () => void;
 }
 
 /**
@@ -59,14 +63,17 @@ export function MobileServiceSheet({
     mealCount = 0,
     isPendingMeal = false,
     isBannedFromMeals = false,
+    onMealUndo,
     // Shower props
     onShowerSelect,
     hasShowerToday = false,
     isBannedFromShower = false,
+    onShowerUndo,
     // Laundry props
     onLaundrySelect,
     hasLaundryToday = false,
     isBannedFromLaundry = false,
+    onLaundryUndo,
 }: MobileServiceSheetProps) {
     const sheetRef = useRef<HTMLDivElement>(null);
     const startY = useRef(0);
@@ -197,11 +204,26 @@ export function MobileServiceSheet({
                                     Meals
                                 </h3>
                                 {hasMealToday ? (
-                                    <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-bold">
-                                        <Check size={24} className="text-emerald-600" />
-                                        <span>
-                                            {mealCount} Meal{mealCount > 1 ? 's' : ''} Today
-                                        </span>
+                                    <div className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-emerald-50 border-2 border-emerald-200 text-emerald-700 font-bold">
+                                        <div className="flex items-center gap-3">
+                                            <Check size={24} className="text-emerald-600" />
+                                            <span>
+                                                {mealCount} Meal{mealCount > 1 ? 's' : ''} Today
+                                            </span>
+                                        </div>
+                                        {onMealUndo && (
+                                            <button
+                                                onClick={() => {
+                                                    onMealUndo();
+                                                    onClose();
+                                                }}
+                                                className="flex items-center justify-center gap-1.5 px-3 h-10 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 font-semibold active:scale-95 transition-transform touch-manipulation"
+                                                title="Undo meals"
+                                            >
+                                                <RotateCcw size={16} />
+                                                <span className="text-sm">Undo</span>
+                                            </button>
+                                        )}
                                     </div>
                                 ) : isBannedFromMeals ? (
                                     <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-red-50 border-2 border-red-200 text-red-600 font-bold">
@@ -242,9 +264,24 @@ export function MobileServiceSheet({
                                     Shower
                                 </h3>
                                 {hasShowerToday ? (
-                                    <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-sky-50 border-2 border-sky-200 text-sky-700 font-bold">
-                                        <Check size={24} className="text-sky-600" />
-                                        <span>Shower Booked Today</span>
+                                    <div className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-sky-50 border-2 border-sky-200 text-sky-700 font-bold">
+                                        <div className="flex items-center gap-3">
+                                            <Check size={24} className="text-sky-600" />
+                                            <span>Shower Booked Today</span>
+                                        </div>
+                                        {onShowerUndo && (
+                                            <button
+                                                onClick={() => {
+                                                    onShowerUndo();
+                                                    onClose();
+                                                }}
+                                                className="flex items-center justify-center gap-1.5 px-3 h-10 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 font-semibold active:scale-95 transition-transform touch-manipulation"
+                                                title="Undo shower"
+                                            >
+                                                <RotateCcw size={16} />
+                                                <span className="text-sm">Undo</span>
+                                            </button>
+                                        )}
                                     </div>
                                 ) : isBannedFromShower ? (
                                     <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-red-50 border-2 border-red-200 text-red-600 font-bold">
@@ -273,9 +310,24 @@ export function MobileServiceSheet({
                                     Laundry
                                 </h3>
                                 {hasLaundryToday ? (
-                                    <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-bold">
-                                        <Check size={24} className="text-indigo-600" />
-                                        <span>Laundry Booked Today</span>
+                                    <div className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-bold">
+                                        <div className="flex items-center gap-3">
+                                            <Check size={24} className="text-indigo-600" />
+                                            <span>Laundry Booked Today</span>
+                                        </div>
+                                        {onLaundryUndo && (
+                                            <button
+                                                onClick={() => {
+                                                    onLaundryUndo();
+                                                    onClose();
+                                                }}
+                                                className="flex items-center justify-center gap-1.5 px-3 h-10 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 font-semibold active:scale-95 transition-transform touch-manipulation"
+                                                title="Undo laundry"
+                                            >
+                                                <RotateCcw size={16} />
+                                                <span className="text-sm">Undo</span>
+                                            </button>
+                                        )}
                                     </div>
                                 ) : isBannedFromLaundry ? (
                                     <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-red-50 border-2 border-red-200 text-red-600 font-bold">
