@@ -8,5 +8,5 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-and-lint:
+  ci:
     uses: ./.github/workflows/test.yml

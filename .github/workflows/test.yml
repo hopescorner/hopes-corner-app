@@ -4,9 +4,9 @@ on:
   workflow_call:
 
 jobs:
-  test-and-lint:
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6.0.2
       - uses: ./.github/actions/setup-node
@@ -17,10 +17,23 @@ jobs:
       - name: Lint
         run: npm run lint
 
+  vitest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup-node
+
       - name: Test
         run: npm test
 
-      # Cache Playwright browsers by installed package version.
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup-node
+
       - name: Get Playwright version
         id: playwright-version
         run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
@@ -32,7 +45,6 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
 
-      # System deps are not cached; only re-download the browser on cache miss.
       - name: Install Playwright system dependencies
         run: npx playwright install-deps chromium
 
@@ -50,3 +62,19 @@ jobs:
           name: playwright-ct-report
           path: playwright-report/
           retention-days: 30
+
+  ci-pass:
+    if: ${{ always() }}
+    needs: [lint, vitest, playwright]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify all jobs passed
+        run: |
+          if [[ "${{ needs.lint.result }}" != "success" || \
+                "${{ needs.vitest.result }}" != "success" || \
+                "${{ needs.playwright.result }}" != "success" ]]; then
+            echo "One or more required jobs failed"
+            exit 1
+          fi
+          echo "All checks passed"
