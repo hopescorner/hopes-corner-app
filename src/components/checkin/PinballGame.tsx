@@ -29,6 +29,16 @@ interface Flipper {
   side: 'left' | 'right';
 }
 
+interface Particle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  life: number;
+  size: number;
+}
+
 // --- Constants ---
 const WIDTH = 320;
 const HEIGHT = 520;
@@ -99,12 +109,29 @@ export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
   const flippersRef = useRef<[Flipper, Flipper]>(createFlippers());
   const scoreRef = useRef(0);
   const ballsLeftRef = useRef(3);
+  const particlesRef = useRef<Particle[]>([]);
   const [gameOver, setGameOver] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
   const [canDismiss, setCanDismiss] = useState(graceMs <= 0);
   const [leftActive, setLeftActive] = useState(false);
   const [rightActive, setRightActive] = useState(false);
   const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+  const spawnSparks = useCallback((x: number, y: number, color: string, count = 8) => {
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1 + Math.random() * 4;
+      particlesRef.current.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color,
+        life: 1.0,
+        size: 2 + Math.random() * 3,
+      });
+    }
+  }, []);
 
   // After graceMs, allow backdrop dismiss (prevents momentum taps from the trigger)
   useEffect(() => {
@@ -169,6 +196,7 @@ export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
     ballRef.current = resetBall();
     bumpersRef.current = createBumpers();
     flippersRef.current = createFlippers();
+    particlesRef.current = [];
     setFinalScore(0);
     setGameOver(false);
   }, []);
@@ -188,6 +216,7 @@ export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
       const flippers = flippersRef.current;
       const keys = keysRef.current;
       const touch = touchRef.current;
+      const particles = particlesRef.current;
 
       // --- Input ---
       const leftActive = keys.has('ArrowLeft') || keys.has('z') || keys.has('Z') || touch.left;
@@ -215,15 +244,18 @@ export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
       if (ball.x - ball.r < WALL_LEFT) {
         ball.x = WALL_LEFT + ball.r;
         ball.vx = Math.abs(ball.vx) * 0.8;
+        spawnSparks(ball.x - ball.r, ball.y, '#38bdf8', 4);
       }
       if (ball.x + ball.r > WALL_RIGHT) {
         ball.x = WALL_RIGHT - ball.r;
         ball.vx = -Math.abs(ball.vx) * 0.8;
+        spawnSparks(ball.x + ball.r, ball.y, '#38bdf8', 4);
       }
       // Top wall
       if (ball.y - ball.r < 10) {
         ball.y = 10 + ball.r;
         ball.vy = Math.abs(ball.vy) * 0.8;
+        spawnSparks(ball.x, ball.y - ball.r, '#38bdf8', 4);
       }
 
       // Guide wall collisions (angled walls that funnel ball toward flippers)
@@ -252,6 +284,7 @@ export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
           ball.vy -= 2 * wdot * wny;
           ball.vx *= 0.85;
           ball.vy *= 0.85;
+          spawnSparks(cx, cy, '#c084fc', 4);
         }
       }
 
@@ -266,6 +299,7 @@ export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
           ball.y = b.y + Math.sin(angle) * (ball.r + b.r + 1);
           b.flash = 10;
           scoreRef.current += 100;
+          spawnSparks(b.x + Math.cos(angle) * b.r, b.y + Math.sin(angle) * b.r, '#fbbf24', 12);
         }
         if (b.flash > 0) b.flash--;
       }
@@ -302,6 +336,9 @@ export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
           if (isActive) {
             ball.vy -= 4;
             ball.vx += f.side === 'left' ? 2 : -2;
+            spawnSparks(closestX, closestY, '#ffffff', 8);
+          } else {
+            spawnSparks(closestX, closestY, '#f97316', 4);
           }
           scoreRef.current += 10;
         }
@@ -327,13 +364,31 @@ export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
 
       // Background
       const grad = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-      grad.addColorStop(0, '#0f172a');
-      grad.addColorStop(1, '#1e293b');
+      grad.addColorStop(0, '#0a0f1d');
+      grad.addColorStop(1, '#111827');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-      // Walls
-      ctx.strokeStyle = '#334155';
+      // Grid lines
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < WIDTH; x += 20) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, HEIGHT);
+        ctx.stroke();
+      }
+      for (let y = 0; y < HEIGHT; y += 20) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(WIDTH, y);
+        ctx.stroke();
+      }
+
+      // Walls (Neon Blue Glow)
+      ctx.strokeStyle = '#38bdf8';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 10;
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(WALL_LEFT, 10);
@@ -343,75 +398,141 @@ export function PinballGame({ onClose, graceMs = 500 }: PinballGameProps) {
       ctx.moveTo(WALL_LEFT, 10);
       ctx.lineTo(WALL_RIGHT, 10);
       ctx.stroke();
+      ctx.shadowBlur = 0;
 
-      // Guide walls (funnel toward flippers)
-      ctx.strokeStyle = '#475569';
-      ctx.lineWidth = 2;
-      // Left guide: angled wall from lower-left toward left flipper
+      // Guide walls (Neon Purple Glow)
+      ctx.strokeStyle = '#c084fc';
+      ctx.shadowColor = '#c084fc';
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(WALL_LEFT, DRAIN_Y - 80);
       ctx.lineTo(WALL_LEFT + 40, DRAIN_Y - 20);
       ctx.stroke();
-      // Right guide: angled wall from lower-right toward right flipper
       ctx.beginPath();
       ctx.moveTo(WALL_RIGHT, DRAIN_Y - 80);
       ctx.lineTo(WALL_RIGHT - 40, DRAIN_Y - 20);
       ctx.stroke();
+      ctx.shadowBlur = 0;
 
-      // Bumpers
+      // Bumpers (Multi-layered Neon Glow & Scale Animation)
       for (const b of bumpers) {
+        const currentR = b.r + (b.flash > 0 ? Math.sin(b.flash * 0.5) * 4 : 0);
+        const color = b.flash > 0 ? '#fbbf24' : '#10b981';
+        const darkColor = b.flash > 0 ? '#d97706' : '#047857';
+
         ctx.beginPath();
-        ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-        if (b.flash > 0) {
-          ctx.fillStyle = '#fbbf24';
-          ctx.shadowColor = '#fbbf24';
-          ctx.shadowBlur = 15;
-        } else {
-          ctx.fillStyle = '#10b981';
-          ctx.shadowColor = '#10b981';
-          ctx.shadowBlur = 8;
-        }
+        ctx.arc(b.x, b.y, currentR, 0, Math.PI * 2);
+        ctx.shadowColor = color;
+        ctx.shadowBlur = b.flash > 0 ? 20 : 10;
+
+        const radialGrad = ctx.createRadialGradient(b.x, b.y, currentR * 0.2, b.x, b.y, currentR);
+        radialGrad.addColorStop(0, '#ffffff');
+        radialGrad.addColorStop(0.3, color);
+        radialGrad.addColorStop(1, darkColor);
+        ctx.fillStyle = radialGrad;
         ctx.fill();
         ctx.shadowBlur = 0;
-        ctx.strokeStyle = '#fff';
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, currentR * 0.7, 0, Math.PI * 2);
         ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, currentR * 0.35, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
       }
 
-      // Flippers
+      // Flippers (Orange Neon Glow with White Core)
       for (const f of flippers) {
         const endX = f.x + Math.cos(f.angle) * f.length;
         const endY = f.y + Math.sin(f.angle) * f.length;
+
+        ctx.strokeStyle = '#f97316';
+        ctx.shadowColor = '#f97316';
+        ctx.shadowBlur = 12;
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(f.x, f.y);
         ctx.lineTo(endX, endY);
-        ctx.strokeStyle = '#f97316';
-        ctx.lineWidth = 8;
-        ctx.lineCap = 'round';
         ctx.stroke();
-        // Pivot dot
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(f.x, f.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = '#fb923c';
+        ctx.moveTo(f.x, f.y);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = '#e2e8f0';
         ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = '#475569';
+        ctx.stroke();
       }
 
-      // Ball
+      // Particles (Sparks updating and drawing)
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.95;
+        p.vy *= 0.95;
+        p.life -= 0.02;
+        if (p.life <= 0) {
+          particles.splice(i, 1);
+          continue;
+        }
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = 8 * p.life;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // Ball (3D Radial Chrome Shading)
+      const ballGrad = ctx.createRadialGradient(
+        ball.x - ball.r * 0.3,
+        ball.y - ball.r * 0.3,
+        ball.r * 0.1,
+        ball.x,
+        ball.y,
+        ball.r
+      );
+      ballGrad.addColorStop(0, '#ffffff');
+      ballGrad.addColorStop(0.7, '#cbd5e1');
+      ballGrad.addColorStop(1, '#475569');
+
       ctx.beginPath();
       ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
-      ctx.fillStyle = '#e2e8f0';
-      ctx.shadowColor = '#e2e8f0';
-      ctx.shadowBlur = 10;
+      ctx.fillStyle = ballGrad;
+      ctx.shadowColor = '#cbd5e1';
+      ctx.shadowBlur = 8;
       ctx.fill();
       ctx.shadowBlur = 0;
 
-      // Score + balls left
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = 'bold 14px monospace';
+      // Score + balls left HUD (Arcade Readout)
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+      ctx.fillRect(WALL_LEFT, HEIGHT - 25, WALL_RIGHT - WALL_LEFT, 25);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 5;
+      ctx.font = 'bold 13px "Courier New", Courier, monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(`Score: ${scoreRef.current}`, WALL_LEFT + 8, HEIGHT - 8);
+      ctx.fillText(`SCORE: ${scoreRef.current.toString().padStart(6, '0')}`, WALL_LEFT + 10, HEIGHT - 8);
       ctx.textAlign = 'right';
-      ctx.fillText(`Balls: ${ballsLeftRef.current}`, WALL_RIGHT - 8, HEIGHT - 8);
+      ctx.fillText(`BALLS: ${ballsLeftRef.current}`, WALL_RIGHT - 10, HEIGHT - 8);
+      ctx.shadowBlur = 0;
 
       // Drain line (subtle)
       ctx.strokeStyle = '#ef444440';

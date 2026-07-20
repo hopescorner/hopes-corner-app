@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.6.2';
+export const APP_VERSION = '0.6.3';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.6.3',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Neon Arcade Pinball Visual Upgrade',
+                description: 'Upgraded the in-app pinball mini-game with custom neon aesthetics, glowing bumper pulse animations, a chrome 3D ball shader, and a dynamic spark/particle physics system on collisions.',
+            },
+            {
+                type: 'improvement',
+                title: 'Verified deployment gates and parallel testing',
+                description: 'Ensured deployment workflow does not trigger until parallel test suites fully pass.',
+            },
+        ],
+    },
     {
         version: '0.6.2',
         date: 'July 20, 2026',
