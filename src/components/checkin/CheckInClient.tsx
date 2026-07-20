@@ -23,7 +23,7 @@ import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useSecretTap } from '@/hooks/useSecretTap';
 import dynamic from 'next/dynamic';
 import { useCheckInStore } from '@/stores/useCheckInStore';
-import { snapshotToLegacyState, snapshotToMealStatusMap } from '@/lib/checkin/legacyAdapter';
+import { hydrateLegacyStoresFromSnapshot, snapshotToMealStatusMap } from '@/lib/checkin/legacyAdapter';
 import type { CheckInSnapshot } from '@/types/checkin';
 
 const PinballGame = dynamic(
@@ -120,38 +120,7 @@ export default function CheckInClient({
 
     const applySnapshot = useCallback((snapshot: CheckInSnapshot) => {
         hydrateCheckIn(snapshot);
-        const legacy = snapshotToLegacyState(snapshot);
-        useGuestsStore.setState({
-            guests: snapshot.guests.map((guest) => ({
-                ...guest,
-                notes: '',
-                bicycleDescription: '',
-                docId: guest.id,
-            })),
-            warnings: [],
-            guestProxies: [],
-            isLoaded: true,
-            isLoading: false,
-            lastLoadedAt: snapshot.generatedAt,
-        });
-        useMealsStore.setState({
-            ...legacy.meals,
-            isLoaded: true,
-            isLoading: false,
-            lastLoadedAt: snapshot.generatedAt,
-        });
-        useServicesStore.setState({
-            ...legacy.services,
-            isLoaded: true,
-            isLoading: false,
-            lastLoadedAt: snapshot.generatedAt,
-        });
-        useDailyNotesStore.setState({
-            notes: snapshot.dailyNotes,
-            isLoaded: true,
-            isLoading: false,
-            lastLoadedAt: snapshot.generatedAt,
-        });
+        hydrateLegacyStoresFromSnapshot(snapshot);
     }, [hydrateCheckIn]);
 
     // Shared function to load all data

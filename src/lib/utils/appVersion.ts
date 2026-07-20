@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.6.6';
+export const APP_VERSION = '0.6.7';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.6.7',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Accurate Meal Times and Totals',
+                description: 'The Meals activity log no longer shows the same 5:00 AM time for every guest after visiting Check-In, and meal totals no longer double-count or miss RV, lunch bag, and day worker meals — the Services and Dashboard pages now always fetch the real records instead of reusing check-in placeholder data.',
+            },
+            {
+                type: 'fix',
+                title: 'Check-In No Longer Clears Loaded Data',
+                description: 'Returning to the Check-In page no longer wipes already-loaded meal and service history back to today-only placeholder records.',
+            },
+        ],
+    },
     {
         version: '0.6.6',
         date: 'July 20, 2026',

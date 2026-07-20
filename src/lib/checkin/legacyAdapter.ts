@@ -1,7 +1,9 @@
 import type { CheckInServiceRecord, CheckInSnapshot, CheckInTodayStatus } from '@/types/checkin';
 import type { MealStatusMap } from '@/stores/selectors/todayStatusSelectors';
-import type { MealRecord } from '@/stores/useMealsStore';
-import type { useServicesStore } from '@/stores/useServicesStore';
+import { useMealsStore, type MealRecord } from '@/stores/useMealsStore';
+import { useServicesStore } from '@/stores/useServicesStore';
+import { useGuestsStore } from '@/stores/useGuestsStore';
+import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
 import { MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
 
 const dateTimestamp = (date: string) => `${date}T12:00:00.000Z`;
@@ -85,4 +87,45 @@ export function snapshotToLegacyState(snapshot: CheckInSnapshot) {
         meals: { mealRecords, extraMealRecords },
         services: { showerRecords, laundryRecords, bicycleRecords, haircutRecords, holidayRecords },
     };
+}
+
+export function hydrateLegacyStoresFromSnapshot(snapshot: CheckInSnapshot) {
+    const legacy = snapshotToLegacyState(snapshot);
+    useGuestsStore.setState({
+        guests: snapshot.guests.map((guest) => ({
+            ...guest,
+            notes: '',
+            bicycleDescription: '',
+            docId: guest.id,
+        })),
+        warnings: [],
+        guestProxies: [],
+        isLoaded: true,
+        isLoading: false,
+        lastLoadedAt: snapshot.generatedAt,
+    });
+    // Seed the meals/services stores with snapshot-derived records so check-in
+    // UI (status chips, today stats) has data, but never mark them as loaded:
+    // the synthetic records only cover today's counts and carry no real
+    // timestamps, so other pages (Services, Dashboard) must still fetch the
+    // real rows via ensureLoaded. Skip stores that already completed a real
+    // load — overwriting them would drop history and real timestamps.
+    if (!useMealsStore.getState().isLoaded) {
+        useMealsStore.setState({
+            ...legacy.meals,
+            isLoading: false,
+        });
+    }
+    if (!useServicesStore.getState().isLoaded) {
+        useServicesStore.setState({
+            ...legacy.services,
+            isLoading: false,
+        });
+    }
+    useDailyNotesStore.setState({
+        notes: snapshot.dailyNotes,
+        isLoaded: true,
+        isLoading: false,
+        lastLoadedAt: snapshot.generatedAt,
+    });
 }

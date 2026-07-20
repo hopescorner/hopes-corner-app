@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.7] - 2026-07-20
+
+### Fixed
+
+- The Meals activity log no longer shows the same 5:00 AM time for every guest after visiting Check-In: the check-in snapshot seeded placeholder meal records and marked the stores as loaded, so the Services and Dashboard pages skipped fetching the real records — losing real timestamps, RV/lunch-bag/day-worker meals, and all history.
+- Meal totals no longer double-count during check-in: the real-time update for a guest's meal now replaces the snapshot placeholder record instead of appearing alongside it.
+- Returning to the Check-In page no longer wipes already-loaded meal and service data back to today-only placeholder records.
+
 ## [0.6.6] - 2026-07-20
 
 ### Fixed

@@ -260,6 +260,82 @@ describe('useRealtimeSync', () => {
         expect(mockMealsLoadFromSupabase).not.toHaveBeenCalled();
     });
 
+    it('replaces the synthetic snapshot record when the real guest meal row arrives', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'meal_attendance') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'UPDATE',
+            new: { id: 'm-real', guest_id: 'g-1', meal_type: 'guest', quantity: 2, served_on: '2025-01-06', created_at: '2025-01-06T17:05:00Z' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockMealsSetState).toHaveBeenCalledTimes(1);
+        const updater = mockMealsSetState.mock.calls[0][0];
+        const next = updater({
+            mealRecords: [
+                { id: 'snapshot-meal-g-1', guestId: 'g-1', count: 1 },
+                { id: 'snapshot-meal-g-2', guestId: 'g-2', count: 2 },
+            ],
+            rvMealRecords: [],
+            extraMealRecords: [{ id: 'snapshot-extra-g-1', guestId: 'g-1', count: 1 }],
+            dayWorkerMealRecords: [],
+            shelterMealRecords: [],
+            unitedEffortMealRecords: [],
+            lunchBagRecords: [],
+        });
+
+        // The real row supersedes g-1's synthetic record; other guests keep theirs.
+        expect(next.mealRecords.map((r: any) => r.id).sort()).toEqual(['m-real', 'snapshot-meal-g-2']);
+        // Synthetic extras aggregate pre-snapshot rows, so they must survive.
+        expect(next.extraMealRecords.map((r: any) => r.id)).toEqual(['snapshot-extra-g-1']);
+    });
+
+    it('keeps the synthetic guest meal record when an extra meal row arrives', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'meal_attendance') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 'x-real', guest_id: 'g-1', meal_type: 'extra', quantity: 1, served_on: '2025-01-06', created_at: '2025-01-06T17:10:00Z' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        const updater = mockMealsSetState.mock.calls[0][0];
+        const next = updater({
+            mealRecords: [{ id: 'snapshot-meal-g-1', guestId: 'g-1', count: 1 }],
+            rvMealRecords: [],
+            extraMealRecords: [{ id: 'snapshot-extra-g-1', guestId: 'g-1', count: 1 }],
+            dayWorkerMealRecords: [],
+            shelterMealRecords: [],
+            unitedEffortMealRecords: [],
+            lunchBagRecords: [],
+        });
+
+        expect(next.mealRecords.map((r: any) => r.id)).toEqual(['snapshot-meal-g-1']);
+        expect(next.extraMealRecords.map((r: any) => r.id).sort()).toEqual(['snapshot-extra-g-1', 'x-real']);
+    });
+
     it('refreshes services when laundry booking is created on another device', async () => {
         let capturedOnChange: ((payload: any) => void) | undefined;
         mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {

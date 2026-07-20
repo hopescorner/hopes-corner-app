@@ -269,9 +269,15 @@ export function useRealtimeSync() {
                         }
                     }
                     const bucket = bucketOf(mapped.type);
+                    // The check-in snapshot seeds a synthetic `snapshot-meal-<guestId>`
+                    // record per guest. A guest has exactly one real guest-meal row per
+                    // day, so a realtime guest row supersedes the synthetic record and
+                    // must replace it or the meal counts double. (Synthetic extras stay:
+                    // they aggregate pre-snapshot rows, while each new extra is its own row.)
+                    const syntheticMealId = mapped.type === 'guest' ? `snapshot-meal-${row.guest_id}` : null;
                     useMealsStore.setState((state: any) => {
                         const cleared = {
-                            mealRecords: state.mealRecords.filter((r: any) => r.id !== mapped.id),
+                            mealRecords: state.mealRecords.filter((r: any) => r.id !== mapped.id && r.id !== syntheticMealId),
                             rvMealRecords: state.rvMealRecords.filter((r: any) => r.id !== mapped.id),
                             extraMealRecords: state.extraMealRecords.filter((r: any) => r.id !== mapped.id),
                             dayWorkerMealRecords: state.dayWorkerMealRecords.filter((r: any) => r.id !== mapped.id),

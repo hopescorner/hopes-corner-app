@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { snapshotToLegacyState, snapshotToMealStatusMap } from '@/lib/checkin/legacyAdapter';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { hydrateLegacyStoresFromSnapshot, snapshotToLegacyState, snapshotToMealStatusMap } from '@/lib/checkin/legacyAdapter';
+import { useMealsStore } from '@/stores/useMealsStore';
+import { useServicesStore } from '@/stores/useServicesStore';
 import type { CheckInSnapshot } from '@/types/checkin';
 
 describe('snapshotToLegacyState', () => {
@@ -22,7 +24,7 @@ describe('snapshotToLegacyState', () => {
                 },
             },
             dailyNotes: [],
-        } as CheckInSnapshot;
+        } as unknown as CheckInSnapshot;
 
         const result = snapshotToLegacyState(snapshot);
 
@@ -32,6 +34,62 @@ describe('snapshotToLegacyState', () => {
         expect(result.services.showerRecords).toEqual([
             expect.objectContaining({ id: 'shower-1', guestId: 'guest-1', time: '08:00', dateKey: '2026-07-19' }),
         ]);
+    });
+});
+
+describe('hydrateLegacyStoresFromSnapshot', () => {
+    const snapshot = {
+        generatedAt: '2026-07-19T18:00:00.000Z',
+        directoryVersion: 'v1',
+        serviceDate: '2026-07-19',
+        guests: [{ id: 'guest-1' }],
+        todayByGuest: {
+            'guest-1': {
+                mealCount: 2,
+                extraMealCount: 0,
+                totalMeals: 2,
+                shower: null,
+                laundry: null,
+                bicycle: null,
+                haircut: null,
+                holiday: null,
+            },
+        },
+        dailyNotes: [],
+    } as unknown as CheckInSnapshot;
+
+    beforeEach(() => {
+        useMealsStore.setState({ mealRecords: [], extraMealRecords: [], isLoaded: false, isLoading: false });
+        useServicesStore.setState({ isLoaded: false, isLoading: false });
+    });
+
+    it('seeds meal records without marking the store as loaded, so pages still fetch real rows', () => {
+        hydrateLegacyStoresFromSnapshot(snapshot);
+
+        const state = useMealsStore.getState();
+        expect(state.mealRecords).toHaveLength(1);
+        expect(state.mealRecords[0].id).toBe('snapshot-meal-guest-1');
+        expect(state.isLoaded).toBe(false);
+        expect(useServicesStore.getState().isLoaded).toBe(false);
+    });
+
+    it('does not overwrite a store that already holds real data', () => {
+        const realRecord = {
+            id: 'real-row-1',
+            guestId: 'guest-1',
+            count: 2,
+            type: 'guest',
+            date: '2026-07-19T15:59:00.000Z',
+            dateKey: '2026-07-19',
+            createdAt: '2026-07-19T15:59:00.000Z',
+        };
+        useMealsStore.setState({ mealRecords: [realRecord] as never, isLoaded: true });
+
+        hydrateLegacyStoresFromSnapshot(snapshot);
+
+        const state = useMealsStore.getState();
+        expect(state.mealRecords).toEqual([realRecord]);
+        expect(state.isLoaded).toBe(true);
     });
 });
 
