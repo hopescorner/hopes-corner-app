@@ -1,7 +1,7 @@
 import { createClient } from './client';
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
-type TableName = 
+export type TableName =
     | 'shower_reservations' 
     | 'laundry_bookings' 
     | 'meal_attendance' 
@@ -16,7 +16,7 @@ type TableName =
 
 type ChangeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
 
-interface SubscriptionOptions {
+export interface SubscriptionOptions {
     table: TableName;
     event?: ChangeEvent;
     filter?: string;
@@ -31,12 +31,46 @@ const activeChannels: Map<string, RealtimeChannel> = new Map();
 
 const realtimeDebugEnabled = process.env.NEXT_PUBLIC_REALTIME_DEBUG === 'true';
 
+function dispatchPayload(options: SubscriptionOptions, payload: RealtimePostgresChangesPayload<any>) {
+    const { onInsert, onUpdate, onDelete, onChange } = options;
+    if (payload.eventType === 'INSERT' && onInsert) onInsert(payload);
+    else if (payload.eventType === 'UPDATE' && onUpdate) onUpdate(payload);
+    else if (payload.eventType === 'DELETE' && onDelete) onDelete(payload);
+    onChange?.(payload);
+}
+
+/** Register several postgres-change handlers on a single websocket channel. */
+export function subscribeToTables(options: SubscriptionOptions[], scope = 'route'): () => void {
+    const channelName = `realtime:${scope}:${options.map((option) => option.table).join(',')}`;
+    if (activeChannels.has(channelName)) return () => unsubscribeFromChannel(channelName);
+
+    const supabase = createClient();
+    let channel = supabase.channel(channelName);
+    for (const option of options) {
+        const config: Record<string, string> = {
+            event: option.event || '*',
+            schema: 'public',
+            table: option.table,
+        };
+        if (option.filter) config.filter = option.filter;
+        channel = channel.on('postgres_changes', config as any, (payload) => {
+            if (realtimeDebugEnabled) console.log(`[Realtime] ${option.table} change:`, payload.eventType);
+            dispatchPayload(option, payload);
+        });
+    }
+    channel = channel.subscribe((status) => {
+        if (realtimeDebugEnabled) console.log(`[Realtime] ${scope} subscription status:`, status);
+    });
+    activeChannels.set(channelName, channel);
+    return () => unsubscribeFromChannel(channelName);
+}
+
 /**
  * Subscribe to realtime changes on a Supabase table
  * Returns an unsubscribe function
  */
 export function subscribeToTable(options: SubscriptionOptions): () => void {
-    const { table, event = '*', filter, onInsert, onUpdate, onDelete, onChange } = options;
+    const { table, event = '*', filter } = options;
     
     // Create unique channel name
     const channelName = `realtime:${table}:${filter || 'all'}`;
@@ -68,19 +102,7 @@ export function subscribeToTable(options: SubscriptionOptions): () => void {
                 console.log(`[Realtime] ${table} change:`, payload.eventType);
             }
             
-            // Call specific event handlers
-            if (payload.eventType === 'INSERT' && onInsert) {
-                onInsert(payload);
-            } else if (payload.eventType === 'UPDATE' && onUpdate) {
-                onUpdate(payload);
-            } else if (payload.eventType === 'DELETE' && onDelete) {
-                onDelete(payload);
-            }
-            
-            // Always call onChange if provided
-            if (onChange) {
-                onChange(payload);
-            }
+            dispatchPayload(options, payload);
         })
         .subscribe((status) => {
             if (realtimeDebugEnabled) {

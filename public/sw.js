@@ -1,15 +1,17 @@
 /// <reference lib="webworker" />
 
 // IMPORTANT: Update this version when APP_VERSION changes in src/lib/utils/appVersion.ts
+<<<<<<< HEAD
 const APP_VERSION = '0.5.53';
 const CACHE_NAME = `hopes-corner-v${APP_VERSION}`;
+=======
+const APP_VERSION = '0.6.0';
+const STATIC_CACHE_NAME = `hopes-corner-static-v${APP_VERSION}`;
+>>>>>>> origin/main
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
-    '/',
-    '/check-in',
-    '/services',
-    '/dashboard',
+    '/offline.html',
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png',
@@ -18,7 +20,7 @@ const PRECACHE_ASSETS = [
 // Install event - cache core assets
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
+        caches.open(STATIC_CACHE_NAME).then((cache) => {
             console.log('[SW] Precaching assets for version', APP_VERSION);
             return cache.addAll(PRECACHE_ASSETS);
         })
@@ -31,7 +33,9 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
-            const oldCaches = cacheNames.filter((name) => name !== CACHE_NAME);
+            const oldCaches = cacheNames.filter((name) =>
+                name.startsWith('hopes-corner-') && name !== STATIC_CACHE_NAME
+            );
             return Promise.all(
                 oldCaches.map((name) => caches.delete(name))
             ).then(() => {
@@ -62,44 +66,38 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Skip API requests - always go to network
-    if (url.pathname.startsWith('/api/')) {
-        return;
-    }
-
-    // For navigation requests, try network first
+    // Authenticated navigation always uses the network. The cache contains only
+    // a neutral shell, never guest data or an authenticated RSC response.
     if (request.mode === 'navigate') {
         event.respondWith(
             fetch(request)
-                .catch(() => {
-                    return caches.match(request).then((cached) => {
-                        return cached || caches.match('/');
-                    });
-                })
+                .catch(() => caches.match('/offline.html'))
         );
         return;
     }
 
-    // For other requests, use stale-while-revalidate strategy
-    // Only cache GET requests - POST, PUT, DELETE etc. cannot be cached
-    if (request.method !== 'GET') {
+    const isVersionedStaticAsset = url.pathname.startsWith('/_next/static/');
+    const isPublicStaticAsset = url.pathname.startsWith('/icons/')
+        || url.pathname === '/manifest.json'
+        || url.pathname.endsWith('.svg');
+
+    // Never cache APIs, RSC payloads, or arbitrary authenticated GET responses.
+    if (request.method !== 'GET' || (!isVersionedStaticAsset && !isPublicStaticAsset)) {
         return;
     }
 
     event.respondWith(
         caches.match(request).then((cached) => {
-            const networkFetch = fetch(request).then((response) => {
-                // Cache successful GET responses only
+            if (cached) return cached;
+            return fetch(request).then((response) => {
                 if (response.ok) {
                     const responseClone = response.clone();
-                    caches.open(CACHE_NAME).then((cache) => {
+                    caches.open(STATIC_CACHE_NAME).then((cache) => {
                         cache.put(request, responseClone);
                     });
                 }
                 return response;
             });
-
-            return cached || networkFetch;
         })
     );
 });

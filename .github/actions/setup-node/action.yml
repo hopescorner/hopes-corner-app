@@ -1,0 +1,22 @@
+name: Setup Node
+description: Install Node.js and optionally run npm ci
+
+inputs:
+  install-dependencies:
+    description: Whether to run npm ci
+    required: false
+    default: "true"
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v6.4.0
+      with:
+        node-version: "24"
+        cache: npm
+
+    - name: Install dependencies
+      if: inputs.install-dependencies == 'true'
+      shell: bash
+      run: npm ci

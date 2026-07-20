@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
     subscribeToTable,
+    subscribeToTables,
     unsubscribeFromAll,
     getActiveSubscriptionCount,
     hasActiveSubscription,
@@ -13,10 +14,11 @@ const mockChannel = {
 };
 
 const mockRemoveChannel = vi.fn();
+const mockCreateChannel = vi.fn(() => mockChannel);
 
 vi.mock('../client', () => ({
     createClient: vi.fn(() => ({
-        channel: vi.fn(() => mockChannel),
+        channel: mockCreateChannel,
         removeChannel: mockRemoveChannel,
     })),
 }));
@@ -133,6 +135,21 @@ describe('Supabase Realtime Utilities', () => {
             capturedCallback({ eventType: 'DELETE', old: { id: '1' } });
             expect(onDelete).toHaveBeenCalled();
             expect(onInsert).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('subscribeToTables', () => {
+        it('registers many table handlers on one websocket channel', () => {
+            subscribeToTables([
+                { table: 'shower_reservations', onChange: vi.fn() },
+                { table: 'laundry_bookings', onChange: vi.fn() },
+                { table: 'meal_attendance', onChange: vi.fn() },
+            ]);
+
+            expect(mockCreateChannel).toHaveBeenCalledTimes(1);
+            expect(mockChannel.on).toHaveBeenCalledTimes(3);
+            expect(mockChannel.subscribe).toHaveBeenCalledTimes(1);
+            expect(getActiveSubscriptionCount()).toBe(1);
         });
     });
 

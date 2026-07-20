@@ -1,11 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
 import { auth } from '@/lib/auth/config';
 import { canAccessRoute, getDefaultRoute, type UserRole } from '@/lib/auth/types';
 
 export async function proxy(request: NextRequest) {
-    // Update Supabase session
-    const response = await updateSession(request);
+    const response = NextResponse.next();
 
     const pathname = request.nextUrl.pathname;
 

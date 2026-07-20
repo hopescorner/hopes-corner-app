@@ -1,10 +1,40 @@
 # Changelog
 
+<<<<<<< HEAD
 ## [0.5.53] - 2026-07-15
 
 ### Removed
 
 - Removed the in-app GitHub issue filing feature that used Copilot to triage feedback.
+=======
+## [0.6.0] - 2026-07-19
+
+### Performance
+
+- Check-in now opens from a compact daily snapshot, searches a prebuilt guest directory, and loads full guest details only when needed for a much faster, more responsive tablet experience.
+
+### Improved
+
+- Meal and service actions now respond immediately and reconcile with the server so check-in tablets stay aligned when staff work at the same time.
+
+## [0.5.55] - 2026-07-18
+
+### Fixed
+
+- The Meals service summary now shows shelter meals only for the selected date instead of displaying the total across all loaded dates.
+
+## [0.5.54] - 2026-07-18
+
+### Fixed
+
+- Guests with a cancelled or no-show shower can now be rebooked or marked completed. If their original slot has since filled, the completion is automatically recorded as an unscheduled waitlist shower instead of failing with a capacity error.
+
+## [0.5.53] - 2026-07-17
+
+### Fixed
+
+- RV meals (40) are no longer automatically added on Wednesdays, and the RV bulk entry option is hidden when the selected date falls on a Wednesday.
+>>>>>>> origin/main
 
 ## [0.5.52] - 2026-07-15
 

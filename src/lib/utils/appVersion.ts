@@ -3,7 +3,11 @@
  * Centralizes version information and changelog data
  */
 
+<<<<<<< HEAD
 export const APP_VERSION = '0.5.53';
+=======
+export const APP_VERSION = '0.6.0';
+>>>>>>> origin/main
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -20,6 +24,7 @@ export interface ChangelogEntry {
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
     {
+<<<<<<< HEAD
         version: '0.5.53',
         date: 'July 15, 2026',
         highlights: [
@@ -27,6 +32,53 @@ export const CHANGELOG: ChangelogEntry[] = [
                 type: 'improvement',
                 title: 'Remove GitHub Feedback Feature',
                 description: 'Removed the in-app GitHub issue filing feature that used Copilot to triage feedback.',
+=======
+        version: '0.6.0',
+        date: 'July 19, 2026',
+        highlights: [
+            {
+                type: 'performance',
+                title: 'Blazingly Fast Check-In',
+                description: 'Check-in now opens from a compact daily snapshot, searches a prebuilt guest directory, and loads full guest details only when needed for a much faster, more responsive tablet experience.',
+            },
+            {
+                type: 'improvement',
+                title: 'Instant, Reliable Multi-Tablet Actions',
+                description: 'Meal and service actions now respond immediately and reconcile with the server so check-in tablets stay aligned when staff work at the same time.',
+            },
+        ],
+    },
+    {
+        version: '0.5.55',
+        date: 'July 18, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Correct Shelter Meal Daily Totals',
+                description: 'The Meals service summary now shows shelter meals only for the selected date instead of displaying the total across all loaded dates.',
+            },
+        ],
+    },
+    {
+        version: '0.5.54',
+        date: 'July 18, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Rebook Cancelled Showers',
+                description: 'Guests with a cancelled or no-show shower can now be rebooked or marked completed. If the original slot has filled, the completion is recorded as an unscheduled waitlist shower instead of failing.',
+            },
+        ],
+    },
+    {
+        version: '0.5.53',
+        date: 'July 17, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Disable RV Meal Distribution on Wednesdays',
+                description: 'RV meals (40) are no longer automatically added on Wednesdays, and the RV bulk entry option is hidden when the selected date falls on a Wednesday.',
+>>>>>>> origin/main
             },
         ],
     },

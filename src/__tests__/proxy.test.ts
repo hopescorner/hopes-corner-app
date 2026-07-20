@@ -49,7 +49,7 @@ describe('proxy', () => {
         const req = buildRequest('/login');
         const res = await proxy(req as any);
         expect(res).toEqual({ type: 'next' });
-        expect(mocks.updateSession).toHaveBeenCalled();
+        expect(mocks.updateSession).not.toHaveBeenCalled();
     });
 
     it('returns early for api routes so handlers can enforce auth themselves', async () => {

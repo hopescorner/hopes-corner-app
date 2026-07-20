@@ -29,7 +29,7 @@ import {
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific, parsePacificDateParts } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import { MAX_BASE_MEALS_PER_DAY } from '@/lib/constants/constants';
@@ -147,6 +147,9 @@ export function MealsSection() {
 
     const isToday = selectedDate === todayPacificDateString();
 
+    // RV meals are not distributed on Wednesdays
+    const isWednesdayDate = parsePacificDateParts(selectedDate)?.dayOfWeek === 3;
+
     // Set of guest IDs that already have a guest meal record on the selected date
     const guestsWithMealOnDateSet = useMemo(() => {
         const set = new Set<string>();
@@ -242,7 +245,7 @@ const proxyPickerIds = new Set<string>();
             guestCount,
             rvCount: sumCount(rvMeals),
             dayWorkerCount: sumCount(dayWorkerMeals),
-            shelterCount: sumCount(shelterMealRecords),
+            shelterCount: sumCount(shelterMeals),
             ueCount: sumCount(ueMeals),
             lunchBagCount: sumCount(lunchBags),
             extraCount: sumCount(extraMeals),
@@ -821,7 +824,7 @@ const proxyPickerIds = new Set<string>();
 
                             <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3">Bulk Meal Entry</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                                {MEAL_CATEGORIES.map((category) => {
+                                {MEAL_CATEGORIES.filter((category) => !(category.id === 'rv' && isWednesdayDate)).map((category) => {
                                     const Icon = category.icon;
                                     const qty = quantities[category.id] || 0;
                                     const isAdding = addingType === category.id;

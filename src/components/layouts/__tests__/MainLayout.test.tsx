@@ -5,6 +5,8 @@ import MainLayout from '../MainLayout';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 
+const mutationObserve = vi.fn();
+
 // Mock next-auth/react
 vi.mock('next-auth/react', () => ({
     useSession: vi.fn(),
@@ -75,7 +77,7 @@ describe('MainLayout', () => {
         // Mock MutationObserver
         global.MutationObserver = class MutationObserver {
             constructor(callback: any) { }
-            observe = vi.fn();
+            observe = mutationObserve;
             disconnect = vi.fn();
         };
     });
@@ -120,18 +122,11 @@ describe('MainLayout', () => {
         expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/login' });
     });
 
-    it('reloads the page and clears caches when the logo is clicked', async () => {
+    it('uses normal client navigation for the logo without clearing caches', async () => {
         vi.mocked(useSession).mockReturnValue({
             data: { user: { role: 'admin', name: 'Admin' } },
             status: 'authenticated',
         } as any);
-
-        const reloadSpy = vi.fn();
-        const originalLocation = window.location;
-        Object.defineProperty(window, 'location', {
-            configurable: true,
-            value: { ...originalLocation, reload: reloadSpy },
-        });
 
         const deleteSpy = vi.fn().mockResolvedValue(true);
         const keysSpy = vi.fn().mockResolvedValue(['cache-1', 'cache-2']);
@@ -147,19 +142,10 @@ describe('MainLayout', () => {
         const logoLink = logo.closest('a');
         expect(logoLink).toBeDefined();
 
-        await act(async () => {
-            fireEvent.click(logoLink!);
-        });
-
-        expect(keysSpy).toHaveBeenCalled();
-        expect(deleteSpy).toHaveBeenCalledWith('cache-1');
-        expect(deleteSpy).toHaveBeenCalledWith('cache-2');
-        expect(reloadSpy).toHaveBeenCalled();
-
-        Object.defineProperty(window, 'location', {
-            configurable: true,
-            value: originalLocation,
-        });
+        expect(logoLink?.getAttribute('href')).toBe('/check-in');
+        await act(async () => fireEvent.click(logoLink!));
+        expect(keysSpy).not.toHaveBeenCalled();
+        expect(deleteSpy).not.toHaveBeenCalled();
         vi.unstubAllGlobals();
     });
 
@@ -176,7 +162,7 @@ describe('MainLayout', () => {
         expect(main.style.paddingBottom).toBeDefined();
     });
 
-    it('handles touch detection correctly', () => {
+    it('reserves mobile navigation space with CSS instead of layout observers', () => {
         vi.mocked(window.matchMedia).mockReturnValue({
             matches: true,
             addEventListener: vi.fn(),
@@ -184,12 +170,8 @@ describe('MainLayout', () => {
         } as any);
 
         render(<MainLayout>Content</MainLayout>);
-        // Force the effect to run
-        act(() => {
-            vi.advanceTimersByTime(0);
-        });
-
         const main = screen.getByRole('main');
-        expect(main.style.paddingBottom).toContain('calc');
+        expect(main.className).toContain('pb-[7.5rem]');
+        expect(mutationObserve).not.toHaveBeenCalled();
     });
 });

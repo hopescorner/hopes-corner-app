@@ -28,6 +28,12 @@ let mockMealRecords: Array<{
 }> = [
     { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
 ];
+let mockShelterMealRecords: Array<{
+    id: string;
+    count: number;
+    date: string;
+    type: string;
+}> = [];
 
 vi.mock('@/stores/useMealsStore', () => ({
     useMealsStore: vi.fn((selector) => {
@@ -37,7 +43,7 @@ vi.mock('@/stores/useMealsStore', () => ({
             rvMealRecords: [
                 { id: 'rv1', type: 'rv_delivery', count: 50, date: '2026-01-08' },
             ],
-            shelterMealRecords: [],
+            shelterMealRecords: mockShelterMealRecords,
             dayWorkerMealRecords: [],
             unitedEffortMealRecords: [],
             lunchBagRecords: [
@@ -87,6 +93,10 @@ vi.mock('@/lib/utils/date', () => ({
     pacificDateStringFrom: (date: string) => date ? date.slice(0, 10) : null,
     formatTimeInPacific: () => '12:00 PM',
     formatPacificTimeString: (timeStr: string) => timeStr,
+    parsePacificDateParts: (dateStr: string) => {
+        const d = new Date(dateStr + 'T12:00:00');
+        return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), dayOfWeek: d.getDay() };
+    },
 }));
 
 describe('MealsSection Component', () => {
@@ -96,6 +106,7 @@ describe('MealsSection Component', () => {
         mockMealRecords = [
             { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
         ];
+        mockShelterMealRecords = [];
         mockUpdateAutoMealAdditionsEnabled.mockResolvedValue(undefined);
         mockLoadSettings.mockResolvedValue(undefined);
     });
@@ -141,6 +152,20 @@ describe('MealsSection Component', () => {
         it('displays lunch bag count', () => {
             render(<MealsSection />);
             expect(screen.getByText('125')).toBeDefined();
+        });
+
+        it('displays only shelter meals from the selected date', () => {
+            mockShelterMealRecords = [
+                { id: 'shelter-selected', type: 'shelter', count: 7, date: '2026-01-08' },
+                { id: 'shelter-other-date', type: 'shelter', count: 382, date: '2026-01-03' },
+            ];
+
+            render(<MealsSection />);
+
+            const shelterStat = screen.getByLabelText('Shelter icon').closest('div');
+            expect(shelterStat).not.toBeNull();
+            expect(within(shelterStat as HTMLElement).getByText('7')).toBeDefined();
+            expect(within(shelterStat as HTMLElement).queryByText('389')).toBeNull();
         });
 
         it('shows professional icons in meal summary cards', () => {

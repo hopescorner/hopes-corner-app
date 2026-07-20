@@ -187,31 +187,31 @@ describe('ShowersSection Cancelled Tab', () => {
         });
     });
 
-    it('shows Rebook button for cancelled showers', async () => {
+    it('shows Mark Done button for cancelled showers', async () => {
         render(<ShowersSection />);
         
         const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
-            const rebookButtons = screen.getAllByRole('button', { name: /rebook shower/i });
-            expect(rebookButtons.length).toBe(2); // One for each cancelled/no_show shower
+            const completeButtons = screen.getAllByRole('button', { name: /complete cancelled shower/i });
+            expect(completeButtons.length).toBe(2); // One for each cancelled/no_show shower
         });
     });
 
-    it('calls updateShowerStatus when Rebook is clicked', async () => {
+    it('marks the shower done when Mark Done is clicked', async () => {
         render(<ShowersSection />);
         
         const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
-            const rebookButtons = screen.getAllByRole('button', { name: /rebook shower/i });
-            fireEvent.click(rebookButtons[0]);
+            const completeButtons = screen.getAllByRole('button', { name: /complete cancelled shower/i });
+            fireEvent.click(completeButtons[0]);
         });
         
         await waitFor(() => {
-            expect(mockUpdateShowerStatus).toHaveBeenCalledWith(expect.any(String), 'booked');
+            expect(mockUpdateShowerStatus).toHaveBeenCalledWith(expect.any(String), 'done');
         });
     });
 

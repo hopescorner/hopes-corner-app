@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useMemo, memo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useMemo, memo, useCallback } from 'react';
 import { MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
+import dynamic from 'next/dynamic';
 import {
     User,
     ChevronDown,
@@ -29,7 +28,6 @@ import {
     Bell,
     Clock
 } from 'lucide-react';
-import LinkedGuestsList from './LinkedGuestsList';
 import { cn } from '@/lib/utils/cn';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { useMealsStore } from '@/stores/useMealsStore';
@@ -37,12 +35,10 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useModalStore } from '@/stores/useModalStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
-import { GuestEditModal } from '@/components/modals/GuestEditModal';
-import { BanManagementModal } from '@/components/modals/BanManagementModal';
-import { WarningManagementModal } from '@/components/modals/WarningManagementModal';
-import { ReminderManagementModal } from '@/components/modals/ReminderManagementModal';
-import { MobileServiceSheet } from '@/components/checkin/MobileServiceSheet';
 import { useRemindersStore } from '@/stores/useRemindersStore';
+import { useCheckInStore } from '@/stores/useCheckInStore';
+import { executeOptimisticMeal } from '@/lib/checkin/clientCommands';
+import type { CheckInGuestContext } from '@/types/checkin';
 import type { 
     MealStatusMap, 
     ServiceStatusMap, 
@@ -60,6 +56,13 @@ import {
 } from '@/stores/selectors/todayStatusSelectors';
 import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
+
+const LinkedGuestsList = dynamic(() => import('./LinkedGuestsList'));
+const GuestEditModal = dynamic(() => import('@/components/modals/GuestEditModal').then((module) => module.GuestEditModal));
+const BanManagementModal = dynamic(() => import('@/components/modals/BanManagementModal').then((module) => module.BanManagementModal));
+const WarningManagementModal = dynamic(() => import('@/components/modals/WarningManagementModal').then((module) => module.WarningManagementModal));
+const ReminderManagementModal = dynamic(() => import('@/components/modals/ReminderManagementModal').then((module) => module.ReminderManagementModal));
+const MobileServiceSheet = dynamic(() => import('@/components/checkin/MobileServiceSheet').then((module) => module.MobileServiceSheet));
 
 interface GuestCardProps {
     guest: any;
@@ -108,6 +111,7 @@ type PureGuestCardProps = GuestCardProps & {
     addAction: (type: any, data?: any) => void;
     undoAction: (actionId: string) => Promise<any>;
     getActionsForGuestToday: (guestId: string) => any[];
+    loadGuestContext?: () => Promise<void>;
 };
 
 const EMPTY_ARRAY: any[] = [];
@@ -170,6 +174,7 @@ function PureGuestCard({
     addAction,
     undoAction,
     getActionsForGuestToday,
+    loadGuestContext,
 }: PureGuestCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isPending, setIsPending] = useState(false);
@@ -178,7 +183,6 @@ function PureGuestCard({
     const [showWarningModal, setShowWarningModal] = useState(false);
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [showMobileSheet, setShowMobileSheet] = useState(false);
-    const prefersReducedMotion = useReducedMotion();
 
     const warningBadgeCount = warningsCount ?? 0;
     const linkedBadgeCount = linkedGuestsCount ?? 0;
@@ -214,7 +218,11 @@ function PureGuestCard({
     const localServiceStatus = useMemo(() => {
         if (serviceStatusMap) return defaultServiceStatus;
         const shower = showerRecords.find(
-            (r) => r.guestId === guest.id && pacificDateStringFrom(r.date) === today
+            (r) =>
+                r.guestId === guest.id &&
+                pacificDateStringFrom(r.date) === today &&
+                r.status !== 'cancelled' &&
+                r.status !== 'no_show'
         );
         const laundry = laundryRecords.find(
             (r) => r.guestId === guest.id && pacificDateStringFrom(r.date) === today
@@ -377,6 +385,7 @@ function PureGuestCard({
         if (compact) return;
         const next = !isExpanded;
         setIsExpanded(next);
+        if (next) void loadGuestContext?.();
         onExpandedChange?.(guest.id, next);
         if (onSelect) onSelect();
     };
@@ -445,16 +454,8 @@ function PureGuestCard({
         if (onClearSearch) onClearSearch();
     };
 
-    // Conditionally wrap in motion.div for layout animation
-    // When disableLayoutAnimation is true, use a plain div for better performance
-    const CardWrapper = disableLayoutAnimation ? 'div' : motion.div;
-    const cardWrapperProps = disableLayoutAnimation 
-        ? {} 
-        : { layout: true };
-
     return (
-        <CardWrapper
-            {...cardWrapperProps}
+        <div
             className={cn(
                 'group relative overflow-hidden transition-all duration-300 border bg-white',
                 compact ? 'rounded-lg' : 'rounded-2xl',
@@ -820,15 +821,8 @@ function PureGuestCard({
             </div>
 
             {/* Expanded Content */}
-            <AnimatePresence>
-                {isExpanded && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="border-t border-gray-100 bg-gray-50/30 overflow-hidden"
-                    >
+            {isExpanded && (
+                    <div className="border-t border-gray-100 bg-gray-50/30 overflow-hidden motion-safe:animate-[fadeIn_160ms_ease-out]">
                         <div className="p-4 space-y-4">
                             {/* Ban Status */}
                             {isBanned ? (
@@ -1094,25 +1088,14 @@ function PureGuestCard({
                                 </button>
                             </div>
                         </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                    </div>
+            )}
 
             {/* Modals */}
-            <AnimatePresence>
-                {showEditModal && (
-                    <GuestEditModal guest={guest} onClose={() => setShowEditModal(false)} />
-                )}
-                {showBanModal && (
-                    <BanManagementModal guest={guest} onClose={() => setShowBanModal(false)} />
-                )}
-                {showWarningModal && (
-                    <WarningManagementModal guest={guest} onClose={() => setShowWarningModal(false)} />
-                )}
-                {showReminderModal && (
-                    <ReminderManagementModal guest={guest} onClose={() => setShowReminderModal(false)} />
-                )}
-            </AnimatePresence>
+            {showEditModal && <GuestEditModal guest={guest} onClose={() => setShowEditModal(false)} />}
+            {showBanModal && <BanManagementModal guest={guest} onClose={() => setShowBanModal(false)} />}
+            {showWarningModal && <WarningManagementModal guest={guest} onClose={() => setShowWarningModal(false)} />}
+            {showReminderModal && <ReminderManagementModal guest={guest} onClose={() => setShowReminderModal(false)} />}
 
             {/* Mobile Service Sheet */}
             <MobileServiceSheet
@@ -1143,7 +1126,7 @@ function PureGuestCard({
                 hasLaundryToday={!!todayLaundry}
                 isBannedFromLaundry={isBannedFromLaundry}
             />
-        </CardWrapper>
+        </div>
     );
 }
 
@@ -1168,6 +1151,78 @@ function GuestCardImpl(props: GuestCardProps) {
     const { addMealRecord, addExtraMealRecord } = useMealsStore(
         useShallow((s) => ({ addMealRecord: s.addMealRecord, addExtraMealRecord: s.addExtraMealRecord }))
     );
+    const snapshotReady = useCheckInStore((s) => s.isReady);
+    const optimisticMeal = useCheckInStore((s) => s.optimisticMeal);
+    const replaceMealCounts = useCheckInStore((s) => s.replaceMealCounts);
+    const acknowledgeMealRecord = useCheckInStore((s) => s.acknowledgeMealRecord);
+    const executeSnapshotMeal = useCallback((guestId: string, count = 1, extra = false) => {
+        const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? `${guestId}-${Date.now()}-${Math.random()}`;
+        return executeOptimisticMeal({
+            guestId,
+            quantity: count,
+            extra,
+            optimisticMeal,
+            replaceMealCounts,
+            acknowledgeMealRecord,
+            request: fetch,
+            idempotencyKey,
+        });
+    }, [optimisticMeal, replaceMealCounts, acknowledgeMealRecord]);
+    const effectiveAddMealRecord = useCallback((guestId: string, count = 1) => (
+        snapshotReady ? executeSnapshotMeal(guestId, count, false) : addMealRecord(guestId, count)
+    ), [snapshotReady, executeSnapshotMeal, addMealRecord]);
+    const effectiveAddExtraMealRecord = useCallback((guestId: string, count = 1) => (
+        snapshotReady ? executeSnapshotMeal(guestId, count, true) : addExtraMealRecord(guestId, count)
+    ), [snapshotReady, executeSnapshotMeal, addExtraMealRecord]);
+    const [guestContext, setGuestContext] = useState<CheckInGuestContext | null>(null);
+    const [contextPromise, setContextPromise] = useState<Promise<void> | null>(null);
+    const loadGuestContext = useCallback(() => {
+        if (!snapshotReady || guestContext) return Promise.resolve();
+        if (contextPromise) return contextPromise;
+        const pending = fetch(`/api/check-in/guests/${guest.id}/context`)
+            .then(async (response) => {
+                const body = await response.json() as CheckInGuestContext & { error?: string };
+                if (!response.ok) throw new Error(body.error || 'Unable to load guest details');
+                setGuestContext(body);
+                const guestState = useGuestsStore.getState();
+                const otherGuests = guestState.guests.filter((item) => item.id !== guest.id && !body.linkedGuests.some((linked) => linked.id === item.id));
+                const linkedGuests = body.linkedGuests.map((linked) => ({
+                    ...linked,
+                    notes: '',
+                    bicycleDescription: '',
+                    docId: linked.id,
+                }));
+                useGuestsStore.setState({
+                    guests: [...otherGuests, body.guest, ...linkedGuests],
+                    warnings: [
+                        ...guestState.warnings.filter((warning) => warning.guestId !== guest.id),
+                        ...(body.warnings as typeof guestState.warnings),
+                    ],
+                    guestProxies: [
+                        ...guestState.guestProxies.filter((proxy) => proxy.guestId !== guest.id && proxy.proxyId !== guest.id),
+                        ...body.linkedGuests.map((linked) => ({
+                            id: `context-${guest.id}-${linked.id}`,
+                            guestId: guest.id,
+                            proxyId: linked.id,
+                            createdAt: new Date().toISOString(),
+                        })),
+                    ],
+                });
+                const reminderState = useRemindersStore.getState();
+                useRemindersStore.setState({
+                    reminders: [
+                        ...reminderState.reminders.filter((reminder) => reminder.guestId !== guest.id),
+                        ...(body.reminders as typeof reminderState.reminders),
+                    ],
+                });
+            })
+            .catch((error) => {
+                toast.error(error instanceof Error ? error.message : 'Unable to load guest details');
+            })
+            .finally(() => setContextPromise(null));
+        setContextPromise(pending);
+        return pending;
+    }, [snapshotReady, guestContext, contextPromise, guest.id]);
     const { addHaircutRecord, addHolidayRecord } = useServicesStore(
         useShallow((s) => ({ addHaircutRecord: s.addHaircutRecord, addHolidayRecord: s.addHolidayRecord }))
     );
@@ -1209,6 +1264,7 @@ function GuestCardImpl(props: GuestCardProps) {
     return (
         <PureGuestCard
             {...props}
+            guest={guestContext?.guest ?? guest}
             mealRecords={mealRecords}
             extraMealRecords={extraMealRecords}
             showerRecords={showerRecords}
@@ -1216,8 +1272,8 @@ function GuestCardImpl(props: GuestCardProps) {
             bicycleRecords={bicycleRecords}
             haircutRecords={haircutRecords}
             holidayRecords={holidayRecords}
-            addMealRecord={addMealRecord}
-            addExtraMealRecord={addExtraMealRecord}
+            addMealRecord={effectiveAddMealRecord}
+            addExtraMealRecord={effectiveAddExtraMealRecord}
             addHaircutRecord={addHaircutRecord}
             addHolidayRecord={addHolidayRecord}
             setShowerPickerGuest={setShowerPickerGuest}
@@ -1226,6 +1282,7 @@ function GuestCardImpl(props: GuestCardProps) {
             addAction={addAction}
             undoAction={undoAction}
             getActionsForGuestToday={getActionsForGuestToday}
+            loadGuestContext={loadGuestContext}
             warningsCount={warningsCount}
             linkedGuestsCount={linkedGuestsCount}
             activeRemindersCount={activeRemindersCount}

@@ -20,10 +20,14 @@ vi.mock('lucide-react', () => ({
 }));
 
 const mockSubscribeToTable: Mock = vi.fn(() => vi.fn());
+const mockSubscribeToTables: Mock = vi.fn((options: unknown[]) => {
+    const unsubscribers = options.map((option) => mockSubscribeToTable(option));
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+});
 const mockUnsubscribeFromAll = vi.fn();
 
 vi.mock('@/lib/supabase/realtime', () => ({
-    subscribeToTable: (options: unknown) => mockSubscribeToTable(options),
+    subscribeToTables: (options: unknown[], scope: string) => mockSubscribeToTables(options, scope),
     unsubscribeFromAll: () => mockUnsubscribeFromAll(),
 }));
 
@@ -187,11 +191,13 @@ describe('useRealtimeSync', () => {
         );
     });
 
-    it('subscribes to 11 tables', () => {
+    it('subscribes to 11 tables through one route-scoped channel', () => {
         renderHook(() => useRealtimeSync());
         
         // 11 tables: showers, laundry, meals, bicycles, guests, warnings, proxies, reminders, blocked_slots, daily_notes, donations
         expect(mockSubscribeToTable).toHaveBeenCalledTimes(11);
+        expect(mockSubscribeToTables).toHaveBeenCalledTimes(1);
+        expect(mockSubscribeToTables).toHaveBeenCalledWith(expect.any(Array), 'operations');
     });
 
     it('cleans up subscriptions on unmount', () => {
