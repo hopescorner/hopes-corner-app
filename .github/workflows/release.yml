@@ -86,8 +86,10 @@ jobs:
           install-dependencies: "false"
 
       - name: Create release tag if missing
+        id: tag
         run: |
           tag="$(node scripts/releaseVersion.mjs tag)"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
           if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
             echo "Release tag ${tag} already exists; skipping"
             exit 0
@@ -96,3 +98,24 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "${tag}" -m "Release ${tag}"
           git push origin "${tag}"
+
+      - name: Create GitHub release if missing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ steps.tag.outputs.tag }}"
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "GitHub release ${tag} already exists; skipping"
+            exit 0
+          fi
+          version="${tag#v}"
+          notes="$(awk -v ver="${version}" '
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md)"
+          if [ -n "$(printf '%s' "${notes}" | tr -d '[:space:]')" ]; then
+            gh release create "${tag}" --title "${tag}" --notes "${notes}"
+          else
+            gh release create "${tag}" --title "${tag}" --generate-notes
+          fi
