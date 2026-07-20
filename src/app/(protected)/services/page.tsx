@@ -13,8 +13,6 @@ import {
     Utensils,
     Heart
 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
@@ -25,6 +23,7 @@ import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
 import { useSession } from 'next-auth/react';
 import type { UserRole } from '@/lib/auth/types';
+import { serviceTabDataKeys, type ServiceDataKey } from '@/lib/services/tabLoading';
 
 const ALL_TABS = [
     { id: 'overview', label: 'Overview', icon: BarChart3, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -51,11 +50,14 @@ const BicycleSection = dynamic(() => import('@/components/services/BicycleSectio
 const TimelineSection = dynamic(() => import('@/components/services/TimelineSection').then((m) => m.TimelineSection), { loading: TabSkeleton });
 const MealsSection = dynamic(() => import('@/components/services/MealsSection').then((m) => m.MealsSection), { loading: TabSkeleton });
 const DonationsSection = dynamic(() => import('@/components/services/DonationsSection').then((m) => m.DonationsSection), { loading: TabSkeleton });
+const RealtimeSyncProvider = dynamic(
+    () => import('@/components/providers/RealtimeSyncProvider').then((module) => module.RealtimeSyncProvider),
+    { ssr: false },
+);
 
 export default function ServicesPage() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const prefersReducedMotion = useReducedMotion();
     const firstTabSwitchMarkRef = useRef(false);
     const { data: session } = useSession();
     const role = (session?.user?.role as UserRole) || 'checkin';
@@ -108,13 +110,20 @@ export default function ServicesPage() {
     const ensureDonationsLoaded = useDonationsStore((s) => s.ensureLoaded);
     const ensureRemindersLoaded = useRemindersStore((s) => s.ensureLoaded);
 
-    useEffect(() => {
-        ensureServicesLoaded();
-        ensureGuestsLoaded();
-        ensureMealsLoaded();
-        ensureDonationsLoaded();
-        ensureRemindersLoaded();
+    const loadTabData = useCallback((tab: string) => {
+        const loaders: Record<ServiceDataKey, () => Promise<void>> = {
+            services: ensureServicesLoaded,
+            guests: ensureGuestsLoaded,
+            meals: ensureMealsLoaded,
+            donations: ensureDonationsLoaded,
+            reminders: ensureRemindersLoaded,
+        };
+        return Promise.all(serviceTabDataKeys(tab).map((key) => loaders[key]));
     }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded, ensureRemindersLoaded]);
+
+    useEffect(() => {
+        void loadTabData(activeTab);
+    }, [activeTab, loadTabData]);
 
     const today = useMemo(() => pacificDateStringFrom(new Date().toISOString()), []);
 
@@ -225,6 +234,7 @@ export default function ServicesPage() {
 
     return (
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+            <RealtimeSyncProvider />
             {/* Page Header */}
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
@@ -249,6 +259,8 @@ export default function ServicesPage() {
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
+                                onMouseEnter={() => void loadTabData(tab.id)}
+                                onFocus={() => void loadTabData(tab.id)}
                                 className={cn(
                                     "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black transition-all",
                                     isActive
@@ -275,6 +287,8 @@ export default function ServicesPage() {
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
+                            onMouseEnter={() => void loadTabData(tab.id)}
+                            onFocus={() => void loadTabData(tab.id)}
                             className={cn(
                                 "flex-shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-black transition-all border",
                                 isActive
@@ -290,14 +304,12 @@ export default function ServicesPage() {
             </div>
 
             {/* Main Content Area */}
-            <motion.div
+            <div
                 key={activeTab}
-                initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: prefersReducedMotion ? 0 : 0.3 }}
+                className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none"
             >
                 {renderContent()}
-            </motion.div>
+            </div>
         </div>
     );
 }

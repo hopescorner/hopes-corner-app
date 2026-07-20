@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.55';
+export const APP_VERSION = '0.6.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.6.0',
+        date: 'July 19, 2026',
+        highlights: [
+            {
+                type: 'performance',
+                title: 'Blazingly Fast Check-In',
+                description: 'Check-in now opens from a compact daily snapshot, searches a prebuilt guest directory, and loads full guest details only when needed for a much faster, more responsive tablet experience.',
+            },
+            {
+                type: 'improvement',
+                title: 'Instant, Reliable Multi-Tablet Actions',
+                description: 'Meal and service actions now respond immediately and reconcile with the server so check-in tablets stay aligned when staff work at the same time.',
+            },
+        ],
+    },
     {
         version: '0.5.55',
         date: 'July 18, 2026',

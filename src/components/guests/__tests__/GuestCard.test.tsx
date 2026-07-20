@@ -23,6 +23,19 @@ const mockSetBicyclePickerGuest = vi.fn();
 const mockAddAction = vi.fn();
 const mockUndoAction = vi.fn().mockResolvedValue(true);
 const mockGetActionsForGuestToday = vi.fn().mockReturnValue([]);
+let snapshotReady = false;
+const mockOptimisticMeal = vi.fn(() => vi.fn());
+const mockReplaceMealCounts = vi.fn();
+const mockAcknowledgeMealRecord = vi.fn();
+
+vi.mock('@/stores/useCheckInStore', () => ({
+    useCheckInStore: (selector: any) => selector({
+        isReady: snapshotReady,
+        optimisticMeal: mockOptimisticMeal,
+        replaceMealCounts: mockReplaceMealCounts,
+        acknowledgeMealRecord: mockAcknowledgeMealRecord,
+    }),
+}));
 
 const mockWarnings = [{ id: 'w1', guestId: 'g1', message: 'Test warning', active: true }];
 const mockGuestProxies: any[] = [];
@@ -128,6 +141,7 @@ const baseGuest = {
 describe('GuestCard Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        snapshotReady = false;
         window.navigator.vibrate = vi.fn();
     });
 
@@ -271,6 +285,22 @@ describe('GuestCard Component', () => {
             });
         });
 
+        it('uses the optimistic server command when a snapshot is active', async () => {
+            snapshotReady = true;
+            const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+                guestId: 'g1', mealCount: 1, extraMealCount: 0, totalMeals: 1, recordId: 'meal-v2',
+            }), { status: 200 }));
+            vi.stubGlobal('fetch', fetchMock);
+            render(<GuestCard guest={baseGuest} />);
+
+            const mealButton = screen.getAllByRole('button').find((button) => button.textContent?.trim() === '1');
+            fireEvent.click(mealButton!);
+
+            await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/check-in/commands', expect.any(Object)));
+            expect(mockAddMealRecord).not.toHaveBeenCalled();
+            vi.unstubAllGlobals();
+        });
+
         it('records action after adding meal', async () => {
             render(<GuestCard guest={baseGuest} />);
             const buttons = screen.getAllByRole('button');
@@ -328,6 +358,22 @@ describe('GuestCard Component', () => {
             fireEvent.click(screen.getByText('Johnny'));
 
             expect(screen.getByTestId('linked-guests-list')).toBeDefined();
+        });
+
+        it('loads private guest context on first expansion when the snapshot is active', async () => {
+            snapshotReady = true;
+            const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+                guest: { ...baseGuest, notes: 'private note', bicycleDescription: 'blue bike' },
+                warnings: [],
+                reminders: [],
+                linkedGuests: [],
+            }), { status: 200 }));
+            render(<GuestCard guest={baseGuest} />);
+
+            fireEvent.click(screen.getByText('Johnny'));
+
+            await waitFor(() => expect(request).toHaveBeenCalledWith('/api/check-in/guests/g1/context'));
+            request.mockRestore();
         });
 
         it('calls onSelect when clicked', () => {

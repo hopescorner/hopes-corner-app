@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut, MessageSquarePlus } from 'lucide-react';
 import { getDefaultRoute, getRoleLabel, ROLE_ACCESS, type UserRole } from '@/lib/auth/types';
 import { AppVersion } from '@/components/pwa/AppVersion';
-import { TutorialModal } from '@/components/modals/TutorialModal';
-import { FeedbackIssueModal } from '@/components/modals/FeedbackIssueModal';
-import { useRealtimeSync } from '@/hooks/useRealtimeSync';
+import dynamic from 'next/dynamic';
+
+const TutorialModal = dynamic(() => import('@/components/modals/TutorialModal').then((module) => module.TutorialModal));
+const FeedbackIssueModal = dynamic(() => import('@/components/modals/FeedbackIssueModal').then((module) => module.FeedbackIssueModal));
 
 interface NavItem {
     id: string;
@@ -30,9 +31,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const [showTutorial, setShowTutorial] = useState(false);
     const [showFeedbackIssue, setShowFeedbackIssue] = useState(false);
 
-    // Set up realtime subscriptions for multi-device sync
-    useRealtimeSync();
-
     const role = (session?.user?.role as UserRole) || 'checkin';
     const roleLabel = getRoleLabel(role);
     const allowedTabs = ROLE_ACCESS[role];
@@ -45,47 +43,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     // Get current active tab from pathname
     const activeTab = navItems.find((item) => pathname.startsWith(item.href))?.id || navItems[0]?.id;
-
-    // Handle touch detection
-    const [isTouch, setIsTouch] = useState(false);
-    const [bottomFixedHeight, setBottomFixedHeight] = useState(120);
-
-    useEffect(() => {
-        if (typeof window === 'undefined' || !window.matchMedia) return undefined;
-        const mediaQuery = window.matchMedia('(pointer: coarse)');
-        const timer = setTimeout(() => setIsTouch(mediaQuery.matches), 0);
-        const handle = (e: MediaQueryListEvent) => setIsTouch(e.matches);
-        mediaQuery.addEventListener('change', handle);
-        return () => {
-            clearTimeout(timer);
-            mediaQuery.removeEventListener('change', handle);
-        };
-    }, []);
-
-    useEffect(() => {
-        const updateBottomHeight = () => {
-            try {
-                const els = Array.from(document.querySelectorAll('[data-fixed-bottom]'));
-                const total = els.reduce((sum, el) => sum + (el?.getBoundingClientRect()?.height || 0), 0);
-                setBottomFixedHeight(total || 120);
-            } catch {
-                setBottomFixedHeight(120);
-            }
-        };
-
-        updateBottomHeight();
-        window.addEventListener('resize', updateBottomHeight);
-        const observer = new MutationObserver(updateBottomHeight);
-        observer.observe(document.body, { childList: true, subtree: true, attributes: true });
-        return () => {
-            window.removeEventListener('resize', updateBottomHeight);
-            observer.disconnect();
-        };
-    }, []);
-
-    const mobileContentPadding = isTouch
-        ? { paddingBottom: `calc(${bottomFixedHeight}px + env(safe-area-inset-bottom, 0px))` }
-        : { paddingBottom: 'max(env(safe-area-inset-bottom), 120px)' };
 
     const handleLogout = async () => {
         await signOut({ callbackUrl: '/login' });
@@ -101,19 +58,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         <div className="flex items-center gap-3 shrink-0">
                             <Link
                                 href={defaultRoute}
-                                prefetch={false}
-                                onClick={async (e) => {
-                                    e.preventDefault();
-                                    if ('caches' in window) {
-                                        try {
-                                            const keys = await caches.keys();
-                                            await Promise.all(keys.map((key) => caches.delete(key)));
-                                        } catch {
-                                            // Ignore error
-                                        }
-                                    }
-                                    window.location.reload();
-                                }}
                                 className="inline-flex items-center p-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
                             >
                                 <img
@@ -145,7 +89,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                                         <Link
                                             key={item.id}
                                             href={item.href}
-                                            prefetch={false}
                                             aria-current={isActive ? 'page' : undefined}
                                             className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 ${isActive
                                                 ? 'bg-white text-emerald-900 shadow-md'
@@ -199,7 +142,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             {/* Main Content */}
             <main
                 className="container mx-auto flex-1 px-4 pt-4 pb-[7.5rem] md:pb-8 md:px-6 min-h-[calc(100vh-4rem)]"
-                style={mobileContentPadding}
             >
                 <div className="max-w-7xl mx-auto space-y-4">{children}</div>
             </main>
@@ -227,7 +169,6 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                             <Link
                                 key={item.id}
                                 href={item.href}
-                                prefetch={false}
                                 aria-current={isActive ? 'page' : undefined}
                                 className={`flex flex-col items-center justify-center rounded-lg border py-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${isActive
                                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow'

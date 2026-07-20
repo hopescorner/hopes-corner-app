@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.6.0] - 2026-07-19
+
+### Performance
+
+- Check-in now opens from a compact daily snapshot, searches a prebuilt guest directory, and loads full guest details only when needed for a much faster, more responsive tablet experience.
+
+### Improved
+
+- Meal and service actions now respond immediately and reconcile with the server so check-in tablets stay aligned when staff work at the same time.
+
 ## [0.5.55] - 2026-07-18
 
 ### Fixed

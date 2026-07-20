@@ -3,7 +3,7 @@
 import { createElement, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { ShowerHead, WashingMachine } from 'lucide-react';
-import { subscribeToTable } from '@/lib/supabase/realtime';
+import { subscribeToTables, type SubscriptionOptions } from '@/lib/supabase/realtime';
 import {
     mapShowerRow,
     mapLaundryRow,
@@ -23,6 +23,8 @@ import { useRemindersStore } from '@/stores/useRemindersStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
+import { useCheckInStore } from '@/stores/useCheckInStore';
+import { pacificDateStringFrom } from '@/lib/utils/date';
 
 function resolveGuestName(guestId: string): string {
     const guests = useGuestsStore.getState().guests;
@@ -107,11 +109,32 @@ export function useRealtimeSync() {
             }
         };
 
+        const patchCheckInService = (
+            payload: any,
+            service: 'shower' | 'laundry' | 'bicycle',
+            serviceDate: string,
+            time?: string | null,
+        ) => {
+            const checkIn = useCheckInStore.getState();
+            const row = payload.eventType === 'DELETE' ? payload.old : payload.new;
+            if (!checkIn.isReady || !row?.id || !row?.guest_id || serviceDate !== checkIn.serviceDate) return;
+            const inactive = payload.eventType === 'DELETE' || ['cancelled', 'no_show'].includes(row.status);
+            checkIn.applyRealtimeServiceRecord({
+                id: row.id,
+                guestId: row.guest_id,
+                service,
+                record: inactive ? null : { id: row.id, time: time ?? null, status: row.status || '' },
+                version: row.updated_at || row.created_at || new Date().toISOString(),
+            });
+        };
+
         // Subscribe to shower changes
-        const unsubShowers = subscribeToTable({
+        const showerSubscription: SubscriptionOptions = {
             table: 'shower_reservations',
             onChange: (payload) => debouncedWork('showers', () => {
                 try {
+                    const realtimeRow = payload.eventType === 'DELETE' ? payload.old as any : payload.new as any;
+                    patchCheckInService(payload, 'shower', realtimeRow?.scheduled_for, realtimeRow?.scheduled_time);
                     if (payload.eventType === 'DELETE') {
                         const deletedId = (payload.old as any)?.id;
                         if (!deletedId) throw new Error('missing shower id in delete payload');
@@ -146,13 +169,15 @@ export function useRealtimeSync() {
                     fallbackReload(servicesLoadFromSupabase, 'shower');
                 }
             }),
-        });
+        };
 
         // Subscribe to laundry changes
-        const unsubLaundry = subscribeToTable({
+        const laundrySubscription: SubscriptionOptions = {
             table: 'laundry_bookings',
             onChange: (payload) => debouncedWork('laundry', () => {
                 try {
+                    const realtimeRow = payload.eventType === 'DELETE' ? payload.old as any : payload.new as any;
+                    patchCheckInService(payload, 'laundry', realtimeRow?.scheduled_for, realtimeRow?.slot_label);
                     if (payload.eventType === 'DELETE') {
                         const deletedId = (payload.old as any)?.id;
                         if (!deletedId) throw new Error('missing laundry id in delete payload');
@@ -187,13 +212,25 @@ export function useRealtimeSync() {
                     fallbackReload(servicesLoadFromSupabase, 'laundry');
                 }
             }),
-        });
+        };
 
         // Subscribe to meal attendance changes
-        const unsubMeals = subscribeToTable({
+        const mealSubscription: SubscriptionOptions = {
             table: 'meal_attendance',
             onChange: (payload) => debouncedWork('meals', () => {
                 try {
+                    const realtimeRow = payload.eventType === 'DELETE' ? payload.old as any : payload.new as any;
+                    const checkIn = useCheckInStore.getState();
+                    if (checkIn.isReady && realtimeRow?.id && realtimeRow?.guest_id && realtimeRow?.served_on === checkIn.serviceDate) {
+                        checkIn.applyRealtimeMealRecord({
+                            id: realtimeRow.id,
+                            guestId: realtimeRow.guest_id,
+                            extra: realtimeRow.meal_type === 'extra',
+                            quantity: Number(realtimeRow.quantity || 1),
+                            eventType: payload.eventType,
+                            version: realtimeRow.updated_at || realtimeRow.recorded_at || realtimeRow.created_at || new Date().toISOString(),
+                        });
+                    }
                     const bucketOf = (type?: string | null) => {
                         switch (type) {
                             case 'rv': return 'rvMealRecords';
@@ -247,13 +284,19 @@ export function useRealtimeSync() {
                     fallbackReload(mealsLoadFromSupabase, 'meal');
                 }
             }),
-        });
+        };
 
         // Subscribe to bicycle repairs changes
-        const unsubBicycles = subscribeToTable({
+        const bicycleSubscription: SubscriptionOptions = {
             table: 'bicycle_repairs',
             onChange: (payload) => debouncedWork('bicycles', () => {
                 try {
+                    const realtimeRow = payload.eventType === 'DELETE' ? payload.old as any : payload.new as any;
+                    patchCheckInService(
+                        payload,
+                        'bicycle',
+                        realtimeRow?.requested_at ? pacificDateStringFrom(realtimeRow.requested_at) : '',
+                    );
                     if (payload.eventType === 'DELETE') {
                         const deletedId = (payload.old as any)?.id;
                         if (!deletedId) throw new Error('missing bicycle id in delete payload');
@@ -279,10 +322,10 @@ export function useRealtimeSync() {
                     fallbackReload(servicesLoadFromSupabase, 'bicycle');
                 }
             }),
-        });
+        };
 
         // Subscribe to guest changes
-        const unsubGuests = subscribeToTable({
+        const guestSubscription: SubscriptionOptions = {
             table: 'guests',
             onChange: (payload) => debouncedWork('guests', () => {
                 try {
@@ -305,10 +348,10 @@ export function useRealtimeSync() {
                     fallbackReload(guestsLoadFromSupabase, 'guest');
                 }
             }),
-        });
+        };
 
         // Subscribe to guest warnings changes
-        const unsubWarnings = subscribeToTable({
+        const warningSubscription: SubscriptionOptions = {
             table: 'guest_warnings',
             onChange: (payload) => debouncedWork('warnings', () => {
                 try {
@@ -331,10 +374,10 @@ export function useRealtimeSync() {
                     fallbackReload(guestsLoadWarnings, 'warning');
                 }
             }),
-        });
+        };
 
         // Subscribe to guest proxies changes
-        const unsubProxies = subscribeToTable({
+        const proxySubscription: SubscriptionOptions = {
             table: 'guest_proxies',
             onChange: (payload) => debouncedWork('proxies', () => {
                 try {
@@ -357,10 +400,10 @@ export function useRealtimeSync() {
                     fallbackReload(guestsLoadProxies, 'proxy');
                 }
             }),
-        });
+        };
 
         // Subscribe to guest reminders changes
-        const unsubReminders = subscribeToTable({
+        const reminderSubscription: SubscriptionOptions = {
             table: 'guest_reminders',
             onChange: (payload) => debouncedWork('reminders', () => {
                 try {
@@ -383,16 +426,16 @@ export function useRealtimeSync() {
                     fallbackReload(remindersLoadFromSupabase, 'reminder');
                 }
             }),
-        });
+        };
 
         // Subscribe to blocked slots changes (affects shower/laundry availability)
-        const unsubBlockedSlots = subscribeToTable({
+        const blockedSlotSubscription: SubscriptionOptions = {
             table: 'blocked_slots',
             onChange: () => debouncedWork('blockedSlots', blockedSlotsFetch),
-        });
+        };
 
         // Subscribe to daily notes changes
-        const unsubDailyNotes = subscribeToTable({
+        const dailyNoteSubscription: SubscriptionOptions = {
             table: 'daily_notes',
             onChange: (payload) => debouncedWork('dailyNotes', () => {
                 try {
@@ -415,10 +458,10 @@ export function useRealtimeSync() {
                     fallbackReload(dailyNotesLoadFromSupabase, 'daily_note');
                 }
             }),
-        });
+        };
 
         // Subscribe to donations changes
-        const unsubDonations = subscribeToTable({
+        const donationSubscription: SubscriptionOptions = {
             table: 'donations',
             onChange: (payload) => debouncedWork('donations', () => {
                 try {
@@ -441,22 +484,22 @@ export function useRealtimeSync() {
                     fallbackReload(donationsLoadFromSupabase, 'donation');
                 }
             }),
-        });
+        };
 
         // Store unsubscribe functions
-        subscriptionsRef.current = [
-            unsubShowers,
-            unsubLaundry,
-            unsubMeals,
-            unsubBicycles,
-            unsubGuests,
-            unsubWarnings,
-            unsubProxies,
-            unsubReminders,
-            unsubBlockedSlots,
-            unsubDailyNotes,
-            unsubDonations,
-        ];
+        subscriptionsRef.current = [subscribeToTables([
+            showerSubscription,
+            laundrySubscription,
+            mealSubscription,
+            bicycleSubscription,
+            guestSubscription,
+            warningSubscription,
+            proxySubscription,
+            reminderSubscription,
+            blockedSlotSubscription,
+            dailyNoteSubscription,
+            donationSubscription,
+        ], 'operations')];
 
         // Cleanup on unmount
         return () => {

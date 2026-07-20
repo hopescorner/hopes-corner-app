@@ -1,6 +1,5 @@
 'use client';
 
-import { AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { useModalStore } from '@/stores/useModalStore';
 
@@ -13,11 +12,11 @@ export function ModalContainer() {
     const { showerPickerGuest, laundryPickerGuest, bicyclePickerGuest, notePickerContext } = useModalStore();
 
     return (
-        <AnimatePresence>
+        <>
             {showerPickerGuest && <ShowerBookingModal />}
             {laundryPickerGuest && <LaundryBookingModal />}
             {bicyclePickerGuest && <BicycleRepairBookingModal />}
             {notePickerContext && <DailyNoteModal />}
-        </AnimatePresence>
+        </>
     );
 }
