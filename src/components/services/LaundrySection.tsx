@@ -770,9 +770,8 @@ const selectableGuests = useMemo(() => {
                 </div>
             )}
 
-            {/* Off-site Laundry Kanban - only show if there are off-site records */}
-            {offsiteLaundry.length > 0 && (
-                <div className="space-y-4">
+            {/* Off-site Laundry Kanban */}
+            <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-xl font-black text-gray-900 flex items-center gap-3">
@@ -864,8 +863,7 @@ const selectableGuests = useMemo(() => {
                         ) : null}
                     </DragOverlay>
                     </DndContext>
-                </div>
-            )}
+            </div>
 
             <SlotBlockModal
                 isOpen={showSlotManager}
@@ -1074,7 +1072,15 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                                             {record.bagNumber || 'No Bag #'}
                                         </span>
                                         {!readOnly && (
-                                            <button onClick={() => setIsEditingBag(true)} className="text-[10px] text-blue-500 hover:underline">
+                                            <button
+                                                onClick={() => {
+                                                    // Re-seed from the record so a bag number saved after
+                                                    // mount (drag prompt, another device) isn't wiped on Save
+                                                    setBagValue(record.bagNumber || '');
+                                                    setIsEditingBag(true);
+                                                }}
+                                                className="text-[10px] text-blue-500 hover:underline"
+                                            >
                                                 Edit
                                             </button>
                                         )}

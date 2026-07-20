@@ -174,7 +174,10 @@ export function useRealtimeSync() {
         // Subscribe to laundry changes
         const laundrySubscription: SubscriptionOptions = {
             table: 'laundry_bookings',
-            onChange: (payload) => debouncedWork('laundry', () => {
+            // Debounce per record id: a shared key would let back-to-back events
+            // for different records cancel each other, dropping updates
+            // (e.g. bag numbers saved on another device)
+            onChange: (payload) => debouncedWork(`laundry:${(payload.eventType === 'DELETE' ? (payload.old as any)?.id : (payload.new as any)?.id) ?? 'unknown'}`, () => {
                 try {
                     const realtimeRow = payload.eventType === 'DELETE' ? payload.old as any : payload.new as any;
                     patchCheckInService(payload, 'laundry', realtimeRow?.scheduled_for, realtimeRow?.slot_label);

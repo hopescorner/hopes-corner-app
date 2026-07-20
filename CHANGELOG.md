@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.5] - 2026-07-20
+
+### Fixed
+
+- Laundry bag numbers no longer disappear: the card's Edit field now always starts from the latest saved bag number, so saving can't silently erase one entered elsewhere (for example, via the drag prompt or another device).
+- Laundry updates from other devices are no longer dropped when several records change at nearly the same time, so bag numbers and statuses stay in sync across tablets.
+
+### Improved
+
+- The Off-site Laundry board is now always visible on the Laundry tab, showing its empty columns even when no off-site loads are booked yet.
+
 ## [0.6.2] - 2026-07-20
 
 ### Fixed
