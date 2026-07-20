@@ -18,6 +18,7 @@ const mockAddMealRecord = vi.fn().mockResolvedValue({ id: 'meal-new' });
 const mockUpdateAutoMealAdditionsEnabled = vi.fn().mockResolvedValue(undefined);
 const mockLoadSettings = vi.fn().mockResolvedValue(undefined);
 let mockAutoMealAdditionsEnabled = true;
+let mockMealsDataIsLoaded = true;
 let mockMealRecords: Array<{
     id: string;
     guestId: string;
@@ -38,6 +39,7 @@ let mockShelterMealRecords: Array<{
 vi.mock('@/stores/useMealsStore', () => ({
     useMealsStore: vi.fn((selector) => {
         const state = {
+            isLoaded: mockMealsDataIsLoaded,
             mealRecords: mockMealRecords,
             extraMealRecords: [],
             rvMealRecords: [
@@ -103,6 +105,7 @@ describe('MealsSection Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockAutoMealAdditionsEnabled = true;
+        mockMealsDataIsLoaded = true;
         mockMealRecords = [
             { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
         ];
@@ -225,6 +228,18 @@ describe('MealsSection Component', () => {
             render(<MealsSection />);
 
             expect(screen.getByText('No proxy pickups logged for this date.')).toBeDefined();
+        });
+
+        it('shows a loading placeholder instead of the empty state while meals data has not finished loading', () => {
+            mockMealsDataIsLoaded = false;
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', pickedUpByGuestId: null, count: 2, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            expect(screen.getByText('Loading pickup activity…')).toBeDefined();
+            expect(screen.queryByText('No proxy pickups logged for this date.')).toBeNull();
         });
     });
 

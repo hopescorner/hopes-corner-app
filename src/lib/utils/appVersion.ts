@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.6.7';
+export const APP_VERSION = '0.6.8';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.6.8',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Proxy Pickup Card No Longer Flashes Empty',
+                description: 'The Meals "Proxy Pickup Activity" card now shows a loading state instead of falsely reporting "No proxy pickups logged" during the brief window after Check-In hydrates today\'s placeholder data, before the real records finish loading.',
+            },
+        ],
+    },
     {
         version: '0.6.7',
         date: 'July 20, 2026',

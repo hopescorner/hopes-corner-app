@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.8] - 2026-07-20
+
+### Fixed
+
+- The Meals "Proxy Pickup Activity" card no longer flashes a false "No proxy pickups logged" message during the brief window after Check-In hydrates today's placeholder data — it now shows a loading state until the real records finish loading.
+
 ## [0.6.7] - 2026-07-20
 
 ### Fixed

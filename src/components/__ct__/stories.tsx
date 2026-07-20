@@ -450,6 +450,7 @@ export function MealsSectionStory({
     });
 
     useMealsStore.setState({
+      isLoaded: true,
       mealRecords: mealRecords as any,
       rvMealRecords: rvMealRecords as any,
       extraMealRecords: extraMealRecords as any,

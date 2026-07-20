@@ -83,7 +83,9 @@ export function MealsSection() {
         updateMealRecord,
         checkAndAddAutomaticMeals,
         addMealRecord,
+        mealsDataIsLoaded,
     } = useMealsStore(useShallow((s) => ({
+        mealsDataIsLoaded: s.isLoaded,
         mealRecords: s.mealRecords,
         rvMealRecords: s.rvMealRecords,
         extraMealRecords: s.extraMealRecords,
@@ -926,9 +928,13 @@ const proxyPickerIds = new Set<string>();
                                         {dayMetrics.proxyPickerSelfMeals.toLocaleString()} meal{dayMetrics.proxyPickerSelfMeals === 1 ? '' : 's'} also collected for themselves · {dayMetrics.proxyPickupPercent}% of guest meals.
                                     </p>
                                 </>
-                            ) : (
+                            ) : mealsDataIsLoaded ? (
                                 <p className="mt-1 text-2xl font-black tracking-tight text-indigo-700">
                                     No proxy pickups logged for this date.
+                                </p>
+                            ) : (
+                                <p className="mt-1 text-2xl font-black tracking-tight text-indigo-400 animate-pulse">
+                                    Loading pickup activity…
                                 </p>
                             )}
                         </div>
