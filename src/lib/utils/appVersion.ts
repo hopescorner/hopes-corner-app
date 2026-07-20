@@ -3,11 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-<<<<<<< HEAD
-export const APP_VERSION = '0.5.53';
-=======
-export const APP_VERSION = '0.6.0';
->>>>>>> origin/main
+export const APP_VERSION = '0.6.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -24,15 +20,17 @@ export interface ChangelogEntry {
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
     {
-<<<<<<< HEAD
-        version: '0.5.53',
-        date: 'July 15, 2026',
+        version: '0.6.1',
+        date: 'July 20, 2026',
         highlights: [
             {
                 type: 'improvement',
                 title: 'Remove GitHub Feedback Feature',
                 description: 'Removed the in-app GitHub issue filing feature that used Copilot to triage feedback.',
-=======
+            },
+        ],
+    },
+    {
         version: '0.6.0',
         date: 'July 19, 2026',
         highlights: [
@@ -78,7 +76,6 @@ export const CHANGELOG: ChangelogEntry[] = [
                 type: 'fix',
                 title: 'Disable RV Meal Distribution on Wednesdays',
                 description: 'RV meals (40) are no longer automatically added on Wednesdays, and the RV bulk entry option is hidden when the selected date falls on a Wednesday.',
->>>>>>> origin/main
             },
         ],
     },

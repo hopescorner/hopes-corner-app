@@ -7,15 +7,9 @@ import { usePathname } from 'next/navigation';
 import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut } from 'lucide-react';
 import { getDefaultRoute, getRoleLabel, ROLE_ACCESS, type UserRole } from '@/lib/auth/types';
 import { AppVersion } from '@/components/pwa/AppVersion';
-<<<<<<< HEAD
-import { TutorialModal } from '@/components/modals/TutorialModal';
-import { useRealtimeSync } from '@/hooks/useRealtimeSync';
-=======
 import dynamic from 'next/dynamic';
 
 const TutorialModal = dynamic(() => import('@/components/modals/TutorialModal').then((module) => module.TutorialModal));
-const FeedbackIssueModal = dynamic(() => import('@/components/modals/FeedbackIssueModal').then((module) => module.FeedbackIssueModal));
->>>>>>> origin/main
 
 interface NavItem {
     id: string;

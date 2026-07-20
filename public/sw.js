@@ -1,13 +1,8 @@
 /// <reference lib="webworker" />
 
 // IMPORTANT: Update this version when APP_VERSION changes in src/lib/utils/appVersion.ts
-<<<<<<< HEAD
-const APP_VERSION = '0.5.53';
-const CACHE_NAME = `hopes-corner-v${APP_VERSION}`;
-=======
-const APP_VERSION = '0.6.0';
+const APP_VERSION = '0.6.1';
 const STATIC_CACHE_NAME = `hopes-corner-static-v${APP_VERSION}`;
->>>>>>> origin/main
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
