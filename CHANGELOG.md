@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.6] - 2026-07-20
+
+### Fixed
+
+- The Services page no longer appears empty when opened directly: a regression from the 0.6.0 check-in refactor built the list of data loaders but never invoked them, so guests, meals, showers, and laundry only showed up if another page had already loaded them.
+
+### Added
+
+- Production deploys now create a Git tag and a GitHub release automatically, with release notes pulled from the matching CHANGELOG.md section.
+- `version:check` now also verifies that the in-app changelog (`appVersion.ts`) and `CHANGELOG.md` both cover the current version, so the "What's New" modal and release notes can't drift out of date.
+
 ## [0.6.5] - 2026-07-20
 
 ### Fixed

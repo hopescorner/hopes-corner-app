@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.6.5';
+export const APP_VERSION = '0.6.6';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.6.6',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Service Center Loads Its Own Data',
+                description: 'The Services page no longer appears empty (no guests, meals, showers, or laundry) when opened directly — it previously only showed data if another page had loaded it first.',
+            },
+            {
+                type: 'improvement',
+                title: 'Releases Published Automatically',
+                description: 'Every production deploy now creates a Git tag and a GitHub release with notes from the changelog, and the release check verifies both changelogs cover the latest version.',
+            },
+        ],
+    },
     {
         version: '0.6.5',
         date: 'July 20, 2026',

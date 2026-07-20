@@ -118,7 +118,7 @@ export default function ServicesPage() {
             donations: ensureDonationsLoaded,
             reminders: ensureRemindersLoaded,
         };
-        return Promise.all(serviceTabDataKeys(tab).map((key) => loaders[key]));
+        return Promise.all(serviceTabDataKeys(tab).map((key) => loaders[key]()));
     }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded, ensureRemindersLoaded]);
 
     useEffect(() => {
