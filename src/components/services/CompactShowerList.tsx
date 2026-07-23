@@ -34,8 +34,9 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
         if (readOnly) return;
         setIsUpdating(true);
         try {
-            await updateShowerStatus(record.id, newStatus);
-            toast.success(newStatus === 'done' ? 'Shower completed' : 'Status updated');
+            const ok = await updateShowerStatus(record.id, newStatus);
+            if (ok) toast.success(newStatus === 'done' ? 'Shower completed' : 'Status updated');
+            else toast.error('Failed to update status');
         } catch {
             toast.error('Failed to update status');
         } finally {

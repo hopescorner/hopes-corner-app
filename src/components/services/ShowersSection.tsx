@@ -507,8 +507,9 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
         if (readOnly) return;
         setIsUpdating(true);
         try {
-            await updateShowerStatus(record.id, newStatus);
-            toast.success(newStatus === 'done' ? 'Shower completed' : 'Status updated');
+            const ok = await updateShowerStatus(record.id, newStatus);
+            if (ok) toast.success(newStatus === 'done' ? 'Shower completed' : 'Status updated');
+            else toast.error('Failed to update status');
         } catch (error) {
             toast.error('Failed to update status');
         } finally {

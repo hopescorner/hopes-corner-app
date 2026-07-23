@@ -238,11 +238,22 @@ export const useGuestsStore = create<GuestsState>()(
                         bicycle_description: bicycleDescription,
                     };
 
-                    const { data, error } = await supabase
+                    let { data, error } = await supabase
                         .from('guests')
                         .insert(payload)
                         .select()
                         .single();
+
+                    // external_id is client-generated; on the rare collision (or a
+                    // parallel device racing the same id), regenerate and retry once.
+                    if (error && error.code === '23505' && !guestData.guestId) {
+                        const retryPayload = { ...payload, external_id: get().generateGuestId() };
+                        ({ data, error } = await supabase
+                            .from('guests')
+                            .insert(retryPayload)
+                            .select()
+                            .single());
+                    }
 
                     if (error) {
                         console.error('Failed to add guest to Supabase:', error);

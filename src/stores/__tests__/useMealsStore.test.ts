@@ -617,11 +617,6 @@ describe('useMealsStore', () => {
                     .mockResolvedValueOnce({
                         data: { id: 'existing-1', guest_id: 'g1', quantity: 2, meal_type: 'guest', served_on: '2025-01-06' },
                         error: null,
-                    })
-                    // auto lunch bag
-                    .mockResolvedValueOnce({
-                        data: { id: 'lb-auto', quantity: 1, meal_type: 'lunch_bag', served_on: '2025-01-06' },
-                        error: null,
                     });
 
                 await useMealsStore.getState().addMealRecord('g1', 1);
@@ -632,6 +627,10 @@ describe('useMealsStore', () => {
 
                 // Should have called update for the meal (not insert)
                 expect(mockSupabase.update).toHaveBeenCalledWith({ quantity: 2 });
+
+                // One lunch bag per person per day: the guest already got theirs
+                // with the first meal, so no additional bag on the increment.
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
             });
 
             it('rejects adding when existing record is already at base meal limit', async () => {
@@ -933,13 +932,10 @@ describe('useMealsStore', () => {
                 });
 
                 // 1 base + 2 extra = 3 total, adding 1 base → upsert existing row to quantity 2 (4 total, at limit, allowed)
+                // No lunch bag insert here: the guest already got theirs with the first meal of the day.
                 mockSupabase.single
                     .mockResolvedValueOnce({
                         data: { id: 'm1', guest_id: 'g1', quantity: 2, served_on: '2025-01-06', meal_type: 'guest' },
-                        error: null,
-                    })
-                    .mockResolvedValueOnce({
-                        data: { id: 'lb1', guest_id: null, quantity: 1, served_on: '2025-01-06', meal_type: 'lunch_bag' },
                         error: null,
                     });
 

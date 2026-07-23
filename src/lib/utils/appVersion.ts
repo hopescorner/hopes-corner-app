@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.6.8';
+export const APP_VERSION = '0.7.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,32 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.7.0',
+        date: 'July 22, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Lunch Bags Now Match People Served',
+                description: 'Meals recorded through the Check-In page now auto-add a lunch bag like the Services flow always did, and auto-adds follow a strict one-bag-per-person-per-day rule — so daily lunch bag counts finally equal the number of people who got meals.',
+            },
+            {
+                type: 'feature',
+                title: 'Per-Guest Lunch Bag Assignments',
+                description: 'Auto-added lunch bags are attributed to the guest they were assigned to, and a new "Lunch Bag Assignments" panel on the Meals page shows each bag with the guest\'s name and assignment time, separating guest-assigned bags from bulk entries.',
+            },
+            {
+                type: 'improvement',
+                title: 'Safe Parallel Use Across Devices',
+                description: 'Daily meal limits, holiday visits, laundry slots, and the weekly laundry allowance are now enforced by the database itself, so multiple staff devices working at the same time can no longer double-book slots, duplicate records, or exceed guest limits — and the Check-In page automatically re-syncs when a device wakes up or regains connection.',
+            },
+            {
+                type: 'improvement',
+                title: 'Redesigned Meals Summary',
+                description: 'The Meals page now shows who picked up meals for whom (with times) in the Proxy Pickup Activity card, plus a lightweight "Service Mix" bar breakdown of the day\'s distribution — in a responsive layout that works equally well on laptops, tablets, and phones.',
+            },
+        ],
+    },
     {
         version: '0.6.8',
         date: 'July 20, 2026',

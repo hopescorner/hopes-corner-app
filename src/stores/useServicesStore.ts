@@ -192,9 +192,9 @@ export const useServicesStore = create<ServicesState>()(
 
                             if (error) {
                                 console.error('Failed to book shower slot:', error);
-                                // Surface the DB capacity message when available
+                                // Surface the DB capacity / duplicate messages when available
                                 const msg = error.message || '';
-                                if (msg.includes('full')) {
+                                if (msg.includes('full') || msg.includes('already has a shower reservation')) {
                                     throw new Error(msg);
                                 }
                                 throw new Error('Unable to book shower slot. Please try again.');
@@ -227,6 +227,9 @@ export const useServicesStore = create<ServicesState>()(
                             .single();
 
                         if (error) {
+                            if (error.code === '23505') {
+                                throw new Error('This guest already has a shower reservation for this date.');
+                            }
                             console.error('Failed to add shower record to Supabase:', error);
                             throw new Error('Unable to save shower record');
                         }
@@ -392,6 +395,18 @@ export const useServicesStore = create<ServicesState>()(
                             .single();
 
                         if (error) {
+                            // DB triggers are authoritative under parallel use; map their
+                            // errors to the same friendly messages as the pre-checks above.
+                            const message = error.message || '';
+                            if (message.includes('LAUNDRY_WEEKLY_LIMIT_REACHED')) {
+                                throw new Error(
+                                    `Weekly laundry limit reached (${MAX_LAUNDRY_LOADS_PER_WEEK} loads). ` +
+                                    `This guest can be assigned laundry again on Monday.`
+                                );
+                            }
+                            if (message.includes('already booked')) {
+                                throw new Error('This laundry slot was just booked on another device. Please choose another time.');
+                            }
                             console.error('Failed to add laundry record to Supabase:', error);
                             throw new Error('Unable to save laundry record');
                         }
@@ -480,6 +495,15 @@ export const useServicesStore = create<ServicesState>()(
                                 const index = state.laundryRecords.findIndex((r) => r.id === recordId);
                                 if (index !== -1) state.laundryRecords[index].status = target.status;
                             });
+                            // Surface DB business-rule rejections (weekly limit, slot
+                            // capacity) so staff see the real reason, not a generic toast.
+                            const message = error.message || '';
+                            if (message.includes('LAUNDRY_WEEKLY_LIMIT_REACHED')) {
+                                throw new Error(`Weekly laundry limit reached (${MAX_LAUNDRY_LOADS_PER_WEEK} loads). This guest can be assigned laundry again on Monday.`);
+                            }
+                            if (message.includes('already booked')) {
+                                throw new Error('This laundry slot is already booked. Please choose another time.');
+                            }
                             return false;
                         }
                         return true;
@@ -824,6 +848,15 @@ export const useServicesStore = create<ServicesState>()(
                             .single();
 
                         if (error) {
+                            // Unique violations mean another device won the race; surface
+                            // the real reason instead of a generic failure.
+                            if (error.code === '23505') {
+                                const constraint = `${error.message || ''} ${error.details || ''}`;
+                                if (constraint.includes('haircut_visits_schedule_unique')) {
+                                    throw new Error('That stylist slot was just taken on another device. Please choose another slot.');
+                                }
+                                throw new Error('This guest already has a haircut for this date.');
+                            }
                             console.error('Failed to add haircut record to Supabase:', error);
                             throw new Error('Unable to save haircut record');
                         }
@@ -876,6 +909,9 @@ export const useServicesStore = create<ServicesState>()(
                             .single();
 
                         if (error) {
+                            if (error.code === '23505') {
+                                throw new Error('This guest already has a holiday visit for today.');
+                            }
                             console.error('Failed to add holiday record to Supabase:', error);
                             throw new Error('Unable to save holiday record');
                         }

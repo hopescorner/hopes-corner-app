@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.7.0] - 2026-07-22
+
+### Fixed
+
+- Lunch bags are now added automatically for meals recorded through the Check-In page: the check-in database command recorded the meal but skipped the lunch-bag auto-add that the Services flow performs, so daily lunch bag counts fell far below the number of people served (e.g. 30 bags for 315 guest meals).
+- Lunch bag auto-adds now follow a strict one-bag-per-person-per-day rule: a guest receiving a second meal on the same day no longer generates a duplicate bag.
+
+### Added
+
+- Auto-added lunch bags are now attributed to the guest they were assigned to, so staff can see exactly who received each bag and when.
+- New "Lunch Bag Assignments" panel on the Meals page shows every bag for the selected day with the guest's name and assignment time, and separates guest-assigned bags from bulk entries.
+- The Proxy Pickup Activity card now includes a detail list of who picked up meals for whom, with pickup times.
+- New "Service Mix" breakdown visualizes the day's meal distribution across guest, extra, RV, day worker, shelter, and United Effort categories with lightweight bars (no chart library, so the page stays fast on phones and tablets).
+
+### Changed
+
+- The Meals summary area was reorganized into a responsive two-column layout on large screens that stacks cleanly on tablets and phones.
+
+### Security & Stability (multi-device concurrency hardening)
+
+- Daily meal limits (2 base, 2 extra, 4 total per guest per day) are now enforced by a database trigger with per-guest locking, so two devices recording meals for the same guest simultaneously can no longer exceed the limits. Over-limit edits in the activity log are also rejected and rolled back locally.
+- The one-guest-meal-row-per-day unique index existed only in the reference schema, never as a migration; it now ships as a migration (merging any existing duplicate rows first), so incrementally-migrated databases get the same duplicate protection.
+- When two devices record a guest's first meal at the same time, the losing device now recovers by incrementing the winning row instead of failing with "Unable to save meal record".
+- Auto-added lunch bags now carry deduplication keys, making them idempotent across devices and across the Check-In and Services entry paths — parallel use can no longer double-bag a guest.
+- Holiday visits are now limited to one per guest per day in the database (previously there was no duplicate protection at all — double-taps created unlimited duplicate rows).
+- Onsite laundry slot booking is now serialized with a database advisory lock; previously two devices booking the last slot at the same moment could both succeed.
+- The 2-loads-per-week laundry limit is now enforced in the database (previously client-side only, so two devices could each book a guest's "second" load).
+- Haircut and holiday booking races now surface accurate messages ("that stylist slot was just taken") instead of generic save failures.
+- Guest creation retries once with a fresh ID if the generated guest ID collides.
+- The Check-In page now re-reconciles its snapshot whenever the tab becomes visible again and every 2 minutes while visible, so a device that slept, lost its realtime connection, or sat open all day at the front desk converges automatically instead of staying stale until manual reload.
+- Shower and laundry status buttons no longer show a false "Status updated" success toast when the update actually failed and was rolled back — every caller now checks the result.
+- Reactivating a laundry booking that would exceed the weekly limit or a taken slot now shows the real reason instead of a generic failure, and shower booking surfaces the "already has a reservation for this date" message from the database.
+
 ## [0.6.8] - 2026-07-20
 
 ### Fixed

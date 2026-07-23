@@ -35,6 +35,17 @@ let mockShelterMealRecords: Array<{
     date: string;
     type: string;
 }> = [];
+let mockLunchBagRecords: Array<{
+    id: string;
+    guestId?: string | null;
+    count: number;
+    date: string;
+    type: string;
+    recordedAt?: string;
+}> = [
+    { id: 'lb1', type: 'lunch_bag', count: 100, date: '2026-01-08' },
+    { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
+];
 
 vi.mock('@/stores/useMealsStore', () => ({
     useMealsStore: vi.fn((selector) => {
@@ -48,10 +59,7 @@ vi.mock('@/stores/useMealsStore', () => ({
             shelterMealRecords: mockShelterMealRecords,
             dayWorkerMealRecords: [],
             unitedEffortMealRecords: [],
-            lunchBagRecords: [
-                { id: 'lb1', type: 'lunch_bag', count: 100, date: '2026-01-08' },
-                { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
-            ],
+            lunchBagRecords: mockLunchBagRecords,
             selectedDate: '2026-01-08',
             updateMealRecord: vi.fn().mockResolvedValue(true),
             deleteMealRecord: vi.fn().mockResolvedValue(true),
@@ -110,6 +118,10 @@ describe('MealsSection Component', () => {
             { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
         ];
         mockShelterMealRecords = [];
+        mockLunchBagRecords = [
+            { id: 'lb1', type: 'lunch_bag', count: 100, date: '2026-01-08' },
+            { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
+        ];
         mockUpdateAutoMealAdditionsEnabled.mockResolvedValue(undefined);
         mockLoadSettings.mockResolvedValue(undefined);
     });
@@ -243,10 +255,46 @@ describe('MealsSection Component', () => {
         });
     });
 
+    describe('Lunch Bag Assignments', () => {
+        it('shows guest-attributed lunch bags with assignment info', () => {
+            mockLunchBagRecords = [
+                { id: 'lb1', type: 'lunch_bag', count: 1, guestId: 'g1', date: '2026-01-08', recordedAt: '2026-01-08T18:00:00Z' },
+                { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
+            ];
+
+            render(<MealsSection />);
+
+            expect(screen.getByText('Lunch Bag Assignments')).toBeDefined();
+            expect(screen.getByText('26 lunch bags handed out')).toBeDefined();
+            expect(screen.getByText('1 assigned to guests · 25 from bulk entries.')).toBeDefined();
+            expect(screen.getByText('Bulk entry')).toBeDefined();
+        });
+
+        it('shows an empty state when no lunch bags were logged', () => {
+            mockLunchBagRecords = [];
+
+            render(<MealsSection />);
+
+            expect(screen.getByText('No lunch bags logged for this date.')).toBeDefined();
+        });
+
+        it('lists who picked up meals for whom in the proxy detail panel', () => {
+            render(<MealsSection />);
+
+            // m1: g2 (Jane Smith) picked up 2 meals for g1 (Johnny)
+            const detailRow = screen
+                .getAllByText(/picked up 2 meals for/)
+                .find((el) => within(el).queryByText('Jane Smith'));
+            expect(detailRow).toBeDefined();
+            expect(within(detailRow as HTMLElement).getByText('Johnny')).toBeDefined();
+        });
+    });
+
     describe('Meal Records', () => {
         it('shows guest names in records', () => {
             render(<MealsSection />);
-            expect(screen.getByText('Johnny')).toBeDefined();
+            // Appears in the activity log and in the proxy pickup detail list
+            expect(screen.getAllByText('Johnny').length).toBeGreaterThanOrEqual(1);
         });
 
         it('highlights proxy pickups with handshake type', () => {

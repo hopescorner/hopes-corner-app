@@ -175,15 +175,32 @@ export default function CheckInClient({
 
     useEffect(() => {
         if (!snapshotReady) return;
-        const timer = window.setTimeout(async () => {
+        const reconcile = async () => {
             try {
                 const response = await fetch('/api/check-in/reconcile', { cache: 'no-store' });
                 if (response.ok) applySnapshot(await response.json() as CheckInSnapshot);
             } catch {
                 // Realtime remains active; the next reconciliation can recover.
             }
-        }, 1500);
-        return () => window.clearTimeout(timer);
+        };
+        const timer = window.setTimeout(reconcile, 1500);
+        // Realtime events can be missed while the tab is hidden or the device
+        // sleeps (dropped websocket); re-reconcile whenever the tab returns so
+        // a stale device converges without a manual reload.
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') void reconcile();
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        // A front-desk tab can stay visible all day while its websocket dies
+        // silently; a periodic reconcile bounds how stale it can get.
+        const interval = window.setInterval(() => {
+            if (document.visibilityState === 'visible') void reconcile();
+        }, 120_000);
+        return () => {
+            window.clearTimeout(timer);
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
     }, [snapshotReady, applySnapshot]);
 
     // Search logic using the migrated flexibleNameSearch (with deferred value)

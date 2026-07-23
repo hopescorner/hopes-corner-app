@@ -1,5 +1,5 @@
 begin;
-select plan(12);
+select plan(15);
 
 insert into public.guests (
   id, external_id, first_name, last_name, full_name, preferred_name,
@@ -77,6 +77,24 @@ select is((
   from public.meal_attendance
   where guest_id = '22222222-2222-4222-8222-222222222222' and served_on = '2026-07-19'
 ), 1, 'an idempotency key creates exactly one authoritative record');
+select is((
+  select count(*)::integer
+  from public.meal_attendance
+  where meal_type = 'lunch_bag' and served_on = '2026-07-19'
+    and guest_id = '22222222-2222-4222-8222-222222222222'
+), 1, 'auto-adds exactly one guest-attributed lunch bag per person even across duplicate commands');
+select lives_ok(
+  $$select public.execute_checkin_meal_command(
+    '22222222-2222-4222-8222-222222222222', '2026-07-19', 1, false,
+    '66666666-6666-4666-8666-666666666666'
+  )$$,
+  'accepts a second meal command for the same guest'
+);
+select is((
+  select count(*)::integer
+  from public.meal_attendance
+  where meal_type = 'lunch_bag' and served_on = '2026-07-19'
+), 1, 'a second meal for the same person does not add another lunch bag');
 select throws_like(
   $$select public.execute_checkin_meal_command(
     '44444444-4444-4444-8444-444444444444', '2026-07-19', 1, false,

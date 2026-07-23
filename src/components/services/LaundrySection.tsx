@@ -292,10 +292,11 @@ const selectableGuests = useMemo(() => {
         }
 
         try {
-            await updateLaundryStatus(record.id, newStatus);
-            toast.success('Status updated');
-        } catch {
-            toast.error('Failed to update status');
+            const ok = await updateLaundryStatus(record.id, newStatus);
+            if (ok) toast.success('Status updated');
+            else toast.error('Failed to update status');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update status');
         }
     }, [requiresBagPrompt, updateLaundryBagNumber, updateLaundryStatus, isViewingPast]);
 
@@ -339,8 +340,8 @@ const selectableGuests = useMemo(() => {
         for (const record of legacyLaundry) {
             const isOnsite = record.laundryType === 'onsite' || !record.laundryType;
             try {
-                await updateLaundryStatus(record.id, isOnsite ? 'picked_up' : 'offsite_picked_up');
-                successCount++;
+                const ok = await updateLaundryStatus(record.id, isOnsite ? 'picked_up' : 'offsite_picked_up');
+                if (ok) successCount++;
             } catch {
                 // Continue with remaining records
             }
