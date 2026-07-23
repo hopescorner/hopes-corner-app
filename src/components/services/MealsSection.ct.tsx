@@ -12,6 +12,11 @@ const pacificToday = new Intl.DateTimeFormat('en-CA', {
 // Create an ISO timestamp that falls within today in Pacific time
 const todayDate = `${pacificToday}T12:00:00.000Z`;
 
+// RV Meals is intentionally hidden from the quick add panel on Wednesdays
+// (see MEAL_CATEGORIES filter in MealsSection.tsx), so tests must not assume
+// it's always visible.
+const isTodayWednesday = new Date(`${pacificToday}T12:00:00.000Z`).getUTCDay() === 3;
+
 const sampleGuests = [
   { id: 'g1', firstName: 'John', lastName: 'Smith', preferredName: 'Johnny', name: 'John Smith' },
   { id: 'g2', firstName: 'Jane', lastName: 'Doe', preferredName: '', name: 'Jane Doe' },
@@ -159,15 +164,22 @@ test.describe('MealsSection', () => {
     await component.getByRole('button', { name: 'Add Bulk Meals' }).click();
     // Panel should now be visible with all categories
     await expect(component.getByText('Quick Add Bulk Meals')).toBeVisible();
-    await expect(component.getByText('RV deliveries')).toBeVisible();
+    if (!isTodayWednesday) {
+      await expect(component.getByText('RV deliveries')).toBeVisible();
+    }
     await expect(component.getByText('Shelter meals')).toBeVisible();
     await expect(component.getByText('Partner organization')).toBeVisible();
   });
 
-  test('bulk add panel shows all 5 category cards', async ({ mount }) => {
+  test('bulk add panel shows all category cards', async ({ mount }) => {
     const component = await mount(<MealsSectionStory />);
     await component.getByRole('button', { name: 'Add Bulk Meals' }).click();
-    await expect(component.getByText('RV deliveries')).toBeVisible();
+    // RV Meals is hidden on Wednesdays by design
+    if (isTodayWednesday) {
+      await expect(component.getByText('RV deliveries')).not.toBeVisible();
+    } else {
+      await expect(component.getByText('RV deliveries')).toBeVisible();
+    }
     await expect(component.getByText('Day worker center')).toBeVisible();
     await expect(component.getByText('Shelter meals')).toBeVisible();
     await expect(component.getByText('To-go lunch bags')).toBeVisible();
