@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.7.1';
+export const APP_VERSION = '0.7.2';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.7.2',
+        date: 'July 29, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Undoing a Check-In Removes Its Lunch Bag',
+                description: 'Undoing a meal left the automatically-added lunch bag behind, so every corrected entry quietly added one to the day\'s bag count. The bag now goes with the meal — unless the guest still has another meal, or still picked up for someone else, in which case they keep it.',
+            },
+            {
+                type: 'fix',
+                title: 'Past Lunch Bag Counts Corrected',
+                description: 'Lunch bag totals for July 25, 27, and 29 were overstated by duplicate bags given to guests who picked up for a buddy and also ate. Those extra rows have been removed, so all three days now show exactly one bag per person served. Meal counts were not affected.',
+            },
+        ],
+    },
     {
         version: '0.7.1',
         date: 'July 29, 2026',

@@ -71,6 +71,65 @@ const autoAddLunchBag = async (
     }
 };
 
+// The mirror of autoAddLunchBag: a guest's bag exists because they got a meal
+// that day, so when their last meal is removed (an undone check-in, a corrected
+// entry) the bag has to go too. Without this, every undo leaves an orphan bag
+// and the day's bag count stays permanently overstated.
+//
+// Entitlement is checked against the DB rather than local state on purpose: the
+// Check-In page hydrates only meals and extras, never lunchBagRecords, so a
+// local-only lookup would silently do nothing on the page where undo is used
+// most. Matching on the deduplication key also guarantees we only ever remove a
+// bag this code added — a bulk or manually-entered bag has a different key (or
+// none) and is left alone.
+const retractLunchBagIfNoMealsLeft = async (
+    set: (fn: (state: MealsState) => void) => void,
+    guestId: string,
+    serviceDate: string,
+) => {
+    if (!guestId || !serviceDate) return;
+
+    try {
+        const supabase = createClient();
+
+        // Still entitled if any base/extra meal remains for them that day, or if
+        // they are recorded as the picker on someone else's remaining meal.
+        const { data: remaining, error } = await supabase
+            .from('meal_attendance')
+            .select('id')
+            .eq('served_on', serviceDate)
+            .in('meal_type', ['guest', 'extra'])
+            .or(`guest_id.eq.${guestId},picked_up_by_guest_id.eq.${guestId}`)
+            .limit(1);
+
+        if (error) {
+            console.error('Failed to check remaining meals before retracting lunch bag:', error);
+            return;
+        }
+        if (remaining && remaining.length > 0) return;
+
+        const key = lunchBagKey(guestId, serviceDate);
+        const { error: deleteError } = await supabase
+            .from('meal_attendance')
+            .delete()
+            .eq('meal_type', 'lunch_bag')
+            .eq('deduplication_key', key);
+
+        if (deleteError) {
+            console.error('Failed to retract auto-added lunch bag:', deleteError);
+            return;
+        }
+
+        set((state) => {
+            state.lunchBagRecords = state.lunchBagRecords.filter(
+                (r) => !(r.guestId === guestId && (r.dateKey || pacificDateStringFrom(r.date)) === serviceDate),
+            );
+        });
+    } catch (err) {
+        console.error('Failed to retract auto-added lunch bag', err);
+    }
+};
+
 export interface MealRecord {
     id: string;
     guestId: string;
@@ -339,6 +398,10 @@ export const useMealsStore = create<MealsState>()(
                     },
 
                     deleteMealRecord: async (recordId: string) => {
+                        // Capture guest/date before the optimistic removal so the
+                        // lunch bag tied to this meal can be retracted afterwards.
+                        const target = get().mealRecords.find((r) => r.id === recordId);
+
                         set((state) => {
                             state.mealRecords = state.mealRecords.filter(
                                 (r) => r.id !== recordId
@@ -353,6 +416,15 @@ export const useMealsStore = create<MealsState>()(
 
                         if (error) {
                             console.error('Failed to delete meal record from Supabase:', error);
+                            return;
+                        }
+
+                        if (target?.guestId) {
+                            await retractLunchBagIfNoMealsLeft(
+                                set,
+                                target.guestId,
+                                target.dateKey || pacificDateStringFrom(target.date),
+                            );
                         }
                     },
 
@@ -459,6 +531,8 @@ export const useMealsStore = create<MealsState>()(
                     },
 
                     deleteExtraMealRecord: async (recordId: string) => {
+                        const target = get().extraMealRecords.find((r) => r.id === recordId);
+
                         set((state) => {
                             state.extraMealRecords = state.extraMealRecords.filter(r => r.id !== recordId);
                         });
@@ -466,6 +540,15 @@ export const useMealsStore = create<MealsState>()(
                         const { error } = await supabase.from('meal_attendance').delete().eq('id', recordId);
                         if (error) {
                             console.error('Failed to delete Extra meal record:', error);
+                            return;
+                        }
+
+                        if (target?.guestId) {
+                            await retractLunchBagIfNoMealsLeft(
+                                set,
+                                target.guestId,
+                                target.dateKey || pacificDateStringFrom(target.date),
+                            );
                         }
                     },
 

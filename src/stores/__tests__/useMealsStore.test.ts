@@ -11,6 +11,9 @@ const mockSupabase = {
     update: vi.fn().mockReturnThis(),
     delete: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
+    or: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockReturnThis(),
     single: vi.fn(),
 };
 
@@ -87,6 +90,9 @@ describe('useMealsStore', () => {
         mockSupabase.update.mockReturnThis();
         mockSupabase.delete.mockReturnThis();
         mockSupabase.eq.mockReturnThis();
+        mockSupabase.in.mockReturnThis();
+        mockSupabase.or.mockReturnThis();
+        mockSupabase.limit.mockReturnThis();
 
         // Default Supabase Single Response
         mockSupabase.single.mockResolvedValue({
@@ -958,6 +964,101 @@ describe('useMealsStore', () => {
                 useMealsStore.setState({ haircutRecords: [{ id: 'hc1', guestId: 'g1', date: '2025-01-06', type: 'haircut' }] });
                 await useMealsStore.getState().deleteHaircutRecord('hc1');
                 expect(console.error).toHaveBeenCalled();
+            });
+        });
+
+        // Undoing a check-in must take the auto-added lunch bag with it, or every
+        // undo leaves an orphan bag and inflates the day's count permanently.
+        describe('lunch bag retraction on meal delete', () => {
+            const bagDeleteCalls = () =>
+                mockSupabase.eq.mock.calls.filter(([col]: any[]) => col === 'deduplication_key');
+
+            beforeEach(() => {
+                vi.spyOn(console, 'error').mockImplementation(() => { });
+            });
+
+            it('removes the guest\'s bag when their last meal is deleted', async () => {
+                useMealsStore.setState({
+                    mealRecords: [createMockMealRecord({ id: 'd1', guestId: 'g1', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' })],
+                });
+                // No meals remain for g1 after the delete.
+                mockSupabase.limit.mockResolvedValueOnce({ data: [], error: null });
+
+                await useMealsStore.getState().deleteMealRecord('d1');
+
+                expect(mockSupabase.eq).toHaveBeenCalledWith('deduplication_key', 'lunch_bag_auto_g1_2025-01-06');
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
+            });
+
+            it('keeps the bag when the guest still has another meal that day', async () => {
+                useMealsStore.setState({
+                    mealRecords: [createMockMealRecord({ id: 'd1', guestId: 'g1', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' })],
+                });
+                // An extra meal still exists for g1.
+                mockSupabase.limit.mockResolvedValueOnce({ data: [{ id: 'still-here' }], error: null });
+
+                await useMealsStore.getState().deleteMealRecord('d1');
+
+                expect(bagDeleteCalls()).toHaveLength(0);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(1);
+            });
+
+            it('retracts the bag when a guest\'s only meal was an extra', async () => {
+                useMealsStore.setState({
+                    extraMealRecords: [createMockMealRecord({ id: 'e1', guestId: 'g1', type: 'extra', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' })],
+                });
+                mockSupabase.limit.mockResolvedValueOnce({ data: [], error: null });
+
+                await useMealsStore.getState().deleteExtraMealRecord('e1');
+
+                expect(mockSupabase.eq).toHaveBeenCalledWith('deduplication_key', 'lunch_bag_auto_g1_2025-01-06');
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
+            });
+
+            it('leaves another guest\'s bag alone', async () => {
+                useMealsStore.setState({
+                    mealRecords: [createMockMealRecord({ id: 'd1', guestId: 'g1', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [
+                        createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' }),
+                        createMockMealRecord({ id: 'bag2', guestId: 'g2', type: 'lunch_bag', dateKey: '2025-01-06' }),
+                    ],
+                });
+                mockSupabase.limit.mockResolvedValueOnce({ data: [], error: null });
+
+                await useMealsStore.getState().deleteMealRecord('d1');
+
+                const remaining = useMealsStore.getState().lunchBagRecords;
+                expect(remaining.map((r) => r.id)).toEqual(['bag2']);
+            });
+
+            it('does not touch bulk bags, which carry no guest and a different key', async () => {
+                useMealsStore.setState({
+                    mealRecords: [createMockMealRecord({ id: 'd1', guestId: 'g1', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [createMockMealRecord({ id: 'bulk1', guestId: null as any, type: 'lunch_bag', dateKey: '2025-01-06' })],
+                });
+                mockSupabase.limit.mockResolvedValueOnce({ data: [], error: null });
+
+                await useMealsStore.getState().deleteMealRecord('d1');
+
+                // Targeted by the guest's auto key only, so the bulk row survives.
+                expect(mockSupabase.eq).toHaveBeenCalledWith('deduplication_key', 'lunch_bag_auto_g1_2025-01-06');
+                expect(useMealsStore.getState().lunchBagRecords.map((r) => r.id)).toEqual(['bulk1']);
+            });
+
+            it('does not retract when the meal delete itself failed', async () => {
+                useMealsStore.setState({
+                    mealRecords: [createMockMealRecord({ id: 'd1', guestId: 'g1', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' })],
+                });
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete Error' } });
+
+                await useMealsStore.getState().deleteMealRecord('d1');
+
+                expect(bagDeleteCalls()).toHaveLength(0);
+                expect(useMealsStore.getState().lunchBagRecords).toHaveLength(1);
             });
         });
 

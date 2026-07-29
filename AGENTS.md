@@ -173,6 +173,43 @@ Guests can be banned globally or per-service:
 - Used for meal pickup on behalf of others
 - Managed in `useGuestsStore` via `guest_proxies` table
 
+### Automatic lunch bags — one per person per service day
+
+**Invariant: each person gets exactly one auto-added lunch bag per service day**,
+no matter how they earned it — one meal, two meals, an extra meal, picking up for
+a linked guest, or any combination. Fridays are excluded, and the whole feature
+is gated on the `auto_meal_additions_enabled` app setting.
+
+Enforcement is the database, not app logic: every write path computes the same
+deduplication key and lets the unique index collapse repeats.
+
+```text
+lunch_bag_auto_<guestId>_<YYYY-MM-DD>
+```
+
+Because the key is identical everywhere, adds are idempotent and order-independent
+across devices. **If you add a new write path (importer, server-side command, backfill),
+use this key** — do not invent a variant. A separate `lunch_bag_proxy_*` key once
+existed and silently gave proxy pickers two bags a day; that is why the rule is
+written down here.
+
+Paths that must stay in agreement:
+
+| Path | Where |
+| --- | --- |
+| Services page / proxy pickup | `useMealsStore.addMealRecord`, `addExtraMealRecord` |
+| Check-In page | `execute_checkin_meal_command` RPC |
+| Retraction on undo/delete | `useMealsStore.deleteMealRecord`, `deleteExtraMealRecord` |
+
+Removing a guest's last meal for the day must also retract their bag, or undone
+check-ins leave orphan bags that permanently inflate the day's count. Only bags
+matching the key above are ever retracted — bulk and manually-entered bags are
+left alone.
+
+Sanity check on the Meals tab: **Guests Served should equal Lunch Bags.** Bags may
+legitimately run slightly higher when someone only collected for a buddy and never
+ate (entitled to a bag, absent from Guests Served), and are zero on Fridays.
+
 ## Environment Variables
 
 See `.env.example`:

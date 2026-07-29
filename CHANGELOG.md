@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.2] - 2026-07-29
+
+### Fixed
+
+- Undoing a check-in now removes the lunch bag that was auto-added with the meal. Previously the bag was left behind, so every corrected entry permanently overstated the day's lunch bag count by one. A guest keeps their bag if any base or extra meal remains, or if they are still recorded as picking up for someone else; bulk and manually-entered bags are never touched.
+
+### Changed
+
+- Documented the "one lunch bag per person per service day" invariant and its `lunch_bag_auto_<guestId>_<date>` deduplication key in AGENTS.md, listing every write path that has to agree, so a future importer or command can't reintroduce the duplicate-bag bug.
+
+### Data
+
+- Removed 49 invalid lunch bag rows across the three service days affected by the 0.7.0 duplicate-bag bug (2026-07-25, 07-27, 07-29): 44 duplicates created under the retired `lunch_bag_proxy_*` key plus 5 orphan bags whose meals had been undone. All three days now reconcile exactly to one bag per person served, with nobody missing a bag.
+
 ## [0.7.1] - 2026-07-29
 
 ### Fixed
