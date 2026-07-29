@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.7.0';
+export const APP_VERSION = '0.7.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.7.1',
+        date: 'July 29, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Check-In Card Shows the Right Meal Count',
+                description: 'Assigning 2 meals on the Check-In page saved both but displayed "1 MEAL" on the guest card. The lunch bag added alongside the meal was being counted as if it were that guest\'s meal, overwriting the real total. The card now matches what was actually recorded.',
+            },
+            {
+                type: 'fix',
+                title: 'Every Guest Served Gets Exactly One Lunch Bag',
+                description: 'Some guests were missing a bag entirely — anyone whose only meal was an extra, or whose meal was already recorded by another device or an import — which is why bag counts ran slightly under the number of people served. Meanwhile a guest who picked up for a buddy and also ate could receive two. Every route now lands on exactly one bag per person per day.',
+            },
+            {
+                type: 'feature',
+                title: 'Guests Served at a Glance',
+                description: 'The Meals tab now shows the number of distinct guests served next to the meal counts, so you can read meals and people together — and spot any gap against lunch bags immediately.',
+            },
+        ],
+    },
     {
         version: '0.7.0',
         date: 'July 22, 2026',
