@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.3] - 2026-07-29
+
+### Added
+
+- Meals, Showers, and Laundry now show their operational note for the selected service date directly inside each Services tab. Staff can navigate to a previous day, add missing context, or edit an existing single-day or multi-day note without returning to Check-In or the dashboard.
+
 ## [0.7.2] - 2026-07-29
 
 ### Fixed

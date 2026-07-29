@@ -107,6 +107,12 @@ vi.mock('../ServiceDatePicker', () => ({
         ) : null,
 }));
 
+vi.mock('../ServiceDayNote', () => ({
+    ServiceDayNote: ({ date, serviceType }: { date: string; serviceType: string }) => (
+        <div data-testid="service-day-note">{serviceType}:{date}</div>
+    ),
+}));
+
 vi.mock('@/components/ui/CompactWaiverIndicator', () => ({
     CompactWaiverIndicator: () => null,
 }));
@@ -188,6 +194,16 @@ describe('LaundrySection Time Travel', () => {
     });
 
     describe('Historical View', () => {
+        it('shows the laundry note for the selected historical date', async () => {
+            render(<LaundrySection />);
+
+            fireEvent.click(screen.getByTestId('go-to-yesterday'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('service-day-note')).toHaveTextContent('laundry:2024-01-14');
+            });
+        });
+
         it('should show historical warning when viewing past date', async () => {
             render(<LaundrySection />);
 

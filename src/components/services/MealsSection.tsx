@@ -36,6 +36,7 @@ import { MAX_BASE_MEALS_PER_DAY } from '@/lib/constants/constants';
 import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
+import { ServiceDayNote } from './ServiceDayNote';
 import type React from 'react';
 
 // Meal category configurations
@@ -632,6 +633,8 @@ const proxyPickerIds = new Set<string>();
             {showAddPanel ? 'Close' : <><Plus size={14} /> Add Bulk Meals</>}
         </button>
             </div>
+
+            <ServiceDayNote date={selectedDate} serviceType="meals" />
 
             <div className="bg-gradient-to-r from-emerald-50 via-white to-sky-50 rounded-3xl border border-emerald-100 p-4 sm:p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

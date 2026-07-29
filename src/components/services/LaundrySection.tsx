@@ -29,6 +29,7 @@ import { LayoutGrid, List, Settings } from 'lucide-react';
 import { SlotBlockModal } from '../admin/SlotBlockModal';
 import { EndServiceDayPanel } from './EndServiceDayPanel';
 import { ServiceDatePicker } from './ServiceDatePicker';
+import { ServiceDayNote } from './ServiceDayNote';
 import { useSession } from 'next-auth/react';
 
 const STATUS_COLUMNS = [
@@ -554,6 +555,8 @@ const selectableGuests = useMemo(() => {
                         </span>
                     </div>
                 </div>
+
+                <ServiceDayNote date={selectedDate} serviceType="laundry" />
 
                 {viewMode === 'list' ? (
                     <CompactLaundryList readOnly={isViewingPast} />

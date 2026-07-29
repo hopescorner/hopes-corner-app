@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.7.2';
+export const APP_VERSION = '0.7.3';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.7.3',
+        date: 'July 29, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Historical Notes Inside Each Service Tab',
+                description: 'Meals, Showers, and Laundry now show the operational note for whichever date you are viewing. Navigate to a previous service day to add missing context or edit an existing note directly from that service section.',
+            },
+        ],
+    },
     {
         version: '0.7.2',
         date: 'July 29, 2026',

@@ -75,6 +75,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useRemindersStore } from '@/stores/useRemindersStore';
+import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
 import { todayPacificDateString } from '@/lib/utils/date';
 
 const originalLoaders = {
@@ -82,6 +83,7 @@ const originalLoaders = {
     guests: useGuestsStore.getState().ensureLoaded,
     meals: useMealsStore.getState().ensureLoaded,
     reminders: useRemindersStore.getState().ensureLoaded,
+    dailyNotes: useDailyNotesStore.getState().ensureLoaded,
 };
 
 beforeEach(() => {
@@ -102,6 +104,7 @@ afterEach(() => {
     useGuestsStore.setState({ ensureLoaded: originalLoaders.guests } as any);
     useMealsStore.setState({ ensureLoaded: originalLoaders.meals } as any);
     useRemindersStore.setState({ ensureLoaded: originalLoaders.reminders } as any);
+    useDailyNotesStore.setState({ ensureLoaded: originalLoaders.dailyNotes } as any);
 });
 
 describe('ServicesPage data loading (integration, real stores)', () => {
@@ -169,6 +172,18 @@ describe('ServicesPage data loading (integration, real stores)', () => {
             expect(spies.services).toHaveBeenCalled();
             expect(spies.guests).toHaveBeenCalled();
             expect(spies.reminders).toHaveBeenCalled();
+        });
+    });
+
+    it.each(['meals', 'showers', 'laundry'])('loads daily notes for the %s tab', async (tab) => {
+        searchParamsRef.current = new URLSearchParams(`tab=${tab}`);
+        const ensureDailyNotesLoaded = vi.fn(async () => {});
+        useDailyNotesStore.setState({ ensureLoaded: ensureDailyNotesLoaded } as any);
+
+        render(<ServicesPage />);
+
+        await waitFor(() => {
+            expect(ensureDailyNotesLoaded).toHaveBeenCalled();
         });
     });
 });

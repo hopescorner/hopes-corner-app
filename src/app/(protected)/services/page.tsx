@@ -18,6 +18,7 @@ import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useRemindersStore } from '@/stores/useRemindersStore';
+import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
@@ -109,6 +110,7 @@ export default function ServicesPage() {
     );
     const ensureDonationsLoaded = useDonationsStore((s) => s.ensureLoaded);
     const ensureRemindersLoaded = useRemindersStore((s) => s.ensureLoaded);
+    const ensureDailyNotesLoaded = useDailyNotesStore((s) => s.ensureLoaded);
 
     const loadTabData = useCallback((tab: string) => {
         const loaders: Record<ServiceDataKey, () => Promise<void>> = {
@@ -117,9 +119,10 @@ export default function ServicesPage() {
             meals: ensureMealsLoaded,
             donations: ensureDonationsLoaded,
             reminders: ensureRemindersLoaded,
+            dailyNotes: ensureDailyNotesLoaded,
         };
         return Promise.all(serviceTabDataKeys(tab).map((key) => loaders[key]()));
-    }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded, ensureRemindersLoaded]);
+    }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded, ensureRemindersLoaded, ensureDailyNotesLoaded]);
 
     useEffect(() => {
         void loadTabData(activeTab);

@@ -17,6 +17,7 @@ import { ShowerDetailModal } from './ShowerDetailModal';
 import { SlotBlockModal } from '../admin/SlotBlockModal';
 import { EndServiceDayPanel } from './EndServiceDayPanel';
 import { ServiceDatePicker } from './ServiceDatePicker';
+import { ServiceDayNote } from './ServiceDayNote';
 import { LayoutGrid, List, Settings, ChevronDown } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
@@ -423,6 +424,8 @@ export function ShowersSection() {
                     </div>
                 </div>
             </div>
+
+            <ServiceDayNote date={selectedDate} serviceType="showers" />
 
             {/* Content */}
             {viewMode === 'list' ? (

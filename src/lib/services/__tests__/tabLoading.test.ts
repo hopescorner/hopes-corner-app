@@ -6,12 +6,12 @@ describe('serviceTabDataKeys', () => {
         expect(serviceTabDataKeys('donations')).toEqual(['donations']);
     });
 
-    it('loads meals and the guest directory for the meals tab', () => {
-        expect(serviceTabDataKeys('meals')).toEqual(['meals', 'guests']);
+    it('loads meals, the guest directory, and notes for the meals tab', () => {
+        expect(serviceTabDataKeys('meals')).toEqual(['meals', 'guests', 'dailyNotes']);
     });
 
-    it('loads operational data needed for a booking tab', () => {
-        expect(serviceTabDataKeys('showers')).toEqual(['services', 'guests', 'reminders']);
+    it('loads operational data and notes needed for a booking tab', () => {
+        expect(serviceTabDataKeys('showers')).toEqual(['services', 'guests', 'reminders', 'dailyNotes']);
     });
 
     it('loads the datasets required to calculate overview metrics', () => {

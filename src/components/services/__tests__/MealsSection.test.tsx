@@ -109,6 +109,12 @@ vi.mock('@/lib/utils/date', () => ({
     },
 }));
 
+vi.mock('../ServiceDayNote', () => ({
+    ServiceDayNote: ({ date, serviceType }: { date: string; serviceType: string }) => (
+        <div data-testid="service-day-note">{serviceType}:{date}</div>
+    ),
+}));
+
 describe('MealsSection Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -137,6 +143,11 @@ describe('MealsSection Component', () => {
             render(<MealsSection />);
             const buttons = screen.getAllByRole('button');
             expect(buttons.length).toBeGreaterThan(0);
+        });
+
+        it('shows the meal note for the selected date', () => {
+            render(<MealsSection />);
+            expect(screen.getByTestId('service-day-note')).toHaveTextContent('meals:2026-01-08');
         });
 
         it('renders the meal automation switch', () => {
