@@ -224,7 +224,15 @@ export function useRealtimeSync() {
                 try {
                     const realtimeRow = payload.eventType === 'DELETE' ? payload.old as any : payload.new as any;
                     const checkIn = useCheckInStore.getState();
-                    if (checkIn.isReady && realtimeRow?.id && realtimeRow?.guest_id && realtimeRow?.served_on === checkIn.serviceDate) {
+                    // Only guest/extra rows feed the check-in per-guest meal counts.
+                    // Auto-added lunch bags (and rv/shelter/etc.) are attributed to a
+                    // guest_id too, but they are not that guest's meals — letting them
+                    // through made a 2-meal check-in display as "1 MEAL", because the
+                    // lunch bag's quantity of 1 overwrote the real base count.
+                    const isCheckInMealRow = realtimeRow?.meal_type === 'guest'
+                        || realtimeRow?.meal_type === 'extra'
+                        || !realtimeRow?.meal_type;
+                    if (checkIn.isReady && isCheckInMealRow && realtimeRow?.id && realtimeRow?.guest_id && realtimeRow?.served_on === checkIn.serviceDate) {
                         checkIn.applyRealtimeMealRecord({
                             id: realtimeRow.id,
                             guestId: realtimeRow.guest_id,

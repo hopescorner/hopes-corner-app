@@ -535,6 +535,118 @@ describe('useMealsStore', () => {
                 expect(useMealsStore.getState().lunchBagRecords).toHaveLength(1);
             });
 
+            // Exactly one lunch bag per person per day, whatever mix of meals
+            // and proxy pickups they had. Each distinct deduplication_key is one
+            // bag (the column is uniquely indexed), so counting distinct keys per
+            // guest is equivalent to counting that guest's bags.
+            describe('one bag per person per day', () => {
+                const bagKeysByGuest = () => {
+                    const keys = mockSupabase.insert.mock.calls
+                        .map(([payload]: any[]) => payload)
+                        .filter((payload: any) => payload?.meal_type === 'lunch_bag')
+                        .map((payload: any) => payload.deduplication_key as string);
+                    return [...new Set(keys)].sort();
+                };
+
+                it('1 meal for a guest = 1 bag', async () => {
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'm-a', guest_id: 'gA', quantity: 1, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    });
+
+                    await useMealsStore.getState().addMealRecord('gA', 1);
+
+                    expect(bagKeysByGuest()).toEqual(['lunch_bag_auto_gA_2025-01-06']);
+                });
+
+                it('2 meals in one action for a guest = still 1 bag', async () => {
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'm-a', guest_id: 'gA', quantity: 2, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    });
+
+                    await useMealsStore.getState().addMealRecord('gA', 2);
+
+                    expect(bagKeysByGuest()).toEqual(['lunch_bag_auto_gA_2025-01-06']);
+                });
+
+                it('1 meal then a second meal (increment path) = still 1 bag', async () => {
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'm-a', guest_id: 'gA', quantity: 1, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    });
+                    await useMealsStore.getState().addMealRecord('gA', 1);
+
+                    // Second meal finds the existing row and increments it.
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'm-a', guest_id: 'gA', quantity: 2, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    });
+                    await useMealsStore.getState().addMealRecord('gA', 1);
+
+                    expect(bagKeysByGuest()).toEqual(['lunch_bag_auto_gA_2025-01-06']);
+                });
+
+                it('2 meals for self plus 2 picked up for a buddy = 1 bag each, not 3', async () => {
+                    // gA collects their own 2 meals...
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'm-a', guest_id: 'gA', quantity: 2, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    });
+                    await useMealsStore.getState().addMealRecord('gA', 2);
+
+                    // ...then 2 more on behalf of gB (recipient gB, picker gA).
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'm-b', guest_id: 'gB', quantity: 2, meal_type: 'guest', served_on: '2025-01-06', picked_up_by_guest_id: 'gA' },
+                        error: null,
+                    });
+                    await useMealsStore.getState().addMealRecord('gB', 2, 'gA');
+
+                    // gA gets one bag total (their own; the proxy attempt reuses the
+                    // same key), and gB gets one for the meals collected for them.
+                    expect(bagKeysByGuest()).toEqual([
+                        'lunch_bag_auto_gA_2025-01-06',
+                        'lunch_bag_auto_gB_2025-01-06',
+                    ]);
+                });
+
+                it('proxy pickup logged before the picker\'s own meal still yields 1 bag each', async () => {
+                    // Reverse order: gA picks up for gB first, then eats themselves.
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'm-b', guest_id: 'gB', quantity: 1, meal_type: 'guest', served_on: '2025-01-06', picked_up_by_guest_id: 'gA' },
+                        error: null,
+                    });
+                    await useMealsStore.getState().addMealRecord('gB', 1, 'gA');
+
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'm-a', guest_id: 'gA', quantity: 1, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    });
+                    await useMealsStore.getState().addMealRecord('gA', 1);
+
+                    expect(bagKeysByGuest()).toEqual([
+                        'lunch_bag_auto_gA_2025-01-06',
+                        'lunch_bag_auto_gB_2025-01-06',
+                    ]);
+                });
+
+                it('a base meal plus an extra meal for the same guest = still 1 bag', async () => {
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'm-a', guest_id: 'gA', quantity: 1, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    });
+                    await useMealsStore.getState().addMealRecord('gA', 1);
+
+                    mockSupabase.single.mockResolvedValue({
+                        data: { id: 'x-a', guest_id: 'gA', quantity: 1, meal_type: 'extra', served_on: '2025-01-06' },
+                        error: null,
+                    });
+                    await useMealsStore.getState().addExtraMealRecord('gA', 1);
+
+                    expect(bagKeysByGuest()).toEqual(['lunch_bag_auto_gA_2025-01-06']);
+                });
+            });
+
             it('does not auto-add lunch bag when meal automation is paused', async () => {
                 vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-06');
                 useSettingsStore.setState({ autoMealAdditionsEnabled: false });
@@ -612,11 +724,17 @@ describe('useMealsStore', () => {
                     ],
                 });
 
-                // Mock the update response (returns updated row)
+                // Mock the update response (returns updated row), then the
+                // lunch bag insert hitting the deduplication_key unique index
+                // because this guest already has today's bag.
                 mockSupabase.single
                     .mockResolvedValueOnce({
                         data: { id: 'existing-1', guest_id: 'g1', quantity: 2, meal_type: 'guest', served_on: '2025-01-06' },
                         error: null,
+                    })
+                    .mockResolvedValueOnce({
+                        data: null,
+                        error: { code: '23505', message: 'duplicate key value violates unique constraint' },
                     });
 
                 await useMealsStore.getState().addMealRecord('g1', 1);
@@ -628,9 +746,47 @@ describe('useMealsStore', () => {
                 // Should have called update for the meal (not insert)
                 expect(mockSupabase.update).toHaveBeenCalledWith({ quantity: 2 });
 
-                // One lunch bag per person per day: the guest already got theirs
-                // with the first meal, so no additional bag on the increment.
+                // One lunch bag per person per day. The increment path still
+                // attempts the add (the guest's first meal may have been an
+                // extra, or logged on another device that skipped the bag), but
+                // the shared dedup key collapses it to a no-op.
+                expect(mockSupabase.insert).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        meal_type: 'lunch_bag',
+                        deduplication_key: 'lunch_bag_auto_g1_2025-01-06',
+                    }),
+                );
                 expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
+            });
+
+            it('gives a proxy picker only one lunch bag for the day, not one per role', async () => {
+                // g2 picks up for g1 and also has their own meal: the proxy bag
+                // and g2's own bag share a deduplication key, so g2 gets one bag.
+                mockSupabase.single
+                    .mockResolvedValueOnce({
+                        data: { id: 'meal-g1', guest_id: 'g1', quantity: 1, meal_type: 'guest', served_on: '2025-01-06', picked_up_by_guest_id: 'g2' },
+                        error: null,
+                    })
+                    .mockResolvedValueOnce({
+                        data: { id: 'bag-g1', guest_id: 'g1', quantity: 1, meal_type: 'lunch_bag', served_on: '2025-01-06' },
+                        error: null,
+                    })
+                    .mockResolvedValueOnce({
+                        data: { id: 'bag-g2', guest_id: 'g2', quantity: 1, meal_type: 'lunch_bag', served_on: '2025-01-06' },
+                        error: null,
+                    });
+
+                await useMealsStore.getState().addMealRecord('g1', 1, 'g2');
+
+                const bagKeys = mockSupabase.insert.mock.calls
+                    .map(([payload]: any[]) => payload)
+                    .filter((payload: any) => payload?.meal_type === 'lunch_bag')
+                    .map((payload: any) => payload.deduplication_key);
+
+                expect(bagKeys).toEqual([
+                    'lunch_bag_auto_g1_2025-01-06',
+                    'lunch_bag_auto_g2_2025-01-06',
+                ]);
             });
 
             it('rejects adding when existing record is already at base meal limit', async () => {

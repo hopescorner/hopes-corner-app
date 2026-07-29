@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { renderHook, act, render } from '@testing-library/react';
 import { useRealtimeSync, RealtimeSyncProvider } from '../useRealtimeSync';
+import { useCheckInStore } from '@/stores/useCheckInStore';
 import React from 'react';
 
 const { mockToast } = vi.hoisted(() => {
@@ -334,6 +335,62 @@ describe('useRealtimeSync', () => {
 
         expect(next.mealRecords.map((r: any) => r.id)).toEqual(['snapshot-meal-g-1']);
         expect(next.extraMealRecords.map((r: any) => r.id).sort()).toEqual(['snapshot-extra-g-1', 'x-real']);
+    });
+
+    it('does not let an auto-added lunch bag overwrite the check-in meal count', async () => {
+        // A 2-meal check-in also inserts one lunch_bag row attributed to the
+        // same guest. That row must not touch the guest's meal count, or the
+        // card drops from "2 MEALS" to "1 MEAL".
+        useCheckInStore.getState().hydrate({
+            generatedAt: '2025-01-06T17:00:00Z',
+            directoryVersion: 'v1',
+            serviceDate: '2025-01-06',
+            guests: [],
+            todayByGuest: {
+                'g-1': {
+                    mealCount: 2,
+                    extraMealCount: 0,
+                    totalMeals: 2,
+                    shower: null,
+                    laundry: null,
+                    bicycle: null,
+                    haircut: null,
+                    holiday: null,
+                },
+            },
+            dailyNotes: [],
+        } as any);
+
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'meal_attendance') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: {
+                id: 'bag-1',
+                guest_id: 'g-1',
+                meal_type: 'lunch_bag',
+                quantity: 1,
+                served_on: '2025-01-06',
+                created_at: '2025-01-06T17:05:00Z',
+            },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(useCheckInStore.getState().todayByGuest['g-1']).toMatchObject({
+            mealCount: 2,
+            totalMeals: 2,
+        });
     });
 
     it('refreshes services when laundry booking is created on another device', async () => {

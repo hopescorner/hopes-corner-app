@@ -50,6 +50,27 @@ const shouldAutoAddLunchBagsForDate = async (serviceDate: string) => {
     return !isFriday && await resolveAutoMealAdditionsEnabled();
 };
 
+// One lunch bag per guest per service day, whatever route earned it: a base
+// meal, an extra meal, or picking up on someone else's behalf. All routes share
+// the same deduplication key so a guest who does several of those in one day
+// still gets exactly one bag (the DB's unique index on deduplication_key makes
+// repeat attempts no-ops).
+const lunchBagKey = (guestId: string, serviceDate: string) =>
+    `lunch_bag_auto_${guestId}_${serviceDate}`;
+
+const autoAddLunchBag = async (
+    get: () => MealsState,
+    guestId: string,
+    serviceDate: string,
+    label = 'Auto-added with meal',
+) => {
+    try {
+        await get().addBulkMealRecord('lunch_bag', 1, label, lunchBagKey(guestId, serviceDate), serviceDate, guestId);
+    } catch (err) {
+        console.error('Failed to auto-add lunch bag', err);
+    }
+};
+
 export interface MealRecord {
     id: string;
     guestId: string;
@@ -223,13 +244,16 @@ export const useMealsStore = create<MealsState>()(
                                 }
                             });
 
-                            // One lunch bag per person per day: the guest already got
-                            // theirs with the first meal, so only a proxy still needs one.
-                            if (pickedUpByGuestId && pickedUpByGuestId !== guestId && await shouldAutoAddLunchBagsForDate(targetDate)) {
-                                try {
-                                    await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', `lunch_bag_proxy_${pickedUpByGuestId}_${targetDate}`, targetDate, pickedUpByGuestId);
-                                } catch (err) {
-                                    console.error('Failed to auto-add lunch bag', err);
+                            // One lunch bag per person per day. Attempt the guest's own bag
+                            // again here rather than assuming the first meal created it:
+                            // the first meal may have been an extra, or recorded on another
+                            // device/import that skipped the bag, which is what made lunch
+                            // bag totals drift below the number of guests served. The dedup
+                            // key keeps this to at most one bag per guest per day.
+                            if (await shouldAutoAddLunchBagsForDate(targetDate)) {
+                                await autoAddLunchBag(get, guestId, targetDate);
+                                if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+                                    await autoAddLunchBag(get, pickedUpByGuestId, targetDate, 'Auto-added for proxy pickup');
                                 }
                             }
 
@@ -283,8 +307,12 @@ export const useMealsStore = create<MealsState>()(
                                             if (idx !== -1) state.mealRecords[idx] = recovered;
                                             else state.mealRecords.push(recovered);
                                         });
-                                        // No lunch bag here: the guest already got theirs
-                                        // with the first meal recorded on the other device.
+                                        // Still attempt the guest's bag: the other device may
+                                        // have recorded the meal without one (e.g. it came in
+                                        // as an extra). Dedup key prevents double-bagging.
+                                        if (await shouldAutoAddLunchBagsForDate(targetDate)) {
+                                            await autoAddLunchBag(get, guestId, targetDate);
+                                        }
                                         return recovered;
                                     }
                                 }
@@ -299,17 +327,11 @@ export const useMealsStore = create<MealsState>()(
                         });
 
                         if (await shouldAutoAddLunchBagsForDate(targetDate)) {
-                            try {
-                                // Dedup keys make the auto-adds idempotent across devices
-                                // and across the check-in RPC path.
-                                await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', `lunch_bag_auto_${guestId}_${targetDate}`, targetDate, guestId);
-                                // If proxy pickup (different guest picked up), add an
-                                // additional lunch bag attributed to the proxy guest.
-                                if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
-                                    await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', `lunch_bag_proxy_${pickedUpByGuestId}_${targetDate}`, targetDate, pickedUpByGuestId);
-                                }
-                            } catch (err) {
-                                console.error('Failed to auto-add lunch bag', err);
+                            await autoAddLunchBag(get, guestId, targetDate);
+                            // Proxy picker gets their own single bag for the day — same
+                            // key as their normal bag, so they never end up with two.
+                            if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+                                await autoAddLunchBag(get, pickedUpByGuestId, targetDate, 'Auto-added for proxy pickup');
                             }
                         }
 
@@ -425,6 +447,14 @@ export const useMealsStore = create<MealsState>()(
                         set((state) => {
                             state.extraMealRecords.push(mapped);
                         });
+
+                        // A guest whose only meal today is an extra still gets their one
+                        // lunch bag. Previously this path skipped bags entirely, so those
+                        // guests were counted in "guests served" but never in lunch bags.
+                        if (await shouldAutoAddLunchBagsForDate(todayStr)) {
+                            await autoAddLunchBag(get, guestId, todayStr);
+                        }
+
                         return mapped;
                     },
 

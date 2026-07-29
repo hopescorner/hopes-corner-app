@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.1] - 2026-07-29
+
+### Fixed
+
+- The Check-In card no longer under-reports meals: assigning 2 meals correctly saved 2 but displayed "1 MEAL". The realtime handler fed every meal row attributed to a guest into the per-guest check-in counts, so the lunch bag auto-added alongside the meal (quantity 1) overwrote the real base count. Only `guest` and `extra` rows now affect those counts.
+- Closed the remaining gaps behind the lunch-bag-vs-guests-served delta. 0.7.0 added the bag only at the single moment a guest's *first guest-meal row* was created, so any guest whose day didn't pass through exactly that transition never got one:
+  - a guest whose only meal of the day was an **extra** (that path never added bags at all);
+  - a guest whose meal row already existed from an import or another device, so the add took the increment path and skipped the bag;
+  - a guest whose first meal landed while automatic additions were toggled off, then toggled back on.
+  The bag is now attempted on every meal command for the guest/day; the unique deduplication key keeps it to exactly one bag per guest per day.
+- A proxy picker who also collected their own meal received two lunch bags (their own plus a proxy one, which used a separate deduplication key). Proxy and personal bags now share one key per guest per day, so every person gets exactly one bag regardless of how many meals or pickups they had.
+
+### Added
+
+- New "Guests Served" stat on the Meals tab under Services shows the number of distinct guests alongside the meal counts, so meals and people can be read at a glance (and any lunch-bag delta is immediately visible).
+
 ## [0.7.0] - 2026-07-22
 
 ### Fixed

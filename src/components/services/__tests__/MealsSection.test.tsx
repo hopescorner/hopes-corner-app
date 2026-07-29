@@ -169,6 +169,25 @@ describe('MealsSection Component', () => {
             expect(screen.getByText('125')).toBeDefined();
         });
 
+        it('displays distinct guests served alongside guest meals', () => {
+            // 3 guest-meal rows across 2 distinct guests = 4 meals, 2 guests.
+            // Surfacing both makes the lunch-bag-vs-guests delta visible.
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', count: 2, date: '2026-01-08', type: 'guest' },
+                { id: 'm2', guestId: 'g2', count: 1, date: '2026-01-08', type: 'guest' },
+                { id: 'm3', guestId: 'g2', count: 1, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            const guestsServedStat = screen.getByLabelText('Guests Served icon').closest('div');
+            expect(guestsServedStat).not.toBeNull();
+            expect(within(guestsServedStat as HTMLElement).getByText('2')).toBeDefined();
+
+            const guestMealsStat = screen.getByLabelText('Guest Meals icon').closest('div');
+            expect(within(guestMealsStat as HTMLElement).getByText('4')).toBeDefined();
+        });
+
         it('displays only shelter meals from the selected date', () => {
             mockShelterMealRecords = [
                 { id: 'shelter-selected', type: 'shelter', count: 7, date: '2026-01-08' },
@@ -188,6 +207,7 @@ describe('MealsSection Component', () => {
 
             [
                 'Total Meals icon',
+                'Guests Served icon',
                 'Guest Meals icon',
                 'Proxy Pickups icon',
                 'Lunch Bags icon',

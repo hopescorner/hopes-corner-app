@@ -973,8 +973,9 @@ const proxyPickerIds = new Set<string>();
 
             {/* Service Summary */}
             <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" icon={Utensils} />
+                    <StatCard label="Guests Served" value={dayMetrics.uniqueGuests} color="purple" icon={User} />
                     <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" icon={Users} />
                     <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" icon={HandshakeIcon} />
                     <StatCard label="Lunch Bags" value={dayMetrics.lunchBagCount} color="amber" icon={Package} />
