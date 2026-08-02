@@ -620,17 +620,33 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                     </button>
                 )}
                 {(record.status === 'cancelled' || record.status === 'no_show') && !readOnly && (
-                    <button
-                        disabled={isUpdating}
-                        onClick={() => handleStatusUpdate('done')}
-                        className="w-full py-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
-                    >
-                        {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
-                            <>
-                                <CheckCircle size={14} /> MARK DONE
-                            </>
+                    <div className="flex items-center gap-2 w-full">
+                        {record.status === 'cancelled' && (
+                            <button
+                                disabled={isUpdating}
+                                onClick={() => handleStatusUpdate('booked')}
+                                className="flex-1 py-2 rounded-xl bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
+                                aria-label="Undo cancellation"
+                            >
+                                {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
+                                    <>
+                                        <RotateCcw size={14} /> UNDO CANCEL
+                                    </>
+                                )}
+                            </button>
                         )}
-                    </button>
+                        <button
+                            disabled={isUpdating}
+                            onClick={() => handleStatusUpdate('done')}
+                            className="flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
+                        >
+                            {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
+                                <>
+                                    <CheckCircle size={14} /> MARK DONE
+                                </>
+                            )}
+                        </button>
+                    </div>
                 )}
             </div>
         </motion.div>

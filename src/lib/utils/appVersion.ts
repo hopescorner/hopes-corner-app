@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.7.3';
+export const APP_VERSION = '0.7.4';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.7.4',
+        date: 'August 2, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Undo Cancellation for Shower Appointments',
+                description: 'A new "Undo Cancel" button now appears on cancelled shower appointments in the Cancelled tab. Staff can restore an accidentally cancelled appointment back to booked status without having to re-enter the guest.',
+            },
+        ],
+    },
     {
         version: '0.7.3',
         date: 'July 29, 2026',
