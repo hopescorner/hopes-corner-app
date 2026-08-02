@@ -215,6 +215,35 @@ describe('ShowersSection Cancelled Tab', () => {
         });
     });
 
+    it('shows Undo Cancel button for cancelled (not no_show) showers in list view', async () => {
+        render(<ShowersSection />);
+
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
+        fireEvent.click(cancelledTab);
+
+        await waitFor(() => {
+            // Only Alice Brown has status 'cancelled'; Charlie Davis has 'no_show'
+            const undoButtons = screen.getAllByRole('button', { name: /undo cancellation/i });
+            expect(undoButtons.length).toBe(1);
+        });
+    });
+
+    it('restores cancelled shower to booked when Undo Cancel is clicked', async () => {
+        render(<ShowersSection />);
+
+        const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
+        fireEvent.click(cancelledTab);
+
+        await waitFor(() => {
+            const undoButton = screen.getByRole('button', { name: /undo cancellation/i });
+            fireEvent.click(undoButton);
+        });
+
+        await waitFor(() => {
+            expect(mockUpdateShowerStatus).toHaveBeenCalledWith('4', 'booked');
+        });
+    });
+
     it('does not show COMPLETE or cancel buttons for cancelled showers', async () => {
         render(<ShowersSection />);
         

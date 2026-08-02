@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.4] - 2026-08-02
+
+### Added
+
+- Cancelled shower appointments now show an "Undo Cancel" button in the Cancelled tab. Staff can restore an accidentally cancelled appointment to booked status without re-entering the guest.
+
 ## [0.7.3] - 2026-07-29
 
 ### Added
