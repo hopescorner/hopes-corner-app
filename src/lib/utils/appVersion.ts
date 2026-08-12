@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.7.4';
+export const APP_VERSION = '0.7.5';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.7.5',
+        date: 'August 12, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Month Filter for Meals Summary Export',
+                description: 'The Meals Summary CSV export now includes a month filter. Select which months to include before exporting — no more manually deleting rows for mid-year or custom-range reports.',
+            },
+        ],
+    },
     {
         version: '0.7.4',
         date: 'August 2, 2026',

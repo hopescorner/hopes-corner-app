@@ -19,7 +19,9 @@ vi.mock('@/stores/useServicesStore', () => ({
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
     Bike: () => <div data-testid="icon-bike" />,
+    ChevronDown: () => <div data-testid="icon-chevron-down" />,
     Download: () => <div data-testid="icon-download" />,
+    Filter: () => <div data-testid="icon-filter" />,
     Info: () => <div data-testid="icon-info" />,
     Lightbulb: () => <div data-testid="icon-lightbulb" />,
     ShowerHead: () => <div data-testid="icon-shower" />,
@@ -557,6 +559,105 @@ describe('MonthlySummaryReport', () => {
 
             elemSpy.mockRestore();
             global.Blob = origBlob;
+        });
+    });
+
+    describe('Month filter for CSV export', () => {
+        it('shows month filter dropdown when filter button is clicked', () => {
+            render(<MonthlySummaryReport />);
+            const filterBtn = screen.getByLabelText('Filter months for export');
+            expect(filterBtn.textContent).toContain('All Months');
+            fireEvent.click(filterBtn);
+            expect(screen.getByTestId('month-filter-dropdown')).toBeDefined();
+            const dropdown = screen.getByTestId('month-filter-dropdown');
+            expect(dropdown.textContent).toContain('January');
+            expect(dropdown.textContent).toContain('December');
+        });
+
+        it('updates label when months are deselected', () => {
+            render(<MonthlySummaryReport />);
+            fireEvent.click(screen.getByLabelText('Filter months for export'));
+            // Deselect July (index 6)
+            const checkboxes = screen.getByTestId('month-filter-dropdown').querySelectorAll('input[type="checkbox"]');
+            fireEvent.click(checkboxes[6]); // July
+            expect(screen.getByLabelText('Filter months for export').textContent).toContain('11 of 12');
+        });
+
+        it('exports only selected months in CSV', () => {
+            const testYear = 2025;
+            vi.mocked(useMealsStore).mockReturnValue({
+                mealRecords: [
+                    { date: `${testYear}-01-06T12:00:00`, count: 10, guestId: 'g1' },
+                    { date: `${testYear}-02-03T12:00:00`, count: 20, guestId: 'g2' },
+                ],
+                extraMealRecords: [],
+                rvMealRecords: [],
+                unitedEffortMealRecords: [],
+                dayWorkerMealRecords: [],
+                lunchBagRecords: [],
+                shelterMealRecords: [],
+            } as any);
+            vi.mocked(useServicesStore.getState).mockReturnValue({
+                bicycleRecords: [],
+                showerRecords: [],
+                laundryRecords: [],
+            } as any);
+
+            const origBlob = global.Blob;
+            let capturedContent = '';
+            global.Blob = class extends origBlob {
+                constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+                    super(parts, options);
+                    capturedContent = (parts ?? []).join('');
+                }
+            } as typeof Blob;
+            global.URL.createObjectURL = vi.fn(() => 'blob:mock');
+            global.URL.revokeObjectURL = vi.fn();
+            const origCreateElement = Document.prototype.createElement.bind(document);
+            const elemSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+                const el = origCreateElement(tag);
+                if (tag === 'a') Object.defineProperty(el, 'click', { value: vi.fn(), writable: true });
+                return el;
+            });
+
+            render(<MonthlySummaryReport />);
+            const select = screen.getByRole('combobox');
+            fireEvent.change(select, { target: { value: testYear.toString() } });
+
+            // Open month filter and deselect all, then select only January
+            fireEvent.click(screen.getByLabelText('Filter months for export'));
+            fireEvent.click(screen.getByText('Deselect All'));
+            const checkboxes = screen.getByTestId('month-filter-dropdown').querySelectorAll('input[type="checkbox"]');
+            fireEvent.click(checkboxes[0]); // January only
+
+            // Export
+            fireEvent.click(screen.getAllByText('Export CSV')[0]);
+
+            // Should contain January but not February
+            expect(capturedContent).toContain('January');
+            expect(capturedContent).not.toContain('February');
+            expect(capturedContent).toContain('Selected Months Total');
+            expect(capturedContent).not.toContain('Year to Date');
+
+            elemSpy.mockRestore();
+            global.Blob = origBlob;
+        });
+
+        it('disables export button when no months selected', () => {
+            render(<MonthlySummaryReport />);
+            fireEvent.click(screen.getByLabelText('Filter months for export'));
+            fireEvent.click(screen.getByText('Deselect All'));
+            const exportBtn = screen.getAllByText('Export CSV')[0];
+            expect(exportBtn).toBeDisabled();
+        });
+
+        it('Select All / Deselect All toggles all months', () => {
+            render(<MonthlySummaryReport />);
+            fireEvent.click(screen.getByLabelText('Filter months for export'));
+            fireEvent.click(screen.getByText('Deselect All'));
+            expect(screen.getByLabelText('Filter months for export').textContent).toContain('0 of 12');
+            fireEvent.click(screen.getByText('Select All'));
+            expect(screen.getByLabelText('Filter months for export').textContent).toContain('All Months');
         });
     });
 });

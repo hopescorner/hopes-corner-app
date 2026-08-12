@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     Bike,
+    ChevronDown,
     Download,
+    Filter,
     Info,
     Lightbulb,
     ShowerHead,
@@ -306,6 +308,8 @@ export default function MonthlySummaryReport() {
         shelterMealRecords: state.shelterMealRecords,
     })));
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [exportMonths, setExportMonths] = useState<Set<number>>(() => new Set(Array.from({ length: 12 }, (_, i) => i)));
+    const [showMonthFilter, setShowMonthFilter] = useState(false);
     const { donationRecords = [] } = useDonationsStore() as { donationRecords?: any[] };
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
@@ -346,6 +350,26 @@ export default function MonthlySummaryReport() {
 
     const { monthlyData, bicycleSummary, showerLaundrySummary } = summaryDatasets;
 
+    const allMonthsSelected = exportMonths.size === 12;
+
+    const toggleExportMonth = useCallback((monthIndex: number) => {
+        setExportMonths(prev => {
+            const next = new Set(prev);
+            if (next.has(monthIndex)) {
+                next.delete(monthIndex);
+            } else {
+                next.add(monthIndex);
+            }
+            return next;
+        });
+    }, []);
+
+    const toggleAllExportMonths = useCallback(() => {
+        setExportMonths(prev =>
+            prev.size === 12 ? new Set<number>() : new Set(Array.from({ length: 12 }, (_, i) => i))
+        );
+    }, []);
+
     function downloadCSV(content: string, filename: string) {
         const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -357,8 +381,9 @@ export default function MonthlySummaryReport() {
     }
 
     function handleExportMealsSummary() {
+        const filteredMonths = monthlyData.months.filter((_, idx) => exportMonths.has(idx));
         const headers = MEAL_COLUMN_DEFINITIONS.map(col => csvCell(col.label)).join(',');
-        const dataRows = monthlyData.months.map(row =>
+        const dataRows = filteredMonths.map(row =>
             MEAL_COLUMN_DEFINITIONS.map(col => {
                 const val = row[col.key as keyof typeof row];
                 return col.isCurrency
@@ -366,12 +391,14 @@ export default function MonthlySummaryReport() {
                     : csvCell(val);
             }).join(',')
         );
+        // Recalculate totals from only the selected months
+        const totalsLabel = allMonthsSelected ? 'Year to Date' : 'Selected Months Total';
         const totalsRow = MEAL_COLUMN_DEFINITIONS.map(col => {
-            if (col.key === 'month') return csvCell('Year to Date');
-            const val = monthlyData.totals[col.key as keyof typeof monthlyData.totals];
+            if (col.key === 'month') return csvCell(totalsLabel);
+            const sum = filteredMonths.reduce((acc, row) => acc + (Number(row[col.key as keyof typeof row]) || 0), 0);
             return col.isCurrency
-                ? csvCell((Number(val) || 0).toFixed(2))
-                : csvCell(val);
+                ? csvCell(sum.toFixed(2))
+                : csvCell(sum);
         }).join(',');
         const content = [headers, ...dataRows, totalsRow].join('\n');
         downloadCSV(content, `meals-summary-${selectedYear}.csv`);
@@ -487,13 +514,51 @@ export default function MonthlySummaryReport() {
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto overflow-y-visible">
                 <div className="flex items-center justify-between px-4 pt-4 pb-2">
                     <h3 className="text-base font-bold text-gray-800">Meals Summary</h3>
-                    <button
-                        onClick={handleExportMealsSummary}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
-                    >
-                        <Download size={14} />
-                        Export CSV
-                    </button>
+                    <div className="flex items-center gap-2 relative">
+                        <button
+                            onClick={() => setShowMonthFilter(prev => !prev)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-colors"
+                            aria-label="Filter months for export"
+                        >
+                            <Filter size={14} />
+                            {allMonthsSelected ? 'All Months' : `${exportMonths.size} of 12`}
+                            <ChevronDown size={12} />
+                        </button>
+                        {showMonthFilter && (
+                            <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-3 w-56" data-testid="month-filter-dropdown">
+                                <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
+                                    <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">Export Months</span>
+                                    <button
+                                        onClick={toggleAllExportMonths}
+                                        className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                    >
+                                        {allMonthsSelected ? 'Deselect All' : 'Select All'}
+                                    </button>
+                                </div>
+                                <div className="grid grid-cols-2 gap-1">
+                                    {MONTH_NAMES.map((name, idx) => (
+                                        <label key={idx} className="flex items-center gap-1.5 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer text-xs text-gray-700">
+                                            <input
+                                                type="checkbox"
+                                                checked={exportMonths.has(idx)}
+                                                onChange={() => toggleExportMonth(idx)}
+                                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            {name}
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        <button
+                            onClick={handleExportMealsSummary}
+                            disabled={exportMonths.size === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition-colors"
+                        >
+                            <Download size={14} />
+                            Export CSV
+                        </button>
+                    </div>
                 </div>
                 <table className="min-w-full text-sm">
                     <thead>

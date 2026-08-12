@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.5] - 2026-08-12
+
+### Added
+
+- Meals Summary CSV export now includes a month filter. Staff can select which months to include before exporting, eliminating the need to manually edit the spreadsheet for mid-year or custom-range reports.
+
 ## [0.7.4] - 2026-08-02
 
 ### Added
