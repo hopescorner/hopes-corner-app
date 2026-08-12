@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Bike,
     ChevronDown,
@@ -310,6 +310,7 @@ export default function MonthlySummaryReport() {
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
     const [exportMonths, setExportMonths] = useState<Set<number>>(() => new Set(Array.from({ length: 12 }, (_, i) => i)));
     const [showMonthFilter, setShowMonthFilter] = useState(false);
+    const monthFilterRef = useRef<HTMLDivElement>(null);
     const { donationRecords = [] } = useDonationsStore() as { donationRecords?: any[] };
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
@@ -319,6 +320,17 @@ export default function MonthlySummaryReport() {
         for (let y = currentYear; y >= 2023; y--) years.push(y);
         return years;
     }, [currentYear]);
+
+    useEffect(() => {
+        if (!showMonthFilter) return;
+        function handleMouseDown(e: MouseEvent) {
+            if (monthFilterRef.current && !monthFilterRef.current.contains(e.target as Node)) {
+                setShowMonthFilter(false);
+            }
+        }
+        document.addEventListener('mousedown', handleMouseDown);
+        return () => document.removeEventListener('mousedown', handleMouseDown);
+    }, [showMonthFilter]);
 
     const upcomingMonthsLabel = useMemo(() => {
         const firstUpcomingMonthIndex =
@@ -381,7 +393,7 @@ export default function MonthlySummaryReport() {
     }
 
     function handleExportMealsSummary() {
-        const filteredMonths = monthlyData.months.filter((_, idx) => exportMonths.has(idx));
+        const filteredMonths = monthlyData.months.filter(row => exportMonths.has(MONTH_NAMES.indexOf(row.month)));
         const headers = MEAL_COLUMN_DEFINITIONS.map(col => csvCell(col.label)).join(',');
         const dataRows = filteredMonths.map(row =>
             MEAL_COLUMN_DEFINITIONS.map(col => {
@@ -514,7 +526,7 @@ export default function MonthlySummaryReport() {
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto overflow-y-visible">
                 <div className="flex items-center justify-between px-4 pt-4 pb-2">
                     <h3 className="text-base font-bold text-gray-800">Meals Summary</h3>
-                    <div className="flex items-center gap-2 relative">
+                    <div className="flex items-center gap-2 relative" ref={monthFilterRef}>
                         <button
                             onClick={() => setShowMonthFilter(prev => !prev)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-lg transition-colors"
