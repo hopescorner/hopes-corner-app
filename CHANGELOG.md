@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.6] - 2026-08-14
+
+### Added
+
+- Month range filter for Meals Summary, Bicycle Services Summary, and Shower & Laundry Services Summary. Staff can select a start and end month to filter displayed data and CSV exports. Totals are automatically recalculated for the selected range.
+
+## [0.7.5] - 2026-08-12
+
+### Added
+
+- Meals Summary CSV export now includes a month filter. Staff can select which months to include before exporting, eliminating the need to manually edit the spreadsheet for mid-year or custom-range reports.
+
 ## [0.7.4] - 2026-08-02
 
 ### Added
