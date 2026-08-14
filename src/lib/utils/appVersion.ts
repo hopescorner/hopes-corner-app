@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.7.5';
+export const APP_VERSION = '0.7.6';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.7.6',
+        date: 'August 14, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Month Range Filter for All Summary Reports',
+                description: 'The Meals Summary, Bicycle Services Summary, and Shower & Laundry Services Summary now include a shared month range filter. Select a start and end month to display and export only that range — totals are automatically recalculated.',
+            },
+        ],
+    },
     {
         version: '0.7.5',
         date: 'August 12, 2026',
