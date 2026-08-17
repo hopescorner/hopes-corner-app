@@ -812,14 +812,17 @@ export const useMealsStore = create<MealsState>()(
                         const todaysLunchBags = lunchBagRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
 
                         // Schedule Logic (from older app's automaticMealEntries.js)
-                        // Mon (1): 100 RV
+                        // Mon (1): 100 RV, 50 Day Worker
                         // Wed (3): RV distribution removed — no longer distributed on Wednesdays
                         // Thu (4): 100 RV
-                        // Sat (6): 100 Lunch Bags, 100 RV, 50 Day Worker
+                        // Sat (6): 100 Lunch Bags, 100 RV
 
                         if (dayOfWeek === 1) { // Mon
                             if (automaticSupportMealsEnabled && todaysRv.length === 0) {
                                 await addBulkMealRecord('rv', 100, 'Automatic Entry (Mon)', `rv_${todayStr}`);
+                            }
+                            if (automaticSupportMealsEnabled && todaysDayWorker.length === 0) {
+                                await addBulkMealRecord('day_worker', 50, 'Automatic Entry (Mon)', `day_worker_${todayStr}`);
                             }
                         } else if (dayOfWeek === 4) { // Thu
                             if (automaticSupportMealsEnabled && todaysRv.length === 0) {
@@ -831,9 +834,6 @@ export const useMealsStore = create<MealsState>()(
                             }
                             if (automaticSupportMealsEnabled && todaysRv.length === 0) {
                                 await addBulkMealRecord('rv', 100, 'Automatic Entry (Sat)', `rv_${todayStr}`);
-                            }
-                            if (automaticSupportMealsEnabled && todaysDayWorker.length === 0) {
-                                await addBulkMealRecord('day_worker', 50, 'Automatic Entry (Sat)', `day_worker_${todayStr}`);
                             }
                         }
                     },

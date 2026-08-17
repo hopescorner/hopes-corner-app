@@ -4,9 +4,9 @@ import { MAX_BASE_MEALS_PER_DAY, MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DA
 describe('Meals logic', () => {
     describe('Automatic Meals logic', () => {
         const config = {
-            monday: { rv: 100, lunchBags: 120 },
+            monday: { rv: 100, lunchBags: 120, dayWorker: 50 },
             wednesday: { rv: 40, lunchBags: 120 },
-            saturday: { rv: 100, lunchBags: 220, dayWorker: 50 },
+            saturday: { rv: 100, lunchBags: 220 },
         };
 
         it('determines if automatic meals should be added', () => {
@@ -19,13 +19,14 @@ describe('Meals logic', () => {
             const day = 'monday';
             expect(config[day].rv).toBe(100);
             expect(config[day].lunchBags).toBe(120);
+            expect(config[day].dayWorker).toBe(50);
         });
 
         it('gets correct counts for Saturday', () => {
             const day = 'saturday';
             expect(config[day].rv).toBe(100);
             expect(config[day].lunchBags).toBe(220);
-            expect(config[day].dayWorker).toBe(50);
+            expect(config[day].dayWorker).toBeUndefined();
         });
 
         it('handles days without auto-meals', () => {

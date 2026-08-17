@@ -308,9 +308,9 @@ describe('constants', () => {
 
     describe('AUTOMATIC_MEALS_CONFIG', () => {
         const config = {
-            monday: { rv: 100, lunchBags: 120 },
+            monday: { rv: 100, lunchBags: 120, dayWorker: 50 },
             thursday: { rv: 100 },
-            saturday: { rv: 100, lunchBags: 220, dayWorker: 50 },
+            saturday: { rv: 100, lunchBags: 220 },
         };
 
         it('Monday has 100 RV meals', () => {
@@ -325,8 +325,8 @@ describe('constants', () => {
             expect(Object.prototype.hasOwnProperty.call(config, 'wednesday')).toBe(false);
         });
 
-        it('Saturday has 50 day worker meals', () => {
-            expect(config.saturday.dayWorker).toBe(50);
+        it('Monday has 50 day worker meals', () => {
+            expect(config.monday.dayWorker).toBe(50);
         });
 
         it('Saturday has 220 lunch bags', () => {
