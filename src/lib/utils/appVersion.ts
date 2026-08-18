@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.7.6';
+export const APP_VERSION = '0.7.7';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.7.7',
+        date: 'August 17, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Day Worker Meals Moved to Monday Automation',
+                description: 'Automatic Day Worker meal entries now run on Mondays instead of Saturdays. RV and lunch bag automation stay on their existing schedules.',
+            },
+        ],
+    },
     {
         version: '0.7.6',
         date: 'August 14, 2026',

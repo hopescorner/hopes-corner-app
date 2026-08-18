@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.7] - 2026-08-17
+
+### Fixed
+
+- Automatic Day Worker meal entries now run on Mondays instead of Saturdays. RV and lunch bag automation remain on their existing schedules.
+
 ## [0.7.6] - 2026-08-14
 
 ### Added
