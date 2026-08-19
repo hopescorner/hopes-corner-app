@@ -65,4 +65,38 @@ describe('createCheckInRepository', () => {
         expect(result.guest).toMatchObject({ id: 'guest-1', firstName: 'Ada', notes: 'private note', bicycleDescription: 'blue bike' });
         expect(result.warnings).toHaveLength(1);
     });
+
+    it('maps duplicate candidate and merge RPC contracts for the API layer', async () => {
+        const rpc = vi.fn()
+            .mockResolvedValueOnce({
+                data: [{ first_guest_id: 'guest-1', second_guest_id: 'guest-2' }],
+                error: null,
+            })
+            .mockResolvedValueOnce({
+                data: { kept_guest_id: 'guest-1', deleted_guest_id: 'guest-2', transferred_records: 7 },
+                error: null,
+            })
+            .mockResolvedValueOnce({ data: null, error: null });
+        const repository = createCheckInRepository({ rpc } as never);
+
+        await expect(repository.getDuplicateCandidates()).resolves.toEqual([
+            { firstGuestId: 'guest-1', secondGuestId: 'guest-2' },
+        ]);
+        await expect(repository.mergeGuests('guest-1', 'guest-2')).resolves.toEqual({
+            keptGuestId: 'guest-1',
+            deletedGuestId: 'guest-2',
+            transferredRecords: 7,
+        });
+        await repository.dismissDuplicateCandidate('guest-1', 'guest-2');
+
+        expect(rpc).toHaveBeenNthCalledWith(1, 'get_guest_duplicate_candidates');
+        expect(rpc).toHaveBeenNthCalledWith(2, 'merge_duplicate_guests', {
+            p_keep_guest_id: 'guest-1',
+            p_duplicate_guest_id: 'guest-2',
+        });
+        expect(rpc).toHaveBeenNthCalledWith(3, 'dismiss_guest_duplicate_candidate', {
+            p_first_guest_id: 'guest-1',
+            p_second_guest_id: 'guest-2',
+        });
+    });
 });

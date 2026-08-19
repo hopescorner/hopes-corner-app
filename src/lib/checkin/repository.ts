@@ -20,6 +20,38 @@ export function createCheckInRepository(client: Pick<SupabaseClient, 'rpc'>) {
             if (error) throw new Error(error.message || 'Unable to load guest details');
             return normalizeCheckInGuestContext(data);
         },
+        async mergeGuests(keepGuestId: string, duplicateGuestId: string) {
+            const { data, error } = await client.rpc('merge_duplicate_guests', {
+                p_keep_guest_id: keepGuestId,
+                p_duplicate_guest_id: duplicateGuestId,
+            });
+            if (error) throw new Error(error.message || 'Unable to merge guest profiles');
+            const row = data && typeof data === 'object' ? data as Record<string, unknown> : {};
+            return {
+                keptGuestId: String(row.kept_guest_id || keepGuestId),
+                deletedGuestId: String(row.deleted_guest_id || duplicateGuestId),
+                transferredRecords: Number(row.transferred_records || 0),
+            };
+        },
+        async getDuplicateCandidates() {
+            const { data, error } = await client.rpc('get_guest_duplicate_candidates');
+            if (error) throw new Error(error.message || 'Unable to load duplicate candidates');
+            if (!Array.isArray(data)) return [];
+            return data.map((item) => {
+                const row = item && typeof item === 'object' ? item as Record<string, unknown> : {};
+                return {
+                    firstGuestId: String(row.first_guest_id || ''),
+                    secondGuestId: String(row.second_guest_id || ''),
+                };
+            }).filter((pair) => pair.firstGuestId && pair.secondGuestId);
+        },
+        async dismissDuplicateCandidate(firstGuestId: string, secondGuestId: string) {
+            const { error } = await client.rpc('dismiss_guest_duplicate_candidate', {
+                p_first_guest_id: firstGuestId,
+                p_second_guest_id: secondGuestId,
+            });
+            if (error) throw new Error(error.message || 'Unable to save duplicate review');
+        },
         async executeMealCommand(command: Extract<CheckInCommand, { type: 'meal.add' }>, serviceDate = todayPacificDateString()) {
             const { data, error } = await client.rpc('execute_checkin_meal_command', {
                 p_guest_id: command.guestId,

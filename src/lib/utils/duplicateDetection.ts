@@ -10,15 +10,28 @@ import {
     hasTranspositionTypo
 } from './fuzzyMatch';
 
-interface DuplicateGuest {
+export interface DuplicateGuest {
     id: string;
+    guestId?: string;
     firstName?: string;
     lastName?: string;
     preferredName?: string;
+    createdAt?: string;
+    location?: string;
+    gender?: string;
+    age?: string;
+    housingStatus?: string;
 }
 
-interface PotentialDuplicate {
+export interface PotentialDuplicate {
     guest: DuplicateGuest;
+    reason: string;
+    confidence: number;
+}
+
+export interface PotentialDuplicatePair {
+    first: DuplicateGuest;
+    second: DuplicateGuest;
     reason: string;
     confidence: number;
 }
@@ -116,4 +129,57 @@ export const findPotentialDuplicates = (firstName: string, lastName: string, gue
     }
 
     return potentialDuplicates.sort((a, b) => b.confidence - a.confidence);
+};
+
+/**
+ * Finds unique pairs in a small set of search results. The check-in page calls
+ * this only after a name search, avoiding an O(n²) scan of the full directory.
+ */
+export const findPotentialDuplicatePairs = (
+    guests: DuplicateGuest[],
+    minimumConfidence = 0.85,
+): PotentialDuplicatePair[] => {
+    const pairs: PotentialDuplicatePair[] = [];
+
+    for (let index = 0; index < guests.length; index += 1) {
+        const first = guests[index];
+        for (const second of guests.slice(index + 1)) {
+            const forward = findPotentialDuplicates(first.firstName || '', first.lastName || '', [second])[0];
+            const reverse = findPotentialDuplicates(second.firstName || '', second.lastName || '', [first])[0];
+            const match = !forward || (reverse && reverse.confidence > forward.confidence) ? reverse : forward;
+            if (!match || match.confidence < minimumConfidence) continue;
+            pairs.push({
+                first,
+                second,
+                reason: match.reason,
+                confidence: match.confidence,
+            });
+        }
+    }
+
+    return pairs.sort((a, b) => b.confidence - a.confidence);
+};
+
+export const findExactNameDuplicatePairs = (guests: DuplicateGuest[]): PotentialDuplicatePair[] => {
+    const normalize = (value?: string) => (value || '').trim().toLocaleLowerCase();
+    const groups = new Map<string, DuplicateGuest[]>();
+
+    for (const guest of guests) {
+        const firstName = normalize(guest.firstName);
+        const lastName = normalize(guest.lastName);
+        if (!firstName || !lastName) continue;
+        const key = `${firstName}\u0000${lastName}`;
+        groups.set(key, [...(groups.get(key) || []), guest]);
+    }
+
+    return Array.from(groups.values()).flatMap((group) => {
+        if (group.length < 2) return [];
+        const [first, ...duplicates] = group;
+        return duplicates.map((second) => ({
+            first,
+            second,
+            reason: 'Exact name match',
+            confidence: 1,
+        }));
+    });
 };

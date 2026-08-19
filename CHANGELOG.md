@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.8] - 2026-08-19
+
+### Added
+
+- The Check-In page now shows potential duplicate guest profiles from legacy migrations. Staff must review a matched pair before using either profile.
+- Staff can keep one profile and move all records from the duplicate in one database transaction.
+- Staff can mark a matched pair as different people. The app saves this decision for all check-in devices.
+
 ## [0.7.7] - 2026-08-17
 
 ### Fixed

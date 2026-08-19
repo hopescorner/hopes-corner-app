@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef, useDeferredValue, useTransition } from 'react';
-import { Search, UserPlus, X, Users, Loader2 } from 'lucide-react';
+import { AlertTriangle, Search, UserPlus, X, Users, Loader2 } from 'lucide-react';
 import { useGuestsStore, Guest } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
@@ -25,6 +25,7 @@ import dynamic from 'next/dynamic';
 import { useCheckInStore } from '@/stores/useCheckInStore';
 import { hydrateLegacyStoresFromSnapshot, snapshotToMealStatusMap } from '@/lib/checkin/legacyAdapter';
 import type { CheckInSnapshot } from '@/types/checkin';
+import type { PotentialDuplicatePair } from '@/lib/utils/duplicateDetection';
 
 const PinballGame = dynamic(
   () => import('@/components/checkin/PinballGame').then((m) => m.PinballGame),
@@ -37,12 +38,16 @@ const RealtimeSyncProvider = dynamic(
     () => import('@/components/providers/RealtimeSyncProvider').then((module) => module.RealtimeSyncProvider),
     { ssr: false },
 );
+const DuplicateGuestResolutionModal = dynamic(
+    () => import('@/components/checkin/DuplicateGuestResolutionModal').then((module) => module.DuplicateGuestResolutionModal),
+);
 
 // Threshold for disabling animations for better performance
 const LARGE_LIST_THRESHOLD = 20;
 
 type SortKey = 'firstName' | 'lastName' | null;
 type SortDirection = 'asc' | 'desc';
+type DuplicateCandidateIds = { firstGuestId: string; secondGuestId: string };
 
 export default function CheckInClient({
     initialSnapshot,
@@ -59,6 +64,8 @@ export default function CheckInClient({
     const [defaultLocation, setDefaultLocation] = useState('');
     const [scrollMargin, setScrollMargin] = useState(0);
     const [fuzzySuggestions, setFuzzySuggestions] = useState<FuzzySuggestion[]>([]);
+    const [duplicatePairToResolve, setDuplicatePairToResolve] = useState<PotentialDuplicatePair | null>(null);
+    const [duplicateCandidateIds, setDuplicateCandidateIds] = useState<DuplicateCandidateIds[]>([]);
     const [, startTransition] = useTransition();
     const searchInputRef = useRef<HTMLInputElement>(null);
     const guestCardRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -235,6 +242,35 @@ export default function CheckInClient({
         });
     }, [filteredGuests, sortConfig]);
 
+    const duplicateCandidatePairs = useMemo(() => {
+        const byId = new Map(guests.map((guest) => [guest.id, guest]));
+        return duplicateCandidateIds.flatMap(({ firstGuestId, secondGuestId }) => {
+            const first = byId.get(firstGuestId);
+            const second = byId.get(secondGuestId);
+            return first && second ? [{ first, second, reason: 'Exact name match', confidence: 1 }] : [];
+        });
+    }, [duplicateCandidateIds, guests]);
+    const searchDuplicatePairs = useMemo(() => {
+        if (!deferredSearchQuery.trim()) return [];
+        const resultIds = new Set(sortedGuests.map((guest) => guest.id));
+        return duplicateCandidatePairs.filter((pair) => resultIds.has(pair.first.id) && resultIds.has(pair.second.id));
+    }, [deferredSearchQuery, duplicateCandidatePairs, sortedGuests]);
+
+    useEffect(() => {
+        if (guests.length === 0) return;
+        let cancelled = false;
+        fetch('/api/check-in/guests/duplicates', { cache: 'no-store' })
+            .then(async (response) => {
+                if (!response.ok) throw new Error(`Duplicate candidate request failed (${response.status})`);
+                return response.json() as Promise<DuplicateCandidateIds[]>;
+            })
+            .then((pairs) => {
+                if (!cancelled) setDuplicateCandidateIds(Array.isArray(pairs) ? pairs : []);
+            })
+            .catch((error) => console.warn('[check-in] Duplicate candidates unavailable', error));
+        return () => { cancelled = true; };
+    }, [guests]);
+
     // Determine if we should use virtualization and disable animations
     const isLargeList = sortedGuests.length > LARGE_LIST_THRESHOLD;
 
@@ -344,6 +380,51 @@ export default function CheckInClient({
         const response = await fetch('/api/check-in/snapshot', { cache: 'no-store' });
         if (response.ok) applySnapshot(await response.json() as CheckInSnapshot);
     }, [snapshotReady, applySnapshot]);
+
+    const handleMergeGuests = useCallback(async (selection: { keepGuestId: string; duplicateGuestId: string }) => {
+        const response = await fetch('/api/check-in/guests/merge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(selection),
+        });
+        const result = await response.json().catch(() => ({})) as { error?: string; transferredRecords?: number };
+        if (!response.ok) {
+            const message = result.error || 'Unable to merge guest profiles';
+            toast.error(message);
+            throw new Error(message);
+        }
+
+        const snapshotResponse = await fetch('/api/check-in/reconcile', { cache: 'no-store' });
+        if (snapshotResponse.ok) {
+            applySnapshot(await snapshotResponse.json() as CheckInSnapshot);
+        } else {
+            await ensureGuestsLoaded({ force: true });
+        }
+        setDuplicatePairToResolve(null);
+        toast.success(`Duplicate removed and ${result.transferredRecords || 0} related records consolidated.`);
+    }, [applySnapshot, ensureGuestsLoaded]);
+
+    const handleDismissDuplicate = useCallback(async (selection: DuplicateCandidateIds) => {
+        const response = await fetch('/api/check-in/guests/duplicates/dismiss', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(selection),
+        });
+        if (!response.ok) {
+            const result = await response.json().catch(() => ({})) as { error?: string };
+            const message = result.error || 'Unable to save duplicate review';
+            toast.error(message);
+            throw new Error(message);
+        }
+        setDuplicateCandidateIds((pairs) => pairs.filter((pair) =>
+            !(
+                (pair.firstGuestId === selection.firstGuestId && pair.secondGuestId === selection.secondGuestId) ||
+                (pair.firstGuestId === selection.secondGuestId && pair.secondGuestId === selection.firstGuestId)
+            )
+        ));
+        setDuplicatePairToResolve(null);
+        toast.success('These profiles were marked as different people.');
+    }, []);
 
     const handleSort = (key: SortKey) => {
         setSortConfig(prev => {
@@ -467,6 +548,19 @@ export default function CheckInClient({
 
             {/* Daily Notes Section */}
             <DailyNotesSection />
+
+            {duplicateCandidatePairs.length > 0 && (
+                <div className="flex flex-col gap-4 rounded-2xl border-2 border-amber-300 bg-amber-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                        <div className="rounded-xl bg-amber-100 p-2.5 text-amber-700"><AlertTriangle size={22} /></div>
+                        <div>
+                            <p className="font-black text-amber-950">{duplicateCandidatePairs.length} potential duplicate profile{duplicateCandidatePairs.length === 1 ? '' : 's'} need review</p>
+                            <p className="mt-1 text-sm font-medium text-amber-800">Legacy migration records have matching names. Choose the profile to keep; all history will be consolidated before the duplicate is deleted.</p>
+                        </div>
+                    </div>
+                    <button type="button" onClick={() => setDuplicatePairToResolve(duplicateCandidatePairs[0])} className="shrink-0 rounded-xl bg-amber-700 px-4 py-2.5 font-bold text-white hover:bg-amber-800">Review next duplicate</button>
+                </div>
+            )}
 
             {/* Search Header */}
             <div className="bg-white rounded-2xl shadow-xl shadow-emerald-900/5 border border-emerald-100/50 p-6 sm:p-8">
@@ -616,6 +710,23 @@ export default function CheckInClient({
                             </div>
                         </div>
 
+                        {searchDuplicatePairs.length > 0 && (
+                            <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-5">
+                                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex items-start gap-3">
+                                        <AlertTriangle className="mt-0.5 shrink-0 text-red-600" size={22} />
+                                        <div>
+                                            <p className="font-black text-red-900">Check-in blocked: these profiles may be the same person</p>
+                                            <p className="mt-1 text-sm font-medium text-red-700">Review the profiles and merge the duplicate before recording meals or services under either identity.</p>
+                                        </div>
+                                    </div>
+                                    <button type="button" onClick={() => setDuplicatePairToResolve(searchDuplicatePairs[0])} className="shrink-0 rounded-xl bg-red-600 px-4 py-2.5 font-bold text-white hover:bg-red-700">Resolve duplicate</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {searchDuplicatePairs.length === 0 && (
+                            <>
                         {/* Sort Options */}
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">Sort:</span>
@@ -726,6 +837,8 @@ export default function CheckInClient({
                                 </div>
                             )}
                         </div>
+                            </>
+                        )}
                     </>
                 )}
             </div>
@@ -738,6 +851,15 @@ export default function CheckInClient({
                         defaultLocation={defaultLocation}
                         onCreated={handleGuestCreated}
                     />
+            )}
+
+            {duplicatePairToResolve && (
+                <DuplicateGuestResolutionModal
+                    pair={duplicatePairToResolve}
+                    onClose={() => setDuplicatePairToResolve(null)}
+                    onMerge={handleMergeGuests}
+                    onDismiss={handleDismissDuplicate}
+                />
             )}
 
             {/* Hidden pinball Easter egg */}

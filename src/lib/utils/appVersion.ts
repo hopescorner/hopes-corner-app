@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.7.7';
+export const APP_VERSION = '0.7.8';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.7.8',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Duplicate Guest Review and Merge',
+                description: 'The Check-In page now shows potential duplicate guest profiles from legacy migrations. Staff must review a matched pair before using either profile. Staff can keep one profile and move all records from the duplicate in one database transaction. Staff can also mark the profiles as different people.',
+            },
+        ],
+    },
     {
         version: '0.7.7',
         date: 'August 17, 2026',
