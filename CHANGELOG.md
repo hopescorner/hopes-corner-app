@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.4] - 2026-08-19
+
+### Improved
+
+- Optimized touch targets to meet 44px minimum sizing standards across guest cards, meal buttons, quick services, undos, and expanded action footers for iPad and tablet ergonomics.
+- Added automatic software keyboard dismissal on touch scroll in Check-In search results.
+- Updated Check-In search guidance and enlarged clear button for tablet screens.
+
 ## [0.8.3] - 2026-08-19
 
 ### Changed

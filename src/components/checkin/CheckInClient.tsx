@@ -571,7 +571,7 @@ export default function CheckInClient({
                         </div>
                         <div>
                             <h2 className="text-xl font-black text-gray-900">Find or Add Guests</h2>
-                            <p className="text-xs text-gray-500 font-medium">Type a name to search · Type first AND last name, then press Enter to create</p>
+                            <p className="text-xs text-gray-500 font-medium">Type a name to search or click New Guest to register</p>
                         </div>
                     </div>
                 </div>
@@ -593,17 +593,18 @@ export default function CheckInClient({
                                 setSelectedIndex(-1);
                             }}
                             placeholder="Start typing a name (e.g. 'John' or 'JS')"
-                            className="w-full pl-14 pr-14 py-5 rounded-2xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-xl font-bold placeholder:text-gray-300 outline-none shadow-inner"
+                            className="w-full pl-14 pr-14 py-4 sm:py-5 rounded-2xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-lg sm:text-xl font-bold placeholder:text-gray-300 outline-none shadow-inner touch-manipulation"
                             autoFocus
                         />
-                            {searchQuery && (
-                                <button
-                                    onClick={handleClearSearch}
-                                    className="absolute right-5 p-1.5 bg-gray-200 text-gray-500 hover:bg-gray-300 hover:text-gray-700 rounded-full transition-all"
-                                >
-                                    <X size={18} strokeWidth={3} />
-                                </button>
-                            )}
+                        {searchQuery && (
+                            <button
+                                onClick={handleClearSearch}
+                                className="absolute right-3.5 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-800 rounded-full transition-all touch-manipulation active:scale-90"
+                                aria-label="Clear search"
+                            >
+                                <X size={18} strokeWidth={3} />
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -613,7 +614,7 @@ export default function CheckInClient({
                 <div className="flex items-center gap-3 mt-4">
                     <button
                         onClick={handleShowCreateForm}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gray-900 text-white hover:bg-black transition-all text-sm font-bold shadow-lg shadow-gray-200 active:scale-95"
+                        className="inline-flex items-center justify-center gap-2 min-h-[44px] px-5 py-2.5 rounded-xl bg-gray-900 text-white hover:bg-black transition-all text-sm font-bold shadow-lg shadow-gray-200 active:scale-95 touch-manipulation"
                     >
                         <UserPlus size={18} />
                         New Guest
@@ -625,7 +626,14 @@ export default function CheckInClient({
             </div>
 
             {/* Results Section */}
-            <div className="space-y-4">
+            <div
+                className="space-y-4"
+                onTouchMove={() => {
+                    if (document.activeElement === searchInputRef.current) {
+                        searchInputRef.current?.blur();
+                    }
+                }}
+            >
                 {isLoading ? (
                     <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 gap-4">
                         <Loader2 size={40} className="text-emerald-500 animate-spin" />
@@ -654,7 +662,7 @@ export default function CheckInClient({
                                             <button
                                                 key={suggestion.id}
                                                 onClick={() => setSearchQuery(suggestion.preferredName || suggestion.name || '')}
-                                                className="px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold hover:bg-amber-100 transition-all active:scale-95"
+                                                className="px-4 py-2.5 min-h-[44px] rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-bold hover:bg-amber-100 transition-all active:scale-95 touch-manipulation flex items-center justify-center"
                                             >
                                                 {suggestion.preferredName || suggestion.name}
                                             </button>
@@ -666,7 +674,7 @@ export default function CheckInClient({
                             {searchQuery && (
                                 <button
                                     onClick={handleShowCreateForm}
-                                    className="mt-8 inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95"
+                                    className="mt-8 inline-flex items-center justify-center gap-2 min-h-[44px] px-6 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95 touch-manipulation"
                                 >
                                     <UserPlus size={20} />
                                     Add &quot;{searchQuery}&quot; as New Guest

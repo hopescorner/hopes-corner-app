@@ -681,7 +681,7 @@ function PureGuestCard({
                             e.stopPropagation();
                             setShowMobileSheet(true);
                         }}
-                        className="flex md:hidden items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600 active:scale-95 transition-transform touch-manipulation"
+                        className="flex md:hidden items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-blue-100 text-blue-600 active:scale-95 transition-transform touch-manipulation"
                         title="Quick Add Services"
                         aria-label="Quick add services"
                     >
@@ -698,7 +698,7 @@ function PureGuestCard({
                                             key={count}
                                             onClick={(e) => handleMealAdd(e, count)}
                                             disabled={isPending}
-                                            className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-white border border-gray-200 text-emerald-700 font-bold text-sm shadow-sm hover:border-emerald-300 hover:bg-emerald-50 transition-all active:scale-95 disabled:opacity-50"
+                                            className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] min-w-[44px] px-3.5 rounded-lg bg-white border border-gray-200 text-emerald-700 font-bold text-sm shadow-sm hover:border-emerald-300 hover:bg-emerald-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
                                         >
                                             {isPending ? <Loader2 size={14} className="animate-spin" /> : <Utensils size={14} />}
                                             <span>{count}</span>
@@ -708,7 +708,7 @@ function PureGuestCard({
                             ) : (
                                 <div className="flex items-center gap-2">
                                     <div className="flex items-center gap-1 px-1 py-1 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                                        <div className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
+                                        <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
                                             <Check size={14} />
                                             <span>{baseMealCount}</span>
                                             {extraMealsCount > 0 && (
@@ -719,7 +719,7 @@ function PureGuestCard({
                                             <button
                                                 onClick={(e) => handleUndo(e, mealAction.id, 'Check-in')}
                                                 disabled={isPending}
-                                                className="flex items-center justify-center h-10 px-2 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 disabled:opacity-50"
+                                                className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-2.5 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
                                                 title="Undo Check-in"
                                             >
                                                 <RotateCcw size={16} />
@@ -729,7 +729,7 @@ function PureGuestCard({
                                     {hasReachedMealLimit || hasReachedExtraMealLimit ? (
                                         <div className="flex items-center gap-1">
                                             <div
-                                                className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-xs cursor-not-allowed"
+                                                className="flex items-center justify-center gap-1 h-11 min-h-[44px] px-3 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-xs cursor-not-allowed"
                                                 title={`Daily meal limit reached (${totalMeals}/${4})`}
                                             >
                                                 <span>Limit</span>
@@ -738,7 +738,7 @@ function PureGuestCard({
                                                 <button
                                                     onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
                                                     disabled={isPending}
-                                                    className="flex items-center justify-center h-10 px-2 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 disabled:opacity-50"
+                                                    className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-2.5 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
                                                     title="Undo extra meal"
                                                 >
                                                     <RotateCcw size={14} />
@@ -750,7 +750,7 @@ function PureGuestCard({
                                             <button
                                                 onClick={handleExtraMealAdd}
                                                 disabled={isPending}
-                                                className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-orange-50 border-2 border-dashed border-orange-300 text-orange-600 font-bold text-xs hover:bg-orange-100 hover:border-orange-400 transition-all active:scale-95 disabled:opacity-50"
+                                                className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-orange-50 border-2 border-dashed border-orange-300 text-orange-600 font-bold text-xs hover:bg-orange-100 hover:border-orange-400 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
                                                 title="Add extra meal (requires confirmation)"
                                             >
                                                 <Plus size={14} />
@@ -760,7 +760,7 @@ function PureGuestCard({
                                                 <button
                                                     onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
                                                     disabled={isPending}
-                                                    className="flex items-center justify-center h-10 px-2 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 disabled:opacity-50"
+                                                    className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-2.5 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
                                                     title="Undo extra meal"
                                                 >
                                                     <RotateCcw size={14} />
@@ -779,13 +779,13 @@ function PureGuestCard({
                             {/* Shower */}
                             {!isBannedFromShower && (
                                 todayShower ? (
-                                    <div className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm opacity-90">
+                                    <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm opacity-90">
                                         <Check size={14} />
-                                        <ShowerHead size={14} />
+                                        <ShowerHead size={15} />
                                         {showerAction && (
                                             <button
                                                 onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
-                                                className="ml-1 p-1 hover:bg-red-100 rounded text-red-500 transition-colors"
+                                                className="ml-1 p-1.5 min-w-[28px] min-h-[28px] hover:bg-red-100 active:scale-90 rounded-md text-red-500 transition-all touch-manipulation flex items-center justify-center"
                                                 title="Undo shower"
                                             >
                                                 <RotateCcw size={12} />
@@ -795,7 +795,7 @@ function PureGuestCard({
                                 ) : (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setShowerPickerGuest(guest); }}
-                                        className="flex items-center justify-center h-10 px-3 rounded-lg bg-white border border-gray-200 text-sky-600 font-bold text-sm hover:border-sky-300 hover:bg-sky-50 transition-all active:scale-95"
+                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-sky-600 font-bold text-sm hover:border-sky-300 hover:bg-sky-50 transition-all active:scale-95 touch-manipulation"
                                     >
                                         <ShowerHead size={16} />
                                     </button>
@@ -804,13 +804,13 @@ function PureGuestCard({
                             {/* Laundry */}
                             {!isBannedFromLaundry && (
                                 todayLaundry ? (
-                                    <div className="flex items-center justify-center gap-1 h-10 px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm opacity-90">
+                                    <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm opacity-90">
                                         <Check size={14} />
-                                        <WashingMachine size={14} />
+                                        <WashingMachine size={15} />
                                         {laundryAction && (
                                             <button
                                                 onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
-                                                className="ml-1 p-1 hover:bg-red-100 rounded text-red-500 transition-colors"
+                                                className="ml-1 p-1.5 min-w-[28px] min-h-[28px] hover:bg-red-100 active:scale-90 rounded-md text-red-500 transition-all touch-manipulation flex items-center justify-center"
                                                 title="Undo laundry"
                                             >
                                                 <RotateCcw size={12} />
@@ -820,7 +820,7 @@ function PureGuestCard({
                                 ) : (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); setLaundryPickerGuest(guest); }}
-                                        className="flex items-center justify-center h-10 px-3 rounded-lg bg-white border border-gray-200 text-indigo-600 font-bold text-sm hover:border-indigo-300 hover:bg-indigo-50 transition-all active:scale-95"
+                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-indigo-600 font-bold text-sm hover:border-indigo-300 hover:bg-indigo-50 transition-all active:scale-95 touch-manipulation"
                                     >
                                         <WashingMachine size={16} />
                                     </button>
@@ -836,7 +836,7 @@ function PureGuestCard({
                             <div className="w-px h-8 bg-gray-200 mx-1" aria-hidden="true"></div>
                             <button
                                 onClick={handleCompleteCheckIn}
-                                className="flex items-center justify-center h-10 px-3 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold transition-all active:scale-95"
+                                className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3.5 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold transition-all active:scale-95 touch-manipulation"
                                 title="Complete check-in and search for next guest"
                             >
                                 <UserCheck size={20} />
@@ -845,8 +845,8 @@ function PureGuestCard({
                     )}
 
                     <div className={cn(
-                        "p-2 rounded-xl bg-gray-50 border border-gray-100 text-gray-400 group-hover:text-emerald-500 transition-colors",
-                        compact && "p-1.5"
+                        "h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-gray-50 border border-gray-100 text-gray-400 group-hover:text-emerald-500 transition-colors touch-manipulation",
+                        compact && "h-9 min-h-[36px] min-w-[36px]"
                     )}>
                         {isExpanded ? <ChevronUp size={compact ? 16 : 20} /> : <ChevronDown size={compact ? 16 : 20} />}
                     </div>
@@ -868,7 +868,7 @@ function PureGuestCard({
                                     onClick={(e) => { e.stopPropagation(); setShowerPickerGuest(guest); }}
                                     disabled={isBannedFromShower || !!todayShower}
                                     className={cn(
-                                        "relative flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm transition-all",
+                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation",
                                         todayShower
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                             : isBannedFromShower
@@ -880,9 +880,14 @@ function PureGuestCard({
                                         <>
                                             <Check size={20} className="text-emerald-500 mb-1.5" />
                                             {showerAction && (
-                                                <span onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')} className="absolute top-2 right-2 text-red-400 hover:text-red-600">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
+                                                    className="absolute top-1.5 right-1.5 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg active:scale-90 transition-all touch-manipulation"
+                                                    title="Undo shower"
+                                                >
                                                     <RotateCcw size={14} />
-                                                </span>
+                                                </button>
                                             )}
                                         </>
                                     ) : (
@@ -894,7 +899,7 @@ function PureGuestCard({
                                     onClick={(e) => { e.stopPropagation(); setLaundryPickerGuest(guest); }}
                                     disabled={isBannedFromLaundry || !!todayLaundry}
                                     className={cn(
-                                        "relative flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm transition-all",
+                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation",
                                         todayLaundry
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                             : isBannedFromLaundry
@@ -906,9 +911,14 @@ function PureGuestCard({
                                         <>
                                             <Check size={20} className="text-emerald-500 mb-1.5" />
                                             {laundryAction && (
-                                                <span onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')} className="absolute top-2 right-2 text-red-400 hover:text-red-600">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
+                                                    className="absolute top-1.5 right-1.5 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg active:scale-90 transition-all touch-manipulation"
+                                                    title="Undo laundry"
+                                                >
                                                     <RotateCcw size={14} />
-                                                </span>
+                                                </button>
                                             )}
                                         </>
                                     ) : (
@@ -920,7 +930,7 @@ function PureGuestCard({
                                     onClick={(e) => { e.stopPropagation(); setBicyclePickerGuest(guest); }}
                                     disabled={isBannedFromBicycle || !!todayBicycle}
                                     className={cn(
-                                        "relative flex flex-col items-center justify-center p-4 rounded-xl border shadow-sm transition-all",
+                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation",
                                         todayBicycle
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                             : isBannedFromBicycle
@@ -932,9 +942,14 @@ function PureGuestCard({
                                         <>
                                             <Check size={20} className="text-emerald-500 mb-1.5" />
                                             {bicycleAction && (
-                                                <span onClick={(e) => handleUndo(e, bicycleAction.id, 'Bicycle booking')} className="absolute top-2 right-2 text-red-400 hover:text-red-600">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => handleUndo(e, bicycleAction.id, 'Bicycle booking')}
+                                                    className="absolute top-1.5 right-1.5 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg active:scale-90 transition-all touch-manipulation"
+                                                    title="Undo bicycle"
+                                                >
                                                     <RotateCcw size={14} />
-                                                </span>
+                                                </button>
                                             )}
                                         </>
                                     ) : (
@@ -953,7 +968,7 @@ function PureGuestCard({
                                             <button
                                                 onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
                                                 disabled={isPending}
-                                                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 text-xs font-semibold hover:bg-orange-200 transition-all active:scale-95 disabled:opacity-50"
+                                                className="flex items-center justify-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 text-xs font-semibold hover:bg-orange-200 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
                                                 title="Undo extra meal"
                                             >
                                                 <RotateCcw size={12} />
@@ -962,14 +977,14 @@ function PureGuestCard({
                                         )}
                                     </div>
                                     {hasReachedMealLimit || hasReachedExtraMealLimit ? (
-                                        <div className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-gray-50 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm">
+                                        <div className="w-full flex items-center justify-center gap-2 min-h-[44px] p-3 rounded-xl bg-gray-50 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm">
                                             <span>Daily meal limit reached ({totalMeals}/{4})</span>
                                         </div>
                                     ) : (
                                         <button
                                             onClick={handleExtraMealAdd}
                                             disabled={isPending || isBannedFromMeals}
-                                            className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-orange-50 border-2 border-dashed border-orange-300 text-orange-700 font-bold text-sm hover:bg-orange-100 hover:border-orange-400 transition-all disabled:opacity-50"
+                                            className="w-full flex items-center justify-center gap-2 min-h-[44px] p-3 rounded-xl bg-orange-50 border-2 border-dashed border-orange-300 text-orange-700 font-bold text-sm hover:bg-orange-100 hover:border-orange-400 transition-all active:scale-[0.98] touch-manipulation disabled:opacity-50"
                                         >
                                             <Plus size={16} />
                                             <span>Add Extra Meal</span>
@@ -990,13 +1005,13 @@ function PureGuestCard({
                             {/* Actions */}
                             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
                                 {todayHaircut ? (
-                                    <div className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg">
+                                    <div className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-xl">
                                         <Check size={14} />
                                         Haircut
                                         {haircutAction && (
                                             <button
                                                 onClick={(e) => handleUndo(e, haircutAction.id, 'Haircut')}
-                                                className="ml-1 p-0.5 hover:bg-red-100 rounded text-red-500 transition-colors"
+                                                className="ml-1 p-1 min-w-[28px] min-h-[28px] hover:bg-red-100 rounded-md text-red-500 transition-all touch-manipulation flex items-center justify-center"
                                                 title="Undo haircut"
                                             >
                                                 <RotateCcw size={12} />
@@ -1014,17 +1029,17 @@ function PureGuestCard({
                                             max={today}
                                             onChange={(e) => setHaircutDate(e.target.value)}
                                             onClick={(e) => e.stopPropagation()}
-                                            className="h-8 rounded-md border border-gray-200 px-2 text-xs text-gray-600"
+                                            className="h-10 min-h-[40px] rounded-xl border border-gray-200 px-2.5 text-xs sm:text-sm text-gray-600 touch-manipulation"
                                             disabled={isPending || isBanned || hasHaircutForSelectedDate}
                                         />
                                         <button
                                             onClick={handleHaircutAdd}
                                             disabled={isPending || isBanned || hasHaircutForSelectedDate}
                                             className={cn(
-                                                "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors border border-transparent",
+                                                "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation border border-transparent",
                                                 isBanned || hasHaircutForSelectedDate
                                                     ? "text-gray-400 cursor-not-allowed"
-                                                    : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                                                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
                                             )}
                                         >
                                             <Scissors size={14} />
@@ -1034,13 +1049,13 @@ function PureGuestCard({
                                 )}
 
                                 {todayHoliday ? (
-                                    <div className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-pink-700 bg-pink-50 border border-pink-200 rounded-lg">
+                                    <div className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-pink-700 bg-pink-50 border border-pink-200 rounded-xl">
                                         <Check size={14} />
                                         Holiday
                                         {holidayAction && (
                                             <button
                                                 onClick={(e) => handleUndo(e, holidayAction.id, 'Holiday visit')}
-                                                className="ml-1 p-0.5 hover:bg-red-100 rounded text-red-500 transition-colors"
+                                                className="ml-1 p-1 min-w-[28px] min-h-[28px] hover:bg-red-100 rounded-md text-red-500 transition-all touch-manipulation flex items-center justify-center"
                                                 title="Undo holiday visit"
                                             >
                                                 <RotateCcw size={12} />
@@ -1052,10 +1067,10 @@ function PureGuestCard({
                                         onClick={handleHolidayAdd}
                                         disabled={isPending || isBanned}
                                         className={cn(
-                                            "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors border border-transparent",
+                                            "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation border border-transparent",
                                             isBanned
                                                 ? "text-gray-400 cursor-not-allowed"
-                                                : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                                                : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
                                         )}
                                     >
                                         <Gift size={14} />
@@ -1067,7 +1082,7 @@ function PureGuestCard({
 
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowHistoryModal(true); }}
-                                    className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                                    className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all active:scale-95 touch-manipulation"
                                 >
                                     <History size={14} />
                                     History
@@ -1075,7 +1090,7 @@ function PureGuestCard({
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
                                     className={cn(
-                                        "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors",
+                                        "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation",
                                         reminderBadgeCount > 0
                                             ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
                                             : "text-blue-600 hover:bg-blue-50"
@@ -1091,14 +1106,14 @@ function PureGuestCard({
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowWarningModal(true); }}
-                                    className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                    className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-amber-600 hover:bg-amber-50 rounded-xl transition-all active:scale-95 touch-manipulation"
                                 >
                                     <AlertTriangle size={14} />
                                     Warnings
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowEditModal(true); }}
-                                    className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                    className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-all active:scale-95 touch-manipulation"
                                 >
                                     <Edit size={14} />
                                     Edit
@@ -1106,7 +1121,7 @@ function PureGuestCard({
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowBanModal(true); }}
                                     className={cn(
-                                        "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors",
+                                        "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation",
                                         isBanned
                                             ? "text-emerald-600 hover:bg-emerald-50"
                                             : "text-red-600 hover:bg-red-50"

@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.8.3';
+export const APP_VERSION = '0.8.4';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.8.4',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'iPad and Tablet Check-In Optimizations',
+                description: 'Optimized touch targets to meet 44px standards across guest cards and actions, added touch keyboard dismissal during search result scrolling, and enlarged tap targets for quick service buttons and undos.',
+            },
+        ],
+    },
     {
         version: '0.8.3',
         date: 'August 19, 2026',
