@@ -150,9 +150,11 @@ export const createSearchIndex = <T extends SearchGuest>(guests: T[]): SearchInd
   const byInitials = new Map<string, IndexEntry<T>[]>();
 
   for (const guest of guests) {
+    const firstName = guest.firstName ?? (guest.name ? guest.name.trim().split(/\s+/)[0] : '');
+    const lastName = guest.lastName ?? (guest.name ? guest.name.trim().split(/\s+/).slice(1).join(' ') : '');
     const parts = getCachedNameParts(
-      guest.firstName,
-      guest.lastName,
+      firstName,
+      lastName,
       guest.preferredName
     );
 

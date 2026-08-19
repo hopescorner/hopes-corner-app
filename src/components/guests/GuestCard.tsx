@@ -118,6 +118,14 @@ type PureGuestCardProps = GuestCardProps & {
 
 const EMPTY_ARRAY: any[] = [];
 
+const normalizeGuestName = (value?: string | null) => value?.trim().replace(/\s+/g, ' ').toLowerCase() || '';
+
+const getGuestFullName = (guest: { name?: string; firstName?: string; lastName?: string }) =>
+    guest.name?.trim() || `${guest.firstName || ''} ${guest.lastName || ''}`.trim();
+
+const getGuestDisplayName = (guest: { preferredName?: string; name?: string; firstName?: string; lastName?: string }) =>
+    guest.preferredName?.trim() || getGuestFullName(guest) || 'Unknown';
+
 function GuestWarningsPanel({ guestId }: { guestId: string }) {
     const warnings = useGuestsStore((s) => s.warnings);
 
@@ -193,6 +201,9 @@ function PureGuestCard({
 
     const today = todayPacificDateString();
     const [haircutDate, setHaircutDate] = useState(today);
+    const displayName = getGuestDisplayName(guest);
+    const fullName = getGuestFullName(guest);
+    const showFullName = Boolean(fullName) && normalizeGuestName(displayName) !== normalizeGuestName(fullName);
 
     // Always compute local status (useMemo must be called unconditionally)
     // Then use precomputed map if provided
@@ -484,13 +495,23 @@ function PureGuestCard({
                     </div>
 
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className={cn(
-                                'font-bold text-gray-900 truncate',
-                                compact ? 'text-sm' : 'text-base'
-                            )}>
-                                {guest.preferredName || guest.name}
-                            </h3>
+                        <div className="flex items-start gap-2 flex-wrap">
+                            <div className="min-w-0">
+                                <h3 className={cn(
+                                    'font-bold text-gray-900 truncate',
+                                    compact ? 'text-sm' : 'text-base'
+                                )}>
+                                    {displayName}
+                                </h3>
+                                {showFullName && (
+                                    <p className={cn(
+                                        'text-gray-500 truncate',
+                                        compact ? 'text-[11px]' : 'text-xs'
+                                    )}>
+                                        Full name: {fullName}
+                                    </p>
+                                )}
+                            </div>
 
                             {/* Badges */}
                             <div className="flex items-center gap-1 flex-wrap">
@@ -1378,7 +1399,8 @@ export const GuestCard = memo(GuestCardImpl, (prev, next) => {
     // If the guest object identity changes but none of the rendered fields do, allow memo to skip.
     // Track a few common fields used in rendering.
     const guestFieldsEqual =
-        (prev.guest?.preferredName || prev.guest?.name) === (next.guest?.preferredName || next.guest?.name) &&
+        getGuestDisplayName(prev.guest || {}) === getGuestDisplayName(next.guest || {}) &&
+        getGuestFullName(prev.guest || {}) === getGuestFullName(next.guest || {}) &&
         prev.guest?.housingStatus === next.guest?.housingStatus &&
         prev.guest?.location === next.guest?.location &&
         prev.guest?.gender === next.guest?.gender &&

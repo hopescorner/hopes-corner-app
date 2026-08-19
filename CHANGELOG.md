@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1] - 2026-08-19
+
+### Fixed
+
+- Check-In now keeps a guest’s preferred name first and shows their full name underneath when it is different, making identification easier for staff.
+- Staff can find a guest on Check-In by either the preferred name or the full name.
+
 ## [0.8.0] - 2026-08-19
 
 ### Added

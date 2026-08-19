@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.8.0';
+export const APP_VERSION = '0.8.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.8.1',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Preferred and Full Names on Check-In',
+                description: 'When a guest uses a preferred name, Check-In keeps that name first and now shows the guest’s full name underneath for identification. Staff can search by either name.',
+            },
+        ],
+    },
     {
         version: '0.8.0',
         date: 'August 19, 2026',
