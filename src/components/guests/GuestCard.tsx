@@ -26,7 +26,8 @@ import {
     Gift,
     RotateCcw,
     Bell,
-    Clock
+    Clock,
+    History
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
@@ -62,6 +63,7 @@ const GuestEditModal = dynamic(() => import('@/components/modals/GuestEditModal'
 const BanManagementModal = dynamic(() => import('@/components/modals/BanManagementModal').then((module) => module.BanManagementModal));
 const WarningManagementModal = dynamic(() => import('@/components/modals/WarningManagementModal').then((module) => module.WarningManagementModal));
 const ReminderManagementModal = dynamic(() => import('@/components/modals/ReminderManagementModal').then((module) => module.ReminderManagementModal));
+const GuestHistoryModal = dynamic(() => import('@/components/modals/GuestHistoryModal').then((module) => module.GuestHistoryModal));
 const MobileServiceSheet = dynamic(() => import('@/components/checkin/MobileServiceSheet').then((module) => module.MobileServiceSheet));
 
 interface GuestCardProps {
@@ -182,6 +184,7 @@ function PureGuestCard({
     const [showBanModal, setShowBanModal] = useState(false);
     const [showWarningModal, setShowWarningModal] = useState(false);
     const [showReminderModal, setShowReminderModal] = useState(false);
+    const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [showMobileSheet, setShowMobileSheet] = useState(false);
 
     const warningBadgeCount = warningsCount ?? 0;
@@ -1044,6 +1047,13 @@ function PureGuestCard({
                                 <span className="w-px h-4 bg-gray-200 mx-1"></span>
 
                                 <button
+                                    onClick={(e) => { e.stopPropagation(); setShowHistoryModal(true); }}
+                                    className="inline-flex items-center gap-2 px-3 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                                >
+                                    <History size={14} />
+                                    History
+                                </button>
+                                <button
                                     onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
                                     className={cn(
                                         "inline-flex items-center gap-2 px-3 py-2 text-xs font-bold rounded-lg transition-colors",
@@ -1096,6 +1106,7 @@ function PureGuestCard({
             {showBanModal && <BanManagementModal guest={guest} onClose={() => setShowBanModal(false)} />}
             {showWarningModal && <WarningManagementModal guest={guest} onClose={() => setShowWarningModal(false)} />}
             {showReminderModal && <ReminderManagementModal guest={guest} onClose={() => setShowReminderModal(false)} />}
+            {showHistoryModal && <GuestHistoryModal guest={guest} onClose={() => setShowHistoryModal(false)} />}
 
             {/* Mobile Service Sheet */}
             <MobileServiceSheet

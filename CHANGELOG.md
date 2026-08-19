@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.0] - 2026-08-19
+
+### Added
+
+- Staff can open History from an expanded guest card on the Check-In page.
+- The guest timeline shows meals, proxy pickups, showers, laundry, bicycle repairs, haircuts, holiday visits, distributed items, warnings, reminders, service waivers, bans, and profile creation.
+- Staff can view activity from the last 30 days, the last 90 days, or all time.
+
+### Improved
+
+- Guest history loads only when staff open it, which keeps the Check-In list fast.
+- Imported meal records use the original service date instead of the migration date.
+
 ## [0.7.8] - 2026-08-19
 
 ### Added

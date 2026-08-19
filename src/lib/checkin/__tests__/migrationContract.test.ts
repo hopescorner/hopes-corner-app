@@ -3,6 +3,33 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('check-in snapshot migration', () => {
+    it('defines one protected guest history RPC with every supported activity source', () => {
+        const sql = readFileSync(
+            resolve(process.cwd(), 'supabase/migrations/20260819120000_add_guest_history.sql'),
+            'utf8',
+        );
+
+        expect(sql).toContain('function public.get_guest_history');
+        for (const source of [
+            'meal_attendance',
+            'shower_reservations',
+            'laundry_bookings',
+            'bicycle_repairs',
+            'haircut_visits',
+            'holiday_visits',
+            'items_distributed',
+            'guest_warnings',
+            'guest_reminders',
+            'service_waivers',
+        ]) {
+            expect(sql).toContain(`public.${source}`);
+        }
+        expect(sql).toContain("'ban'::text");
+        expect(sql).toContain('g.banned_at');
+        expect(sql).toContain("m.served_on::timestamp at time zone 'America/Los_Angeles'");
+        expect(sql).toContain('grant execute on function public.get_guest_history(uuid) to service_role');
+    });
+
     it('defines the snapshot RPC and the guest directory index', () => {
         const sql = readFileSync(
             resolve(process.cwd(), 'supabase/migrations/20260720120000_add_checkin_snapshot.sql'),

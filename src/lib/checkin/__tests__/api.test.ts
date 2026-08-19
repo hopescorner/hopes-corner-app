@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createGuestContextResponse, createSnapshotResponse } from '@/lib/checkin/api';
+import { createGuestContextResponse, createGuestHistoryResponse, createSnapshotResponse } from '@/lib/checkin/api';
 
 describe('createSnapshotResponse', () => {
     it('rejects unauthenticated requests', async () => {
@@ -55,6 +55,31 @@ describe('createGuestContextResponse', () => {
             session: { user: { role: 'staff' } },
             guestId: '11111111-1111-4111-8111-111111111111',
             loadContext: vi.fn().mockResolvedValue({ guest: { id: 'guest-1' } }),
+        });
+
+        expect(response.status).toBe(200);
+        expect(response.headers.get('cache-control')).toBe('private, no-store');
+    });
+});
+
+describe('createGuestHistoryResponse', () => {
+    it('rejects requests from roles without check-in access', async () => {
+        const loadHistory = vi.fn();
+        const response = await createGuestHistoryResponse({
+            session: { user: { role: 'board' } },
+            guestId: '11111111-1111-4111-8111-111111111111',
+            loadHistory,
+        });
+
+        expect(response.status).toBe(403);
+        expect(loadHistory).not.toHaveBeenCalled();
+    });
+
+    it('returns private history without browser caching', async () => {
+        const response = await createGuestHistoryResponse({
+            session: { user: { role: 'checkin' } },
+            guestId: '11111111-1111-4111-8111-111111111111',
+            loadHistory: vi.fn().mockResolvedValue({ events: [] }),
         });
 
         expect(response.status).toBe(200);

@@ -1,6 +1,7 @@
 import type {
     CheckInDailyNote,
     CheckInGuestContext,
+    CheckInGuestHistory,
     CheckInGuestSummary,
     CheckInSnapshot,
     CheckInTodayStatus,
@@ -171,4 +172,26 @@ export function normalizeCheckInGuestContext(value: unknown): CheckInGuestContex
             ? row.linked_guests.filter((item): item is UnknownRecord => !!item && typeof item === 'object').map(normalizeGuest)
             : [],
     };
+}
+
+export function normalizeCheckInGuestHistory(value: unknown): CheckInGuestHistory {
+    const row = value && typeof value === 'object' ? value as UnknownRecord : {};
+    const events = Array.isArray(row.events)
+        ? row.events.flatMap((item) => {
+            const event = item && typeof item === 'object' ? item as UnknownRecord : {};
+            const id = stringValue(event.id);
+            const occurredAt = stringValue(event.occurred_at);
+            if (!id || !occurredAt) return [];
+            return [{
+                id,
+                type: stringValue(event.event_type),
+                occurredAt,
+                title: stringValue(event.title) || 'Activity',
+                detail: nullableString(event.detail),
+                status: nullableString(event.status),
+            }];
+        })
+        : [];
+
+    return { events };
 }

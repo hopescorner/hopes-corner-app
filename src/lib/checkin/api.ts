@@ -55,3 +55,25 @@ export async function createGuestContextResponse({
         return Response.json({ error: 'Unable to load guest details' }, { status: 503 });
     }
 }
+
+export async function createGuestHistoryResponse({
+    session,
+    guestId,
+    loadHistory,
+}: {
+    session: SnapshotSession;
+    guestId: string;
+    loadHistory: (guestId: string) => Promise<unknown>;
+}) {
+    if (!session?.user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!CHECK_IN_ROLES.has(session.user.role || '')) return Response.json({ error: 'Forbidden' }, { status: 403 });
+    if (!UUID.test(guestId)) return Response.json({ error: 'Invalid guest id' }, { status: 422 });
+    try {
+        return Response.json(await loadHistory(guestId), {
+            headers: { 'Cache-Control': 'private, no-store' },
+        });
+    } catch (error) {
+        console.error('[guest history] load failed', error);
+        return Response.json({ error: 'Unable to load guest history' }, { status: 503 });
+    }
+}

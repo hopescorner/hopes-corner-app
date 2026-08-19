@@ -74,6 +74,19 @@ export interface CheckInGuestContext {
     linkedGuests: CheckInGuestSummary[];
 }
 
+export interface CheckInGuestHistoryEvent {
+    id: string;
+    type: string;
+    occurredAt: string;
+    title: string;
+    detail: string | null;
+    status: string | null;
+}
+
+export interface CheckInGuestHistory {
+    events: CheckInGuestHistoryEvent[];
+}
+
 export type CheckInCommand =
     | { type: 'meal.add'; guestId: string; quantity: number; extra?: boolean; idempotencyKey: string }
     | { type: 'meal.undo'; guestId: string; recordId: string; idempotencyKey: string };

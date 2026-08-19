@@ -148,6 +148,15 @@ describe('GuestCard Component', () => {
     });
 
     describe('Rendering', () => {
+        it('opens the guest history timeline from the expanded card', async () => {
+            render(<GuestCard guest={baseGuest} />);
+
+            fireEvent.click(screen.getByText('Johnny'));
+            fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+            expect(await screen.findByRole('dialog', { name: 'History for Johnny' })).toBeDefined();
+        });
+
         it('renders guest preferred name', () => {
             render(<GuestCard guest={baseGuest} />);
             expect(screen.getByText('Johnny')).toBeDefined();

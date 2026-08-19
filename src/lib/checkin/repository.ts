@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { normalizeCheckInGuestContext, normalizeCheckInSnapshot } from '@/lib/checkin/snapshot';
+import { normalizeCheckInGuestContext, normalizeCheckInGuestHistory, normalizeCheckInSnapshot } from '@/lib/checkin/snapshot';
 import { todayPacificDateString } from '@/lib/utils/date';
 import type { CheckInCommand } from '@/types/checkin';
 
@@ -19,6 +19,13 @@ export function createCheckInRepository(client: Pick<SupabaseClient, 'rpc'>) {
             });
             if (error) throw new Error(error.message || 'Unable to load guest details');
             return normalizeCheckInGuestContext(data);
+        },
+        async getGuestHistory(guestId: string) {
+            const { data, error } = await client.rpc('get_guest_history', {
+                p_guest_id: guestId,
+            });
+            if (error) throw new Error(error.message || 'Unable to load guest history');
+            return normalizeCheckInGuestHistory(data);
         },
         async mergeGuests(keepGuestId: string, duplicateGuestId: string) {
             const { data, error } = await client.rpc('merge_duplicate_guests', {

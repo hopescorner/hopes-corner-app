@@ -66,6 +66,37 @@ describe('createCheckInRepository', () => {
         expect(result.warnings).toHaveLength(1);
     });
 
+    it('loads and normalizes guest history through one RPC', async () => {
+        const rpc = vi.fn().mockResolvedValue({
+            data: {
+                events: [
+                    {
+                        id: 'meal-1',
+                        event_type: 'meal',
+                        occurred_at: '2026-08-18T18:30:00Z',
+                        title: 'Meal',
+                        detail: '2 meals',
+                        status: null,
+                    },
+                ],
+            },
+            error: null,
+        });
+        const repository = createCheckInRepository({ rpc } as never);
+
+        const result = await repository.getGuestHistory('guest-1');
+
+        expect(rpc).toHaveBeenCalledWith('get_guest_history', { p_guest_id: 'guest-1' });
+        expect(result.events).toEqual([{
+            id: 'meal-1',
+            type: 'meal',
+            occurredAt: '2026-08-18T18:30:00Z',
+            title: 'Meal',
+            detail: '2 meals',
+            status: null,
+        }]);
+    });
+
     it('maps duplicate candidate and merge RPC contracts for the API layer', async () => {
         const rpc = vi.fn()
             .mockResolvedValueOnce({

@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.7.8';
+export const APP_VERSION = '0.8.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.8.0',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Guest History Timeline',
+                description: 'Staff can open History from an expanded guest card on the Check-In page. The timeline shows meals, proxy pickups, services, distributed items, warnings, reminders, waivers, bans, and profile creation. Staff can view the last 30 days, the last 90 days, or all records.',
+            },
+            {
+                type: 'improvement',
+                title: 'Accurate Legacy History',
+                description: 'Imported meal records use the original service date instead of the date when the legacy data was migrated. Guest history loads only when staff open it, which keeps the Check-In list fast.',
+            },
+        ],
+    },
     {
         version: '0.7.8',
         date: 'August 19, 2026',
