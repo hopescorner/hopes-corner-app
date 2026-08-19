@@ -225,4 +225,19 @@ describe('MobileServiceSheet', () => {
             expect(title?.textContent).toContain('Quick Add for Johnny');
         });
     });
+
+    describe('Banned Guest Banner', () => {
+        it('renders GuestBanNotice when guest is banned', () => {
+            const bannedGuest = {
+                ...mockGuest,
+                isBanned: true,
+                banReason: 'Disruptive behavior',
+                bannedFromShower: true,
+                bannedFromLaundry: true,
+            };
+            render(<MobileServiceSheet {...defaultProps} guest={bannedGuest} />);
+            expect(screen.getByText('Program Access')).toBeDefined();
+            expect(screen.getByText('2 Restricted')).toBeDefined();
+        });
+    });
 });

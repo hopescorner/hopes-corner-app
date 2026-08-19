@@ -13,15 +13,19 @@ import {
     ChevronDown,
     RotateCcw,
 } from 'lucide-react';
+import { GuestBanNotice } from '@/components/guests/GuestBanNotice';
 
 interface Guest {
     id: string;
     name: string;
     preferredName?: string;
     isBanned?: boolean;
+    bannedUntil?: string | null;
+    banReason?: string | null;
     bannedFromMeals?: boolean;
     bannedFromShower?: boolean;
     bannedFromLaundry?: boolean;
+    bannedFromBicycle?: boolean;
 }
 
 interface MobileServiceSheetProps {
@@ -198,6 +202,10 @@ export function MobileServiceSheet({
 
                         {/* Content */}
                         <div className="px-5 py-5 space-y-4 pb-safe">
+                            {guest.isBanned && (
+                                <GuestBanNotice guest={guest} compact />
+                            )}
+
                             {/* Meal Section */}
                             <div className="space-y-3">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2] - 2026-08-19
+
+### Added
+
+- Ban notices and badges now explicitly display which programs a guest is banned from (such as showers and laundry) while indicating which programs remain allowed (such as meals and bicycles).
+- Expanded guest cards and ban management modals now feature a clear program access matrix with visual badges for Meals, Showers, Laundry, and Bicycles.
+
 ## [0.8.1] - 2026-08-19
 
 ### Fixed

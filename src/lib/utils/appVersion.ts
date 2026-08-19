@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.8.1';
+export const APP_VERSION = '0.8.2';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.8.2',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Program-Specific Ban Details',
+                description: 'Ban notices and badges now clearly show which specific programs a guest is restricted from (meals, showers, laundry, or bicycles) versus which programs remain accessible.',
+            },
+        ],
+    },
     {
         version: '0.8.1',
         date: 'August 19, 2026',

@@ -277,6 +277,44 @@ describe('GuestCard Component', () => {
             };
             render(<GuestCard guest={bannedGuest} />);
             expect(screen.getByText('BANNED')).toBeDefined();
+            expect(screen.getByText('(Meals)')).toBeDefined();
+        });
+
+        it('shows specific ban - showers and laundry', () => {
+            const bannedGuest = {
+                ...baseGuest,
+                isBanned: true,
+                bannedFromMeals: false,
+                bannedFromShower: true,
+                bannedFromLaundry: true,
+                bannedFromBicycle: false
+            };
+            render(<GuestCard guest={bannedGuest} />);
+            expect(screen.getByText('BANNED')).toBeDefined();
+            expect(screen.getByText('(Showers, Laundry)')).toBeDefined();
+        });
+
+        it('shows program access breakdown when expanded', () => {
+            const bannedGuest = {
+                ...baseGuest,
+                isBanned: true,
+                banReason: 'Disruptive behavior',
+                bannedFromMeals: false,
+                bannedFromShower: true,
+                bannedFromLaundry: true,
+                bannedFromBicycle: false
+            };
+            render(<GuestCard guest={bannedGuest} />);
+
+            fireEvent.click(screen.getByText('Johnny'));
+
+            expect(screen.getByText('Program Access')).toBeDefined();
+            expect(screen.getByText('2 Restricted')).toBeDefined();
+            expect(screen.getByText('Reason: Disruptive behavior')).toBeDefined();
+            const bannedPills = screen.getAllByText('Banned');
+            expect(bannedPills).toHaveLength(2);
+            const allowedPills = screen.getAllByText('Allowed');
+            expect(allowedPills).toHaveLength(2);
         });
     });
 

@@ -65,6 +65,8 @@ const WarningManagementModal = dynamic(() => import('@/components/modals/Warning
 const ReminderManagementModal = dynamic(() => import('@/components/modals/ReminderManagementModal').then((module) => module.ReminderManagementModal));
 const GuestHistoryModal = dynamic(() => import('@/components/modals/GuestHistoryModal').then((module) => module.GuestHistoryModal));
 const MobileServiceSheet = dynamic(() => import('@/components/checkin/MobileServiceSheet').then((module) => module.MobileServiceSheet));
+import { GuestBanNotice } from './GuestBanNotice';
+import { getGuestBanDetails } from '@/lib/utils/banUtils';
 
 interface GuestCardProps {
     guest: any;
@@ -322,13 +324,14 @@ function PureGuestCard({
     const holidayAction = actionStatus.holidayActionId ? { id: actionStatus.holidayActionId } : undefined;
 
     const hasServiceToday = !!todayMeal || todayShower || todayLaundry || todayBicycle;
-    const isBanned = guest.isBanned;
+    const banDetails = useMemo(() => getGuestBanDetails(guest), [guest]);
+    const isBanned = banDetails.isBanned;
 
     // Check program-specific bans
-    const isBannedFromMeals = isBanned && (guest.bannedFromMeals || (!guest.bannedFromMeals && !guest.bannedFromShower && !guest.bannedFromLaundry && !guest.bannedFromBicycle));
-    const isBannedFromShower = isBanned && (guest.bannedFromShower || (!guest.bannedFromMeals && !guest.bannedFromShower && !guest.bannedFromLaundry && !guest.bannedFromBicycle));
-    const isBannedFromLaundry = isBanned && (guest.bannedFromLaundry || (!guest.bannedFromMeals && !guest.bannedFromShower && !guest.bannedFromLaundry && !guest.bannedFromBicycle));
-    const isBannedFromBicycle = isBanned && (guest.bannedFromBicycle || (!guest.bannedFromMeals && !guest.bannedFromShower && !guest.bannedFromLaundry && !guest.bannedFromBicycle));
+    const isBannedFromMeals = banDetails.programs.find(p => p.key === 'meals')?.isBanned ?? false;
+    const isBannedFromShower = banDetails.programs.find(p => p.key === 'shower')?.isBanned ?? false;
+    const isBannedFromLaundry = banDetails.programs.find(p => p.key === 'laundry')?.isBanned ?? false;
+    const isBannedFromBicycle = banDetails.programs.find(p => p.key === 'bicycle')?.isBanned ?? false;
 
     const handleMealAdd = async (e: React.MouseEvent, count: number) => {
         e.stopPropagation();
@@ -545,9 +548,15 @@ function PureGuestCard({
                                     </span>
                                 )}
                                 {isBanned && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold">
+                                    <span 
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold"
+                                        title={banDetails.isAllProgramsBanned ? 'Banned from all programs' : `Banned from: ${banDetails.bannedSummary}`}
+                                    >
                                         <Ban size={10} />
-                                        BANNED
+                                        <span>BANNED</span>
+                                        {!banDetails.isAllProgramsBanned && (
+                                            <span className="font-semibold text-red-600">({banDetails.bannedSummary})</span>
+                                        )}
                                     </span>
                                 )}
                                 {/* Recent Badge (Active in last 7 days) - uses precomputed map for efficiency */}
@@ -846,23 +855,12 @@ function PureGuestCard({
 
             {/* Expanded Content */}
             {isExpanded && (
-                    <div className="border-t border-gray-100 bg-gray-50/30 overflow-hidden motion-safe:animate-[fadeIn_160ms_ease-out]">
-                        <div className="p-4 space-y-4">
-                            {/* Ban Status */}
-                            {isBanned ? (
-                                <div className="p-4 rounded-xl border border-red-200 bg-red-50 flex items-start gap-3">
-                                    <AlertCircle size={20} className="text-red-500 mt-0.5 shrink-0" />
-                                    <div className="flex-1">
-                                        <p className="text-sm font-bold text-red-700">
-                                            Guest is banned
-                                            {guest.bannedUntil && ` until ${new Date(guest.bannedUntil).toLocaleDateString()}`}
-                                        </p>
-                                        {guest.banReason && (
-                                            <p className="text-sm text-red-600 mt-1">Reason: {guest.banReason}</p>
-                                        )}
-                                    </div>
-                                </div>
-                            ) : null}
+                <div className="border-t border-gray-100 bg-gray-50/30 overflow-hidden motion-safe:animate-[fadeIn_160ms_ease-out]">
+                    <div className="p-4 space-y-4">
+                        {/* Ban Status */}
+                        {isBanned && (
+                            <GuestBanNotice guest={guest} />
+                        )}
 
                             {/* Services Grid */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

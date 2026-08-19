@@ -6,6 +6,7 @@ import { X, Ban, Loader2, AlertTriangle, ShowerHead, WashingMachine, Utensils, B
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import toast from 'react-hot-toast';
 import { cn } from '@/lib/utils/cn';
+import { GuestBanNotice } from '@/components/guests/GuestBanNotice';
 
 interface BanManagementModalProps {
     guest: any;
@@ -41,8 +42,9 @@ export function BanManagementModal({ guest, onClose }: BanManagementModalProps) 
         setIsPending(true);
         try {
             await banGuest(guest.id, {
-                bannedUntil: banUntil,
                 banReason: banReason.trim(),
+                bannedUntil: banUntil,
+                // If specific programs selected, use them. Otherwise blanket ban.
                 bannedFromMeals: hasAnyProgramBan ? bannedFromMeals : true,
                 bannedFromShower: hasAnyProgramBan ? bannedFromShower : true,
                 bannedFromLaundry: hasAnyProgramBan ? bannedFromLaundry : true,
@@ -71,19 +73,16 @@ export function BanManagementModal({ guest, onClose }: BanManagementModalProps) 
     };
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
             <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden"
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-gray-100"
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Header */}
-                <div className={cn(
-                    "p-6 border-b flex items-center justify-between",
-                    isBanned ? "bg-red-50 border-red-100" : "bg-amber-50 border-amber-100"
-                )}>
+                <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className={cn(
                             "w-12 h-12 rounded-2xl flex items-center justify-center text-white shadow-lg",
@@ -112,18 +111,7 @@ export function BanManagementModal({ guest, onClose }: BanManagementModalProps) 
                 {/* Content */}
                 <div className="p-6 space-y-6">
                     {isBanned && (
-                        <div className="p-4 rounded-xl bg-red-50 border border-red-200 flex items-start gap-3">
-                            <AlertTriangle size={20} className="text-red-500 mt-0.5 shrink-0" />
-                            <div>
-                                <p className="text-sm font-bold text-red-700">Currently Banned</p>
-                                {guest.bannedUntil && (
-                                    <p className="text-sm text-red-600">Until: {new Date(guest.bannedUntil).toLocaleDateString()}</p>
-                                )}
-                                {guest.banReason && (
-                                    <p className="text-sm text-red-600 mt-1">Reason: {guest.banReason}</p>
-                                )}
-                            </div>
-                        </div>
+                        <GuestBanNotice guest={guest} title="Currently Banned" />
                     )}
 
                     {/* Ban Until Date */}
