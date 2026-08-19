@@ -242,6 +242,16 @@ describe('guestSearchIndex', () => {
             const results = searchWithIndex('mic', index);
             expect(results.some(r => r.id === '4')).toBe(true);
         });
+
+        it('finds guests when only name is provided without firstName and lastName', () => {
+            const nameOnlyGuests: SearchGuest[] = [
+                { id: '10', name: 'Tina Hope', preferredName: 'Unknown' },
+            ];
+            const nameOnlyIndex = createSearchIndex(nameOnlyGuests);
+            expect(searchWithIndex('tina', nameOnlyIndex).map(g => g.id)).toEqual(['10']);
+            expect(searchWithIndex('hope', nameOnlyIndex).map(g => g.id)).toEqual(['10']);
+            expect(searchWithIndex('unknown', nameOnlyIndex).map(g => g.id)).toEqual(['10']);
+        });
     });
 
     describe('clearNamePartsCache', () => {

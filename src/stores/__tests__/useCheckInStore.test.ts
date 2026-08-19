@@ -207,6 +207,24 @@ describe('useCheckInStore', () => {
         expect(useCheckInStore.getState().searchIndex).toBe(firstIndex);
     });
 
+    it('matches both a guest full name and preferred name in check-in search', () => {
+        useCheckInStore.getState().hydrate({
+            ...snapshot,
+            guests: [
+                {
+                    ...snapshot.guests[0],
+                    name: 'Tina Hope',
+                    firstName: 'Tina',
+                    lastName: 'Hope',
+                    preferredName: 'Unknown',
+                },
+            ],
+        });
+
+        expect(useCheckInStore.getState().searchGuests('unknown').map((guest) => guest.id)).toEqual(['guest-1']);
+        expect(useCheckInStore.getState().searchGuests('tina hope').map((guest) => guest.id)).toEqual(['guest-1']);
+    });
+
     it('ignores out-of-order realtime meal events and consumes acknowledged command echoes', () => {
         useCheckInStore.getState().hydrate(snapshot);
         const state = useCheckInStore.getState();

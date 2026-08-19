@@ -162,6 +162,31 @@ describe('GuestCard Component', () => {
             expect(screen.getByText('Johnny')).toBeDefined();
         });
 
+        it('shows the full name under a different preferred name', () => {
+            render(<GuestCard guest={baseGuest} />);
+            expect(screen.getByText('Full name: John Doe')).toBeDefined();
+        });
+
+        it('hides the extra full-name line when preferred name matches the full name case-insensitively', () => {
+            const guest = { ...baseGuest, preferredName: 'john doe' };
+            render(<GuestCard guest={guest} />);
+            expect(screen.queryByText('Full name: John Doe')).toBeNull();
+        });
+
+        it('rerenders when preferredName or fullName changes on memoized card', () => {
+            const { rerender } = render(<GuestCard guest={baseGuest} />);
+            expect(screen.getByText('Johnny')).toBeDefined();
+            expect(screen.getByText('Full name: John Doe')).toBeDefined();
+
+            rerender(<GuestCard guest={{ ...baseGuest, preferredName: 'JD' }} />);
+            expect(screen.getByText('JD')).toBeDefined();
+            expect(screen.getByText('Full name: John Doe')).toBeDefined();
+
+            rerender(<GuestCard guest={{ ...baseGuest, preferredName: 'JD', name: 'Johnathan Doe' }} />);
+            expect(screen.getByText('JD')).toBeDefined();
+            expect(screen.getByText('Full name: Johnathan Doe')).toBeDefined();
+        });
+
         it('renders guest name when no preferred name', () => {
             const guest = { ...baseGuest, preferredName: '', name: 'John Doe' };
             render(<GuestCard guest={guest} />);
