@@ -301,6 +301,7 @@ export const useServicesStore = create<ServicesState>()(
                     deleteShowerRecord: async (recordId: string) => {
                         const { showerRecords } = get();
                         const target = showerRecords.find((r) => r.id === recordId);
+                        const targetIndex = showerRecords.findIndex((r) => r.id === recordId);
 
                         set((state) => {
                             state.showerRecords = state.showerRecords.filter(
@@ -317,6 +318,12 @@ export const useServicesStore = create<ServicesState>()(
 
                             if (error) {
                                 console.error('Failed to delete shower record from Supabase:', error);
+                                set((state) => {
+                                    if (target && !state.showerRecords.some((r) => r.id === recordId)) {
+                                        state.showerRecords.splice(Math.max(targetIndex, 0), 0, target as any);
+                                    }
+                                });
+                                throw new Error('Unable to delete shower record');
                             }
                         }
                     },
@@ -450,6 +457,7 @@ export const useServicesStore = create<ServicesState>()(
                     deleteLaundryRecord: async (recordId: string) => {
                         const { laundryRecords } = get();
                         const target = laundryRecords.find((r) => r.id === recordId);
+                        const targetIndex = laundryRecords.findIndex((r) => r.id === recordId);
 
                         set((state) => {
                             state.laundryRecords = state.laundryRecords.filter(
@@ -466,6 +474,12 @@ export const useServicesStore = create<ServicesState>()(
 
                             if (error) {
                                 console.error('Failed to delete laundry record from Supabase:', error);
+                                set((state) => {
+                                    if (target && !state.laundryRecords.some((r) => r.id === recordId)) {
+                                        state.laundryRecords.splice(Math.max(targetIndex, 0), 0, target as any);
+                                    }
+                                });
+                                throw new Error('Unable to delete laundry record');
                             }
                         }
                     },

@@ -958,6 +958,16 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
         }
     };
 
+    const handleDelete = async () => {
+        if (!confirm(`Cancel laundry booking for ${guestDetails.primaryName}?`)) return;
+        try {
+            await deleteLaundryRecord(record.id);
+            toast.success('Laundry booking cancelled');
+        } catch {
+            toast.error('Failed to cancel laundry booking');
+        }
+    };
+
     return (
         <div
             {...(!readOnly && dragListeners ? dragListeners : {})}
@@ -1112,12 +1122,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                             {(!readOnly || (readOnly && (record.status === 'waiting' || record.status === 'pending'))) && (
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        if (confirm(`Cancel laundry booking for ${guestDetails.primaryName}?`)) {
-                                            deleteLaundryRecord(record.id);
-                                            toast.success('Laundry booking cancelled');
-                                        }
-                                    }}
+                                    onClick={() => void handleDelete()}
                                     className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded px-3 py-1.5 transition-colors"
                                 >
                                     <Trash2 size={12} />

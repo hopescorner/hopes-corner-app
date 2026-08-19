@@ -186,4 +186,17 @@ describe('ServicesPage data loading (integration, real stores)', () => {
             expect(ensureDailyNotesLoaded).toHaveBeenCalled();
         });
     });
+
+    it('reloads service records when the device comes back online', async () => {
+        render(<ServicesPage />);
+        await waitFor(() => expect(queriedTables).toContain('shower_reservations'));
+        queriedTables.length = 0;
+
+        window.dispatchEvent(new Event('online'));
+
+        await waitFor(() => {
+            expect(queriedTables).toContain('shower_reservations');
+            expect(queriedTables).toContain('laundry_bookings');
+        });
+    });
 });

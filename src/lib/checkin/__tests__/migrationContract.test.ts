@@ -1,8 +1,21 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('check-in snapshot migration', () => {
+    it('publishes complete shower and laundry delete payloads for realtime sync', () => {
+        const migrationDirectory = resolve(process.cwd(), 'supabase/migrations');
+        const sql = readdirSync(migrationDirectory)
+            .filter((name) => name.endsWith('.sql'))
+            .map((name) => readFileSync(resolve(migrationDirectory, name), 'utf8'))
+            .join('\n');
+
+        expect(sql).toContain('alter table public.shower_reservations replica identity full');
+        expect(sql).toContain('alter table public.laundry_bookings replica identity full');
+        expect(sql).toContain('alter publication supabase_realtime add table public.shower_reservations');
+        expect(sql).toContain('alter publication supabase_realtime add table public.laundry_bookings');
+    });
+
     it('defines one protected guest history RPC with every supported activity source', () => {
         const sql = readFileSync(
             resolve(process.cwd(), 'supabase/migrations/20260819120000_add_guest_history.sql'),

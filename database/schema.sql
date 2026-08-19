@@ -518,6 +518,8 @@ create table if not exists public.shower_reservations (
   note text
 );
 
+alter table public.shower_reservations replica identity full;
+
 drop trigger if exists trg_shower_reservations_updated_at on public.shower_reservations;
 create trigger trg_shower_reservations_updated_at
 before update on public.shower_reservations
@@ -608,6 +610,8 @@ create table if not exists public.laundry_bookings (
   updated_at timestamptz not null default now(),
   note text
 );
+
+alter table public.laundry_bookings replica identity full;
 
 drop trigger if exists trg_laundry_bookings_updated_at on public.laundry_bookings;
 create trigger trg_laundry_bookings_updated_at

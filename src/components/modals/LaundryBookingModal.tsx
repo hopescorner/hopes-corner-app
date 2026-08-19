@@ -20,13 +20,17 @@ import { todayPacificDateString, pacificDateStringFrom, formatDateForDisplay } f
 
 export function LaundryBookingModal() {
     const { laundryPickerGuest, setLaundryPickerGuest } = useModalStore();
-    const { laundryRecords, addLaundryRecord, getLaundryWeeklyUsage } = useServicesStore();
+    const { laundryRecords, addLaundryRecord, getLaundryWeeklyUsage, loadFromSupabase } = useServicesStore();
     const { addAction } = useActionHistoryStore();
     const { fetchBlockedSlots, isSlotBlocked } = useBlockedSlotsStore();
 
     useEffect(() => {
         fetchBlockedSlots();
     }, [fetchBlockedSlots]);
+
+    useEffect(() => {
+        if (laundryPickerGuest) void loadFromSupabase();
+    }, [laundryPickerGuest, loadFromSupabase]);
 
     const [isPending, setIsPending] = useState(false);
     const [washType, setWashType] = useState<'onsite' | 'offsite'>('onsite');
@@ -84,6 +88,7 @@ export function LaundryBookingModal() {
             setLaundryPickerGuest(null);
         } catch (error: any) {
             toast.error(error.message || 'Failed to book laundry');
+            void loadFromSupabase();
         } finally {
             setIsPending(false);
         }

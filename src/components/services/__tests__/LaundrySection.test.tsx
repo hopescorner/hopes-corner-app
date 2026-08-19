@@ -8,11 +8,21 @@ const defaultLaundryRecords = [
     { id: 'l2', guestId: 'g2', status: 'washer', time: '10:00-10:30', bagNumber: '2', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T10:00:00Z' },
 ];
 
+const { mockToastError } = vi.hoisted(() => ({ mockToastError: vi.fn() }));
+
+vi.mock('react-hot-toast', () => ({
+    default: {
+        success: vi.fn(),
+        error: mockToastError,
+    },
+}));
+
 const defaultStoreData = {
     laundryRecords: defaultLaundryRecords,
     addLaundryRecord: vi.fn().mockResolvedValue({ id: 'l3' }),
     updateLaundryStatus: vi.fn().mockResolvedValue(true),
     updateLaundryBagNumber: vi.fn().mockResolvedValue(true),
+    deleteLaundryRecord: vi.fn().mockResolvedValue(undefined),
     cancelMultipleLaundry: vi.fn().mockResolvedValue(true),
     loadFromSupabase: vi.fn().mockResolvedValue(undefined),
     getLaundryWeeklyUsage: vi.fn(() => ({
@@ -94,6 +104,20 @@ describe('LaundrySection Component', () => {
             expect(screen.getAllByText('Johnny').length).toBeGreaterThan(0);
             expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0);
         });
+    });
+
+    it('shows an error when cancelling a laundry booking fails', async () => {
+        const deleteLaundryRecord = vi.fn().mockRejectedValue(new Error('Unable to delete laundry record'));
+        const storeData = { ...defaultStoreData, deleteLaundryRecord };
+        mockUseServicesStore.mockReturnValue(storeData);
+        mockUseServicesStore.getState.mockReturnValue(storeData);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        render(<LaundrySection />);
+
+        fireEvent.click(screen.getAllByLabelText('Expand laundry details')[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: 'Cancel Booking' })[0]);
+
+        await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Failed to cancel laundry booking'));
     });
 
     describe('Drag and Drop', () => {

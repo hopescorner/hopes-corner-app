@@ -40,7 +40,11 @@ function dispatchPayload(options: SubscriptionOptions, payload: RealtimePostgres
 }
 
 /** Register several postgres-change handlers on a single websocket channel. */
-export function subscribeToTables(options: SubscriptionOptions[], scope = 'route'): () => void {
+export function subscribeToTables(
+    options: SubscriptionOptions[],
+    scope = 'route',
+    onStatus?: (status: string) => void,
+): () => void {
     const channelName = `realtime:${scope}:${options.map((option) => option.table).join(',')}`;
     if (activeChannels.has(channelName)) return () => unsubscribeFromChannel(channelName);
 
@@ -60,6 +64,7 @@ export function subscribeToTables(options: SubscriptionOptions[], scope = 'route
     }
     channel = channel.subscribe((status) => {
         if (realtimeDebugEnabled) console.log(`[Realtime] ${scope} subscription status:`, status);
+        onStatus?.(status);
     });
     activeChannels.set(channelName, channel);
     return () => unsubscribeFromChannel(channelName);

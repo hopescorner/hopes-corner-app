@@ -1353,16 +1353,17 @@ describe('useServicesStore', () => {
                 await expect(useServicesStore.getState().addShowerWaitlist('g1')).rejects.toThrow('Unable to add to waitlist');
             });
 
-            it('handles deleteShowerRecord failure gracefully', async () => {
+            it('restores the shower record when deletion fails', async () => {
                 useServicesStore.setState({ showerRecords: [createMockShowerRecord({ id: 's1' })] });
                 mockSupabase.delete.mockReturnThis();
                 mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
-                // Should not throw, just log error
-                await useServicesStore.getState().deleteShowerRecord('s1');
+                await expect(useServicesStore.getState().deleteShowerRecord('s1'))
+                    .rejects.toThrow('Unable to delete shower record');
 
-                // Optimistic update removes it
-                expect(useServicesStore.getState().showerRecords).toHaveLength(0);
+                expect(useServicesStore.getState().showerRecords).toEqual([
+                    expect.objectContaining({ id: 's1' }),
+                ]);
             });
         });
 
@@ -1385,14 +1386,16 @@ describe('useServicesStore', () => {
                 await expect(useServicesStore.getState().addLaundryWaitlist('g1')).rejects.toThrow('Unable to add to waitlist');
             });
 
-            it('handles deleteLaundryRecord failure gracefully', async () => {
+            it('restores the laundry record when deletion fails', async () => {
                 useServicesStore.setState({ laundryRecords: [createMockLaundryRecord({ id: 'l1' })] });
                 mockSupabase.delete.mockReturnThis();
                 mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
-                // Should not throw
-                await useServicesStore.getState().deleteLaundryRecord('l1');
-                expect(useServicesStore.getState().laundryRecords).toHaveLength(0);
+                await expect(useServicesStore.getState().deleteLaundryRecord('l1'))
+                    .rejects.toThrow('Unable to delete laundry record');
+                expect(useServicesStore.getState().laundryRecords).toEqual([
+                    expect.objectContaining({ id: 'l1' }),
+                ]);
             });
 
             it('reverts updateLaundryStatus on failure', async () => {

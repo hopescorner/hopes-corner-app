@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import { ShowerBookingModal } from '../ShowerBookingModal';
 import { LaundryBookingModal } from '../LaundryBookingModal';
@@ -34,17 +34,20 @@ vi.mock('framer-motion', () => ({
 
 const mockSetShowerPickerGuest = vi.fn();
 const mockSetLaundryPickerGuest = vi.fn();
+const mockShowerGuest = { id: 'g1', firstName: 'John', lastName: 'Doe', name: 'John Doe' };
+const mockLaundryGuest = { id: 'g1', firstName: 'John', lastName: 'Doe', name: 'John Doe' };
 const mockAddShowerRecord = vi.fn();
 const mockAddShowerWaitlist = vi.fn();
 const mockAddLaundryRecord = vi.fn();
+const mockLoadServices = vi.fn();
 const mockAddAction = vi.fn();
 const mockFetchBlockedSlots = vi.fn();
 const mockIsSlotBlocked = vi.fn((..._args: any[]) => false);
 
 vi.mock('@/stores/useModalStore', () => ({
     useModalStore: vi.fn(() => ({
-        showerPickerGuest: { id: 'g1', firstName: 'John', lastName: 'Doe', name: 'John Doe' },
-        laundryPickerGuest: { id: 'g1', firstName: 'John', lastName: 'Doe', name: 'John Doe' },
+        showerPickerGuest: mockShowerGuest,
+        laundryPickerGuest: mockLaundryGuest,
         setShowerPickerGuest: mockSetShowerPickerGuest,
         setLaundryPickerGuest: mockSetLaundryPickerGuest,
     })),
@@ -60,7 +63,7 @@ vi.mock('@/stores/useServicesStore', () => ({
         addShowerRecord: mockAddShowerRecord,
         addShowerWaitlist: mockAddShowerWaitlist,
         addLaundryRecord: mockAddLaundryRecord,
-        loadFromSupabase: vi.fn(),
+        loadFromSupabase: mockLoadServices,
         getLaundryWeeklyUsage: vi.fn(() => ({
             count: 0,
             max: 2,
@@ -170,6 +173,28 @@ describe('ShowerBookingModal — Book Next Available', () => {
         expect(timeElement).toBeTruthy();
         expect(timeElement!.className).toContain('text-2xl');
         expect(timeElement!.className).toContain('font-black');
+    });
+});
+
+describe('LaundryBookingModal — realtime recovery', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+        mockRole = 'checkin';
+        mockLaundryRecords.length = 0;
+    });
+
+    it('refreshes service records when the modal opens', () => {
+        render(<LaundryBookingModal />);
+        expect(mockLoadServices).toHaveBeenCalledTimes(1);
+    });
+
+    it('refreshes slot availability after a booking conflict', async () => {
+        mockAddLaundryRecord.mockRejectedValueOnce(new Error('This laundry slot was just booked on another device.'));
+        render(<LaundryBookingModal />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Confirm Booking' }));
+
+        await waitFor(() => expect(mockLoadServices).toHaveBeenCalledTimes(2));
     });
 });
 

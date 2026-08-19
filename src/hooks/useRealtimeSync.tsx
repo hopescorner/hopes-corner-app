@@ -80,6 +80,7 @@ export function useRealtimeSync() {
             blockedSlots: null,
             dailyNotes: null,
             donations: null,
+            serviceReconcile: null,
         };
 
         const debouncedWork = (key: keyof typeof refreshTimeouts, work: () => void | Promise<void>, delay = 150) => {
@@ -131,7 +132,7 @@ export function useRealtimeSync() {
         // Subscribe to shower changes
         const showerSubscription: SubscriptionOptions = {
             table: 'shower_reservations',
-            onChange: (payload) => debouncedWork('showers', () => {
+            onChange: (payload) => debouncedWork(`shower:${(payload.eventType === 'DELETE' ? (payload.old as any)?.id : (payload.new as any)?.id) ?? 'unknown'}`, () => {
                 try {
                     const realtimeRow = payload.eventType === 'DELETE' ? payload.old as any : payload.new as any;
                     patchCheckInService(payload, 'shower', realtimeRow?.scheduled_for, realtimeRow?.scheduled_time);
@@ -516,7 +517,11 @@ export function useRealtimeSync() {
             blockedSlotSubscription,
             dailyNoteSubscription,
             donationSubscription,
-        ], 'operations')];
+        ], 'operations', (status) => {
+            if (status === 'SUBSCRIBED') {
+                debouncedWork('serviceReconcile', servicesLoadFromSupabase);
+            }
+        })];
 
         // Cleanup on unmount
         return () => {

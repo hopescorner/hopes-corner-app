@@ -86,9 +86,10 @@ export default function ServicesPage() {
         router.push(`?${params.toString()}`, { scroll: false });
     };
 
-    const { ensureLoaded: ensureServicesLoaded, showerRecords, laundryRecords, bicycleRecords } = useServicesStore(
+    const { ensureLoaded: ensureServicesLoaded, loadFromSupabase: reloadServices, showerRecords, laundryRecords, bicycleRecords } = useServicesStore(
         useShallow((s) => ({
             ensureLoaded: s.ensureLoaded,
+            loadFromSupabase: s.loadFromSupabase,
             showerRecords: s.showerRecords,
             laundryRecords: s.laundryRecords,
             bicycleRecords: s.bicycleRecords,
@@ -127,6 +128,23 @@ export default function ServicesPage() {
     useEffect(() => {
         void loadTabData(activeTab);
     }, [activeTab, loadTabData]);
+
+    useEffect(() => {
+        const reconcile = () => void reloadServices();
+        const onVisibilityChange = () => {
+            if (document.visibilityState === 'visible') reconcile();
+        };
+        window.addEventListener('online', reconcile);
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        const interval = window.setInterval(() => {
+            if (document.visibilityState === 'visible') reconcile();
+        }, 120_000);
+        return () => {
+            window.clearInterval(interval);
+            window.removeEventListener('online', reconcile);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [reloadServices]);
 
     const today = useMemo(() => pacificDateStringFrom(new Date().toISOString()), []);
 

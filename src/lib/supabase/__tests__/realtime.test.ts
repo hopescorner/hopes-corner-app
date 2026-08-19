@@ -151,6 +151,24 @@ describe('Supabase Realtime Utilities', () => {
             expect(mockChannel.subscribe).toHaveBeenCalledTimes(1);
             expect(getActiveSubscriptionCount()).toBe(1);
         });
+
+        it('forwards channel status changes to the caller', () => {
+            let statusCallback: ((status: string) => void) | undefined;
+            mockChannel.subscribe.mockImplementation((callback?: (status: string) => void) => {
+                statusCallback = callback;
+                return mockChannel;
+            });
+            const onStatus = vi.fn();
+
+            subscribeToTables(
+                [{ table: 'shower_reservations', onChange: vi.fn() }],
+                'operations',
+                onStatus,
+            );
+            statusCallback?.('SUBSCRIBED');
+
+            expect(onStatus).toHaveBeenCalledWith('SUBSCRIBED');
+        });
     });
 
     describe('unsubscribeFromAll', () => {

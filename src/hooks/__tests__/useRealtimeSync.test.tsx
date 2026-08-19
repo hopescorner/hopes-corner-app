@@ -28,7 +28,7 @@ const mockSubscribeToTables: Mock = vi.fn((options: unknown[]) => {
 const mockUnsubscribeFromAll = vi.fn();
 
 vi.mock('@/lib/supabase/realtime', () => ({
-    subscribeToTables: (options: unknown[], scope: string) => mockSubscribeToTables(options, scope),
+    subscribeToTables: (options: unknown[], scope: string, onStatus?: (status: string) => void) => mockSubscribeToTables(options, scope, onStatus),
     unsubscribeFromAll: () => mockUnsubscribeFromAll(),
 }));
 
@@ -198,7 +198,19 @@ describe('useRealtimeSync', () => {
         // 11 tables: showers, laundry, meals, bicycles, guests, warnings, proxies, reminders, blocked_slots, daily_notes, donations
         expect(mockSubscribeToTable).toHaveBeenCalledTimes(11);
         expect(mockSubscribeToTables).toHaveBeenCalledTimes(1);
-        expect(mockSubscribeToTables).toHaveBeenCalledWith(expect.any(Array), 'operations');
+        expect(mockSubscribeToTables).toHaveBeenCalledWith(expect.any(Array), 'operations', expect.any(Function));
+    });
+
+    it('reloads service records after the realtime channel subscribes', async () => {
+        renderHook(() => useRealtimeSync());
+        const onStatus = mockSubscribeToTables.mock.calls[0][2] as ((status: string) => void) | undefined;
+
+        onStatus?.('SUBSCRIBED');
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockServicesLoadFromSupabase).toHaveBeenCalledTimes(1);
     });
 
     it('cleans up subscriptions on unmount', () => {
@@ -234,6 +246,31 @@ describe('useRealtimeSync', () => {
 
         expect(mockServicesSetState).toHaveBeenCalled();
         expect(mockServicesLoadFromSupabase).not.toHaveBeenCalled();
+    });
+
+    it('keeps rapid shower changes for different reservations', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'shower_reservations') capturedOnChange = options.onChange;
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 'shower-1', guest_id: 'g-1', scheduled_for: '2025-01-06', scheduled_time: '08:00', status: 'booked' },
+        });
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 'shower-2', guest_id: 'g-2', scheduled_for: '2025-01-06', scheduled_time: '08:30', status: 'booked' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockServicesSetState).toHaveBeenCalledTimes(2);
     });
 
     it('debounces rapid changes', async () => {
