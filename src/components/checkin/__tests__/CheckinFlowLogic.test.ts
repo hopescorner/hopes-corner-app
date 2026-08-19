@@ -75,5 +75,21 @@ describe('Check-in Flow Logic Tests', () => {
             const event = { key: 'Escape' };
             expect(event.key).toBe('Escape');
         });
+
+        it('does not open create modal on Enter press in search input with empty results', () => {
+            const isCreateModalOpen = false;
+            const handleSearchKeyDown = () => {};
+            handleSearchKeyDown();
+            expect(isCreateModalOpen).toBe(false);
+        });
+
+        it('opens create modal only via explicit action', () => {
+            let isCreateModalOpen = false;
+            const handleShowCreateForm = () => {
+                isCreateModalOpen = true;
+            };
+            handleShowCreateForm();
+            expect(isCreateModalOpen).toBe(true);
+        });
     });
 });

@@ -592,12 +592,6 @@ export default function CheckInClient({
                                 setSearchQuery(e.target.value);
                                 setSelectedIndex(-1);
                             }}
-                            onKeyDown={(e) => {
-                                // If Enter is pressed and there are no results, open create form
-                                if (e.key === 'Enter' && searchQuery.trim() && filteredGuests.length === 0) {
-                                    handleShowCreateForm();
-                                }
-                            }}
                             placeholder="Start typing a name (e.g. 'John' or 'JS')"
                             className="w-full pl-14 pr-14 py-5 rounded-2xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-xl font-bold placeholder:text-gray-300 outline-none shadow-inner"
                             autoFocus

@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.8.2';
+export const APP_VERSION = '0.8.3';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.8.3',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Check-In Search Enter Key Behavior',
+                description: 'Pressing Enter in the Check-In search bar with no matching results no longer triggers the Create New Guest modal automatically, requiring an explicit button click instead.',
+            },
+        ],
+    },
     {
         version: '0.8.2',
         date: 'August 19, 2026',

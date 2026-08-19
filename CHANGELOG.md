@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.3] - 2026-08-19
+
+### Changed
+
+- Pressing Enter in the Check-In search bar when no matching guest is found no longer opens the Create New Guest modal automatically. Staff can click the New Guest button or use the keyboard shortcut to create a guest.
+
 ## [0.8.2] - 2026-08-19
 
 ### Added
