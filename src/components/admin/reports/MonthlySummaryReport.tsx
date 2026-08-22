@@ -280,6 +280,12 @@ const formatNumber = (value: number | string | undefined) => {
     return isNaN(num) ? String(value) : num.toLocaleString();
 };
 
+const getMealSummaryCellValue = (row: MonthlySummaryRow, columnKey: string) => {
+    const value = row[columnKey as keyof MonthlySummaryRow];
+    if (value === null || value === undefined) return '';
+    return typeof value === 'string' || typeof value === 'number' ? value : String(value);
+};
+
 export const getMealSummaryTotalValue = (
     rows: MonthlySummaryRow[],
     columnKey: string,
@@ -438,10 +444,11 @@ export default function MonthlySummaryReport() {
         const headers = MEAL_COLUMN_DEFINITIONS.map(col => csvCell(col.label)).join(',');
         const dataRows = filteredMealMonths.map(row =>
             MEAL_COLUMN_DEFINITIONS.map(col => {
-                const val = row[col.key as keyof typeof row];
+                const val = getMealSummaryCellValue(row, col.key);
+                const csvValue = typeof val === 'number' ? String(val) : val;
                 return col.isCurrency
                     ? csvCell((Number(val) || 0).toFixed(2))
-                    : csvCell(val);
+                    : csvCell(csvValue);
             }).join(',')
         );
         const totalsRow = MEAL_COLUMN_DEFINITIONS.map(col => {
