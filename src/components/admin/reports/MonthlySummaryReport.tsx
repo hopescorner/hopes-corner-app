@@ -280,9 +280,14 @@ const formatNumber = (value: number | string | undefined) => {
     return isNaN(num) ? String(value) : num.toLocaleString();
 };
 
-const getMealSummaryCellValue = (row: MonthlySummaryRow, columnKey: string) => {
+const getMealSummaryCellValue = (row: MonthlySummaryRow, columnKey: string): string | number | undefined => {
     const value = row[columnKey as keyof MonthlySummaryRow];
-    if (value === null || value === undefined) return '';
+    if (value === null || value === undefined) return undefined;
+    return typeof value === 'string' || typeof value === 'number' ? value : String(value);
+};
+
+const getMealSummaryMetricValue = (value: unknown): string | number | undefined => {
+    if (value === null || value === undefined) return undefined;
     return typeof value === 'string' || typeof value === 'number' ? value : String(value);
 };
 
@@ -290,10 +295,10 @@ export const getMealSummaryTotalValue = (
     rows: MonthlySummaryRow[],
     columnKey: string,
     isRangeActive: boolean,
-    totals: Record<string, number | string | undefined> | undefined,
+    totals: Partial<MonthlySummaryRow> | undefined,
 ) => {
     if (!isRangeActive) {
-        const totalValue = totals?.[columnKey];
+        const totalValue = getMealSummaryMetricValue(totals?.[columnKey as keyof Partial<MonthlySummaryRow>]);
         return totalValue == null ? 0 : totalValue;
     }
 
@@ -305,7 +310,7 @@ export const getMealSummaryTotalValue = (
         return guestIds.size;
     }
 
-    return rows.reduce((acc, row) => acc + (Number(row[columnKey as keyof MonthlySummaryRow]) || 0), 0);
+    return rows.reduce((acc, row) => acc + (Number(getMealSummaryCellValue(row, columnKey)) || 0), 0);
 };
 
 const ColumnTooltip = ({ label, description }: { label: string, description: string }) => (
@@ -453,7 +458,7 @@ export default function MonthlySummaryReport() {
         );
         const totalsRow = MEAL_COLUMN_DEFINITIONS.map(col => {
             if (col.key === 'month') return csvCell(totalsLabel);
-            const totalValue = getMealSummaryTotalValue(filteredMealMonths, col.key, isRangeActive, monthlyData.totals as Record<string, number | string | undefined>);
+            const totalValue = getMealSummaryTotalValue(filteredMealMonths, col.key, isRangeActive, monthlyData.totals);
             return col.isCurrency
                 ? csvCell(Number(totalValue || 0).toFixed(2))
                 : csvCell(totalValue);
@@ -662,22 +667,25 @@ export default function MonthlySummaryReport() {
                     <tbody className="divide-y divide-gray-100">
                         {filteredMealMonths.map((row, idx) => (
                             <tr key={idx} className="hover:bg-gray-50/50">
-                                {MEAL_COLUMN_DEFINITIONS.map((col, colIdx) => (
-                                    <td
-                                        key={col.key}
-                                        className={`p-3 whitespace-nowrap border-gray-100
-                                            ${col.cellBg} ${col.align === 'right' ? 'text-right' : 'text-left'}
-                                            ${col.bodyClass || ''}
-                                            ${colIdx === 0 ? 'sticky left-0 z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'border-l'}
-                                        `}
-                                    >
-                                        {col.isCurrency
-                                            ? formatDonationCurrency(Number(row[col.key as keyof typeof row]) || 0)
-                                            : col.isNumeric
-                                                ? formatNumber(row[col.key as keyof typeof row])
-                                                : row[col.key as keyof typeof row]}
-                                    </td>
-                                ))}
+                                {MEAL_COLUMN_DEFINITIONS.map((col, colIdx) => {
+                                    const cellValue = getMealSummaryCellValue(row, col.key);
+                                    return (
+                                        <td
+                                            key={col.key}
+                                            className={`p-3 whitespace-nowrap border-gray-100
+                                                ${col.cellBg} ${col.align === 'right' ? 'text-right' : 'text-left'}
+                                                ${col.bodyClass || ''}
+                                                ${colIdx === 0 ? 'sticky left-0 z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'border-l'}
+                                            `}
+                                        >
+                                            {col.isCurrency
+                                                ? formatDonationCurrency(Number(cellValue) || 0)
+                                                : col.isNumeric
+                                                    ? formatNumber(cellValue)
+                                                    : (cellValue ?? '')}
+                                        </td>
+                                    );
+                                })}
                             </tr>
                         ))}
 
@@ -688,7 +696,7 @@ export default function MonthlySummaryReport() {
                                     filteredMealMonths,
                                     col.key,
                                     isRangeActive,
-                                    monthlyData.totals as Record<string, number | string | undefined>,
+                                    monthlyData.totals,
                                 );
                                 return (
                                     <td
