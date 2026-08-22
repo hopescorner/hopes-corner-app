@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.8.5] - 2026-08-22
+
+### Fixed
+
+- Monthly Summary reports now count unique guests only once across the selected month range, preventing repeated visits from inflating the Selected Months Total.
+
 ## [0.8.4] - 2026-08-19
 
 ### Improved

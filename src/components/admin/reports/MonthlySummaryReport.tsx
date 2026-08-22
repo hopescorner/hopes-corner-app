@@ -287,7 +287,8 @@ export const getMealSummaryTotalValue = (
     totals: Record<string, number | string | undefined> | undefined,
 ) => {
     if (!isRangeActive) {
-        return totals?.[columnKey];
+        const totalValue = totals?.[columnKey];
+        return totalValue == null ? 0 : totalValue;
     }
 
     if (columnKey === 'uniqueGuests') {
