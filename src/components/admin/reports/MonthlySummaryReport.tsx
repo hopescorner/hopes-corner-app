@@ -14,7 +14,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
-import { getMonthlySummaryDatasets } from '@/lib/utils/dashboardReportCache';
+import { getMonthlySummaryDatasets, type MonthlySummaryRow } from '@/lib/utils/dashboardReportCache';
 import { formatDonationCurrency } from '@/lib/utils/donationUtils';
 import { csvCell } from '@/lib/utils/csv';
 import { useShallow } from 'zustand/react/shallow';
@@ -280,6 +280,27 @@ const formatNumber = (value: number | string | undefined) => {
     return isNaN(num) ? String(value) : num.toLocaleString();
 };
 
+export const getMealSummaryTotalValue = (
+    rows: MonthlySummaryRow[],
+    columnKey: string,
+    isRangeActive: boolean,
+    totals: Record<string, number | string | undefined> | undefined,
+) => {
+    if (!isRangeActive) {
+        return totals?.[columnKey];
+    }
+
+    if (columnKey === 'uniqueGuests') {
+        const guestIds = new Set<string>();
+        rows.forEach((row) => {
+            (row.uniqueGuestIds ?? []).forEach((guestId) => guestIds.add(guestId));
+        });
+        return guestIds.size;
+    }
+
+    return rows.reduce((acc, row) => acc + (Number(row[columnKey as keyof MonthlySummaryRow]) || 0), 0);
+};
+
 const ColumnTooltip = ({ label, description }: { label: string, description: string }) => (
     <div className="group relative inline-flex items-center text-gray-400 hover:text-gray-600 cursor-help">
         <Info size={14} />
@@ -424,10 +445,10 @@ export default function MonthlySummaryReport() {
         );
         const totalsRow = MEAL_COLUMN_DEFINITIONS.map(col => {
             if (col.key === 'month') return csvCell(totalsLabel);
-            const sum = filteredMealMonths.reduce((acc, row) => acc + (Number(row[col.key as keyof typeof row]) || 0), 0);
+            const totalValue = getMealSummaryTotalValue(filteredMealMonths, col.key, isRangeActive, monthlyData.totals as Record<string, number | string | undefined>);
             return col.isCurrency
-                ? csvCell(sum.toFixed(2))
-                : csvCell(sum);
+                ? csvCell(Number(totalValue || 0).toFixed(2))
+                : csvCell(totalValue);
         }).join(',');
         const content = [headers, ...dataRows, totalsRow].join('\n');
         downloadCSV(content, `meals-summary-${selectedYear}.csv`);
@@ -655,9 +676,12 @@ export default function MonthlySummaryReport() {
                         {/* Totals Row */}
                         <tr className="bg-gray-100 border-t-2 border-gray-200">
                             {MEAL_COLUMN_DEFINITIONS.map((col, colIdx) => {
-                                const displayTotal = isRangeActive
-                                    ? filteredMealMonths.reduce((acc, row) => acc + (Number(row[col.key as keyof typeof row]) || 0), 0)
-                                    : monthlyData.totals[col.key as keyof typeof monthlyData.totals];
+                                const displayTotal = getMealSummaryTotalValue(
+                                    filteredMealMonths,
+                                    col.key,
+                                    isRangeActive,
+                                    monthlyData.totals as Record<string, number | string | undefined>,
+                                );
                                 return (
                                     <td
                                         key={col.key}

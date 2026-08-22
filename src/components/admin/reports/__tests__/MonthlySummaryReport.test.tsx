@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import MonthlySummaryReport from '../MonthlySummaryReport';
+import MonthlySummaryReport, { getMealSummaryTotalValue } from '../MonthlySummaryReport';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 
@@ -135,6 +135,17 @@ describe('MonthlySummaryReport', () => {
         const upcomingNote = screen.getByText(/Upcoming months/i);
         expect(upcomingNote.textContent).toContain('will populate as data is recorded');
         expect(upcomingNote.textContent).not.toContain('February, March, April, May, June, July, August, September, October, November, December');
+    });
+
+    it('de-duplicates guest IDs when calculating selected-month unique guest totals', () => {
+        const rows = [
+            { month: 'January', uniqueGuests: 2, uniqueGuestIds: ['g1', 'g2'] },
+            { month: 'February', uniqueGuests: 2, uniqueGuestIds: ['g2', 'g3'] },
+        ] as any;
+
+        const total = getMealSummaryTotalValue(rows, 'uniqueGuests', true, { uniqueGuests: 0 });
+
+        expect(total).toBe(3);
     });
 
     describe('New Guests calculation', () => {
