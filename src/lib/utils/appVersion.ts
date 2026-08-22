@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.8.4';
+export const APP_VERSION = '0.8.5';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.8.5',
+        date: 'August 22, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Monthly Summary Unique Guest Totals',
+                description: 'Monthly summary reports now count unique guests only once across the selected month range, preventing repeated visits from inflating the Selected Months Total.',
+            },
+        ],
+    },
     {
         version: '0.8.4',
         date: 'August 19, 2026',
