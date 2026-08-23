@@ -801,15 +801,17 @@ export const useMealsStore = create<MealsState>()(
 
                     // Automation
                     checkAndAddAutomaticMeals: async () => {
-                        const today = new Date();
-                        const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                         const todayStr = todayPacificDateString();
+                        const dateParts = parsePacificDateParts(todayStr);
+                        const dayOfWeek = dateParts?.dayOfWeek;
                         const automaticSupportMealsEnabled = await resolveAutoMealAdditionsEnabled();
+                        await get().ensureLoaded();
                         const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords, addBulkMealRecord } = get();
 
-                        const todaysRv = rvMealRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
-                        const todaysDayWorker = dayWorkerMealRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
-                        const todaysLunchBags = lunchBagRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
+                        const dateKey = (r: MealRecord) => r?.dateKey || pacificDateStringFrom(r.date);
+                        const todaysRv = rvMealRecords.filter(r => dateKey(r) === todayStr);
+                        const todaysDayWorker = dayWorkerMealRecords.filter(r => dateKey(r) === todayStr);
+                        const todaysLunchBags = lunchBagRecords.filter(r => dateKey(r) === todayStr);
 
                         // Schedule Logic (from older app's automaticMealEntries.js)
                         // Mon (1): 100 RV, 50 Day Worker

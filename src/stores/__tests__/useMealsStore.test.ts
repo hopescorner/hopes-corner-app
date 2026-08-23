@@ -329,6 +329,47 @@ describe('useMealsStore', () => {
                 expect(dayWorkerMealRecords).toHaveLength(0);
             });
 
+            it('adds Saturday meals correctly even if local system time is Sunday in UTC', async () => {
+                vi.useFakeTimers();
+                const sundayUtc = new Date('2025-01-12T01:00:00Z');
+                vi.setSystemTime(sundayUtc);
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-11');
+                vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-11');
+
+                mockSupabase.single
+                    .mockResolvedValueOnce({
+                        data: { id: 'lb-sat-tz', quantity: 100, meal_type: 'lunch_bag', served_on: '2025-01-11' },
+                        error: null
+                    })
+                    .mockResolvedValueOnce({
+                        data: { id: 'rv-sat-tz', quantity: 100, meal_type: 'rv', served_on: '2025-01-11' },
+                        error: null
+                    });
+
+                await useMealsStore.getState().checkAndAddAutomaticMeals();
+
+                const { rvMealRecords, lunchBagRecords } = useMealsStore.getState();
+                expect(lunchBagRecords).toHaveLength(1);
+                expect(lunchBagRecords[0].count).toBe(100);
+                expect(rvMealRecords).toHaveLength(1);
+                expect(rvMealRecords[0].count).toBe(100);
+            });
+
+            it('skips Saturday automatic meals when automation is paused', async () => {
+                vi.useFakeTimers();
+                const saturday = new Date('2025-01-11T12:00:00Z');
+                vi.setSystemTime(saturday);
+                vi.mocked(dateUtils.todayPacificDateString).mockReturnValue('2025-01-11');
+                vi.mocked(dateUtils.pacificDateStringFrom).mockReturnValue('2025-01-11');
+                useSettingsStore.setState({ autoMealAdditionsEnabled: false });
+
+                await useMealsStore.getState().checkAndAddAutomaticMeals();
+
+                const { rvMealRecords, lunchBagRecords } = useMealsStore.getState();
+                expect(lunchBagRecords).toHaveLength(0);
+                expect(rvMealRecords).toHaveLength(0);
+            });
+
             // Proxy / Deduplication Logic
             it('persists proxy information correctly when adding meal', async () => {
                 const proxyId = 'proxy-guest-id';

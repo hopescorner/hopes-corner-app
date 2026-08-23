@@ -47,6 +47,8 @@ let mockLunchBagRecords: Array<{
     { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
 ];
 
+const mockCheckAndAddAutomaticMeals = vi.fn();
+
 vi.mock('@/stores/useMealsStore', () => ({
     useMealsStore: vi.fn((selector) => {
         const state = {
@@ -68,7 +70,7 @@ vi.mock('@/stores/useMealsStore', () => ({
             addBulkMealRecord: vi.fn().mockResolvedValue({ id: 'm-new' }),
             deleteBulkMealRecord: mockDeleteBulkMealRecord,
             updateBulkMealRecord: vi.fn().mockResolvedValue(true),
-            checkAndAddAutomaticMeals: vi.fn(),
+            checkAndAddAutomaticMeals: mockCheckAndAddAutomaticMeals,
             addMealRecord: mockAddMealRecord,
         };
         return typeof selector === 'function' ? selector(state) : state;
@@ -166,6 +168,19 @@ describe('MealsSection Component', () => {
             await user.click(screen.getByRole('switch', { name: 'Automatic RV, lunch bag, and day worker additions' }));
 
             expect(mockUpdateAutoMealAdditionsEnabled).toHaveBeenCalledWith(false);
+        });
+
+        it('triggers checkAndAddAutomaticMeals when resuming automatic meal additions', async () => {
+            mockAutoMealAdditionsEnabled = false;
+            const user = userEvent.setup();
+            render(<MealsSection />);
+
+            mockCheckAndAddAutomaticMeals.mockClear();
+
+            await user.click(screen.getByRole('switch', { name: 'Automatic RV, lunch bag, and day worker additions' }));
+
+            expect(mockUpdateAutoMealAdditionsEnabled).toHaveBeenCalledWith(true);
+            expect(mockCheckAndAddAutomaticMeals).toHaveBeenCalled();
         });
     });
 

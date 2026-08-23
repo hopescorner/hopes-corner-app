@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.8.5';
+export const APP_VERSION = '0.8.6';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.8.6',
+        date: 'August 22, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Saturday and Toggle Meal Automation',
+                description: 'Automatic meal additions now trigger immediately when resuming automation and reliably evaluate Saturday schedule in Pacific Time regardless of server or client timezone.',
+            },
+        ],
+    },
     {
         version: '0.8.5',
         date: 'August 22, 2026',

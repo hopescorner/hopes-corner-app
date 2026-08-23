@@ -131,6 +131,9 @@ export function MealsSection() {
 
         try {
             await updateAutoMealAdditionsEnabled(nextValue);
+            if (nextValue) {
+                await checkAndAddAutomaticMeals();
+            }
             toast.success(nextValue ? 'Automatic RV, lunch bag, and day worker additions resumed' : 'Automatic RV, lunch bag, and day worker additions paused');
         } catch (error) {
             console.error('Failed to update meal automation setting:', error);

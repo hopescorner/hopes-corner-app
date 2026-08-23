@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.6] - 2026-08-22
+
+### Fixed
+
+- Automatic meal additions now immediately run when toggled back to enabled, ensuring Saturday RV meals and other scheduled bulk meals add without requiring a page refresh.
+- Fixed day-of-week calculation for automatic meal additions to strictly use Pacific Time, preventing Saturday meals from being skipped during late afternoon/evening hours under UTC runtime environments.
+
 ## [0.8.5] - 2026-08-22
 
 ### Fixed
