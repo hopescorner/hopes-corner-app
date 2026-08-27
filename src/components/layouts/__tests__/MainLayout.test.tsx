@@ -5,6 +5,8 @@ import MainLayout from '../MainLayout';
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 
+const mutationObserve = vi.fn();
+
 // Mock next-auth/react
 vi.mock('next-auth/react', () => ({
     useSession: vi.fn(),
@@ -32,7 +34,6 @@ vi.mock('lucide-react', async (importOriginal) => {
         BarChart3: () => <div data-testid="icon-dashboard" />,
         UserPlus: () => <div data-testid="icon-checkin" />,
         HelpCircle: () => <div data-testid="icon-help" />,
-        MessageSquarePlus: () => <div data-testid="icon-feedback" />,
         LogOut: () => <div data-testid="icon-logout" />,
         Menu: () => <div data-testid="icon-menu" />,
         X: () => <div data-testid="icon-x" />,
@@ -76,7 +77,7 @@ describe('MainLayout', () => {
         // Mock MutationObserver
         global.MutationObserver = class MutationObserver {
             constructor(callback: any) { }
-            observe = vi.fn();
+            observe = mutationObserve;
             disconnect = vi.fn();
         };
     });
@@ -107,28 +108,6 @@ describe('MainLayout', () => {
         expect(screen.queryByText('Dashboard')).toBeNull();
     });
 
-    it('shows the feedback issue button for non-checkin users', () => {
-        vi.mocked(useSession).mockReturnValue({
-            data: { user: { role: 'staff', name: 'Staff' } },
-            status: 'authenticated',
-        } as any);
-
-        render(<MainLayout>Content</MainLayout>);
-
-        expect(screen.getAllByLabelText('File issue or feature request').length).toBeGreaterThan(0);
-    });
-
-    it('hides the feedback issue button for checkin users', () => {
-        vi.mocked(useSession).mockReturnValue({
-            data: { user: { role: 'checkin', name: 'Checkin Staff' } },
-            status: 'authenticated',
-        } as any);
-
-        render(<MainLayout>Content</MainLayout>);
-
-        expect(screen.queryByLabelText('File issue or feature request')).toBeNull();
-    });
-
     it('calls signOut on logout button click', () => {
         vi.mocked(useSession).mockReturnValue({
             data: { user: { role: 'admin', name: 'Admin' } },
@@ -143,18 +122,11 @@ describe('MainLayout', () => {
         expect(signOut).toHaveBeenCalledWith({ callbackUrl: '/login' });
     });
 
-    it('reloads the page and clears caches when the logo is clicked', async () => {
+    it('uses normal client navigation for the logo without clearing caches', async () => {
         vi.mocked(useSession).mockReturnValue({
             data: { user: { role: 'admin', name: 'Admin' } },
             status: 'authenticated',
         } as any);
-
-        const reloadSpy = vi.fn();
-        const originalLocation = window.location;
-        Object.defineProperty(window, 'location', {
-            configurable: true,
-            value: { ...originalLocation, reload: reloadSpy },
-        });
 
         const deleteSpy = vi.fn().mockResolvedValue(true);
         const keysSpy = vi.fn().mockResolvedValue(['cache-1', 'cache-2']);
@@ -170,19 +142,10 @@ describe('MainLayout', () => {
         const logoLink = logo.closest('a');
         expect(logoLink).toBeDefined();
 
-        await act(async () => {
-            fireEvent.click(logoLink!);
-        });
-
-        expect(keysSpy).toHaveBeenCalled();
-        expect(deleteSpy).toHaveBeenCalledWith('cache-1');
-        expect(deleteSpy).toHaveBeenCalledWith('cache-2');
-        expect(reloadSpy).toHaveBeenCalled();
-
-        Object.defineProperty(window, 'location', {
-            configurable: true,
-            value: originalLocation,
-        });
+        expect(logoLink?.getAttribute('href')).toBe('/check-in');
+        await act(async () => fireEvent.click(logoLink!));
+        expect(keysSpy).not.toHaveBeenCalled();
+        expect(deleteSpy).not.toHaveBeenCalled();
         vi.unstubAllGlobals();
     });
 
@@ -199,7 +162,7 @@ describe('MainLayout', () => {
         expect(main.style.paddingBottom).toBeDefined();
     });
 
-    it('handles touch detection correctly', () => {
+    it('reserves mobile navigation space with CSS instead of layout observers', () => {
         vi.mocked(window.matchMedia).mockReturnValue({
             matches: true,
             addEventListener: vi.fn(),
@@ -207,12 +170,8 @@ describe('MainLayout', () => {
         } as any);
 
         render(<MainLayout>Content</MainLayout>);
-        // Force the effect to run
-        act(() => {
-            vi.advanceTimersByTime(0);
-        });
-
         const main = screen.getByRole('main');
-        expect(main.style.paddingBottom).toContain('calc');
+        expect(main.className).toContain('pb-[7.5rem]');
+        expect(mutationObserve).not.toHaveBeenCalled();
     });
 });

@@ -58,11 +58,16 @@ describe('BanManagementModal Component', () => {
             isBanned: true,
             banReason: 'Bad behavior',
             bannedUntil: '2026-12-31',
+            bannedFromMeals: false,
+            bannedFromShower: true,
+            bannedFromLaundry: true,
+            bannedFromBicycle: false,
         };
         render(<BanManagementModal guest={bannedGuest} onClose={mockOnClose} />);
         expect(screen.getByRole('heading', { name: 'Manage Ban' })).toBeDefined();
         expect(screen.getByText('Currently Banned')).toBeDefined();
         expect(screen.getByText('Reason: Bad behavior')).toBeDefined();
+        expect(screen.getByText('2 Restricted')).toBeDefined();
         expect(screen.getByRole('button', { name: 'Lift Ban' })).toBeDefined();
     });
 

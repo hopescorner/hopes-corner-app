@@ -269,11 +269,22 @@ export const useGuestsStore = create<GuestsState>()(
                         bicycle_description: bicycleDescription,
                     };
 
-                    const { data, error } = await supabase
+                    let { data, error } = await supabase
                         .from('guests')
                         .insert(payload)
                         .select()
                         .single();
+
+                    // external_id is client-generated; on the rare collision (or a
+                    // parallel device racing the same id), regenerate and retry once.
+                    if (error && error.code === '23505' && !guestData.guestId) {
+                        const retryPayload = { ...payload, external_id: get().generateGuestId() };
+                        ({ data, error } = await supabase
+                            .from('guests')
+                            .insert(retryPayload)
+                            .select()
+                            .single());
+                    }
 
                     if (error) {
                         console.error('Failed to add guest to Supabase:', error);
@@ -451,13 +462,18 @@ export const useGuestsStore = create<GuestsState>()(
                         // Check if any updates failed
                         const hasErrors = updates.some(result => result.error);
                         if (hasErrors) {
-                            console.error('Some record transfers failed:', updates.filter(r => r.error));
+                            const failedUpdates = updates.filter(result => result.error);
+                            console.error('Some record transfers failed:', failedUpdates);
+                            const message = failedUpdates[0]?.error?.message || 'The database rejected the transfer';
+                            toast.error(`Could not transfer guest records: ${message}`);
                             return false;
                         }
 
                         return true;
                     } catch (error) {
                         console.error('Failed to transfer guest records:', error);
+                        const message = error instanceof Error ? error.message : 'An unexpected error occurred';
+                        toast.error(`Could not transfer guest records: ${message}`);
                         return false;
                     }
                 },
@@ -470,7 +486,6 @@ export const useGuestsStore = create<GuestsState>()(
                         if (transferToGuestId) {
                             const transferSuccess = await get().transferGuestRecords(guestId, transferToGuestId);
                             if (!transferSuccess) {
-                                toast.error('Failed to transfer guest records. Guest not deleted.');
                                 return false;
                             }
                         }
@@ -495,7 +510,7 @@ export const useGuestsStore = create<GuestsState>()(
 
                         if (error) {
                             console.error('Failed to delete guest from Supabase:', error);
-                            toast.error('Failed to delete guest from database.');
+                            toast.error(`Could not delete guest: ${error.message || 'The database rejected the deletion'}`);
                             return false;
                         }
 

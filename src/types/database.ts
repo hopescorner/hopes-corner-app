@@ -4,7 +4,7 @@
 export type GenderEnum = 'Male' | 'Female' | 'Unknown' | 'Non-binary';
 export type AgeGroupEnum = 'Adult 18-59' | 'Senior 60+' | 'Child 0-17';
 export type HousingStatusEnum = 'Unhoused' | 'Housed' | 'Temp. shelter' | 'RV or vehicle';
-export type LaundryStatusEnum = 'waiting' | 'washer' | 'dryer' | 'done' | 'picked_up' | 'pending' | 'transported' | 'returned' | 'offsite_picked_up';
+export type LaundryStatusEnum = 'waiting' | 'washer' | 'dryer' | 'done' | 'picked_up' | 'pending' | 'transported' | 'returned' | 'offsite_picked_up' | 'cancelled' | 'no_show' | 'waitlisted';
 export type BicycleRepairStatusEnum = 'pending' | 'in_progress' | 'done';
 export type DonationTypeEnum = 'Protein' | 'Carbs' | 'Vegetables' | 'Fruit' | 'Veggie Protein' | 'Deli Foods' | 'Pastries' | 'School Lunch';
 export type LaPlazaCategoryEnum = 'Bakery' | 'Beverages' | 'Dairy' | 'Meat' | 'Mix' | 'Nonfood' | 'Prepared/Perishable' | 'Produce';

@@ -1,41 +1,23 @@
-'use client';
-
-import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth/config';
 import MainLayout from '@/components/layouts/MainLayout';
+import NextAuthProvider from '@/components/providers/NextAuthProvider';
+import { ProtectedOverlays } from '@/components/providers/ProtectedOverlays';
 
-export default function ProtectedLayout({
+export default async function ProtectedLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const { data: session, status } = useSession();
-    const router = useRouter();
-
-    useEffect(() => {
-        // Only redirect if we're sure there's no session
-        if (status === 'unauthenticated') {
-            router.replace('/login');
-        }
-    }, [status, router]);
-
-    // Show loading state while checking auth
-    if (status === 'loading') {
-        return (
-            <div className="min-h-screen bg-emerald-50 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin" />
-                    <p className="text-gray-600 font-medium">Loading...</p>
-                </div>
-            </div>
-        );
-    }
-
-    // Don't render children if not authenticated
+    const session = await auth();
     if (!session) {
-        return null;
+        redirect('/login');
     }
 
-    return <MainLayout>{children}</MainLayout>;
+    return (
+        <NextAuthProvider session={session}>
+            <MainLayout>{children}</MainLayout>
+            <ProtectedOverlays />
+        </NextAuthProvider>
+    );
 }

@@ -105,6 +105,12 @@ vi.mock('../ServiceDatePicker', () => ({
         ) : null,
 }));
 
+vi.mock('../ServiceDayNote', () => ({
+    ServiceDayNote: ({ date, serviceType }: { date: string; serviceType: string }) => (
+        <div data-testid="service-day-note">{serviceType}:{date}</div>
+    ),
+}));
+
 vi.mock('@/components/ui/CompactWaiverIndicator', () => ({
     CompactWaiverIndicator: () => null,
 }));
@@ -174,6 +180,16 @@ describe('ShowersSection Time Travel', () => {
     });
 
     describe('Historical View', () => {
+        it('shows the shower note for the selected historical date', async () => {
+            render(<ShowersSection />);
+
+            fireEvent.click(screen.getByTestId('go-to-yesterday'));
+
+            await waitFor(() => {
+                expect(screen.getByTestId('service-day-note')).toHaveTextContent('showers:2024-01-14');
+            });
+        });
+
         it('should show historical warning when viewing past date', async () => {
             render(<ShowersSection />);
             

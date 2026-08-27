@@ -8,13 +8,31 @@ const defaultLaundryRecords = [
     { id: 'l2', guestId: 'g2', status: 'washer', time: '10:00-10:30', bagNumber: '2', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T10:00:00Z' },
 ];
 
+const { mockToastError } = vi.hoisted(() => ({ mockToastError: vi.fn() }));
+
+vi.mock('react-hot-toast', () => ({
+    default: {
+        success: vi.fn(),
+        error: mockToastError,
+    },
+}));
+
 const defaultStoreData = {
     laundryRecords: defaultLaundryRecords,
     addLaundryRecord: vi.fn().mockResolvedValue({ id: 'l3' }),
     updateLaundryStatus: vi.fn().mockResolvedValue(true),
     updateLaundryBagNumber: vi.fn().mockResolvedValue(true),
+    deleteLaundryRecord: vi.fn().mockResolvedValue(undefined),
     cancelMultipleLaundry: vi.fn().mockResolvedValue(true),
     loadFromSupabase: vi.fn().mockResolvedValue(undefined),
+    getLaundryWeeklyUsage: vi.fn(() => ({
+        count: 0,
+        max: 2,
+        remaining: 2,
+        limitReached: false,
+        weekStart: '2026-06-29',
+        nextWeekStart: '2026-07-06',
+    })),
 };
 
 // Use vi.hoisted so the mock ref is available inside vi.mock factory
@@ -54,6 +72,7 @@ vi.mock('@/lib/utils/date', () => ({
     pacificDateStringFrom: (date: string) => date ? date.slice(0, 10) : null,
     formatTimeInPacific: () => '12:00 PM',
     formatPacificTimeString: (timeStr: string) => timeStr,
+    formatDateForDisplay: () => 'Jan 15',
 }));
 
 vi.mock('../EndServiceDayPanel', () => ({
@@ -85,6 +104,20 @@ describe('LaundrySection Component', () => {
             expect(screen.getAllByText('Johnny').length).toBeGreaterThan(0);
             expect(screen.getAllByText('Jane Smith').length).toBeGreaterThan(0);
         });
+    });
+
+    it('shows an error when cancelling a laundry booking fails', async () => {
+        const deleteLaundryRecord = vi.fn().mockRejectedValue(new Error('Unable to delete laundry record'));
+        const storeData = { ...defaultStoreData, deleteLaundryRecord };
+        mockUseServicesStore.mockReturnValue(storeData);
+        mockUseServicesStore.getState.mockReturnValue(storeData);
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        render(<LaundrySection />);
+
+        fireEvent.click(screen.getAllByLabelText('Expand laundry details')[0]);
+        fireEvent.click(screen.getAllByRole('button', { name: 'Cancel Booking' })[0]);
+
+        await waitFor(() => expect(mockToastError).toHaveBeenCalledWith('Failed to cancel laundry booking'));
     });
 
     describe('Drag and Drop', () => {
@@ -301,6 +334,63 @@ describe('LaundrySection Component', () => {
             });
 
             promptSpy.mockRestore();
+        });
+    });
+
+    describe('Weekly Limit in Admin Backfill Form', () => {
+        it('shows weekly load remaining indicator when guest is under the limit', () => {
+            mockUseServicesStore.mockReturnValue({
+                ...defaultStoreData,
+                getLaundryWeeklyUsage: () => ({
+                    count: 1,
+                    max: 2,
+                    remaining: 1,
+                    limitReached: false,
+                    weekStart: '2026-06-29',
+                    nextWeekStart: '2026-07-06',
+                }),
+            });
+            mockUseServicesStore.getState.mockReturnValue({ ...defaultStoreData });
+            render(<LaundrySection />);
+
+            // Expand the admin "Add Laundry Record" form
+            fireEvent.click(screen.getByText(/Add Laundry Record/i));
+
+            // Select a guest — the weekly usage banner should appear
+            fireEvent.change(screen.getByDisplayValue('Select guest'), { target: { value: 'g1' } });
+            expect(screen.getByText(/Weekly laundry for this guest:/i)).toBeTruthy();
+            expect(screen.getByText(/1\/2 loads/i)).toBeTruthy();
+            expect(screen.getByText(/1 remaining in this week/i)).toBeTruthy();
+        });
+
+        it('disables the Add Laundry / Add Completed buttons and shows limit-reached banner when cap is hit', () => {
+            mockUseServicesStore.mockReturnValue({
+                ...defaultStoreData,
+                getLaundryWeeklyUsage: () => ({
+                    count: 2,
+                    max: 2,
+                    remaining: 0,
+                    limitReached: true,
+                    weekStart: '2026-06-29',
+                    nextWeekStart: '2026-07-06',
+                }),
+            });
+            mockUseServicesStore.getState.mockReturnValue({ ...defaultStoreData });
+            render(<LaundrySection />);
+
+            fireEvent.click(screen.getByText(/Add Laundry Record/i));
+            fireEvent.change(screen.getByDisplayValue('Select guest'), { target: { value: 'g1' } });
+            fireEvent.change(screen.getByDisplayValue('On-site'), { target: { value: 'onsite' } });
+            const slotSelects = screen.getAllByDisplayValue('Select slot');
+            fireEvent.change(slotSelects[0], { target: { value: '08:30 - 10:00' } });
+
+            const addBtn = screen.getByRole('button', { name: /^Add Laundry$/i });
+            const addCompletedBtn = screen.getByRole('button', { name: /Add Completed/i });
+            expect(addBtn).toBeDisabled();
+            expect(addCompletedBtn).toBeDisabled();
+
+            // Limit-reached banner is visible
+            expect(screen.getByText(/Limit reached/i)).toBeTruthy();
         });
     });
 });

@@ -203,10 +203,11 @@ function useStatusChange(recordId: string, readOnly: boolean) {
 
         setIsUpdating(true);
         try {
-            await updateLaundryStatus(recordId, newStatus);
-            toast.success('Status updated');
-        } catch {
-            toast.error('Failed to update status');
+            const ok = await updateLaundryStatus(recordId, newStatus);
+            if (ok) toast.success('Status updated');
+            else toast.error('Failed to update status');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update status');
         } finally {
             setIsUpdating(false);
         }

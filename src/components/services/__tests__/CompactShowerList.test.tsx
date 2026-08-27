@@ -234,18 +234,54 @@ describe('CompactShowerList Component', () => {
             expect(screen.getByLabelText('Reopen shower')).toBeDefined();
         });
 
-        it('shows Rebook button for cancelled showers', () => {
+        it('shows a completion button for cancelled showers', () => {
             const records = [{ id: 'r1', guestId: 'g1', time: '09:00', status: 'cancelled' }];
             render(<CompactShowerList records={records} />);
 
-            expect(screen.getByLabelText('Rebook shower')).toBeDefined();
+            expect(screen.getByLabelText('Complete cancelled shower')).toBeDefined();
         });
 
-        it('shows Rebook button for no_show showers', () => {
+        it('shows undo cancellation button for cancelled showers', () => {
+            const records = [{ id: 'r1', guestId: 'g1', time: '09:00', status: 'cancelled' }];
+            render(<CompactShowerList records={records} />);
+
+            expect(screen.getByLabelText('Undo cancellation')).toBeDefined();
+        });
+
+        it('does not show undo cancellation button for no_show showers', () => {
             const records = [{ id: 'r1', guestId: 'g1', time: '09:00', status: 'no_show' }];
             render(<CompactShowerList records={records} />);
 
-            expect(screen.getByLabelText('Rebook shower')).toBeDefined();
+            expect(screen.queryByLabelText('Undo cancellation')).toBeNull();
+        });
+
+        it('shows a completion button for no-show showers', () => {
+            const records = [{ id: 'r1', guestId: 'g1', time: '09:00', status: 'no_show' }];
+            render(<CompactShowerList records={records} />);
+
+            expect(screen.getByLabelText('Complete cancelled shower')).toBeDefined();
+        });
+
+        it('marks a cancelled shower done without reopening its old slot', async () => {
+            const records = [{ id: 'r1', guestId: 'g1', time: '09:00', status: 'cancelled' }];
+            render(<CompactShowerList records={records} />);
+
+            fireEvent.click(screen.getByLabelText('Complete cancelled shower'));
+
+            await waitFor(() => {
+                expect(mockUpdateShowerStatus).toHaveBeenCalledWith('r1', 'done');
+            });
+        });
+
+        it('calls updateShowerStatus with booked when Undo Cancel is clicked for cancelled shower', async () => {
+            const records = [{ id: 'r1', guestId: 'g1', time: '09:00', status: 'cancelled' }];
+            render(<CompactShowerList records={records} />);
+
+            fireEvent.click(screen.getByLabelText('Undo cancellation'));
+
+            await waitFor(() => {
+                expect(mockUpdateShowerStatus).toHaveBeenCalledWith('r1', 'booked');
+            });
         });
 
         it('calls updateShowerStatus when Done button is clicked', async () => {

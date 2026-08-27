@@ -54,6 +54,48 @@ export const pacificDateStringFrom = (dateLike: Date | string | number = new Dat
 export const todayPacificDateString = () => pacificDateStringFrom(new Date());
 
 /**
+ * Returns the Pacific date string (YYYY-MM-DD) for the Monday that starts the
+ * week containing the given date. Weeks run Monday → Sunday in Pacific time.
+ *
+ * This is used for per-guest weekly laundry limits which reset every Monday.
+ */
+export const weekStartPacificDateString = (dateLike: Date | string | number = new Date()): string => {
+    // Plain YYYY-MM-DD strings are already Pacific dates — parse them directly
+    // to avoid new Date("YYYY-MM-DD") interpreting them as UTC midnight and
+    // shifting back a day in Pacific time.
+    const pacificDateStr =
+        typeof dateLike === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateLike)
+            ? dateLike
+            : pacificDateStringFrom(dateLike);
+    const [y, m, d] = pacificDateStr.split('-').map(Number);
+    // Build a local Date from the Pacific components so getDay() lines up with
+    // the Pacific calendar (avoids UTC day-shifting on ISO timestamp inputs).
+    const local = new Date(y, m - 1, d);
+    const dayOfWeek = local.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    const daysSinceMonday = (dayOfWeek + 6) % 7;
+    local.setDate(local.getDate() - daysSinceMonday);
+    const yyyy = local.getFullYear();
+    const mm = String(local.getMonth() + 1).padStart(2, '0');
+    const dd = String(local.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+/**
+ * Returns the Pacific date string (YYYY-MM-DD) for the Monday that begins the
+ * week *after* the week containing the given date. Useful for "limit resets on
+ * <next Monday>" messaging.
+ */
+export const nextWeekStartPacificDateString = (dateLike: Date | string | number = new Date()): string => {
+    const monday = weekStartPacificDateString(dateLike);
+    const [y, m, d] = monday.split('-').map(Number);
+    const next = new Date(y, m - 1, d + 7);
+    const yyyy = next.getFullYear();
+    const mm = String(next.getMonth() + 1).padStart(2, '0');
+    const dd = String(next.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+};
+
+/**
  * Converts a Pacific date string (YYYY-MM-DD) to an ISO timestamp that correctly
  * represents that date in Pacific time. 
  * 

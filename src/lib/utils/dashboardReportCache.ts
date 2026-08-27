@@ -170,6 +170,7 @@ export interface MonthlySummaryRow {
     fridayMeals: number;
     saturdayMeals: number;
     uniqueGuests: number;
+    uniqueGuestIds?: string[];
     newGuests: number;
     proxyPickups: number;
     onsiteHotMeals: number;
@@ -1123,6 +1124,7 @@ export const getMonthlySummaryDatasets = (
             fridayMeals,
             saturdayMeals,
             uniqueGuests,
+            uniqueGuestIds: Array.from(aggregate?.guestMealGuestIds ?? []),
             newGuests,
             proxyPickups: aggregate?.proxyPickups ?? 0,
             onsiteHotMeals,

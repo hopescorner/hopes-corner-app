@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import toast from 'react-hot-toast';
 import { useGuestsStore } from '../useGuestsStore';
 
 // 1. Define Mock Supabase
@@ -641,7 +642,9 @@ describe('useGuestsStore', () => {
                 
                 // Mock transfer failure
                 mockSupabase.update.mockImplementation(() => ({
-                    eq: vi.fn().mockResolvedValue({ error: { message: 'Transfer failed' } })
+                    eq: vi.fn().mockResolvedValue({
+                        error: { message: 'Guest Sample Person is banned from showers until 2030-01-01T00:00Z' }
+                    })
                 }));
                 const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -649,6 +652,9 @@ describe('useGuestsStore', () => {
                 
                 expect(result).toBe(false);
                 expect(useGuestsStore.getState().guests).toHaveLength(2); // Guest not deleted
+                expect(toast.error).toHaveBeenCalledWith(
+                    'Could not transfer guest records: Guest Sample Person is banned from showers until 2030-01-01T00:00Z'
+                );
                 spy.mockRestore();
             });
 
@@ -661,6 +667,7 @@ describe('useGuestsStore', () => {
                 const result = await useGuestsStore.getState().deleteGuestWithTransfer('del-1');
                 
                 expect(result).toBe(false);
+                expect(toast.error).toHaveBeenCalledWith('Could not delete guest: Delete failed');
                 spy.mockRestore();
             });
 

@@ -8,6 +8,8 @@ describe('Auth Logic Exhaustive Tests', () => {
             ['ADMIN.user@example.com', 'admin'],
             ['board.member@hopes-corner.org', 'board'],
             ['BOARD@example.com', 'board'],
+            ['grants@hopes-corner.org', 'board'],
+            ['GRANTS.user@example.com', 'board'],
             ['checkin.desk@hopes-corner.org', 'checkin'],
             ['CHECKIN@test.org', 'checkin'],
             ['bicycle@hopes-corner.org', 'bicycle'],

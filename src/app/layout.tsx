@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, Outfit } from 'next/font/google';
-import NextAuthProvider from '@/components/providers/NextAuthProvider';
 import { Toaster } from 'react-hot-toast';
-import { ModalContainer } from '@/components/modals/ModalContainer';
 import { ServiceWorkerRegistration } from '@/components/pwa/ServiceWorkerRegistration';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
@@ -56,12 +54,10 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${outfit.variable} font-sans antialiased`}
       >
-        <NextAuthProvider>
-          <ServiceWorkerRegistration />
-          {children}
-          <ModalContainer />
-          <SpeedInsights />
-          <Toaster
+        <ServiceWorkerRegistration />
+        {children}
+        <SpeedInsights />
+        <Toaster
             position="top-center"
             containerStyle={{ top: 60 }}
             toastOptions={{
@@ -89,8 +85,7 @@ export default function RootLayout({
               },
             }}
             gutter={8}
-          />
-        </NextAuthProvider>
+        />
       </body>
     </html>
   );

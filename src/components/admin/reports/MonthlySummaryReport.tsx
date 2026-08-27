@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     Bike,
     Download,
+    Filter,
     Info,
     Lightbulb,
     ShowerHead,
@@ -13,7 +14,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
-import { getMonthlySummaryDatasets } from '@/lib/utils/dashboardReportCache';
+import { getMonthlySummaryDatasets, type MonthlySummaryRow } from '@/lib/utils/dashboardReportCache';
 import { formatDonationCurrency } from '@/lib/utils/donationUtils';
 import { csvCell } from '@/lib/utils/csv';
 import { useShallow } from 'zustand/react/shallow';
@@ -143,8 +144,8 @@ const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
     },
     {
         key: 'rvWedSat',
-        label: 'RV Wed+Sat',
-        description: 'Meals delivered to RV community on Wed/Sat.',
+        label: 'RV Sat',
+        description: 'Meals delivered to RV community on Sat.',
         align: 'right',
         headerBg: 'bg-orange-50',
         cellBg: 'bg-orange-50/30',
@@ -164,7 +165,7 @@ const MEAL_COLUMN_DEFINITIONS: MealColumnDefinition[] = [
     {
         key: 'rvOther',
         label: 'RV Other',
-        description: 'Meals delivered to RV community on days other than Mon/Thu/Wed/Sat.',
+        description: 'Meals delivered to RV community on days other than Mon/Thu/Sat.',
         align: 'right',
         headerBg: 'bg-orange-50',
         cellBg: 'bg-orange-50/30',
@@ -289,6 +290,39 @@ const formatNumber = (value: number | string | undefined) => {
     return isNaN(num) ? String(value) : num.toLocaleString();
 };
 
+const getMealSummaryCellValue = (row: MonthlySummaryRow, columnKey: string): string | number | undefined => {
+    const value = row[columnKey as keyof MonthlySummaryRow];
+    if (value === null || value === undefined) return undefined;
+    return typeof value === 'string' || typeof value === 'number' ? value : String(value);
+};
+
+const getMealSummaryMetricValue = (value: unknown): string | number | undefined => {
+    if (value === null || value === undefined) return undefined;
+    return typeof value === 'string' || typeof value === 'number' ? value : String(value);
+};
+
+export const getMealSummaryTotalValue = (
+    rows: MonthlySummaryRow[],
+    columnKey: string,
+    isRangeActive: boolean,
+    totals: Partial<MonthlySummaryRow> | undefined,
+) => {
+    if (!isRangeActive) {
+        const totalValue = getMealSummaryMetricValue(totals?.[columnKey as keyof Partial<MonthlySummaryRow>]);
+        return totalValue == null ? 0 : totalValue;
+    }
+
+    if (columnKey === 'uniqueGuests') {
+        const guestIds = new Set<string>();
+        rows.forEach((row) => {
+            (row.uniqueGuestIds ?? []).forEach((guestId) => guestIds.add(guestId));
+        });
+        return guestIds.size;
+    }
+
+    return rows.reduce((acc, row) => acc + (Number(getMealSummaryCellValue(row, columnKey)) || 0), 0);
+};
+
 const ColumnTooltip = ({ label, description }: { label: string, description: string }) => (
     <div className="group relative inline-flex items-center text-gray-400 hover:text-gray-600 cursor-help">
         <Info size={14} />
@@ -317,6 +351,8 @@ export default function MonthlySummaryReport() {
         shelterMealRecords: state.shelterMealRecords,
     })));
     const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+    const [rangeStart, setRangeStart] = useState<number | null>(null);
+    const [rangeEnd, setRangeEnd] = useState<number | null>(null);
     const { donationRecords = [] } = useDonationsStore() as { donationRecords?: any[] };
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth();
@@ -326,6 +362,24 @@ export default function MonthlySummaryReport() {
         for (let y = currentYear; y >= 2023; y--) years.push(y);
         return years;
     }, [currentYear]);
+
+    const isRangeActive = rangeStart !== null && rangeEnd !== null;
+    const rangeLabel = isRangeActive
+        ? `${MONTH_NAMES[rangeStart]} – ${MONTH_NAMES[rangeEnd]}`
+        : 'All Months (Year to Date)';
+
+    const filterMonthRows = useCallback(<T extends { month: string }>(rows: T[]): T[] => {
+        if (!isRangeActive) return rows;
+        return rows.filter(row => {
+            const idx = MONTH_NAMES.indexOf(row.month);
+            return idx >= rangeStart && idx <= rangeEnd;
+        });
+    }, [isRangeActive, rangeStart, rangeEnd]);
+
+    const clearRange = useCallback(() => {
+        setRangeStart(null);
+        setRangeEnd(null);
+    }, []);
 
     const upcomingMonthsLabel = useMemo(() => {
         const firstUpcomingMonthIndex =
@@ -357,6 +411,41 @@ export default function MonthlySummaryReport() {
 
     const { monthlyData, bicycleSummary, showerLaundrySummary } = summaryDatasets;
 
+    const filteredMealMonths = useMemo(() => filterMonthRows(monthlyData.months), [filterMonthRows, monthlyData.months]);
+    const filteredBicycleMonths = useMemo(() => filterMonthRows(bicycleSummary.months), [filterMonthRows, bicycleSummary.months]);
+    const filteredShowerLaundryMonths = useMemo(() => filterMonthRows(showerLaundrySummary.months), [filterMonthRows, showerLaundrySummary.months]);
+
+    const filteredBicycleTotals = useMemo(() => {
+        if (!isRangeActive) return bicycleSummary.totals;
+        return {
+            newBikes: filteredBicycleMonths.reduce((s, r) => s + r.newBikes, 0),
+            services: filteredBicycleMonths.reduce((s, r) => s + r.services, 0),
+            total: filteredBicycleMonths.reduce((s, r) => s + r.total, 0),
+        };
+    }, [isRangeActive, filteredBicycleMonths, bicycleSummary.totals]);
+
+    const filteredShowerLaundryTotals = useMemo(() => {
+        if (!isRangeActive) return showerLaundrySummary.totals;
+        const rows = filteredShowerLaundryMonths;
+        const sum = (f: keyof typeof rows[0]) => rows.reduce((s, r) => s + (Number(r[f]) || 0), 0);
+        const pd = sum('programDays');
+        const sh = sum('showers');
+        const ll = sum('laundryLoads');
+        return {
+            programDays: pd, showers: sh, avgShowersPerDay: pd > 0 ? sh / pd : 0,
+            newGuests: sum('newGuests'), totalParticipants: sum('totalParticipants'),
+            participantsAdult: sum('participantsAdult'), participantsSenior: sum('participantsSenior'),
+            participantsChild: sum('participantsChild'), laundryLoads: ll,
+            onsiteLoads: sum('onsiteLoads'), offsiteLoads: sum('offsiteLoads'),
+            avgLaundryLoadsPerDay: pd > 0 ? ll / pd : 0,
+            uniqueLaundryGuests: sum('uniqueLaundryGuests'), laundryAdult: sum('laundryAdult'),
+            laundrySenior: sum('laundrySenior'), laundryChild: sum('laundryChild'),
+            newLaundryGuests: sum('newLaundryGuests'),
+        };
+    }, [isRangeActive, filteredShowerLaundryMonths, showerLaundrySummary.totals]);
+
+    const totalsLabel = isRangeActive ? 'Selected Months Total' : 'Year to Date';
+
     function downloadCSV(content: string, filename: string) {
         const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -369,20 +458,21 @@ export default function MonthlySummaryReport() {
 
     function handleExportMealsSummary() {
         const headers = MEAL_COLUMN_DEFINITIONS.map(col => csvCell(col.label)).join(',');
-        const dataRows = monthlyData.months.map(row =>
+        const dataRows = filteredMealMonths.map(row =>
             MEAL_COLUMN_DEFINITIONS.map(col => {
-                const val = row[col.key as keyof typeof row];
+                const val = getMealSummaryCellValue(row, col.key);
+                const csvValue = typeof val === 'number' ? String(val) : val;
                 return col.isCurrency
                     ? csvCell((Number(val) || 0).toFixed(2))
-                    : csvCell(val);
+                    : csvCell(csvValue);
             }).join(',')
         );
         const totalsRow = MEAL_COLUMN_DEFINITIONS.map(col => {
-            if (col.key === 'month') return csvCell('Year to Date');
-            const val = monthlyData.totals[col.key as keyof typeof monthlyData.totals];
+            if (col.key === 'month') return csvCell(totalsLabel);
+            const totalValue = getMealSummaryTotalValue(filteredMealMonths, col.key, isRangeActive, monthlyData.totals);
             return col.isCurrency
-                ? csvCell((Number(val) || 0).toFixed(2))
-                : csvCell(val);
+                ? csvCell(Number(totalValue || 0).toFixed(2))
+                : csvCell(totalValue);
         }).join(',');
         const content = [headers, ...dataRows, totalsRow].join('\n');
         downloadCSV(content, `meals-summary-${selectedYear}.csv`);
@@ -390,14 +480,14 @@ export default function MonthlySummaryReport() {
 
     function handleExportBicycleSummary() {
         const headers = ['Month', 'New Bicycles', 'Services', 'Total'].join(',');
-        const dataRows = bicycleSummary.months.map(row =>
+        const dataRows = filteredBicycleMonths.map(row =>
             [csvCell(row.month), csvCell(row.newBikes), csvCell(row.services), csvCell(row.total)].join(',')
         );
         const totalsRow = [
-            csvCell('Year to Date'),
-            csvCell(bicycleSummary.totals.newBikes),
-            csvCell(bicycleSummary.totals.services),
-            csvCell(bicycleSummary.totals.total),
+            csvCell(totalsLabel),
+            csvCell(filteredBicycleTotals.newBikes),
+            csvCell(filteredBicycleTotals.services),
+            csvCell(filteredBicycleTotals.total),
         ].join(',');
         const content = [headers, ...dataRows, totalsRow].join('\n');
         downloadCSV(content, `bicycle-summary-${selectedYear}.csv`);
@@ -410,7 +500,7 @@ export default function MonthlySummaryReport() {
             'Laundry Loads', 'On-site', 'Off-site', 'Avg Loads/Day',
             'Unique Laundry Users', 'Adult', 'Senior', 'Child', 'New Laundry Guests',
         ].join(',');
-        const dataRows = showerLaundrySummary.months.map(row =>
+        const dataRows = filteredShowerLaundryMonths.map(row =>
             [
                 csvCell(row.month),
                 csvCell(row.programDays),
@@ -432,26 +522,26 @@ export default function MonthlySummaryReport() {
                 csvCell(row.newLaundryGuests),
             ].join(',')
         );
-        const totals = showerLaundrySummary.totals;
+        const t = filteredShowerLaundryTotals;
         const totalsRow = [
-            csvCell('Year to Date'),
-            csvCell(totals.programDays),
-            csvCell(totals.showers),
-            csvCell(totals.avgShowersPerDay.toFixed(1)),
-            csvCell(totals.newGuests),
-            csvCell(totals.totalParticipants),
-            csvCell(totals.participantsAdult),
-            csvCell(totals.participantsSenior),
-            csvCell(totals.participantsChild),
-            csvCell(totals.laundryLoads),
-            csvCell(totals.onsiteLoads),
-            csvCell(totals.offsiteLoads),
-            csvCell(totals.avgLaundryLoadsPerDay.toFixed(1)),
-            csvCell(totals.uniqueLaundryGuests),
-            csvCell(totals.laundryAdult),
-            csvCell(totals.laundrySenior),
-            csvCell(totals.laundryChild),
-            csvCell(totals.newLaundryGuests),
+            csvCell(totalsLabel),
+            csvCell(t.programDays),
+            csvCell(t.showers),
+            csvCell(t.avgShowersPerDay.toFixed(1)),
+            csvCell(t.newGuests),
+            csvCell(t.totalParticipants),
+            csvCell(t.participantsAdult),
+            csvCell(t.participantsSenior),
+            csvCell(t.participantsChild),
+            csvCell(t.laundryLoads),
+            csvCell(t.onsiteLoads),
+            csvCell(t.offsiteLoads),
+            csvCell(t.avgLaundryLoadsPerDay.toFixed(1)),
+            csvCell(t.uniqueLaundryGuests),
+            csvCell(t.laundryAdult),
+            csvCell(t.laundrySenior),
+            csvCell(t.laundryChild),
+            csvCell(t.newLaundryGuests),
         ].join(',');
         const content = [headers, ...dataRows, totalsRow].join('\n');
         downloadCSV(content, `shower-laundry-summary-${selectedYear}.csv`);
@@ -471,6 +561,49 @@ export default function MonthlySummaryReport() {
                             <option key={year} value={year}>{year}</option>
                         ))}
                     </select>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                    <Filter size={14} className="text-gray-500" />
+                    <select
+                        value={rangeStart ?? ''}
+                        onChange={(e) => {
+                            const v = e.target.value === '' ? null : Number(e.target.value);
+                            setRangeStart(v);
+                            if (v !== null && rangeEnd !== null && v > rangeEnd) setRangeEnd(v);
+                        }}
+                        className="text-xs font-medium bg-gray-50 border-gray-200 rounded-md py-1 px-2"
+                        aria-label="Start month"
+                    >
+                        <option value="">Start month</option>
+                        {MONTH_NAMES.map((name, idx) => (
+                            <option key={idx} value={idx}>{name}</option>
+                        ))}
+                    </select>
+                    <span className="text-xs text-gray-400">to</span>
+                    <select
+                        value={rangeEnd ?? ''}
+                        onChange={(e) => {
+                            const v = e.target.value === '' ? null : Number(e.target.value);
+                            setRangeEnd(v);
+                            if (v !== null && rangeStart !== null && v < rangeStart) setRangeStart(v);
+                        }}
+                        className="text-xs font-medium bg-gray-50 border-gray-200 rounded-md py-1 px-2"
+                        aria-label="End month"
+                    >
+                        <option value="">End month</option>
+                        {MONTH_NAMES.map((name, idx) => (
+                            <option key={idx} value={idx}>{name}</option>
+                        ))}
+                    </select>
+                    {isRangeActive && (
+                        <button
+                            onClick={clearRange}
+                            className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                        >
+                            Clear
+                        </button>
+                    )}
+                    <span className="text-xs text-gray-500 ml-1">{rangeLabel}</span>
                 </div>
             </div>
 
@@ -500,7 +633,8 @@ export default function MonthlySummaryReport() {
                     <h3 className="text-base font-bold text-gray-800">Meals Summary</h3>
                     <button
                         onClick={handleExportMealsSummary}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors"
+                        disabled={isRangeActive && filteredMealMonths.length === 0}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-xs font-bold rounded-lg transition-colors"
                     >
                         <Download size={14} />
                         Export CSV
@@ -542,45 +676,56 @@ export default function MonthlySummaryReport() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {monthlyData.months.map((row, idx) => (
+                        {filteredMealMonths.map((row, idx) => (
                             <tr key={idx} className="hover:bg-gray-50/50">
-                                {MEAL_COLUMN_DEFINITIONS.map((col, colIdx) => (
-                                    <td
-                                        key={col.key}
-                                        className={`p-3 whitespace-nowrap border-gray-100
-                                            ${col.cellBg} ${col.align === 'right' ? 'text-right' : 'text-left'}
-                                            ${col.bodyClass || ''}
-                                            ${colIdx === 0 ? 'sticky left-0 z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'border-l'}
-                                        `}
-                                    >
-                                        {col.isCurrency
-                                            ? formatDonationCurrency(Number(row[col.key as keyof typeof row]) || 0)
-                                            : col.isNumeric
-                                                ? formatNumber(row[col.key as keyof typeof row])
-                                                : row[col.key as keyof typeof row]}
-                                    </td>
-                                ))}
+                                {MEAL_COLUMN_DEFINITIONS.map((col, colIdx) => {
+                                    const cellValue = getMealSummaryCellValue(row, col.key);
+                                    return (
+                                        <td
+                                            key={col.key}
+                                            className={`p-3 whitespace-nowrap border-gray-100
+                                                ${col.cellBg} ${col.align === 'right' ? 'text-right' : 'text-left'}
+                                                ${col.bodyClass || ''}
+                                                ${colIdx === 0 ? 'sticky left-0 z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'border-l'}
+                                            `}
+                                        >
+                                            {col.isCurrency
+                                                ? formatDonationCurrency(Number(cellValue) || 0)
+                                                : col.isNumeric
+                                                    ? formatNumber(cellValue)
+                                                    : (cellValue ?? '')}
+                                        </td>
+                                    );
+                                })}
                             </tr>
                         ))}
 
                         {/* Totals Row */}
                         <tr className="bg-gray-100 border-t-2 border-gray-200">
-                            {MEAL_COLUMN_DEFINITIONS.map((col, colIdx) => (
-                                <td
-                                    key={col.key}
-                                    className={`p-3 whitespace-nowrap font-bold border-gray-200
-                                        ${col.totalCellBg} ${col.align === 'right' ? 'text-right' : 'text-left'}
-                                        ${col.totalBodyClass || col.bodyClass || ''}
-                                        ${colIdx === 0 ? 'sticky left-0 z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'border-l'}
-                                    `}
-                                >
-                                    {col.isCurrency
-                                        ? formatDonationCurrency(Number(monthlyData.totals[col.key as keyof typeof monthlyData.totals]) || 0)
-                                        : col.isNumeric
-                                            ? formatNumber(monthlyData.totals[col.key as keyof typeof monthlyData.totals])
-                                            : 'Year to Date'}
-                                </td>
-                            ))}
+                            {MEAL_COLUMN_DEFINITIONS.map((col, colIdx) => {
+                                const displayTotal = getMealSummaryTotalValue(
+                                    filteredMealMonths,
+                                    col.key,
+                                    isRangeActive,
+                                    monthlyData.totals,
+                                );
+                                return (
+                                    <td
+                                        key={col.key}
+                                        className={`p-3 whitespace-nowrap font-bold border-gray-200
+                                            ${col.totalCellBg} ${col.align === 'right' ? 'text-right' : 'text-left'}
+                                            ${col.totalBodyClass || col.bodyClass || ''}
+                                            ${colIdx === 0 ? 'sticky left-0 z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]' : 'border-l'}
+                                        `}
+                                    >
+                                        {col.isCurrency
+                                            ? formatDonationCurrency(Number(displayTotal) || 0)
+                                            : col.isNumeric
+                                                ? formatNumber(displayTotal)
+                                                : totalsLabel}
+                                    </td>
+                                );
+                            })}
                         </tr>
                     </tbody>
                 </table>
@@ -613,7 +758,7 @@ export default function MonthlySummaryReport() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {bicycleSummary.months.map((row, idx) => (
+                            {filteredBicycleMonths.map((row, idx) => (
                                 <tr key={idx} className="hover:bg-gray-50/50">
                                     <td className="p-3 font-medium text-gray-900">{row.month}</td>
                                     <td className="p-3 text-right">{formatNumber(row.newBikes)}</td>
@@ -622,10 +767,10 @@ export default function MonthlySummaryReport() {
                                 </tr>
                             ))}
                             <tr className="bg-gray-100 border-t-2 border-gray-200">
-                                <td className="p-3 font-bold text-gray-900">Year to Date</td>
-                                <td className="p-3 text-right font-bold">{formatNumber(bicycleSummary.totals.newBikes)}</td>
-                                <td className="p-3 text-right font-bold">{formatNumber(bicycleSummary.totals.services)}</td>
-                                <td className="p-3 text-right font-black bg-amber-100">{formatNumber(bicycleSummary.totals.total)}</td>
+                                <td className="p-3 font-bold text-gray-900">{totalsLabel}</td>
+                                <td className="p-3 text-right font-bold">{formatNumber(filteredBicycleTotals.newBikes)}</td>
+                                <td className="p-3 text-right font-bold">{formatNumber(filteredBicycleTotals.services)}</td>
+                                <td className="p-3 text-right font-black bg-amber-100">{formatNumber(filteredBicycleTotals.total)}</td>
                             </tr>
                         </tbody>
                     </table>
@@ -679,7 +824,7 @@ export default function MonthlySummaryReport() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {showerLaundrySummary.months.map((row, idx) => (
+                            {filteredShowerLaundryMonths.map((row, idx) => (
                                 <tr key={idx} className="hover:bg-gray-50/50">
                                     <td className="p-3 font-medium text-gray-900 sticky left-0 z-10 bg-white border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{row.month}</td>
                                     {/* Shower Program columns */}
@@ -714,36 +859,32 @@ export default function MonthlySummaryReport() {
                                 </tr>
                             ))}
                             <tr className="bg-gray-100 border-t-2 border-gray-200 font-bold">
-                                <td className="p-3 text-gray-900 sticky left-0 z-10 bg-gray-100 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Year to Date</td>
-                                {/* Shower Program totals */}
-                                <td className="p-2 text-right text-xs bg-sky-100">{formatNumber(showerLaundrySummary.totals.programDays)}</td>
-                                <td className="p-2 text-right text-xs font-black bg-sky-100">{formatNumber(showerLaundrySummary.totals.showers)}</td>
-                                <td className="p-2 text-right text-xs bg-sky-100">{showerLaundrySummary.totals.avgShowersPerDay.toFixed(1)}</td>
-                                <td className="p-2 text-right text-xs bg-sky-100">{formatNumber(showerLaundrySummary.totals.newGuests)}</td>
-                                {/* Participants totals with breakdown */}
+                                <td className="p-3 text-gray-900 sticky left-0 z-10 bg-gray-100 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{totalsLabel}</td>
+                                <td className="p-2 text-right text-xs bg-sky-100">{formatNumber(filteredShowerLaundryTotals.programDays)}</td>
+                                <td className="p-2 text-right text-xs font-black bg-sky-100">{formatNumber(filteredShowerLaundryTotals.showers)}</td>
+                                <td className="p-2 text-right text-xs bg-sky-100">{filteredShowerLaundryTotals.avgShowersPerDay.toFixed(1)}</td>
+                                <td className="p-2 text-right text-xs bg-sky-100">{formatNumber(filteredShowerLaundryTotals.newGuests)}</td>
                                 <td className="p-2 text-center bg-emerald-100">
-                                    <div className="font-black text-sm text-gray-900">{formatNumber(showerLaundrySummary.totals.totalParticipants)}</div>
+                                    <div className="font-black text-sm text-gray-900">{formatNumber(filteredShowerLaundryTotals.totalParticipants)}</div>
                                     <div className="text-[10px] text-gray-600 leading-tight mt-0.5">
-                                        <div>Adult · {formatNumber(showerLaundrySummary.totals.participantsAdult)}</div>
-                                        <div>Senior · {formatNumber(showerLaundrySummary.totals.participantsSenior)}</div>
-                                        <div>Child · {formatNumber(showerLaundrySummary.totals.participantsChild)}</div>
+                                        <div>Adult · {formatNumber(filteredShowerLaundryTotals.participantsAdult)}</div>
+                                        <div>Senior · {formatNumber(filteredShowerLaundryTotals.participantsSenior)}</div>
+                                        <div>Child · {formatNumber(filteredShowerLaundryTotals.participantsChild)}</div>
                                     </div>
                                 </td>
-                                {/* Laundry totals */}
-                                <td className="p-2 text-right text-xs font-black bg-red-100">{formatNumber(showerLaundrySummary.totals.laundryLoads)}</td>
-                                <td className="p-2 text-right text-xs bg-red-100">{formatNumber(showerLaundrySummary.totals.onsiteLoads)}</td>
-                                <td className="p-2 text-right text-xs bg-red-100">{formatNumber(showerLaundrySummary.totals.offsiteLoads)}</td>
-                                <td className="p-2 text-right text-xs bg-red-100">{showerLaundrySummary.totals.avgLaundryLoadsPerDay.toFixed(1)}</td>
-                                {/* Unique Users totals with breakdown */}
+                                <td className="p-2 text-right text-xs font-black bg-red-100">{formatNumber(filteredShowerLaundryTotals.laundryLoads)}</td>
+                                <td className="p-2 text-right text-xs bg-red-100">{formatNumber(filteredShowerLaundryTotals.onsiteLoads)}</td>
+                                <td className="p-2 text-right text-xs bg-red-100">{formatNumber(filteredShowerLaundryTotals.offsiteLoads)}</td>
+                                <td className="p-2 text-right text-xs bg-red-100">{filteredShowerLaundryTotals.avgLaundryLoadsPerDay.toFixed(1)}</td>
                                 <td className="p-2 text-center bg-purple-100">
-                                    <div className="font-black text-sm text-gray-900">{formatNumber(showerLaundrySummary.totals.uniqueLaundryGuests)}</div>
+                                    <div className="font-black text-sm text-gray-900">{formatNumber(filteredShowerLaundryTotals.uniqueLaundryGuests)}</div>
                                     <div className="text-[10px] text-gray-600 leading-tight mt-0.5">
-                                        <div>Adult · {formatNumber(showerLaundrySummary.totals.laundryAdult)}</div>
-                                        <div>Senior · {formatNumber(showerLaundrySummary.totals.laundrySenior)}</div>
-                                        <div>Child · {formatNumber(showerLaundrySummary.totals.laundryChild)}</div>
+                                        <div>Adult · {formatNumber(filteredShowerLaundryTotals.laundryAdult)}</div>
+                                        <div>Senior · {formatNumber(filteredShowerLaundryTotals.laundrySenior)}</div>
+                                        <div>Child · {formatNumber(filteredShowerLaundryTotals.laundryChild)}</div>
                                     </div>
                                 </td>
-                                <td className="p-2 text-right text-xs bg-red-100">{formatNumber(showerLaundrySummary.totals.newLaundryGuests)}</td>
+                                <td className="p-2 text-right text-xs bg-red-100">{formatNumber(filteredShowerLaundryTotals.newLaundryGuests)}</td>
                             </tr>
                         </tbody>
                     </table>

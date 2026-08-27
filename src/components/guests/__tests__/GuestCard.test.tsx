@@ -23,6 +23,21 @@ const mockSetBicyclePickerGuest = vi.fn();
 const mockAddAction = vi.fn();
 const mockUndoAction = vi.fn().mockResolvedValue(true);
 const mockGetActionsForGuestToday = vi.fn().mockReturnValue([]);
+let snapshotReady = false;
+const mockOptimisticMeal = vi.fn(() => vi.fn());
+const mockReplaceMealCounts = vi.fn();
+const mockAcknowledgeMealRecord = vi.fn();
+const mockApplyUndo = vi.fn();
+
+vi.mock('@/stores/useCheckInStore', () => ({
+    useCheckInStore: (selector: any) => selector({
+        isReady: snapshotReady,
+        optimisticMeal: mockOptimisticMeal,
+        replaceMealCounts: mockReplaceMealCounts,
+        acknowledgeMealRecord: mockAcknowledgeMealRecord,
+        applyUndo: mockApplyUndo,
+    }),
+}));
 
 const mockWarnings = [{ id: 'w1', guestId: 'g1', message: 'Test warning', active: true }];
 const mockGuestProxies: any[] = [];
@@ -128,13 +143,48 @@ const baseGuest = {
 describe('GuestCard Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        snapshotReady = false;
         window.navigator.vibrate = vi.fn();
     });
 
     describe('Rendering', () => {
+        it('opens the guest history timeline from the expanded card', async () => {
+            render(<GuestCard guest={baseGuest} />);
+
+            fireEvent.click(screen.getByText('Johnny'));
+            fireEvent.click(screen.getByRole('button', { name: 'History' }));
+
+            expect(await screen.findByRole('dialog', { name: 'History for Johnny' })).toBeDefined();
+        });
+
         it('renders guest preferred name', () => {
             render(<GuestCard guest={baseGuest} />);
             expect(screen.getByText('Johnny')).toBeDefined();
+        });
+
+        it('shows the full name under a different preferred name', () => {
+            render(<GuestCard guest={baseGuest} />);
+            expect(screen.getByText('Full name: John Doe')).toBeDefined();
+        });
+
+        it('hides the extra full-name line when preferred name matches the full name case-insensitively', () => {
+            const guest = { ...baseGuest, preferredName: 'john doe' };
+            render(<GuestCard guest={guest} />);
+            expect(screen.queryByText('Full name: John Doe')).toBeNull();
+        });
+
+        it('rerenders when preferredName or fullName changes on memoized card', () => {
+            const { rerender } = render(<GuestCard guest={baseGuest} />);
+            expect(screen.getByText('Johnny')).toBeDefined();
+            expect(screen.getByText('Full name: John Doe')).toBeDefined();
+
+            rerender(<GuestCard guest={{ ...baseGuest, preferredName: 'JD' }} />);
+            expect(screen.getByText('JD')).toBeDefined();
+            expect(screen.getByText('Full name: John Doe')).toBeDefined();
+
+            rerender(<GuestCard guest={{ ...baseGuest, preferredName: 'JD', name: 'Johnathan Doe' }} />);
+            expect(screen.getByText('JD')).toBeDefined();
+            expect(screen.getByText('Full name: Johnathan Doe')).toBeDefined();
         });
 
         it('renders guest name when no preferred name', () => {
@@ -227,6 +277,44 @@ describe('GuestCard Component', () => {
             };
             render(<GuestCard guest={bannedGuest} />);
             expect(screen.getByText('BANNED')).toBeDefined();
+            expect(screen.getByText('(Meals)')).toBeDefined();
+        });
+
+        it('shows specific ban - showers and laundry', () => {
+            const bannedGuest = {
+                ...baseGuest,
+                isBanned: true,
+                bannedFromMeals: false,
+                bannedFromShower: true,
+                bannedFromLaundry: true,
+                bannedFromBicycle: false
+            };
+            render(<GuestCard guest={bannedGuest} />);
+            expect(screen.getByText('BANNED')).toBeDefined();
+            expect(screen.getByText('(Showers, Laundry)')).toBeDefined();
+        });
+
+        it('shows program access breakdown when expanded', () => {
+            const bannedGuest = {
+                ...baseGuest,
+                isBanned: true,
+                banReason: 'Disruptive behavior',
+                bannedFromMeals: false,
+                bannedFromShower: true,
+                bannedFromLaundry: true,
+                bannedFromBicycle: false
+            };
+            render(<GuestCard guest={bannedGuest} />);
+
+            fireEvent.click(screen.getByText('Johnny'));
+
+            expect(screen.getByText('Program Access')).toBeDefined();
+            expect(screen.getByText('2 Restricted')).toBeDefined();
+            expect(screen.getByText('Reason: Disruptive behavior')).toBeDefined();
+            const bannedPills = screen.getAllByText('Banned');
+            expect(bannedPills).toHaveLength(2);
+            const allowedPills = screen.getAllByText('Allowed');
+            expect(allowedPills).toHaveLength(2);
         });
     });
 
@@ -269,6 +357,22 @@ describe('GuestCard Component', () => {
             await waitFor(() => {
                 expect(mockAddMealRecord).toHaveBeenCalledWith('g1', 1);
             });
+        });
+
+        it('uses the optimistic server command when a snapshot is active', async () => {
+            snapshotReady = true;
+            const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+                guestId: 'g1', mealCount: 1, extraMealCount: 0, totalMeals: 1, recordId: 'meal-v2',
+            }), { status: 200 }));
+            vi.stubGlobal('fetch', fetchMock);
+            render(<GuestCard guest={baseGuest} />);
+
+            const mealButton = screen.getAllByRole('button').find((button) => button.textContent?.trim() === '1');
+            fireEvent.click(mealButton!);
+
+            await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/check-in/commands', expect.any(Object)));
+            expect(mockAddMealRecord).not.toHaveBeenCalled();
+            vi.unstubAllGlobals();
         });
 
         it('records action after adding meal', async () => {
@@ -328,6 +432,22 @@ describe('GuestCard Component', () => {
             fireEvent.click(screen.getByText('Johnny'));
 
             expect(screen.getByTestId('linked-guests-list')).toBeDefined();
+        });
+
+        it('loads private guest context on first expansion when the snapshot is active', async () => {
+            snapshotReady = true;
+            const request = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+                guest: { ...baseGuest, notes: 'private note', bicycleDescription: 'blue bike' },
+                warnings: [],
+                reminders: [],
+                linkedGuests: [],
+            }), { status: 200 }));
+            render(<GuestCard guest={baseGuest} />);
+
+            fireEvent.click(screen.getByText('Johnny'));
+
+            await waitFor(() => expect(request).toHaveBeenCalledWith('/api/check-in/guests/g1/context'));
+            request.mockRestore();
         });
 
         it('calls onSelect when clicked', () => {
@@ -819,6 +939,43 @@ describe('GuestCard Component', () => {
                     expect(mockUndoAction).toHaveBeenCalledWith('action-extra-1');
                 });
             }
+        });
+
+        it('updates the snapshot status after undo succeeds', async () => {
+            snapshotReady = true;
+            mockGetActionsForGuestToday.mockReturnValueOnce([{
+                id: 'action-extra-1',
+                type: 'EXTRA_MEALS_ADDED',
+                data: { recordId: 'extra-1', guestId: 'g1', quantity: 1 },
+            }]);
+            const mealStatusMap = new Map([
+                ['g1', {
+                    hasMeal: true,
+                    mealRecord: { id: 'meal-1', count: 1 },
+                    mealCount: 1,
+                    extraMealCount: 1,
+                    totalMeals: 2,
+                }],
+            ]);
+            const actionStatusMap = new Map([
+                ['g1', { extraMealActionId: 'action-extra-1' }],
+            ]);
+            render(
+                <GuestCard
+                    guest={baseGuest}
+                    mealStatusMap={mealStatusMap}
+                    actionStatusMap={actionStatusMap}
+                />
+            );
+
+            fireEvent.click(document.querySelector('button[title="Undo extra meal"]')!);
+
+            await waitFor(() => expect(mockApplyUndo).toHaveBeenCalledWith({
+                type: 'EXTRA_MEALS_ADDED',
+                guestId: 'g1',
+                recordId: 'extra-1',
+                quantity: 1,
+            }));
         });
 
         it('shows extra meal undo at meal limit on desktop', () => {

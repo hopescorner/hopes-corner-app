@@ -27,7 +27,7 @@ export const ROLE_ACCESS = {
 export function inferRole(email: string | null | undefined): UserRole {
     const base = (email || '').toLowerCase();
     if (base.startsWith('admin')) return 'admin';
-    if (base.startsWith('board')) return 'board';
+    if (base.startsWith('board') || base.startsWith('grants')) return 'board';
     if (base.startsWith('checkin')) return 'checkin';
     if (base.startsWith('bicycle')) return 'bicycle';
     return 'staff';

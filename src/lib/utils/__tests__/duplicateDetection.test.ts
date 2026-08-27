@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { findPotentialDuplicates } from '../duplicateDetection';
+import { findExactNameDuplicatePairs, findPotentialDuplicatePairs, findPotentialDuplicates } from '../duplicateDetection';
 
 describe('duplicateDetection', () => {
     const makeGuest = (id: string, firstName: string, lastName: string, preferredName?: string) => ({
@@ -112,6 +112,53 @@ describe('duplicateDetection', () => {
             ];
             const results = findPotentialDuplicates('John', 'Smith', guests);
             expect(results.length).toBeGreaterThanOrEqual(2);
+        });
+    });
+
+    describe('findPotentialDuplicatePairs', () => {
+        it('returns each likely duplicate pair once with the strongest reason', () => {
+            const guests = [
+                makeGuest('1', 'Robert', 'Smith', 'Bob'),
+                makeGuest('2', 'Bob', 'Smith'),
+                makeGuest('3', 'Alice', 'Jones'),
+            ];
+
+            expect(findPotentialDuplicatePairs(guests)).toEqual([
+                expect.objectContaining({
+                    first: guests[0],
+                    second: guests[1],
+                    reason: 'Matches preferred name',
+                    confidence: 0.95,
+                }),
+            ]);
+        });
+
+        it('does not force a merge for a low-confidence phonetic suggestion', () => {
+            const guests = [
+                makeGuest('1', 'Philip', 'Jones'),
+                makeGuest('2', 'Filip', 'Jones'),
+            ];
+
+            expect(findPotentialDuplicatePairs(guests, 0.9)).toEqual([]);
+        });
+    });
+
+    describe('findExactNameDuplicatePairs', () => {
+        it('finds migration-style exact duplicates across the full directory in stable pairs', () => {
+            const guests = [
+                makeGuest('1', ' Jordan ', 'Lee'),
+                makeGuest('2', 'JORDAN', 'LEE'),
+                makeGuest('3', 'Alice', 'Jones'),
+            ];
+
+            expect(findExactNameDuplicatePairs(guests)).toEqual([
+                expect.objectContaining({
+                    first: guests[0],
+                    second: guests[1],
+                    reason: 'Exact name match',
+                    confidence: 1,
+                }),
+            ]);
         });
     });
 });

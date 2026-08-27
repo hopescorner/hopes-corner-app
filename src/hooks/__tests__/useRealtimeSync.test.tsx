@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest';
 import { renderHook, act, render } from '@testing-library/react';
 import { useRealtimeSync, RealtimeSyncProvider } from '../useRealtimeSync';
+import { useCheckInStore } from '@/stores/useCheckInStore';
 import React from 'react';
 
 const { mockToast } = vi.hoisted(() => {
@@ -20,10 +21,14 @@ vi.mock('lucide-react', () => ({
 }));
 
 const mockSubscribeToTable: Mock = vi.fn(() => vi.fn());
+const mockSubscribeToTables: Mock = vi.fn((options: unknown[]) => {
+    const unsubscribers = options.map((option) => mockSubscribeToTable(option));
+    return () => unsubscribers.forEach((unsubscribe) => unsubscribe());
+});
 const mockUnsubscribeFromAll = vi.fn();
 
 vi.mock('@/lib/supabase/realtime', () => ({
-    subscribeToTable: (options: unknown) => mockSubscribeToTable(options),
+    subscribeToTables: (options: unknown[], scope: string, onStatus?: (status: string) => void) => mockSubscribeToTables(options, scope, onStatus),
     unsubscribeFromAll: () => mockUnsubscribeFromAll(),
 }));
 
@@ -199,10 +204,24 @@ describe('useRealtimeSync', () => {
         );
     });
 
-    it('subscribes to 14 tables', () => {
+    it('subscribes to 14 tables through one route-scoped channel', () => {
         renderHook(() => useRealtimeSync());
         
         expect(mockSubscribeToTable).toHaveBeenCalledTimes(14);
+        expect(mockSubscribeToTables).toHaveBeenCalledTimes(1);
+        expect(mockSubscribeToTables).toHaveBeenCalledWith(expect.any(Array), 'operations', expect.any(Function));
+    });
+
+    it('reloads service records after the realtime channel subscribes', async () => {
+        renderHook(() => useRealtimeSync());
+        const onStatus = mockSubscribeToTables.mock.calls[0][2] as ((status: string) => void) | undefined;
+
+        onStatus?.('SUBSCRIBED');
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+        expect(mockServicesLoadFromSupabase).toHaveBeenCalledTimes(1);
+        expect(mockServicesLoadFromSupabase).toHaveBeenCalledTimes(1);
     });
 
     it('cleans up subscriptions on unmount', () => {
@@ -240,6 +259,31 @@ describe('useRealtimeSync', () => {
         expect(mockServicesLoadFromSupabase).not.toHaveBeenCalled();
     });
 
+    it('keeps rapid shower changes for different reservations', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'shower_reservations') capturedOnChange = options.onChange;
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 'shower-1', guest_id: 'g-1', scheduled_for: '2025-01-06', scheduled_time: '08:00', status: 'booked' },
+        });
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 'shower-2', guest_id: 'g-2', scheduled_for: '2025-01-06', scheduled_time: '08:30', status: 'booked' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockServicesSetState).toHaveBeenCalledTimes(2);
+    });
+
     it('debounces rapid changes', async () => {
         let capturedOnChange: ((payload: any) => void) | undefined;
         mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
@@ -263,6 +307,138 @@ describe('useRealtimeSync', () => {
 
         expect(mockMealsSetState).toHaveBeenCalledTimes(1);
         expect(mockMealsLoadFromSupabase).not.toHaveBeenCalled();
+    });
+
+    it('replaces the synthetic snapshot record when the real guest meal row arrives', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'meal_attendance') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'UPDATE',
+            new: { id: 'm-real', guest_id: 'g-1', meal_type: 'guest', quantity: 2, served_on: '2025-01-06', created_at: '2025-01-06T17:05:00Z' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(mockMealsSetState).toHaveBeenCalledTimes(1);
+        const updater = mockMealsSetState.mock.calls[0][0];
+        const next = updater({
+            mealRecords: [
+                { id: 'snapshot-meal-g-1', guestId: 'g-1', count: 1 },
+                { id: 'snapshot-meal-g-2', guestId: 'g-2', count: 2 },
+            ],
+            rvMealRecords: [],
+            extraMealRecords: [{ id: 'snapshot-extra-g-1', guestId: 'g-1', count: 1 }],
+            dayWorkerMealRecords: [],
+            shelterMealRecords: [],
+            unitedEffortMealRecords: [],
+            lunchBagRecords: [],
+        });
+
+        // The real row supersedes g-1's synthetic record; other guests keep theirs.
+        expect(next.mealRecords.map((r: any) => r.id).sort()).toEqual(['m-real', 'snapshot-meal-g-2']);
+        // Synthetic extras aggregate pre-snapshot rows, so they must survive.
+        expect(next.extraMealRecords.map((r: any) => r.id)).toEqual(['snapshot-extra-g-1']);
+    });
+
+    it('keeps the synthetic guest meal record when an extra meal row arrives', async () => {
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'meal_attendance') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: { id: 'x-real', guest_id: 'g-1', meal_type: 'extra', quantity: 1, served_on: '2025-01-06', created_at: '2025-01-06T17:10:00Z' },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        const updater = mockMealsSetState.mock.calls[0][0];
+        const next = updater({
+            mealRecords: [{ id: 'snapshot-meal-g-1', guestId: 'g-1', count: 1 }],
+            rvMealRecords: [],
+            extraMealRecords: [{ id: 'snapshot-extra-g-1', guestId: 'g-1', count: 1 }],
+            dayWorkerMealRecords: [],
+            shelterMealRecords: [],
+            unitedEffortMealRecords: [],
+            lunchBagRecords: [],
+        });
+
+        expect(next.mealRecords.map((r: any) => r.id)).toEqual(['snapshot-meal-g-1']);
+        expect(next.extraMealRecords.map((r: any) => r.id).sort()).toEqual(['snapshot-extra-g-1', 'x-real']);
+    });
+
+    it('does not let an auto-added lunch bag overwrite the check-in meal count', async () => {
+        // A 2-meal check-in also inserts one lunch_bag row attributed to the
+        // same guest. That row must not touch the guest's meal count, or the
+        // card drops from "2 MEALS" to "1 MEAL".
+        useCheckInStore.getState().hydrate({
+            generatedAt: '2025-01-06T17:00:00Z',
+            directoryVersion: 'v1',
+            serviceDate: '2025-01-06',
+            guests: [],
+            todayByGuest: {
+                'g-1': {
+                    mealCount: 2,
+                    extraMealCount: 0,
+                    totalMeals: 2,
+                    shower: null,
+                    laundry: null,
+                    bicycle: null,
+                    haircut: null,
+                    holiday: null,
+                },
+            },
+            dailyNotes: [],
+        } as any);
+
+        let capturedOnChange: ((payload: any) => void) | undefined;
+        mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
+            if (options.table === 'meal_attendance') {
+                capturedOnChange = options.onChange;
+            }
+            return vi.fn();
+        });
+
+        renderHook(() => useRealtimeSync());
+
+        capturedOnChange?.({
+            eventType: 'INSERT',
+            new: {
+                id: 'bag-1',
+                guest_id: 'g-1',
+                meal_type: 'lunch_bag',
+                quantity: 1,
+                served_on: '2025-01-06',
+                created_at: '2025-01-06T17:05:00Z',
+            },
+        });
+
+        await act(async () => {
+            vi.advanceTimersByTime(600);
+        });
+
+        expect(useCheckInStore.getState().todayByGuest['g-1']).toMatchObject({
+            mealCount: 2,
+            totalMeals: 2,
+        });
     });
 
     it('refreshes services when laundry booking is created on another device', async () => {

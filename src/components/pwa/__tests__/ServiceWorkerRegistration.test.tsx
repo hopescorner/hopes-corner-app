@@ -12,6 +12,7 @@ vi.mock('@/lib/utils/appVersion', () => ({
 describe('ServiceWorkerRegistration Component', () => {
     const originalEnv = process.env;
     let swMessageListeners: Map<string, ((...args: any[]) => void)[]>;
+    let windowListeners: Map<string, ((...args: any[]) => void)[]>;
     let registrationResult: any;
     let addEventListenerSpy: ReturnType<typeof vi.spyOn>;
     let reloadMock: ReturnType<typeof vi.fn>;
@@ -22,6 +23,7 @@ describe('ServiceWorkerRegistration Component', () => {
         vi.useFakeTimers();
         process.env = { ...originalEnv };
         swMessageListeners = new Map();
+        windowListeners = new Map();
 
         registrationResult = {
             scope: 'test-scope',
@@ -33,6 +35,10 @@ describe('ServiceWorkerRegistration Component', () => {
 
         // Spy on window.addEventListener — invoke 'load' callbacks immediately
         addEventListenerSpy = vi.spyOn(window, 'addEventListener').mockImplementation((event: string, cb: any) => {
+            if (!windowListeners.has(event)) {
+                windowListeners.set(event, []);
+            }
+            windowListeners.get(event)!.push(cb);
             if (event === 'load') cb();
         });
 
@@ -355,5 +361,41 @@ describe('ServiceWorkerRegistration Component', () => {
             await Promise.resolve();
         });
         expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('clears caches and reloads once when a dynamic chunk load fails', async () => {
+        process.env.NODE_ENV = 'production';
+        const cachesMock = {
+            keys: vi.fn().mockResolvedValue(['hopes-corner-v1']),
+            delete: vi.fn().mockResolvedValue(true),
+        };
+        vi.stubGlobal('caches', cachesMock);
+
+        render(<ServiceWorkerRegistration />);
+
+        await act(async () => {
+            await Promise.resolve();
+            await Promise.resolve();
+        });
+
+        const rejectionHandlers = windowListeners.get('unhandledrejection') || [];
+        await act(async () => {
+            await Promise.all(rejectionHandlers.map((handler) => handler({
+                reason: new Error('ChunkLoadError: Loading chunk 123 failed.'),
+            })));
+        });
+
+        expect(cachesMock.keys).toHaveBeenCalled();
+        expect(cachesMock.delete).toHaveBeenCalledWith('hopes-corner-v1');
+        expect(reloadMock).toHaveBeenCalledTimes(1);
+
+        await act(async () => {
+            await Promise.all(rejectionHandlers.map((handler) => handler({
+                reason: new Error('ChunkLoadError: Loading chunk 123 failed.'),
+            })));
+        });
+
+        expect(reloadMock).toHaveBeenCalledTimes(1);
+        vi.unstubAllGlobals();
     });
 });

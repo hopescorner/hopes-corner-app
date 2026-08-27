@@ -18,24 +18,50 @@ const mockAddMealRecord = vi.fn().mockResolvedValue({ id: 'meal-new' });
 const mockUpdateAutoMealAdditionsEnabled = vi.fn().mockResolvedValue(undefined);
 const mockLoadSettings = vi.fn().mockResolvedValue(undefined);
 let mockAutoMealAdditionsEnabled = true;
+let mockMealsDataIsLoaded = true;
+let mockMealRecords: Array<{
+    id: string;
+    guestId: string;
+    pickedUpByGuestId?: string | null;
+    count: number;
+    date: string;
+    type: string;
+}> = [
+    { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
+];
+let mockShelterMealRecords: Array<{
+    id: string;
+    count: number;
+    date: string;
+    type: string;
+}> = [];
+let mockLunchBagRecords: Array<{
+    id: string;
+    guestId?: string | null;
+    count: number;
+    date: string;
+    type: string;
+    recordedAt?: string;
+}> = [
+    { id: 'lb1', type: 'lunch_bag', count: 100, date: '2026-01-08' },
+    { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
+];
+
+const mockCheckAndAddAutomaticMeals = vi.fn();
 
 vi.mock('@/stores/useMealsStore', () => ({
     useMealsStore: vi.fn((selector) => {
         const state = {
-            mealRecords: [
-                { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
-            ],
+            isLoaded: mockMealsDataIsLoaded,
+            mealRecords: mockMealRecords,
             extraMealRecords: [],
             rvMealRecords: [
                 { id: 'rv1', type: 'rv_delivery', count: 50, date: '2026-01-08' },
             ],
-            shelterMealRecords: [],
+            shelterMealRecords: mockShelterMealRecords,
             dayWorkerMealRecords: [],
             unitedEffortMealRecords: [],
-            lunchBagRecords: [
-                { id: 'lb1', type: 'lunch_bag', count: 100, date: '2026-01-08' },
-                { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
-            ],
+            lunchBagRecords: mockLunchBagRecords,
             selectedDate: '2026-01-08',
             updateMealRecord: vi.fn().mockResolvedValue(true),
             deleteMealRecord: vi.fn().mockResolvedValue(true),
@@ -44,7 +70,7 @@ vi.mock('@/stores/useMealsStore', () => ({
             addBulkMealRecord: vi.fn().mockResolvedValue({ id: 'm-new' }),
             deleteBulkMealRecord: mockDeleteBulkMealRecord,
             updateBulkMealRecord: vi.fn().mockResolvedValue(true),
-            checkAndAddAutomaticMeals: vi.fn(),
+            checkAndAddAutomaticMeals: mockCheckAndAddAutomaticMeals,
             addMealRecord: mockAddMealRecord,
         };
         return typeof selector === 'function' ? selector(state) : state;
@@ -79,12 +105,31 @@ vi.mock('@/lib/utils/date', () => ({
     pacificDateStringFrom: (date: string) => date ? date.slice(0, 10) : null,
     formatTimeInPacific: () => '12:00 PM',
     formatPacificTimeString: (timeStr: string) => timeStr,
+    parsePacificDateParts: (dateStr: string) => {
+        const d = new Date(dateStr + 'T12:00:00');
+        return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), dayOfWeek: d.getDay() };
+    },
+}));
+
+vi.mock('../ServiceDayNote', () => ({
+    ServiceDayNote: ({ date, serviceType }: { date: string; serviceType: string }) => (
+        <div data-testid="service-day-note">{serviceType}:{date}</div>
+    ),
 }));
 
 describe('MealsSection Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         mockAutoMealAdditionsEnabled = true;
+        mockMealsDataIsLoaded = true;
+        mockMealRecords = [
+            { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
+        ];
+        mockShelterMealRecords = [];
+        mockLunchBagRecords = [
+            { id: 'lb1', type: 'lunch_bag', count: 100, date: '2026-01-08' },
+            { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
+        ];
         mockUpdateAutoMealAdditionsEnabled.mockResolvedValue(undefined);
         mockLoadSettings.mockResolvedValue(undefined);
     });
@@ -100,6 +145,11 @@ describe('MealsSection Component', () => {
             render(<MealsSection />);
             const buttons = screen.getAllByRole('button');
             expect(buttons.length).toBeGreaterThan(0);
+        });
+
+        it('shows the meal note for the selected date', () => {
+            render(<MealsSection />);
+            expect(screen.getByTestId('service-day-note')).toHaveTextContent('meals:2026-01-08');
         });
 
         it('renders the meal automation switch', () => {
@@ -119,6 +169,19 @@ describe('MealsSection Component', () => {
 
             expect(mockUpdateAutoMealAdditionsEnabled).toHaveBeenCalledWith(false);
         });
+
+        it('triggers checkAndAddAutomaticMeals when resuming automatic meal additions', async () => {
+            mockAutoMealAdditionsEnabled = false;
+            const user = userEvent.setup();
+            render(<MealsSection />);
+
+            mockCheckAndAddAutomaticMeals.mockClear();
+
+            await user.click(screen.getByRole('switch', { name: 'Automatic RV, lunch bag, and day worker additions' }));
+
+            expect(mockUpdateAutoMealAdditionsEnabled).toHaveBeenCalledWith(true);
+            expect(mockCheckAndAddAutomaticMeals).toHaveBeenCalled();
+        });
     });
 
     describe('Statistics Display', () => {
@@ -131,18 +194,160 @@ describe('MealsSection Component', () => {
             render(<MealsSection />);
             expect(screen.getByText('125')).toBeDefined();
         });
+
+        it('displays distinct guests served alongside guest meals', () => {
+            // 3 guest-meal rows across 2 distinct guests = 4 meals, 2 guests.
+            // Surfacing both makes the lunch-bag-vs-guests delta visible.
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', count: 2, date: '2026-01-08', type: 'guest' },
+                { id: 'm2', guestId: 'g2', count: 1, date: '2026-01-08', type: 'guest' },
+                { id: 'm3', guestId: 'g2', count: 1, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            const guestsServedStat = screen.getByLabelText('Guests Served icon').closest('div');
+            expect(guestsServedStat).not.toBeNull();
+            expect(within(guestsServedStat as HTMLElement).getByText('2')).toBeDefined();
+
+            const guestMealsStat = screen.getByLabelText('Guest Meals icon').closest('div');
+            expect(within(guestMealsStat as HTMLElement).getByText('4')).toBeDefined();
+        });
+
+        it('displays only shelter meals from the selected date', () => {
+            mockShelterMealRecords = [
+                { id: 'shelter-selected', type: 'shelter', count: 7, date: '2026-01-08' },
+                { id: 'shelter-other-date', type: 'shelter', count: 382, date: '2026-01-03' },
+            ];
+
+            render(<MealsSection />);
+
+            const shelterStat = screen.getByLabelText('Shelter icon').closest('div');
+            expect(shelterStat).not.toBeNull();
+            expect(within(shelterStat as HTMLElement).getByText('7')).toBeDefined();
+            expect(within(shelterStat as HTMLElement).queryByText('389')).toBeNull();
+        });
+
+        it('shows professional icons in meal summary cards', () => {
+            render(<MealsSection />);
+
+            [
+                'Total Meals icon',
+                'Guests Served icon',
+                'Guest Meals icon',
+                'Proxy Pickups icon',
+                'Lunch Bags icon',
+                'Proxy Pickers icon',
+                'Self Meals icon',
+                'Collective Pickups icon',
+                'Extra icon',
+                'RV icon',
+                'Day Worker icon',
+                'Shelter icon',
+                'United Effort icon',
+            ].forEach((label) => {
+                expect(screen.getByLabelText(label)).toBeDefined();
+            });
+        });
+
+        it('shows proxy picker count, self meals and collective pickups', () => {
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
+                { id: 'm2', guestId: 'g2', pickedUpByGuestId: null, count: 3, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            // 1 picker (g2), 2 collective pickups, 3 self meals, 40% of 5 guest meals
+            expect(screen.getByText('1 person picked up 2 meals for others')).toBeDefined();
+            expect(screen.getByText('3 meals also collected for themselves · 40% of guest meals.')).toBeDefined();
+            expect(screen.getByText('Proxy Pickers')).toBeDefined();
+            expect(screen.getByText('Self Meals')).toBeDefined();
+            expect(screen.getByText('Collective Pickups')).toBeDefined();
+        });
+
+        it('tracks multiple proxy pickers in a single day', () => {
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', pickedUpByGuestId: 'g2', count: 2, date: '2026-01-08', type: 'guest' },
+                { id: 'm2', guestId: 'g2', pickedUpByGuestId: 'g1', count: 1, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            // 2 pickers (g1 and g2), 3 collective pickups, 3 self meals (each picker has self meal as recipient)
+            expect(screen.getByText('2 people picked up 3 meals for others')).toBeDefined();
+        });
+
+        it('shows "No proxy pickups" empty state when no proxy records exist', () => {
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', pickedUpByGuestId: null, count: 2, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            expect(screen.getByText('No proxy pickups logged for this date.')).toBeDefined();
+        });
+
+        it('shows a loading placeholder instead of the empty state while meals data has not finished loading', () => {
+            mockMealsDataIsLoaded = false;
+            mockMealRecords = [
+                { id: 'm1', guestId: 'g1', pickedUpByGuestId: null, count: 2, date: '2026-01-08', type: 'guest' },
+            ];
+
+            render(<MealsSection />);
+
+            expect(screen.getByText('Loading pickup activity…')).toBeDefined();
+            expect(screen.queryByText('No proxy pickups logged for this date.')).toBeNull();
+        });
+    });
+
+    describe('Lunch Bag Assignments', () => {
+        it('shows guest-attributed lunch bags with assignment info', () => {
+            mockLunchBagRecords = [
+                { id: 'lb1', type: 'lunch_bag', count: 1, guestId: 'g1', date: '2026-01-08', recordedAt: '2026-01-08T18:00:00Z' },
+                { id: 'lb2', type: 'lunch_bag', count: 25, date: '2026-01-08' },
+            ];
+
+            render(<MealsSection />);
+
+            expect(screen.getByText('Lunch Bag Assignments')).toBeDefined();
+            expect(screen.getByText('26 lunch bags handed out')).toBeDefined();
+            expect(screen.getByText('1 assigned to guests · 25 from bulk entries.')).toBeDefined();
+            expect(screen.getByText('Bulk entry')).toBeDefined();
+        });
+
+        it('shows an empty state when no lunch bags were logged', () => {
+            mockLunchBagRecords = [];
+
+            render(<MealsSection />);
+
+            expect(screen.getByText('No lunch bags logged for this date.')).toBeDefined();
+        });
+
+        it('lists who picked up meals for whom in the proxy detail panel', () => {
+            render(<MealsSection />);
+
+            // m1: g2 (Jane Smith) picked up 2 meals for g1 (Johnny)
+            const detailRow = screen
+                .getAllByText(/picked up 2 meals for/)
+                .find((el) => within(el).queryByText('Jane Smith'));
+            expect(detailRow).toBeDefined();
+            expect(within(detailRow as HTMLElement).getByText('Johnny')).toBeDefined();
+        });
     });
 
     describe('Meal Records', () => {
         it('shows guest names in records', () => {
             render(<MealsSection />);
-            expect(screen.getByText('Johnny')).toBeDefined();
+            // Appears in the activity log and in the proxy pickup detail list
+            expect(screen.getAllByText('Johnny').length).toBeGreaterThanOrEqual(1);
         });
 
         it('highlights proxy pickups with handshake type', () => {
             render(<MealsSection />);
-            expect(screen.getByText('🤝 Proxy Pickup')).toBeDefined();
-            expect(screen.getByText(/Picked up by/i)).toBeDefined();
+            expect(screen.getByText('Proxy Pickup')).toBeDefined();
+            expect(screen.queryByText('\u{1F91D} Proxy Pickup')).toBeNull();
+            expect(screen.getByText('Picked up by Jane Smith')).toBeDefined();
         });
     });
 

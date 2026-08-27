@@ -38,11 +38,98 @@ const resolveAutoMealAdditionsEnabled = async () => {
     return useSettingsStore.getState().autoMealAdditionsEnabled;
 };
 
+// The DB enforces daily meal limits via trigger (MEAL_LIMIT_REACHED); map
+// that to a friendly message instead of a generic save failure.
+const friendlyMealError = (error: { message?: string | null } | null, fallback: string) =>
+    new Error(error?.message?.includes('MEAL_LIMIT_REACHED')
+        ? 'This guest has reached the daily meal limit.'
+        : fallback);
+
 const shouldAutoAddLunchBagsForDate = async (serviceDate: string) => {
     const dateParts = parsePacificDateParts(serviceDate);
     const isFriday = dateParts?.dayOfWeek === 5;
 
     return !isFriday && await resolveAutoMealAdditionsEnabled();
+};
+
+// One lunch bag per guest per service day, whatever route earned it: a base
+// meal, an extra meal, or picking up on someone else's behalf. All routes share
+// the same deduplication key so a guest who does several of those in one day
+// still gets exactly one bag (the DB's unique index on deduplication_key makes
+// repeat attempts no-ops).
+const lunchBagKey = (guestId: string, serviceDate: string) =>
+    `lunch_bag_auto_${guestId}_${serviceDate}`;
+
+const autoAddLunchBag = async (
+    get: () => MealsState,
+    guestId: string,
+    serviceDate: string,
+    label = 'Auto-added with meal',
+) => {
+    try {
+        await get().addBulkMealRecord('lunch_bag', 1, label, lunchBagKey(guestId, serviceDate), serviceDate, guestId);
+    } catch (err) {
+        console.error('Failed to auto-add lunch bag', err);
+    }
+};
+
+// The mirror of autoAddLunchBag: a guest's bag exists because they got a meal
+// that day, so when their last meal is removed (an undone check-in, a corrected
+// entry) the bag has to go too. Without this, every undo leaves an orphan bag
+// and the day's bag count stays permanently overstated.
+//
+// Entitlement is checked against the DB rather than local state on purpose: the
+// Check-In page hydrates only meals and extras, never lunchBagRecords, so a
+// local-only lookup would silently do nothing on the page where undo is used
+// most. Matching on the deduplication key also guarantees we only ever remove a
+// bag this code added — a bulk or manually-entered bag has a different key (or
+// none) and is left alone.
+const retractLunchBagIfNoMealsLeft = async (
+    set: (fn: (state: MealsState) => void) => void,
+    guestId: string,
+    serviceDate: string,
+) => {
+    if (!guestId || !serviceDate) return;
+
+    try {
+        const supabase = createClient();
+
+        // Still entitled if any base/extra meal remains for them that day, or if
+        // they are recorded as the picker on someone else's remaining meal.
+        const { data: remaining, error } = await supabase
+            .from('meal_attendance')
+            .select('id')
+            .eq('served_on', serviceDate)
+            .in('meal_type', ['guest', 'extra'])
+            .or(`guest_id.eq.${guestId},picked_up_by_guest_id.eq.${guestId}`)
+            .limit(1);
+
+        if (error) {
+            console.error('Failed to check remaining meals before retracting lunch bag:', error);
+            return;
+        }
+        if (remaining && remaining.length > 0) return;
+
+        const key = lunchBagKey(guestId, serviceDate);
+        const { error: deleteError } = await supabase
+            .from('meal_attendance')
+            .delete()
+            .eq('meal_type', 'lunch_bag')
+            .eq('deduplication_key', key);
+
+        if (deleteError) {
+            console.error('Failed to retract auto-added lunch bag:', deleteError);
+            return;
+        }
+
+        set((state) => {
+            state.lunchBagRecords = state.lunchBagRecords.filter(
+                (r) => !(r.guestId === guestId && (r.dateKey || pacificDateStringFrom(r.date)) === serviceDate),
+            );
+        });
+    } catch (err) {
+        console.error('Failed to retract auto-added lunch bag', err);
+    }
 };
 
 export interface MealRecord {
@@ -114,7 +201,7 @@ interface MealsState {
     deleteRvMealRecord: (recordId: string) => Promise<void>;
     addExtraMealRecord: (guestId: string, quantity?: number) => Promise<Partial<MealRecord>>;
     deleteExtraMealRecord: (recordId: string) => Promise<void>;
-    addBulkMealRecord: (mealType: string, quantity: number, label?: string, deduplicationKey?: string, date?: string) => Promise<Partial<MealRecord>>;
+    addBulkMealRecord: (mealType: string, quantity: number, label?: string, deduplicationKey?: string, date?: string, guestId?: string | null) => Promise<Partial<MealRecord>>;
     deleteBulkMealRecord: (recordId: string, mealType: string) => Promise<void>;
     addFamilyMealRecord: (familyId: string, mealsPerMember: number, memberCountSnapshot: number, serviceDate?: string, notes?: string | null) => Promise<FamilyMealRecord>;
     updateFamilyMealRecord: (recordId: string, updates: Partial<FamilyMealRecord>) => Promise<void>;
@@ -230,7 +317,7 @@ export const useMealsStore = create<MealsState>()(
 
                             if (error) {
                                 console.error('Failed to update meal record in Supabase:', error);
-                                throw new Error('Unable to save meal record');
+                                throw friendlyMealError(error, 'Unable to save meal record');
                             }
 
                             const mapped = mapMealRow(data);
@@ -241,14 +328,16 @@ export const useMealsStore = create<MealsState>()(
                                 }
                             });
 
+                            // One lunch bag per person per day. Attempt the guest's own bag
+                            // again here rather than assuming the first meal created it:
+                            // the first meal may have been an extra, or recorded on another
+                            // device/import that skipped the bag, which is what made lunch
+                            // bag totals drift below the number of guests served. The dedup
+                            // key keeps this to at most one bag per guest per day.
                             if (await shouldAutoAddLunchBagsForDate(targetDate)) {
-                                try {
-                                    await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
-                                    if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
-                                        await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', undefined, targetDate);
-                                    }
-                                } catch (err) {
-                                    console.error('Failed to auto-add lunch bag', err);
+                                await autoAddLunchBag(get, guestId, targetDate);
+                                if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+                                    await autoAddLunchBag(get, pickedUpByGuestId, targetDate, 'Auto-added for proxy pickup');
                                 }
                             }
 
@@ -270,8 +359,50 @@ export const useMealsStore = create<MealsState>()(
                             .single();
 
                         if (error) {
+                            // Unique violation: another device already recorded this
+                            // guest's first meal today. Recover by incrementing the
+                            // authoritative row instead of surfacing a hard failure.
+                            if (error.code === '23505') {
+                                const { data: existingRow, error: fetchError } = await supabase
+                                    .from('meal_attendance')
+                                    .select()
+                                    .eq('guest_id', guestId)
+                                    .eq('served_on', targetDate)
+                                    .eq('meal_type', 'guest')
+                                    .maybeSingle();
+
+                                if (!fetchError && existingRow) {
+                                    const existingQuantity = existingRow.quantity || 1;
+                                    if (existingQuantity + quantity > MAX_BASE_MEALS_PER_DAY) {
+                                        throw new Error(`Guest already has ${existingQuantity} base meal${existingQuantity !== 1 ? 's' : ''} today (max ${MAX_BASE_MEALS_PER_DAY})`);
+                                    }
+
+                                    const { data: updated, error: updateError } = await supabase
+                                        .from('meal_attendance')
+                                        .update({ quantity: existingQuantity + quantity })
+                                        .eq('id', existingRow.id)
+                                        .select()
+                                        .single();
+
+                                    if (!updateError && updated) {
+                                        const recovered = mapMealRow(updated);
+                                        set((state) => {
+                                            const idx = state.mealRecords.findIndex((r) => r.id === recovered.id);
+                                            if (idx !== -1) state.mealRecords[idx] = recovered;
+                                            else state.mealRecords.push(recovered);
+                                        });
+                                        // Still attempt the guest's bag: the other device may
+                                        // have recorded the meal without one (e.g. it came in
+                                        // as an extra). Dedup key prevents double-bagging.
+                                        if (await shouldAutoAddLunchBagsForDate(targetDate)) {
+                                            await autoAddLunchBag(get, guestId, targetDate);
+                                        }
+                                        return recovered;
+                                    }
+                                }
+                            }
                             console.error('Failed to add meal record to Supabase:', error);
-                            throw new Error('Unable to save meal record');
+                            throw friendlyMealError(error, 'Unable to save meal record');
                         }
 
                         const mapped = mapMealRow(data);
@@ -280,15 +411,11 @@ export const useMealsStore = create<MealsState>()(
                         });
 
                         if (await shouldAutoAddLunchBagsForDate(targetDate)) {
-                            try {
-                                await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added with meal', undefined, targetDate);
-                                // If proxy pickup, add another? Logic from old app:
-                                // "If proxy pickup (different guest picked up), add additional lunch bag for the proxy guest"
-                                if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
-                                    await get().addBulkMealRecord('lunch_bag', 1, 'Auto-added for proxy pickup', undefined, targetDate);
-                                }
-                            } catch (err) {
-                                console.error('Failed to auto-add lunch bag', err);
+                            await autoAddLunchBag(get, guestId, targetDate);
+                            // Proxy picker gets their own single bag for the day — same
+                            // key as their normal bag, so they never end up with two.
+                            if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+                                await autoAddLunchBag(get, pickedUpByGuestId, targetDate, 'Auto-added for proxy pickup');
                             }
                         }
 
@@ -296,8 +423,9 @@ export const useMealsStore = create<MealsState>()(
                     },
 
                     deleteMealRecord: async (recordId: string) => {
-                        const { mealRecords } = get();
-                        const target = mealRecords.find((r) => r.id === recordId);
+                        // Capture guest/date before the optimistic removal so the
+                        // lunch bag tied to this meal can be retracted afterwards.
+                        const target = get().mealRecords.find((r) => r.id === recordId);
 
                         set((state) => {
                             state.mealRecords = state.mealRecords.filter(
@@ -306,15 +434,22 @@ export const useMealsStore = create<MealsState>()(
                         });
 
                         const supabase = createClient();
-                        if (target) {
-                            const { error } = await supabase
-                                .from('meal_attendance')
-                                .delete()
-                                .eq('id', recordId);
+                        const { error } = await supabase
+                            .from('meal_attendance')
+                            .delete()
+                            .eq('id', recordId);
 
-                            if (error) {
-                                console.error('Failed to delete meal record from Supabase:', error);
-                            }
+                        if (error) {
+                            console.error('Failed to delete meal record from Supabase:', error);
+                            return;
+                        }
+
+                        if (target?.guestId) {
+                            await retractLunchBagIfNoMealsLeft(
+                                set,
+                                target.guestId,
+                                target.dateKey || pacificDateStringFrom(target.date),
+                            );
                         }
                     },
 
@@ -402,17 +537,27 @@ export const useMealsStore = create<MealsState>()(
 
                         if (error) {
                             console.error('Failed to add Extra meal record:', error);
-                            throw new Error('Unable to save Extra meal record');
+                            throw friendlyMealError(error, 'Unable to save Extra meal record');
                         }
 
                         const mapped = mapMealRow(data);
                         set((state) => {
                             state.extraMealRecords.push(mapped);
                         });
+
+                        // A guest whose only meal today is an extra still gets their one
+                        // lunch bag. Previously this path skipped bags entirely, so those
+                        // guests were counted in "guests served" but never in lunch bags.
+                        if (await shouldAutoAddLunchBagsForDate(todayStr)) {
+                            await autoAddLunchBag(get, guestId, todayStr);
+                        }
+
                         return mapped;
                     },
 
                     deleteExtraMealRecord: async (recordId: string) => {
+                        const target = get().extraMealRecords.find((r) => r.id === recordId);
+
                         set((state) => {
                             state.extraMealRecords = state.extraMealRecords.filter(r => r.id !== recordId);
                         });
@@ -420,18 +565,27 @@ export const useMealsStore = create<MealsState>()(
                         const { error } = await supabase.from('meal_attendance').delete().eq('id', recordId);
                         if (error) {
                             console.error('Failed to delete Extra meal record:', error);
+                            return;
+                        }
+
+                        if (target?.guestId) {
+                            await retractLunchBagIfNoMealsLeft(
+                                set,
+                                target.guestId,
+                                target.dateKey || pacificDateStringFrom(target.date),
+                            );
                         }
                     },
 
                     // Bulk Meal Actions (Day Worker, Shelter, Lunch Bags, United Effort)
-                    addBulkMealRecord: async (mealType: string, quantity: number, label?: string, deduplicationKey?: string, date?: string) => {
+                    addBulkMealRecord: async (mealType: string, quantity: number, label?: string, deduplicationKey?: string, date?: string, guestId?: string | null) => {
                         const supabase = createClient();
                         const targetDate = date || todayPacificDateString();
 
-                        // For bulk entries, we use a system/placeholder guest_id or null if schema allows
-                        // Using a special 'system' entry approach with null guest_id
+                        // Bulk entries have no specific guest (null guest_id); auto-added
+                        // lunch bags pass the guest so the assignment is attributable.
                         const payload = {
-                            guest_id: null, // Bulk entries don't have a specific guest
+                            guest_id: guestId ?? null,
                             quantity,
                             served_on: targetDate,
                             meal_type: mealType,
@@ -688,6 +842,7 @@ export const useMealsStore = create<MealsState>()(
 
                     // Updates
                     updateMealRecord: async (recordId: string, updates: Partial<MealRecord>) => {
+                        const previous = get().mealRecords.find(r => r.id === recordId);
                         set((state) => {
                             const idx = state.mealRecords.findIndex(r => r.id === recordId);
                             if (idx !== -1) {
@@ -700,7 +855,16 @@ export const useMealsStore = create<MealsState>()(
                             notes: (updates as any).notes // cast to any if notes not in MealRecord interface
                         }).eq('id', recordId);
                         if (error) {
+                            // Revert the optimistic update so local state can't drift
+                            // from the DB (e.g. when the daily-limit trigger rejects).
+                            if (previous) {
+                                set((state) => {
+                                    const idx = state.mealRecords.findIndex(r => r.id === recordId);
+                                    if (idx !== -1) state.mealRecords[idx] = previous;
+                                });
+                            }
                             console.error('Failed to update meal record:', error);
+                            throw friendlyMealError(error, 'Unable to update meal record');
                         }
                     },
 
@@ -735,29 +899,30 @@ export const useMealsStore = create<MealsState>()(
 
                     // Automation
                     checkAndAddAutomaticMeals: async () => {
-                        const today = new Date();
-                        const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
                         const todayStr = todayPacificDateString();
+                        const dateParts = parsePacificDateParts(todayStr);
+                        const dayOfWeek = dateParts?.dayOfWeek;
                         const automaticSupportMealsEnabled = await resolveAutoMealAdditionsEnabled();
+                        await get().ensureLoaded();
                         const { rvMealRecords, dayWorkerMealRecords, lunchBagRecords, addBulkMealRecord } = get();
 
-                        const todaysRv = rvMealRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
-                        const todaysDayWorker = dayWorkerMealRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
-                        const todaysLunchBags = lunchBagRecords.filter(r => pacificDateStringFrom(r.date) === todayStr);
+                        const dateKey = (r: MealRecord) => r?.dateKey || pacificDateStringFrom(r.date);
+                        const todaysRv = rvMealRecords.filter(r => dateKey(r) === todayStr);
+                        const todaysDayWorker = dayWorkerMealRecords.filter(r => dateKey(r) === todayStr);
+                        const todaysLunchBags = lunchBagRecords.filter(r => dateKey(r) === todayStr);
 
                         // Schedule Logic (from older app's automaticMealEntries.js)
-                        // Mon (1): 100 RV
-                        // Wed (3): 40 RV
+                        // Mon (1): 100 RV, 50 Day Worker
+                        // Wed (3): RV distribution removed — no longer distributed on Wednesdays
                         // Thu (4): 100 RV
-                        // Sat (6): 100 Lunch Bags, 100 RV, 50 Day Worker
+                        // Sat (6): 100 Lunch Bags, 100 RV
 
                         if (dayOfWeek === 1) { // Mon
                             if (automaticSupportMealsEnabled && todaysRv.length === 0) {
                                 await addBulkMealRecord('rv', 100, 'Automatic Entry (Mon)', `rv_${todayStr}`);
                             }
-                        } else if (dayOfWeek === 3) { // Wed
-                            if (automaticSupportMealsEnabled && todaysRv.length === 0) {
-                                await addBulkMealRecord('rv', 40, 'Automatic Entry (Wed)', `rv_${todayStr}`);
+                            if (automaticSupportMealsEnabled && todaysDayWorker.length === 0) {
+                                await addBulkMealRecord('day_worker', 50, 'Automatic Entry (Mon)', `day_worker_${todayStr}`);
                             }
                         } else if (dayOfWeek === 4) { // Thu
                             if (automaticSupportMealsEnabled && todaysRv.length === 0) {
@@ -769,9 +934,6 @@ export const useMealsStore = create<MealsState>()(
                             }
                             if (automaticSupportMealsEnabled && todaysRv.length === 0) {
                                 await addBulkMealRecord('rv', 100, 'Automatic Entry (Sat)', `rv_${todayStr}`);
-                            }
-                            if (automaticSupportMealsEnabled && todaysDayWorker.length === 0) {
-                                await addBulkMealRecord('day_worker', 50, 'Automatic Entry (Sat)', `day_worker_${todayStr}`);
                             }
                         }
                     },

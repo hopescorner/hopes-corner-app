@@ -80,6 +80,18 @@ describe('useTodayServiceStatusMap', () => {
             const { result } = renderHook(() => useTodayServiceStatusMap());
             expect(result.current.size).toBe(0);
         });
+
+        it.each(['cancelled', 'no_show'])('does not treat a %s shower as an active shower for today', (status) => {
+            setupStore({
+                showerRecords: [
+                    { id: 's1', guestId: 'g1', dateKey: '2026-01-20', time: '08:30', status },
+                ],
+            });
+
+            const { result } = renderHook(() => useTodayServiceStatusMap());
+
+            expect(result.current.get('g1')?.hasShower).not.toBe(true);
+        });
     });
 
     describe('laundry records', () => {

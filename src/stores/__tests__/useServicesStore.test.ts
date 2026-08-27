@@ -13,6 +13,9 @@ const mockSupabase = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
+    not: vi.fn().mockResolvedValue({ count: 0, error: null }),
+    gte: vi.fn().mockReturnThis(),
+    lt: vi.fn().mockReturnThis(),
     or: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -39,7 +42,10 @@ vi.mock('@/lib/utils/mappers', () => ({
 
 vi.mock('@/lib/utils/date', () => ({
     todayPacificDateString: () => '2025-01-06',
-    pacificDateStringFrom: (d: string) => d.split('T')[0],
+    pacificDateStringFrom: (d: string | Date = new Date()) => (typeof d === 'string' ? d.split('T')[0] : '2025-01-06'),
+    weekStartPacificDateString: () => '2025-01-06',
+    nextWeekStartPacificDateString: () => '2025-01-13',
+    formatDateForDisplay: () => 'Jan 13',
     formatTimeInPacific: () => '12:00 PM',
     formatPacificTimeString: (timeStr: string) => timeStr,
 }));
@@ -675,6 +681,35 @@ describe('useServicesStore', () => {
                     });
                 });
 
+                it('replaces a cancelled shower when the booking RPC reactivates it', async () => {
+                    useServicesStore.setState({
+                        showerRecords: [createMockShowerRecord({
+                            id: 's1',
+                            guestId: 'g1',
+                            date: '2025-01-06',
+                            status: 'cancelled',
+                        })],
+                    });
+                    mockRpcResult.single.mockResolvedValueOnce({
+                        data: {
+                            id: 's1',
+                            guest_id: 'g1',
+                            scheduled_for: '2025-01-06',
+                            scheduled_time: '09:00',
+                            status: 'booked',
+                        },
+                        error: null,
+                    });
+
+                    await useServicesStore.getState().addShowerRecord('g1', '09:00');
+
+                    expect(useServicesStore.getState().showerRecords).toHaveLength(1);
+                    expect(useServicesStore.getState().showerRecords[0]).toEqual(expect.objectContaining({
+                        id: 's1',
+                        status: 'booked',
+                    }));
+                });
+
                 it('adds a shower record for a selected past date via RPC', async () => {
                     const mockData = { id: 's124', guest_id: 'g1', scheduled_for: '2025-01-04' };
                     mockRpcResult.single.mockResolvedValueOnce({ data: mockData, error: null });
@@ -706,6 +741,36 @@ describe('useServicesStore', () => {
                 it('adds a shower waitlist record successfully', async () => {
                     mockSupabase.single.mockResolvedValueOnce({ data: { id: 'w1', status: 'waitlisted' }, error: null });
                     await useServicesStore.getState().addShowerWaitlist('g1');
+                    expect(useServicesStore.getState().showerRecords[0].status).toBe('waitlisted');
+                });
+
+                it('reactivates a cancelled shower when adding the guest to the waitlist', async () => {
+                    useServicesStore.setState({
+                        showerRecords: [createMockShowerRecord({
+                            id: 's1',
+                            guestId: 'g1',
+                            date: '2025-01-06',
+                            status: 'cancelled',
+                        })],
+                    });
+                    mockSupabase.single.mockResolvedValueOnce({
+                        data: {
+                            id: 's1',
+                            guest_id: 'g1',
+                            scheduled_for: '2025-01-06',
+                            scheduled_time: null,
+                            status: 'waitlisted',
+                        },
+                        error: null,
+                    });
+
+                    await useServicesStore.getState().addShowerWaitlist('g1');
+
+                    expect(mockSupabase.update).toHaveBeenCalledWith({
+                        scheduled_time: null,
+                        status: 'waitlisted',
+                    });
+                    expect(useServicesStore.getState().showerRecords).toHaveLength(1);
                     expect(useServicesStore.getState().showerRecords[0].status).toBe('waitlisted');
                 });
 
@@ -770,6 +835,50 @@ describe('useServicesStore', () => {
                     const success = await useServicesStore.getState().updateShowerStatus('s1', 'showering');
                     expect(success).toBe(true);
                     expect(useServicesStore.getState().showerRecords[0].status).toBe('showering');
+                });
+
+                it('retries a cancelled shower as an unscheduled waitlist completion when its old slot is full', async () => {
+                    useServicesStore.setState({
+                        showerRecords: [createMockShowerRecord({
+                            id: 's1',
+                            time: '09:00',
+                            status: 'cancelled',
+                        })],
+                    });
+                    mockSupabase.eq
+                        .mockResolvedValueOnce({
+                            error: { message: 'Shower slot 09:00 on 2026-07-18 is full (2/2 taken)' },
+                        })
+                        .mockResolvedValueOnce({ error: null });
+
+                    const success = await useServicesStore.getState().updateShowerStatus('s1', 'done');
+
+                    expect(success).toBe(true);
+                    expect(mockSupabase.update).toHaveBeenNthCalledWith(1, { status: 'done' });
+                    expect(mockSupabase.update).toHaveBeenNthCalledWith(2, {
+                        scheduled_time: null,
+                        status: 'done',
+                    });
+                    expect(useServicesStore.getState().showerRecords[0]).toEqual(expect.objectContaining({
+                        status: 'done',
+                        time: null,
+                    }));
+                });
+
+                it('keeps the original time when a cancelled shower can be completed in its slot', async () => {
+                    useServicesStore.setState({
+                        showerRecords: [createMockShowerRecord({
+                            id: 's1',
+                            time: '09:00',
+                            status: 'cancelled',
+                        })],
+                    });
+
+                    const success = await useServicesStore.getState().updateShowerStatus('s1', 'done');
+
+                    expect(success).toBe(true);
+                    expect(mockSupabase.update).toHaveBeenCalledWith({ status: 'done' });
+                    expect(useServicesStore.getState().showerRecords[0].time).toBe('09:00');
                 });
 
                 it('reverts shower status update on failure', async () => {
@@ -881,6 +990,177 @@ describe('useServicesStore', () => {
                     await expect(
                         useServicesStore.getState().addLaundryRecord('g1', 'onsite', '09:00', 'B2')
                     ).rejects.toThrow('Unable to verify slot availability');
+                });
+
+                // ── Weekly per-guest laundry limit (onsite + offsite combined) ──
+                it('rejects booking when guest has reached the weekly laundry limit', async () => {
+                    // Weekly count query returns 2 (= MAX_LAUNDRY_LOADS_PER_WEEK)
+                    mockSupabase.in.mockResolvedValueOnce({ count: 2, error: null });
+
+                    await expect(
+                        useServicesStore.getState().addLaundryRecord('g1', 'offsite')
+                    ).rejects.toThrow('Weekly laundry limit reached');
+
+                    // Insert must never run when the cap is hit
+                    expect(mockSupabase.insert).not.toHaveBeenCalled();
+                });
+
+                it('allows booking when guest is one load under the weekly limit', async () => {
+                    // Guest already has 1 load this week — 1 remaining
+                    mockSupabase.in.mockResolvedValueOnce({ count: 1, error: null });
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l500' }, error: null });
+
+                    const result = await useServicesStore.getState().addLaundryRecord('g1', 'offsite');
+                    expect(result.id).toBe('l500');
+                    expect(mockSupabase.insert).toHaveBeenCalled();
+                });
+
+                it('checks weekly usage with only valid laundry enum statuses', async () => {
+                    mockSupabase.in.mockResolvedValueOnce({ count: 1, error: null });
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'l502' }, error: null });
+
+                    const result = await useServicesStore.getState().addLaundryRecord('g1', 'offsite');
+
+                    expect(result.id).toBe('l502');
+                    expect(mockSupabase.in).toHaveBeenCalledWith('status', [
+                        'waiting',
+                        'washer',
+                        'dryer',
+                        'done',
+                        'picked_up',
+                        'pending',
+                        'transported',
+                        'returned',
+                        'offsite_picked_up',
+                    ]);
+                    expect(mockSupabase.not).not.toHaveBeenCalled();
+                });
+
+                it('rejects onsite booking when weekly limit is reached even if slot is free', async () => {
+                    // Slot capacity check passes...
+                    mockSupabase.in.mockResolvedValueOnce({ count: 0, error: null });
+                    // ...but weekly count says the guest is at the cap
+                    mockSupabase.in.mockResolvedValueOnce({ count: 2, error: null });
+
+                    await expect(
+                        useServicesStore.getState().addLaundryRecord('g1', 'onsite', '08:00', 'B1')
+                    ).rejects.toThrow('Weekly laundry limit reached');
+
+                    expect(mockSupabase.insert).not.toHaveBeenCalled();
+                });
+
+                it('throws when the weekly laundry count query fails', async () => {
+                    mockSupabase.in.mockResolvedValueOnce({ count: null, error: { message: 'DB error' } });
+
+                    await expect(
+                        useServicesStore.getState().addLaundryRecord('g1', 'offsite')
+                    ).rejects.toThrow('Unable to verify weekly laundry limit');
+                });
+
+                it('skips the weekly limit check when adding to the waitlist', async () => {
+                    // addLaundryWaitlist inserts directly with status 'waitlisted' and
+                    // should never invoke the weekly count query.
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'wl-1', status: 'waitlisted' }, error: null });
+                    await useServicesStore.getState().addLaundryWaitlist('g1');
+                    expect(mockSupabase.in).not.toHaveBeenCalled();
+                });
+
+                it('skips the weekly limit check inside addLaundryRecord when initialStatus is waitlisted', async () => {
+                    mockSupabase.single.mockResolvedValueOnce({ data: { id: 'wl-2' }, error: null });
+                    await useServicesStore.getState().addLaundryRecord('g1', 'onsite', null, '', undefined, 'waitlisted');
+                    expect(mockSupabase.in).not.toHaveBeenCalled();
+                });
+            });
+
+            describe('getLaundryWeeklyUsage', () => {
+                it('returns zero usage for a guest with no records', () => {
+                    useServicesStore.setState({ laundryRecords: [] });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage).toEqual({
+                        count: 0,
+                        max: 2,
+                        remaining: 2,
+                        limitReached: false,
+                        weekStart: '2025-01-06',
+                        nextWeekStart: '2025-01-13',
+                    });
+                });
+
+                it('counts both onsite and offsite records within the current week', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06', laundryType: 'onsite' },
+                            { id: 'l2', guestId: 'g1', status: 'pending', dateKey: '2025-01-08', laundryType: 'offsite' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(2);
+                    expect(usage.remaining).toBe(0);
+                    expect(usage.limitReached).toBe(true);
+                });
+
+                it('ignores void statuses (cancelled, no_show, waitlisted)', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06' },
+                            { id: 'l2', guestId: 'g1', status: 'cancelled', dateKey: '2025-01-07' },
+                            { id: 'l3', guestId: 'g1', status: 'no_show', dateKey: '2025-01-08' },
+                            { id: 'l4', guestId: 'g1', status: 'waitlisted', dateKey: '2025-01-09' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(1);
+                    expect(usage.remaining).toBe(1);
+                    expect(usage.limitReached).toBe(false);
+                });
+
+                it('ignores records belonging to other guests', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06' },
+                            { id: 'l2', guestId: 'g2', status: 'waiting', dateKey: '2025-01-06' },
+                            { id: 'l3', guestId: 'g3', status: 'done', dateKey: '2025-01-08' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(1);
+                });
+
+                it('ignores records outside the current week (before Monday and on/after next Monday)', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-05' }, // before weekStart
+                            { id: 'l2', guestId: 'g1', status: 'waiting', dateKey: '2025-01-13' }, // == nextWeekStart (excluded)
+                            { id: 'l3', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06' }, // in-week
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(1);
+                });
+
+                it('falls back to scheduledFor (plain date) when dateKey is missing', () => {
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'done', scheduledFor: '2025-01-10' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1');
+                    expect(usage.count).toBe(1);
+                });
+
+                it('respects an explicit dateLike argument to query a different week', () => {
+                    // The date mock pins weekStart to 2025-01-06 regardless of input,
+                    // but passing a dateLike exercises the code path so we can assert
+                    // the returned weekStart matches the mocked helper output.
+                    useServicesStore.setState({
+                        laundryRecords: [
+                            { id: 'l1', guestId: 'g1', status: 'waiting', dateKey: '2025-01-06' },
+                        ],
+                    });
+                    const usage = useServicesStore.getState().getLaundryWeeklyUsage('g1', '2025-01-08');
+                    expect(usage.count).toBe(1);
+                    expect(usage.weekStart).toBe('2025-01-06');
+                    expect(usage.nextWeekStart).toBe('2025-01-13');
                 });
             });
         });
@@ -1073,16 +1353,17 @@ describe('useServicesStore', () => {
                 await expect(useServicesStore.getState().addShowerWaitlist('g1')).rejects.toThrow('Unable to add to waitlist');
             });
 
-            it('handles deleteShowerRecord failure gracefully', async () => {
+            it('restores the shower record when deletion fails', async () => {
                 useServicesStore.setState({ showerRecords: [createMockShowerRecord({ id: 's1' })] });
                 mockSupabase.delete.mockReturnThis();
                 mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
-                // Should not throw, just log error
-                await useServicesStore.getState().deleteShowerRecord('s1');
+                await expect(useServicesStore.getState().deleteShowerRecord('s1'))
+                    .rejects.toThrow('Unable to delete shower record');
 
-                // Optimistic update removes it
-                expect(useServicesStore.getState().showerRecords).toHaveLength(0);
+                expect(useServicesStore.getState().showerRecords).toEqual([
+                    expect.objectContaining({ id: 's1' }),
+                ]);
             });
         });
 
@@ -1105,14 +1386,16 @@ describe('useServicesStore', () => {
                 await expect(useServicesStore.getState().addLaundryWaitlist('g1')).rejects.toThrow('Unable to add to waitlist');
             });
 
-            it('handles deleteLaundryRecord failure gracefully', async () => {
+            it('restores the laundry record when deletion fails', async () => {
                 useServicesStore.setState({ laundryRecords: [createMockLaundryRecord({ id: 'l1' })] });
                 mockSupabase.delete.mockReturnThis();
                 mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete failed' } });
 
-                // Should not throw
-                await useServicesStore.getState().deleteLaundryRecord('l1');
-                expect(useServicesStore.getState().laundryRecords).toHaveLength(0);
+                await expect(useServicesStore.getState().deleteLaundryRecord('l1'))
+                    .rejects.toThrow('Unable to delete laundry record');
+                expect(useServicesStore.getState().laundryRecords).toEqual([
+                    expect.objectContaining({ id: 'l1' }),
+                ]);
             });
 
             it('reverts updateLaundryStatus on failure', async () => {

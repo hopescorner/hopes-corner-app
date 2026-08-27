@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.5.36';
+export const APP_VERSION = '0.8.6';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,560 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.8.6',
+        date: 'August 22, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Saturday and Toggle Meal Automation',
+                description: 'Automatic meal additions now trigger immediately when resuming automation and reliably evaluate Saturday schedule in Pacific Time regardless of server or client timezone.',
+            },
+        ],
+    },
+    {
+        version: '0.8.5',
+        date: 'August 22, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Monthly Summary Unique Guest Totals',
+                description: 'Monthly summary reports now count unique guests only once across the selected month range, preventing repeated visits from inflating the Selected Months Total.',
+            },
+        ],
+    },
+    {
+        version: '0.8.4',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'iPad and Tablet Check-In Optimizations',
+                description: 'Optimized touch targets to meet 44px standards across guest cards and actions, added touch keyboard dismissal during search result scrolling, and enlarged tap targets for quick service buttons and undos.',
+            },
+        ],
+    },
+    {
+        version: '0.8.3',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Check-In Search Enter Key Behavior',
+                description: 'Pressing Enter in the Check-In search bar with no matching results no longer triggers the Create New Guest modal automatically, requiring an explicit button click instead.',
+            },
+        ],
+    },
+    {
+        version: '0.8.2',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Program-Specific Ban Details',
+                description: 'Ban notices and badges now clearly show which specific programs a guest is restricted from (meals, showers, laundry, or bicycles) versus which programs remain accessible.',
+            },
+        ],
+    },
+    {
+        version: '0.8.1',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Preferred and Full Names on Check-In',
+                description: 'When a guest uses a preferred name, Check-In keeps that name first and now shows the guest’s full name underneath for identification. Staff can search by either name.',
+            },
+        ],
+    },
+    {
+        version: '0.8.0',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Guest History Timeline',
+                description: 'Staff can open History from an expanded guest card on the Check-In page. The timeline shows meals, proxy pickups, services, distributed items, warnings, reminders, waivers, bans, and profile creation. Staff can view the last 30 days, the last 90 days, or all records.',
+            },
+            {
+                type: 'improvement',
+                title: 'Accurate Legacy History',
+                description: 'Imported meal records use the original service date instead of the date when the legacy data was migrated. Guest history loads only when staff open it, which keeps the Check-In list fast.',
+            },
+        ],
+    },
+    {
+        version: '0.7.8',
+        date: 'August 19, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Duplicate Guest Review and Merge',
+                description: 'The Check-In page now shows potential duplicate guest profiles from legacy migrations. Staff must review a matched pair before using either profile. Staff can keep one profile and move all records from the duplicate in one database transaction. Staff can also mark the profiles as different people.',
+            },
+        ],
+    },
+    {
+        version: '0.7.7',
+        date: 'August 17, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Day Worker Meals Moved to Monday Automation',
+                description: 'Automatic Day Worker meal entries now run on Mondays instead of Saturdays. RV and lunch bag automation stay on their existing schedules.',
+            },
+        ],
+    },
+    {
+        version: '0.7.6',
+        date: 'August 14, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Month Range Filter for All Summary Reports',
+                description: 'The Meals Summary, Bicycle Services Summary, and Shower & Laundry Services Summary now include a shared month range filter. Select a start and end month to display and export only that range — totals are automatically recalculated.',
+            },
+        ],
+    },
+    {
+        version: '0.7.5',
+        date: 'August 12, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Month Filter for Meals Summary Export',
+                description: 'The Meals Summary CSV export now includes a month filter. Select which months to include before exporting — no more manually deleting rows for mid-year or custom-range reports.',
+            },
+        ],
+    },
+    {
+        version: '0.7.4',
+        date: 'August 2, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Undo Cancellation for Shower Appointments',
+                description: 'A new "Undo Cancel" button now appears on cancelled shower appointments in the Cancelled tab. Staff can restore an accidentally cancelled appointment back to booked status without having to re-enter the guest.',
+            },
+        ],
+    },
+    {
+        version: '0.7.3',
+        date: 'July 29, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Historical Notes Inside Each Service Tab',
+                description: 'Meals, Showers, and Laundry now show the operational note for whichever date you are viewing. Navigate to a previous service day to add missing context or edit an existing note directly from that service section.',
+            },
+        ],
+    },
+    {
+        version: '0.7.2',
+        date: 'July 29, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Undoing a Check-In Removes Its Lunch Bag',
+                description: 'Undoing a meal left the automatically-added lunch bag behind, so every corrected entry quietly added one to the day\'s bag count. The bag now goes with the meal — unless the guest still has another meal, or still picked up for someone else, in which case they keep it.',
+            },
+            {
+                type: 'fix',
+                title: 'Past Lunch Bag Counts Corrected',
+                description: 'Lunch bag totals for July 25, 27, and 29 were overstated by duplicate bags given to guests who picked up for a buddy and also ate. Those extra rows have been removed, so all three days now show exactly one bag per person served. Meal counts were not affected.',
+            },
+        ],
+    },
+    {
+        version: '0.7.1',
+        date: 'July 29, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Check-In Card Shows the Right Meal Count',
+                description: 'Assigning 2 meals on the Check-In page saved both but displayed "1 MEAL" on the guest card. The lunch bag added alongside the meal was being counted as if it were that guest\'s meal, overwriting the real total. The card now matches what was actually recorded.',
+            },
+            {
+                type: 'fix',
+                title: 'Every Guest Served Gets Exactly One Lunch Bag',
+                description: 'Some guests were missing a bag entirely — anyone whose only meal was an extra, or whose meal was already recorded by another device or an import — which is why bag counts ran slightly under the number of people served. Meanwhile a guest who picked up for a buddy and also ate could receive two. Every route now lands on exactly one bag per person per day.',
+            },
+            {
+                type: 'feature',
+                title: 'Guests Served at a Glance',
+                description: 'The Meals tab now shows the number of distinct guests served next to the meal counts, so you can read meals and people together — and spot any gap against lunch bags immediately.',
+            },
+        ],
+    },
+    {
+        version: '0.7.0',
+        date: 'July 22, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Lunch Bags Now Match People Served',
+                description: 'Meals recorded through the Check-In page now auto-add a lunch bag like the Services flow always did, and auto-adds follow a strict one-bag-per-person-per-day rule — so daily lunch bag counts finally equal the number of people who got meals.',
+            },
+            {
+                type: 'feature',
+                title: 'Per-Guest Lunch Bag Assignments',
+                description: 'Auto-added lunch bags are attributed to the guest they were assigned to, and a new "Lunch Bag Assignments" panel on the Meals page shows each bag with the guest\'s name and assignment time, separating guest-assigned bags from bulk entries.',
+            },
+            {
+                type: 'improvement',
+                title: 'Safe Parallel Use Across Devices',
+                description: 'Daily meal limits, holiday visits, laundry slots, and the weekly laundry allowance are now enforced by the database itself, so multiple staff devices working at the same time can no longer double-book slots, duplicate records, or exceed guest limits — and the Check-In page automatically re-syncs when a device wakes up or regains connection.',
+            },
+            {
+                type: 'improvement',
+                title: 'Redesigned Meals Summary',
+                description: 'The Meals page now shows who picked up meals for whom (with times) in the Proxy Pickup Activity card, plus a lightweight "Service Mix" bar breakdown of the day\'s distribution — in a responsive layout that works equally well on laptops, tablets, and phones.',
+            },
+        ],
+    },
+    {
+        version: '0.6.8',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Proxy Pickup Card No Longer Flashes Empty',
+                description: 'The Meals "Proxy Pickup Activity" card now shows a loading state instead of falsely reporting "No proxy pickups logged" during the brief window after Check-In hydrates today\'s placeholder data, before the real records finish loading.',
+            },
+        ],
+    },
+    {
+        version: '0.6.7',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Accurate Meal Times and Totals',
+                description: 'The Meals activity log no longer shows the same 5:00 AM time for every guest after visiting Check-In, and meal totals no longer double-count or miss RV, lunch bag, and day worker meals — the Services and Dashboard pages now always fetch the real records instead of reusing check-in placeholder data.',
+            },
+            {
+                type: 'fix',
+                title: 'Check-In No Longer Clears Loaded Data',
+                description: 'Returning to the Check-In page no longer wipes already-loaded meal and service history back to today-only placeholder records.',
+            },
+        ],
+    },
+    {
+        version: '0.6.6',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Service Center Loads Its Own Data',
+                description: 'The Services page no longer appears empty (no guests, meals, showers, or laundry) when opened directly — it previously only showed data if another page had loaded it first.',
+            },
+            {
+                type: 'improvement',
+                title: 'Releases Published Automatically',
+                description: 'Every production deploy now creates a Git tag and a GitHub release with notes from the changelog, and the release check verifies both changelogs cover the latest version.',
+            },
+        ],
+    },
+    {
+        version: '0.6.5',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Laundry Bag Numbers No Longer Disappear',
+                description: 'The bag number Edit field now always starts from the latest saved value, and updates from other devices are no longer dropped when several laundry records change at nearly the same time.',
+            },
+            {
+                type: 'improvement',
+                title: 'Off-site Laundry Board Always Visible',
+                description: 'The Off-site Laundry board now appears on the Laundry tab even when no off-site loads are booked yet, matching the on-site board.',
+            },
+        ],
+    },
+    {
+        version: '0.6.4',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Mobile/Tablet Undo Actions',
+                description: 'Exposed direct Undo buttons inside the mobile/tablet bottom sheet (MobileServiceSheet) for checked-in meals, shower bookings, and laundry bookings.',
+            },
+        ],
+    },
+    {
+        version: '0.6.3',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Neon Arcade Pinball Visual Upgrade',
+                description: 'Upgraded the in-app pinball mini-game with custom neon aesthetics, glowing bumper pulse animations, a chrome 3D ball shader, and a dynamic spark/particle physics system on collisions.',
+            },
+            {
+                type: 'improvement',
+                title: 'Verified deployment gates and parallel testing',
+                description: 'Ensured deployment workflow does not trigger until parallel test suites fully pass.',
+            },
+        ],
+    },
+    {
+        version: '0.6.2',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Undo Updates Check-In Immediately',
+                description: 'Undoing a meal or service now updates the guest card immediately and stays in sync when the real-time confirmation arrives.',
+            },
+        ],
+    },
+    {
+        version: '0.6.1',
+        date: 'July 20, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Remove GitHub Feedback Feature',
+                description: 'Removed the in-app GitHub issue filing feature that used Copilot to triage feedback.',
+            },
+        ],
+    },
+    {
+        version: '0.6.0',
+        date: 'July 19, 2026',
+        highlights: [
+            {
+                type: 'performance',
+                title: 'Blazingly Fast Check-In',
+                description: 'Check-in now opens from a compact daily snapshot, searches a prebuilt guest directory, and loads full guest details only when needed for a much faster, more responsive tablet experience.',
+            },
+            {
+                type: 'improvement',
+                title: 'Instant, Reliable Multi-Tablet Actions',
+                description: 'Meal and service actions now respond immediately and reconcile with the server so check-in tablets stay aligned when staff work at the same time.',
+            },
+        ],
+    },
+    {
+        version: '0.5.55',
+        date: 'July 18, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Correct Shelter Meal Daily Totals',
+                description: 'The Meals service summary now shows shelter meals only for the selected date instead of displaying the total across all loaded dates.',
+            },
+        ],
+    },
+    {
+        version: '0.5.54',
+        date: 'July 18, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Rebook Cancelled Showers',
+                description: 'Guests with a cancelled or no-show shower can now be rebooked or marked completed. If the original slot has filled, the completion is recorded as an unscheduled waitlist shower instead of failing.',
+            },
+        ],
+    },
+    {
+        version: '0.5.53',
+        date: 'July 17, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Disable RV Meal Distribution on Wednesdays',
+                description: 'RV meals (40) are no longer automatically added on Wednesdays, and the RV bulk entry option is hidden when the selected date falls on a Wednesday.',
+            },
+        ],
+    },
+    {
+        version: '0.5.52',
+        date: 'July 15, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Enhanced Visibility for Jacket and Backpack Icons',
+                description: 'Increased the rendering size and stroke width of the Jacket and Backpack icons in the amenities grid, making them significantly easier to see against thin-line styles.',
+            },
+        ],
+    },
+    {
+        version: '0.5.51',
+        date: 'July 15, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Distinct Color for Distributed Amenities',
+                description: 'Assigned supplies (backpack, jacket, sleeping bag, etc.) now display in a distinct, muted gray style when unavailable or on cooldown, providing clearer visual separation from available items.',
+            },
+        ],
+    },
+    {
+        version: '0.5.50',
+        date: 'July 15, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Cancel Historical Waiting Laundry Bookings',
+                description: 'Allowed staff to cancel past laundry slots that were assigned in the waiting lane but never processed, preventing those stale entries from showing up as legacy Action Required items on subsequent service days.',
+            },
+        ],
+    },
+    {
+        version: '0.5.49',
+        date: 'July 15, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Stable Pagination Tiebreaker',
+                description: 'Added stable tiebreaker ordering to database pagination queries when ordering by a non-unique column, resolving potential skipped or duplicated rows across pagination pages.',
+            },
+        ],
+    },
+    {
+        version: '0.5.48',
+        date: 'July 11, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Custom Handshake Icon for Proxy Pickups',
+                description: 'Proxy pickup stat cards on the Meals service summary now use a custom two-handed handshake glyph instead of the generic Lucide icon, matching the visual style of other custom amenity icons throughout the app.',
+            },
+        ],
+    },
+    {
+        version: '0.5.47',
+        date: 'July 11, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Proxy Pickup Activity Card',
+                description: 'The Meals service summary now shows how many people performed proxy pickups, the meals they collected for themselves, and the collective pickup total — replacing the previous percentage-only Proxy Share card with clearer per-person and per-meal breakdowns.',
+            },
+        ],
+    },
+    {
+        version: '0.5.46',
+        date: 'July 8, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Redesigned Sleeping Bag Amenity Icon',
+                description: 'The Sleeping Bag amenity on the Showers detail view now uses a detailed silhouette of a person curled inside a mummy sleeping bag, replacing the previous abstract line icon.',
+            },
+        ],
+    },
+    {
+        version: '0.5.45',
+        date: 'July 8, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Board Dashboard Crash Fix',
+                description: 'Resolved the client-side crash that affected the board role when landing directly on the dashboard. Each dashboard section is now wrapped in an error boundary that shows a graceful fallback instead of taking down the page, and the Analytics charts now defer mounting until after a layout-stable paint frame to avoid the recharts infinite-render loop (React error #185).',
+            },
+        ],
+    },
+    {
+        version: '0.5.44',
+        date: 'July 8, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Redesigned Jacket Amenity Icon',
+                description: 'The Jacket amenity on the Showers detail view now uses a hooded rain jacket silhouette with a visible hood, sleeves extending past the torso, drawstrings, and a center zipper instead of the previous vest-like shape.',
+            },
+            {
+                type: 'improvement',
+                title: 'Backpack Amenity Icon',
+                description: 'The Backpack amenity on the Showers detail view now uses a custom backpack icon instead of a generic package icon.',
+            },
+        ],
+    },
+    {
+        version: '0.5.43',
+        date: 'July 8, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Sleeping Bag Amenity Icon',
+                description: 'The Sleeping Bag amenity on the Showers detail view now uses a custom sleeping bag icon instead of a generic package icon.',
+            },
+        ],
+    },
+    {
+        version: '0.5.42',
+        date: 'July 8, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Meal Proxy Share Summary',
+                description: 'The Meals service summary now shows what percentage of guest meals were proxy pickups, with direct and proxy counts shown side by side.',
+            },
+            {
+                type: 'improvement',
+                title: 'Professional Meal Summary Icons',
+                description: 'Meal summary and distribution cards now use clear Lucide icons, and proxy pickup labels no longer rely on emoji.',
+            },
+        ],
+    },
+    {
+        version: '0.5.41',
+        date: 'July 1, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Dashboard Chunk Load Recovery',
+                description: 'The app now clears cached assets and reloads once when a stale dashboard JavaScript chunk fails to load, preventing board users from getting stuck on a client-side application error after deploys.',
+            },
+        ],
+    },
+    {
+        version: '0.5.40',
+        date: 'July 1, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Laundry Booking Weekly Limit Query Fix',
+                description: 'Laundry bookings now verify weekly usage with valid database statuses only, preventing the weekly-limit check from blocking valid onsite and offsite bookings.',
+            },
+        ],
+    },
+    {
+        version: '0.5.39',
+        date: 'July 1, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Laundry Weekly Limit Booking Fix',
+                description: 'Fixed a laundry booking bug that could incorrectly block valid onsite and offsite assignments when checking a guest’s weekly laundry limit.',
+            },
+        ],
+    },
+    {
+        version: '0.5.38',
+        date: 'June 29, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Weekly Laundry Limit per Guest',
+                description: 'Each guest is now limited to 2 laundry loads per week (onsite + offsite combined). The week resets on Monday, and the laundry booking modal and admin backfill form show the guest load count, remaining slots, and a clear "limit reached" banner that blocks further assignments until next Monday.',
+            },
+        ],
+    },
+    {
+        version: '0.5.37',
+        date: 'June 27, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Multi-Select Analytics Demographic Filters',
+                description: 'Analytics demographic filters now allow more than one selection, so reports can include multiple cities, age groups, genders, or housing statuses at the same time.',
+            },
+        ],
+    },
     {
         version: '0.5.36',
         date: 'June 11, 2026',

@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { X, UserPlus, Loader2, Home, MapPin, User, Users, Info, AlertCircle } from 'lucide-react';
-import { useGuestsStore } from '@/stores/useGuestsStore';
+import { useGuestsStore, type Guest } from '@/stores/useGuestsStore';
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from '@/lib/constants/constants';
 import toast from 'react-hot-toast';
 import { findPotentialDuplicates } from '@/lib/utils/duplicateDetection';
@@ -13,6 +13,7 @@ interface GuestCreateModalProps {
     onClose: () => void;
     initialName?: string;
     defaultLocation?: string;
+    onCreated?: (guest: Guest) => void | Promise<void>;
 }
 
 const BAY_AREA_CITIES = [
@@ -21,7 +22,7 @@ const BAY_AREA_CITIES = [
     'San Jose', 'Santa Clara', 'Saratoga', 'Sunnyvale', 'Outside Santa Clara County'
 ];
 
-export function GuestCreateModal({ onClose, initialName = '', defaultLocation = '' }: GuestCreateModalProps) {
+export function GuestCreateModal({ onClose, initialName = '', defaultLocation = '', onCreated }: GuestCreateModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [duplicateWarning, setDuplicateWarning] = useState('');
     const prefersReducedMotion = useReducedMotion();
@@ -85,11 +86,12 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
                 return;
             }
 
-            await addGuest({
+            const guest = await addGuest({
                 ...formData,
                 enrollInFamilyMeal: formData.enrollInFamilyMeal && familyMode === 'primary',
                 familyId: formData.enrollInFamilyMeal && familyMode === 'member' ? formData.familyId : '',
             });
+            await onCreated?.(guest);
             toast.success('Guest added successfully');
             onClose();
         } catch (error: any) {

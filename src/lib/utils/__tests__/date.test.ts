@@ -4,7 +4,9 @@ import {
     pacificDateStringFrom,
     todayPacificDateString,
     isoFromPacificDateString,
-    formatDateForDisplay
+    formatDateForDisplay,
+    weekStartPacificDateString,
+    nextWeekStartPacificDateString
 } from '../date';
 
 describe('date utilities', () => {
@@ -145,6 +147,40 @@ describe('date utilities', () => {
         it('handles ISO string dates', () => {
             const result = formatDateForDisplay('2025-06-15T12:00:00Z');
             expect(result).toBeTruthy();
+        });
+    });
+
+    describe('weekStartPacificDateString', () => {
+        it('returns the same date when input is a Monday', () => {
+            // 2025-01-06 is a Monday
+            expect(weekStartPacificDateString('2025-01-06')).toBe('2025-01-06');
+        });
+
+        it('rolls back to the previous Monday for a Tuesday', () => {
+            // 2025-01-07 is a Tuesday; the Monday that starts its week is 2025-01-06
+            expect(weekStartPacificDateString('2025-01-07')).toBe('2025-01-06');
+        });
+
+        it('rolls back to the previous Monday for a Sunday (end of week)', () => {
+            // 2025-01-12 is a Sunday; its week starts on Monday 2025-01-06
+            expect(weekStartPacificDateString('2025-01-12')).toBe('2025-01-06');
+        });
+
+        it('rolls back across month boundaries', () => {
+            // 2025-02-01 is a Saturday; its Monday is 2025-01-27
+            expect(weekStartPacificDateString('2025-02-01')).toBe('2025-01-27');
+        });
+    });
+
+    describe('nextWeekStartPacificDateString', () => {
+        it('returns the Monday of the following week', () => {
+            // Week of 2025-01-06 -> next Monday is 2025-01-13
+            expect(nextWeekStartPacificDateString('2025-01-06')).toBe('2025-01-13');
+        });
+
+        it('advances by 7 days regardless of the day-of-week input', () => {
+            expect(nextWeekStartPacificDateString('2025-01-09')).toBe('2025-01-13');
+            expect(nextWeekStartPacificDateString('2025-01-12')).toBe('2025-01-13');
         });
     });
 });

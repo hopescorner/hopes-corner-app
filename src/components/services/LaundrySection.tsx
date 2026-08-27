@@ -18,7 +18,7 @@ import {
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatDateForDisplay } from '@/lib/utils/date';
 import { generateLaundrySlots } from '@/lib/utils/serviceSlots';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
@@ -29,6 +29,7 @@ import { LayoutGrid, List, Settings } from 'lucide-react';
 import { SlotBlockModal } from '../admin/SlotBlockModal';
 import { EndServiceDayPanel } from './EndServiceDayPanel';
 import { ServiceDatePicker } from './ServiceDatePicker';
+import { ServiceDayNote } from './ServiceDayNote';
 import { useSession } from 'next-auth/react';
 
 const STATUS_COLUMNS = [
@@ -72,7 +73,7 @@ const formatTimeElapsed = (isoTimestamp: string | null): string | null => {
 };
 
 export function LaundrySection() {
-    const { laundryRecords, updateLaundryStatus, updateLaundryBagNumber, cancelMultipleLaundry, loadFromSupabase, addLaundryRecord } = useServicesStore();
+    const { laundryRecords, updateLaundryStatus, updateLaundryBagNumber, cancelMultipleLaundry, loadFromSupabase, addLaundryRecord, getLaundryWeeklyUsage } = useServicesStore();
     const { guests } = useGuestsStore();
     const { data: session } = useSession();
 
@@ -125,15 +126,22 @@ export function LaundrySection() {
         return generateLaundrySlots(selectedDateObject);
     }, [selectedDate]);
 
-    const selectableGuests = useMemo(() => {
+const selectableGuests = useMemo(() => {
         return (guests || [])
             .filter((guest) => guest?.id)
             .sort((firstGuest, secondGuest) => {
-                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${firstGuest.lastName || ''}`).toString();
+                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
                 const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
                 return firstName.localeCompare(secondName);
             });
     }, [guests]);
+
+    // Per-guest weekly laundry usage for the *selected* backfill date's week
+    const backfillWeeklyUsage = useMemo(() => {
+        if (!backfillGuestId) return null;
+        return getLaundryWeeklyUsage(backfillGuestId, selectedDate);
+    }, [backfillGuestId, selectedDate, getLaundryWeeklyUsage, laundryRecords]);
+    const backfillWeeklyLimitReached = !!backfillWeeklyUsage?.limitReached;
 
     // Calculate pending on-site laundry for End Service Day (only 'waiting' status, only for today)
     const todaysRecords = laundryRecords.filter(r => pacificDateStringFrom(r.date) === today);
@@ -285,10 +293,11 @@ export function LaundrySection() {
         }
 
         try {
-            await updateLaundryStatus(record.id, newStatus);
-            toast.success('Status updated');
-        } catch {
-            toast.error('Failed to update status');
+            const ok = await updateLaundryStatus(record.id, newStatus);
+            if (ok) toast.success('Status updated');
+            else toast.error('Failed to update status');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'Failed to update status');
         }
     }, [requiresBagPrompt, updateLaundryBagNumber, updateLaundryStatus, isViewingPast]);
 
@@ -332,8 +341,8 @@ export function LaundrySection() {
         for (const record of legacyLaundry) {
             const isOnsite = record.laundryType === 'onsite' || !record.laundryType;
             try {
-                await updateLaundryStatus(record.id, isOnsite ? 'picked_up' : 'offsite_picked_up');
-                successCount++;
+                const ok = await updateLaundryStatus(record.id, isOnsite ? 'picked_up' : 'offsite_picked_up');
+                if (ok) successCount++;
             } catch {
                 // Continue with remaining records
             }
@@ -547,6 +556,8 @@ export function LaundrySection() {
                     </div>
                 </div>
 
+                <ServiceDayNote date={selectedDate} serviceType="laundry" />
+
                 {viewMode === 'list' ? (
                     <CompactLaundryList readOnly={isViewingPast} />
                 ) : (
@@ -718,10 +729,10 @@ export function LaundrySection() {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={handleAddLaundryRecord}
-                                        disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
+                                        disabled={!backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
                                         className={cn(
                                             "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
-                                            !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
+                                            !backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
                                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                 : 'bg-indigo-600 text-white hover:bg-indigo-700'
                                         )}
@@ -730,10 +741,10 @@ export function LaundrySection() {
                                     </button>
                                     <button
                                         onClick={handleAddCompletedLaundryRecord}
-                                        disabled={!backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
+                                        disabled={!backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)}
                                         className={cn(
                                             "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
-                                            !backfillGuestId || isAddingBackfill || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
+                                            !backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
                                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                 : 'bg-emerald-600 text-white hover:bg-emerald-700'
                                         )}
@@ -742,14 +753,29 @@ export function LaundrySection() {
                                     </button>
                                 </div>
                             </div>
+                            {backfillWeeklyUsage && (
+                                <div className={cn(
+                                    'mt-3 flex items-start gap-3 p-3 rounded-xl border text-xs',
+                                    backfillWeeklyUsage.limitReached
+                                        ? 'bg-red-50 border-red-200 text-red-700'
+                                        : 'bg-indigo-50 border-indigo-100 text-indigo-700'
+                                )}>
+                                    <AlertTriangle size={16} className={cn('shrink-0 mt-0.5', backfillWeeklyUsage.limitReached ? 'text-red-500' : 'text-indigo-500')} />
+                                    <p className="font-medium leading-relaxed">
+                                        Weekly laundry for this guest: <span className="font-black">{backfillWeeklyUsage.count}/{backfillWeeklyUsage.max} loads</span>.
+                                        {backfillWeeklyUsage.limitReached
+                                            ? <> Limit reached — cannot assign more laundry until Monday, {formatDateForDisplay(backfillWeeklyUsage.nextWeekStart, { month: 'short', day: 'numeric' })}.</>
+                                            : <> {backfillWeeklyUsage.remaining} remaining in this week.</>}
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
             )}
 
-            {/* Off-site Laundry Kanban - only show if there are off-site records */}
-            {offsiteLaundry.length > 0 && (
-                <div className="space-y-4">
+            {/* Off-site Laundry Kanban */}
+            <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-xl font-black text-gray-900 flex items-center gap-3">
@@ -841,8 +867,7 @@ export function LaundrySection() {
                         ) : null}
                     </DragOverlay>
                     </DndContext>
-                </div>
-            )}
+            </div>
 
             <SlotBlockModal
                 isOpen={showSlotManager}
@@ -930,6 +955,16 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
             toast.success('Bag number saved');
         } catch {
             toast.error('Failed to save bag number');
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!confirm(`Cancel laundry booking for ${guestDetails.primaryName}?`)) return;
+        try {
+            await deleteLaundryRecord(record.id);
+            toast.success('Laundry booking cancelled');
+        } catch {
+            toast.error('Failed to cancel laundry booking');
         }
     };
 
@@ -1051,7 +1086,15 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                                             {record.bagNumber || 'No Bag #'}
                                         </span>
                                         {!readOnly && (
-                                            <button onClick={() => setIsEditingBag(true)} className="text-[10px] text-blue-500 hover:underline">
+                                            <button
+                                                onClick={() => {
+                                                    // Re-seed from the record so a bag number saved after
+                                                    // mount (drag prompt, another device) isn't wiped on Save
+                                                    setBagValue(record.bagNumber || '');
+                                                    setIsEditingBag(true);
+                                                }}
+                                                className="text-[10px] text-blue-500 hover:underline"
+                                            >
                                                 Edit
                                             </button>
                                         )}
@@ -1060,36 +1103,31 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                             </div>
 
                             {!readOnly && (
-                                <>
-                                    <div>
-                                        <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
-                                            Status
-                                        </label>
-                                        <select
-                                            value={record.status}
-                                            onChange={(e) => onStatusChange(e.target.value)}
-                                            className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
-                                        >
-                                            {columns.map((col) => (
-                                                <option key={col.id} value={col.id}>{col.title}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            if (confirm(`Cancel laundry booking for ${guestDetails.primaryName}?`)) {
-                                                deleteLaundryRecord(record.id);
-                                                toast.success('Laundry booking cancelled');
-                                            }
-                                        }}
-                                        className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded px-3 py-1.5 transition-colors"
+                                <div>
+                                    <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                                        Status
+                                    </label>
+                                    <select
+                                        value={record.status}
+                                        onChange={(e) => onStatusChange(e.target.value)}
+                                        className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
                                     >
-                                        <Trash2 size={12} />
-                                        Cancel Booking
-                                    </button>
-                                </>
+                                        {columns.map((col) => (
+                                            <option key={col.id} value={col.id}>{col.title}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {(!readOnly || (readOnly && (record.status === 'waiting' || record.status === 'pending'))) && (
+                                <button
+                                    type="button"
+                                    onClick={() => void handleDelete()}
+                                    className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded px-3 py-1.5 transition-colors"
+                                >
+                                    <Trash2 size={12} />
+                                    Cancel Booking
+                                </button>
                             )}
                         </div>
                     )}

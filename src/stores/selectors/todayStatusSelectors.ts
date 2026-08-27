@@ -179,7 +179,11 @@ export function useTodayServiceStatusMap(): ServiceStatusMap {
         
         // Showers
         for (const record of showerRecords) {
-            if (recordDateKey(record) === today) {
+            if (
+                recordDateKey(record) === today &&
+                record.status !== 'cancelled' &&
+                record.status !== 'no_show'
+            ) {
                 const status = getOrCreate(record.guestId);
                 status.hasShower = true;
                 status.showerRecord = { id: record.id, time: record.time, status: record.status };

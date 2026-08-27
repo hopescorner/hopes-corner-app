@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import {
     Utensils,
     Users,
@@ -18,6 +19,7 @@ import {
     Package,
     Building2,
     HandHeart,
+    Handshake,
     Trash2,
     Check,
     Search,
@@ -27,12 +29,15 @@ import {
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
-import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
+import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific, parsePacificDateParts } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import { MAX_BASE_MEALS_PER_DAY } from '@/lib/constants/constants';
 import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
+import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
+import { ServiceDayNote } from './ServiceDayNote';
+import type React from 'react';
 
 // Meal category configurations
 const MEAL_CATEGORIES = [
@@ -94,7 +99,9 @@ export function MealsSection() {
         deleteFamilyMealRecord,
         checkAndAddAutomaticMeals,
         addMealRecord,
+        mealsDataIsLoaded,
     } = useMealsStore(useShallow((s) => ({
+        mealsDataIsLoaded: s.isLoaded,
         mealRecords: s.mealRecords,
         rvMealRecords: s.rvMealRecords,
         extraMealRecords: s.extraMealRecords,
@@ -147,6 +154,9 @@ export function MealsSection() {
 
         try {
             await updateAutoMealAdditionsEnabled(nextValue);
+            if (nextValue) {
+                await checkAndAddAutomaticMeals();
+            }
             toast.success(nextValue ? 'Automatic RV, lunch bag, and day worker additions resumed' : 'Automatic RV, lunch bag, and day worker additions paused');
         } catch (error) {
             console.error('Failed to update meal automation setting:', error);
@@ -214,6 +224,9 @@ export function MealsSection() {
             .filter((row) => !query || row.searchableText.includes(query))
             .sort((a, b) => getGuestDisplayName(a.primaryGuest).localeCompare(getGuestDisplayName(b.primaryGuest)));
     }, [familySearch, showUnenrolledFamilies, guestFamilies, familyMembersByFamilyId, guestMap, guests, familyMealRecordByFamilyId]);
+
+    // RV meals are not distributed on Wednesdays
+    const isWednesdayDate = parsePacificDateParts(selectedDate)?.dayOfWeek === 3;
 
     // Set of guest IDs that already have a guest meal record on the selected date
     const guestsWithMealOnDateSet = useMemo(() => {
@@ -291,16 +304,24 @@ export function MealsSection() {
 
         const sumCount = (arr: any[]) => arr.reduce((sum, r) => sum + (r.count || 0), 0);
 
-        const proxyPickupCount = guestMeals.reduce((sum, r) => {
+const proxyPickerIds = new Set<string>();
+        let proxyPickupCount = 0;
+        guestMeals.forEach((r) => {
             if (r?.pickedUpByGuestId && r.pickedUpByGuestId !== r.guestId) {
-                return sum + (r.count || 0);
+                proxyPickerIds.add(r.pickedUpByGuestId);
+                proxyPickupCount += r.count || 0;
             }
+        });
+        const proxyPickerSelfMeals = guestMeals.reduce((sum, r) => {
+            if (r && proxyPickerIds.has(r.guestId)) return sum + (r.count || 0);
             return sum;
         }, 0);
+        const guestCount = sumCount(guestMeals);
+        const proxyPickupPercent = guestCount > 0 ? Math.round((proxyPickupCount / guestCount) * 100) : 0;
 
         return {
             total: sumCount([...guestMeals, ...rvMeals, ...extraMeals, ...dayWorkerMeals, ...shelterMeals, ...ueMeals, ...familyMeals]),
-            guestCount: sumCount(guestMeals),
+            guestCount,
             familyCount: sumCount(familyMeals),
             familyHouseholds: familyMeals.length,
             rvCount: sumCount(rvMeals),
@@ -310,7 +331,11 @@ export function MealsSection() {
             lunchBagCount: sumCount(lunchBags),
             extraCount: sumCount(extraMeals),
             proxyPickups: proxyPickupCount,
-            uniqueGuests: new Set(guestMeals.map(r => r.guestId)).size
+            proxyPickupPercent,
+            directGuestMeals: guestCount - proxyPickupCount,
+            uniqueGuests: new Set(guestMeals.map(r => r.guestId)).size,
+            proxyPickerCount: proxyPickerIds.size,
+            proxyPickerSelfMeals,
         };
     }, [selectedDate, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, familyMealRecords]);
 
@@ -338,6 +363,69 @@ export function MealsSection() {
         if (activityFilter === 'all') return history;
         return history.filter((r) => r.type === activityFilter);
     }, [history, activityFilter]);
+
+    const guestNameById = (id?: string | null) => {
+        if (!id) return null;
+        const guest = guestMap.get(id);
+        if (!guest) return null;
+        return guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || null;
+    };
+
+    // Per-bag assignment detail for the selected date: who each lunch bag was
+    // assigned to (auto-added bags carry the guest) and when.
+    const lunchBagDetail = useMemo(() => {
+        const bags = lunchBagRecords
+            .filter((r) => (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate)
+            .map((r) => ({
+                id: r.id,
+                count: r.count || 1,
+                guestName: r.guestId ? guestNameById(r.guestId) : null,
+                assignedAt: r.recordedAt || r.createdAt || null,
+            }))
+            .sort((a, b) => new Date(b.assignedAt || 0).getTime() - new Date(a.assignedAt || 0).getTime());
+        const assignedBags = bags.filter((b) => b.guestName);
+        const bulkBags = bags.filter((b) => !b.guestName);
+        return {
+            bags,
+            assignedCount: assignedBags.reduce((sum, b) => sum + b.count, 0),
+            bulkCount: bulkBags.reduce((sum, b) => sum + b.count, 0),
+        };
+         
+    }, [lunchBagRecords, selectedDate, guestMap]);
+
+    // Who picked up meals for whom on the selected date, with times.
+    const proxyPickupDetail = useMemo(() => {
+        return mealRecords
+            .filter((r) =>
+                (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate
+                && r.pickedUpByGuestId && r.pickedUpByGuestId !== r.guestId
+            )
+            .map((r) => ({
+                id: r.id,
+                count: r.count || 1,
+                recipient: guestNameById(r.guestId) || 'Guest',
+                picker: guestNameById(r.pickedUpByGuestId) || 'Buddy',
+                pickedUpAt: r.recordedAt || r.createdAt || null,
+            }))
+            .sort((a, b) => new Date(b.pickedUpAt || 0).getTime() - new Date(a.pickedUpAt || 0).getTime());
+         
+    }, [mealRecords, selectedDate, guestMap]);
+
+    // Composition of the day's served meals, rendered as lightweight CSS bars
+    // (no chart library on this hot path).
+    const serviceMix = useMemo(() => {
+        const items: { label: string; value: number; icon: IconComponentType; iconClass: string; barClass: string }[] = [
+            { label: 'Guest', value: dayMetrics.guestCount, icon: Users, iconClass: 'bg-blue-50 text-blue-600', barClass: 'bg-blue-500' },
+            { label: 'Extra', value: dayMetrics.extraCount, icon: Plus, iconClass: 'bg-orange-50 text-orange-600', barClass: 'bg-orange-500' },
+            { label: 'RV', value: dayMetrics.rvCount, icon: Truck, iconClass: 'bg-purple-50 text-purple-600', barClass: 'bg-purple-500' },
+            { label: 'Day Worker', value: dayMetrics.dayWorkerCount, icon: Building2, iconClass: 'bg-sky-50 text-sky-600', barClass: 'bg-sky-500' },
+            { label: 'Shelter', value: dayMetrics.shelterCount, icon: Home, iconClass: 'bg-amber-50 text-amber-600', barClass: 'bg-amber-500' },
+            { label: 'United Effort', value: dayMetrics.ueCount, icon: HandHeart, iconClass: 'bg-rose-50 text-rose-600', barClass: 'bg-rose-500' },
+            { label: 'Family', value: dayMetrics.familyCount, icon: Heart, iconClass: 'bg-teal-50 text-teal-600', barClass: 'bg-teal-500' },
+        ];
+        const max = Math.max(1, ...items.map((i) => i.value));
+        return { items, max };
+    }, [dayMetrics]);
 
     const handleBatchDeleteLunchBags = async () => {
         const lunchBagItems = history.filter((r) => r.type === 'lunch_bag');
@@ -564,7 +652,10 @@ export function MealsSection() {
         if (type === 'rv') return 'RV Meal Distribution';
         if (type === 'day_worker') return 'Day Worker Center';
         if (type === 'shelter') return 'Shelter Meals';
-        if (type === 'lunch_bag') return 'Lunch Bags';
+        if (type === 'lunch_bag') {
+            const guest = record.guestId ? guestMap.get(record.guestId) : null;
+            return guest ? `Lunch Bag · ${guest.preferredName || guest.firstName || guest.name}` : 'Lunch Bags';
+        }
         if (type === 'united_effort') return 'United Effort';
         if (type === 'extra') {
             const guest = guestMap.get(record.guestId);
@@ -668,6 +759,8 @@ export function MealsSection() {
             {showAddPanel ? 'Close' : <><Plus size={14} /> Add Bulk Meals</>}
         </button>
             </div>
+
+            <ServiceDayNote date={selectedDate} serviceType="meals" />
 
             <div className="bg-gradient-to-r from-emerald-50 via-white to-sky-50 rounded-3xl border border-emerald-100 p-4 sm:p-5 shadow-sm">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -1048,7 +1141,7 @@ export function MealsSection() {
 
                             <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3">Bulk Meal Entry</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                                {MEAL_CATEGORIES.map((category) => {
+                                {MEAL_CATEGORIES.filter((category) => !(category.id === 'rv' && isWednesdayDate)).map((category) => {
                                     const Icon = category.icon;
                                     const qty = quantities[category.id] || 0;
                                     const isAdding = addingType === category.id;
@@ -1131,22 +1224,141 @@ export function MealsSection() {
             {/* Service Summary */}
             <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                    <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" />
-                    <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" />
-                    <StatCard label="Family Meals" value={dayMetrics.familyCount} color="teal" />
-                    <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" />
-                    <StatCard label="Lunch Bags" value={dayMetrics.lunchBagCount} color="amber" />
+                    <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" icon={Utensils} />
+                    <StatCard label="Guests Served" value={dayMetrics.uniqueGuests} color="purple" icon={User} />
+                    <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" icon={Users} />
+                    <StatCard label="Family Meals" value={dayMetrics.familyCount} color="teal" icon={Heart} />
+                    <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" icon={HandshakeIcon} />
+                    <StatCard label="Lunch Bags" value={dayMetrics.lunchBagCount} color="amber" icon={Package} />
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {/* Proxy pickups: headline metrics plus who picked up for whom */}
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                        <div className="flex flex-col gap-3">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Proxy Pickup Activity</p>
+                                {dayMetrics.proxyPickups > 0 ? (
+                                    <>
+                                        <p className="mt-1 text-2xl font-black tracking-tight text-indigo-700">
+                                            {dayMetrics.proxyPickerCount.toLocaleString()} {dayMetrics.proxyPickerCount === 1 ? 'person' : 'people'} picked up {dayMetrics.proxyPickups.toLocaleString()} meal{dayMetrics.proxyPickups === 1 ? '' : 's'} for others
+                                        </p>
+                                        <p className="mt-1 text-xs font-bold text-indigo-900/70">
+                                            {dayMetrics.proxyPickerSelfMeals.toLocaleString()} meal{dayMetrics.proxyPickerSelfMeals === 1 ? '' : 's'} also collected for themselves · {dayMetrics.proxyPickupPercent}% of guest meals.
+                                        </p>
+                                    </>
+                                ) : mealsDataIsLoaded ? (
+                                    <p className="mt-1 text-2xl font-black tracking-tight text-indigo-700">
+                                        No proxy pickups logged for this date.
+                                    </p>
+                                ) : (
+                                    <p className="mt-1 text-2xl font-black tracking-tight text-indigo-400 animate-pulse">
+                                        Loading pickup activity…
+                                    </p>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-center">
+                                <CompactStat label="Proxy Pickers" value={dayMetrics.proxyPickerCount} color="indigo" icon={Users} />
+                                <CompactStat label="Self Meals" value={dayMetrics.proxyPickerSelfMeals} color="blue" icon={User} />
+                                <CompactStat label="Collective Pickups" value={dayMetrics.proxyPickups} color="emerald" icon={HandshakeIcon} />
+                            </div>
+                            {proxyPickupDetail.length > 0 && (
+                                <div className="rounded-xl border border-indigo-100 bg-white divide-y divide-gray-50 max-h-56 overflow-y-auto">
+                                    {proxyPickupDetail.map((pickup) => (
+                                        <div key={pickup.id} className="flex items-center gap-3 px-3 py-2">
+                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                                                <Handshake size={14} aria-hidden />
+                                            </span>
+                                            <p className="min-w-0 flex-1 text-xs font-bold text-gray-700 truncate">
+                                                <span className="text-indigo-700">{pickup.picker}</span>
+                                                {' picked up '}
+                                                {pickup.count} meal{pickup.count !== 1 ? 's' : ''}
+                                                {' for '}
+                                                <span className="text-indigo-700">{pickup.recipient}</span>
+                                            </p>
+                                            <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-gray-400">
+                                                {pickup.pickedUpAt ? formatTimeInPacific(pickup.pickedUpAt, { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Lunch bags: per-guest assignment with times */}
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                        <div className="flex flex-col gap-3">
+                            <div>
+                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Lunch Bag Assignments</p>
+                                {dayMetrics.lunchBagCount > 0 ? (
+                                    <>
+                                        <p className="mt-1 text-2xl font-black tracking-tight text-emerald-700">
+                                            {dayMetrics.lunchBagCount.toLocaleString()} lunch bag{dayMetrics.lunchBagCount === 1 ? '' : 's'} handed out
+                                        </p>
+                                        <p className="mt-1 text-xs font-bold text-emerald-900/70">
+                                            {lunchBagDetail.assignedCount.toLocaleString()} assigned to guests · {lunchBagDetail.bulkCount.toLocaleString()} from bulk entries.
+                                        </p>
+                                    </>
+                                ) : mealsDataIsLoaded ? (
+                                    <p className="mt-1 text-2xl font-black tracking-tight text-emerald-700">
+                                        No lunch bags logged for this date.
+                                    </p>
+                                ) : (
+                                    <p className="mt-1 text-2xl font-black tracking-tight text-emerald-400 animate-pulse">
+                                        Loading lunch bag activity…
+                                    </p>
+                                )}
+                            </div>
+                            {lunchBagDetail.bags.length > 0 && (
+                                <div className="rounded-xl border border-emerald-100 bg-white divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                                    {lunchBagDetail.bags.map((bag) => (
+                                        <div key={bag.id} className="flex items-center gap-3 px-3 py-2">
+                                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                                                <Package size={14} aria-hidden />
+                                            </span>
+                                            <p className="min-w-0 flex-1 text-xs font-bold text-gray-700 truncate">
+                                                {bag.guestName
+                                                    ? <span className="text-emerald-700">{bag.guestName}</span>
+                                                    : <span className="text-gray-500">Bulk entry</span>}
+                                                {bag.count > 1 && <span className="text-gray-400"> · {bag.count} bags</span>}
+                                            </p>
+                                            <span className="shrink-0 text-[10px] font-black uppercase tracking-wider text-gray-400">
+                                                {bag.assignedAt ? formatTimeInPacific(bag.assignedAt, { hour: '2-digit', minute: '2-digit' }) : '—'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
 
                 <div className="border-t border-gray-100 pt-4">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Distribution Details</p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                        <CompactStat label="Extra" value={dayMetrics.extraCount} color="amber" />
-                        <CompactStat label="RV" value={dayMetrics.rvCount} color="purple" />
-                        <CompactStat label="Day Worker" value={dayMetrics.dayWorkerCount} color="sky" />
-                        <CompactStat label="Shelter" value={dayMetrics.shelterCount} color="rose" />
-                        <CompactStat label="United Effort" value={dayMetrics.ueCount} color="rose" />
-                        <CompactStat label="Family Households" value={dayMetrics.familyHouseholds} color="teal" />
+                    <div className="flex items-baseline justify-between gap-3 mb-3">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Service Mix</p>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{dayMetrics.total.toLocaleString()} meals served</p>
+                    </div>
+                    <div className="space-y-2">
+                        {serviceMix.items.map(({ label, value, icon: Icon, iconClass, barClass }) => (
+                            <div key={label} className="flex items-center gap-3">
+                                <span
+                                    aria-label={`${label} icon`}
+                                    role="img"
+                                    className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", iconClass)}
+                                >
+                                    <Icon size={14} strokeWidth={2.25} aria-hidden />
+                                </span>
+                                <span className="w-20 sm:w-28 shrink-0 text-[10px] font-bold text-gray-500 uppercase tracking-wider truncate">{label}</span>
+                                <div className="flex-1 h-2.5 rounded-full bg-gray-100 overflow-hidden">
+                                    <div
+                                        className={cn("h-full rounded-full transition-[width] duration-300", barClass)}
+                                        style={{ width: `${Math.round((value / serviceMix.max) * 100)}%` }}
+                                    />
+                                </div>
+                                <span className="w-12 shrink-0 text-right text-sm font-black text-gray-700">{value.toLocaleString()}</span>
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -1242,7 +1454,7 @@ export function MealsSection() {
 
                                             {record?.isProxyPickup && (
                                                 <p className="text-xs text-emerald-700 font-bold mt-1 flex items-center gap-1">
-                                                    <span aria-hidden>🤝</span>
+                                                    <Handshake size={13} aria-hidden />
                                                     <span>Picked up by {getPickedUpByName(record)}</span>
                                                 </p>
                                             )}
@@ -1263,7 +1475,7 @@ export function MealsSection() {
                                             record.type === 'guest' && record?.isProxyPickup && "bg-emerald-100 text-emerald-700",
                                         )}>
                                             {record.type === 'guest' && record?.isProxyPickup
-                                                ? '🤝 Proxy Pickup'
+                                                ? 'Proxy Pickup'
                                                 : record.type === 'day_worker'
                                                     ? 'Day Worker'
                                                     : record.type === 'lunch_bag'
@@ -1317,7 +1529,16 @@ export function MealsSection() {
     );
 }
 
-function StatCard({ label, value, color }: { label: string, value: number, color: 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose' | 'teal' }) {
+type StatColor = 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose' | 'teal';
+
+type IconComponentType = LucideIcon | React.ComponentType<{
+    size?: number;
+    className?: string;
+    strokeWidth?: number;
+    'aria-hidden'?: boolean;
+}>;
+
+function StatCard({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: IconComponentType }) {
     const textColors: Record<string, string> = {
         emerald: 'text-emerald-600',
         blue: 'text-blue-600',
@@ -1327,17 +1548,38 @@ function StatCard({ label, value, color }: { label: string, value: number, color
         amber: 'text-amber-600',
         rose: 'text-rose-600',
         teal: 'text-teal-600',
+    };
+    const iconColors: Record<string, string> = {
+        emerald: 'bg-emerald-100 text-emerald-600',
+        blue: 'bg-blue-100 text-blue-600',
+        indigo: 'bg-indigo-100 text-indigo-600',
+        purple: 'bg-purple-100 text-purple-600',
+        sky: 'bg-sky-100 text-sky-600',
+        amber: 'bg-amber-100 text-amber-600',
+        rose: 'bg-rose-100 text-rose-600',
+        teal: 'bg-teal-100 text-teal-600',
     };
 
     return (
         <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4">
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
-            <p className={cn("text-2xl font-black tracking-tight", textColors[color])}>{value.toLocaleString()}</p>
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+                    <p className={cn("text-2xl font-black tracking-tight", textColors[color])}>{value.toLocaleString()}</p>
+                </div>
+                <span
+                    aria-label={`${label} icon`}
+                    role="img"
+                    className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", iconColors[color])}
+                >
+                    <Icon size={24} strokeWidth={2.25} aria-hidden />
+                </span>
+            </div>
         </div>
     );
 }
 
-function CompactStat({ label, value, color }: { label: string, value: number, color: 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose' | 'teal' }) {
+function CompactStat({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: IconComponentType }) {
     const textColors: Record<string, string> = {
         emerald: 'text-emerald-600',
         blue: 'text-blue-600',
@@ -1348,10 +1590,29 @@ function CompactStat({ label, value, color }: { label: string, value: number, co
         rose: 'text-rose-600',
         teal: 'text-teal-600',
     };
+    const iconColors: Record<string, string> = {
+        emerald: 'bg-emerald-50 text-emerald-600',
+        blue: 'bg-blue-50 text-blue-600',
+        indigo: 'bg-indigo-50 text-indigo-600',
+        purple: 'bg-purple-50 text-purple-600',
+        sky: 'bg-sky-50 text-sky-600',
+        amber: 'bg-amber-50 text-amber-600',
+        rose: 'bg-rose-50 text-rose-600',
+        teal: 'bg-teal-50 text-teal-600',
+    };
 
     return (
-        <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between">
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>
+        <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between gap-3">
+            <span className="min-w-0 flex items-center gap-2">
+                <span
+                    aria-label={`${label} icon`}
+                    role="img"
+                    className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", iconColors[color])}
+                >
+                    <Icon size={16} strokeWidth={2.25} aria-hidden />
+                </span>
+                <span className="truncate text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>
+            </span>
             <span className={cn('text-sm font-black', textColors[color])}>{value.toLocaleString()}</span>
         </div>
     );

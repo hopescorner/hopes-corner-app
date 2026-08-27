@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import React from 'react';
 import ProtectedLayout from '../(protected)/layout';
 import BaseLayout from '../layout';
@@ -11,17 +11,18 @@ vi.mock('next/font/google', () => ({
 }));
 
 // Mock next/navigation
-const mockReplace = vi.fn();
+const mockRedirect = vi.fn(() => { throw new Error('NEXT_REDIRECT'); });
 vi.mock('next/navigation', () => ({
-    useRouter: () => ({ push: vi.fn(), replace: mockReplace }),
+    useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
     usePathname: () => '/',
     useSearchParams: () => new URLSearchParams(),
+    redirect: (path: string) => mockRedirect(path),
 }));
 
-// Mock NextAuth
-const mockUseSession = vi.fn();
+const mockAuth = vi.fn();
+vi.mock('@/lib/auth/config', () => ({ auth: () => mockAuth() }));
 vi.mock('next-auth/react', () => ({
-    useSession: () => mockUseSession(),
+    useSession: () => ({ data: { user: { role: 'admin' } }, status: 'authenticated' }),
     signOut: vi.fn(),
 }));
 
@@ -49,54 +50,26 @@ describe('Layout Smoke Tests', () => {
     });
 
     it('Protected layout renders with authenticated session', async () => {
-        // Mock authenticated session
-        mockUseSession.mockReturnValue({
-            data: { user: { role: 'admin', name: 'Admin', email: 'admin@test.com' } },
-            status: 'authenticated'
-        });
+        mockAuth.mockResolvedValue({ user: { role: 'admin', name: 'Admin', email: 'admin@test.com' } });
 
-        render(
-            <ProtectedLayout>
-                <div data-testid="protected-content">Protected</div>
-            </ProtectedLayout>
-        );
+        render(await ProtectedLayout({ children: <div data-testid="protected-content">Protected</div> }));
 
-        await waitFor(() => {
-            expect(screen.getByTestId('main-layout')).toBeDefined();
-            expect(screen.getByTestId('protected-content')).toBeDefined();
-        });
+        expect(screen.getByTestId('main-layout')).toBeDefined();
+        expect(screen.getByTestId('protected-content')).toBeDefined();
     });
 
-    it('Protected layout shows loading state', () => {
-        // Mock loading session
-        mockUseSession.mockReturnValue({
-            data: null,
-            status: 'loading'
-        });
+    it('Protected layout has no client-only authentication loading screen', async () => {
+        mockAuth.mockResolvedValue({ user: { role: 'admin' } });
 
-        render(
-            <ProtectedLayout>
-                <div data-testid="protected-content">Protected</div>
-            </ProtectedLayout>
-        );
+        render(await ProtectedLayout({ children: <div>Protected</div> }));
 
-        expect(screen.getByText('Loading...')).toBeDefined();
+        expect(screen.queryByText('Loading...')).toBeNull();
     });
 
-    it('Protected layout redirects when not authenticated', () => {
-        // Mock unauthenticated session
-        mockUseSession.mockReturnValue({
-            data: null,
-            status: 'unauthenticated'
-        });
+    it('Protected layout redirects when not authenticated', async () => {
+        mockAuth.mockResolvedValue(null);
 
-        render(
-            <ProtectedLayout>
-                <div data-testid="protected-content">Protected</div>
-            </ProtectedLayout>
-        );
-
-        // Should call router.replace to redirect to login
-        expect(mockReplace).toHaveBeenCalledWith('/login');
+        await expect(ProtectedLayout({ children: <div>Protected</div> })).rejects.toThrow('NEXT_REDIRECT');
+        expect(mockRedirect).toHaveBeenCalledWith('/login');
     });
 });

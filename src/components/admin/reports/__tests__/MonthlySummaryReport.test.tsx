@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import MonthlySummaryReport from '../MonthlySummaryReport';
+import MonthlySummaryReport, { getMealSummaryTotalValue } from '../MonthlySummaryReport';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 
@@ -19,7 +19,9 @@ vi.mock('@/stores/useServicesStore', () => ({
 // Mock Lucide icons
 vi.mock('lucide-react', () => ({
     Bike: () => <div data-testid="icon-bike" />,
+    ChevronDown: () => <div data-testid="icon-chevron-down" />,
     Download: () => <div data-testid="icon-download" />,
+    Filter: () => <div data-testid="icon-filter" />,
     Info: () => <div data-testid="icon-info" />,
     Lightbulb: () => <div data-testid="icon-lightbulb" />,
     ShowerHead: () => <div data-testid="icon-shower" />,
@@ -70,29 +72,39 @@ describe('MonthlySummaryReport', () => {
 
     it('handles year selection change', () => {
         render(<MonthlySummaryReport />);
-        const select = screen.getByRole('combobox');
-        fireEvent.change(select, { target: { value: '2023' } });
-        expect(select).toHaveValue('2023');
+        const selects = screen.getAllByRole('combobox');
+        const yearSelect = selects[0]; // First select is the year
+        fireEvent.change(yearSelect, { target: { value: '2023' } });
+        expect(yearSelect).toHaveValue('2023');
     });
 
     it('filters and sums meal data correctly', () => {
         render(<MonthlySummaryReport />);
-        const janRow = screen.getAllByText('January')[0].closest('tr');
+        const tables = screen.getAllByRole('table');
+        const mealsTable = tables[0];
+        const janRow = mealsTable.querySelectorAll('tbody tr')[0];
+        expect(janRow?.textContent).toContain('January');
         expect(janRow?.textContent).toContain('100'); // Monday meals
         expect(janRow?.textContent).toContain('120'); // Wednesday meals
     });
 
     it('calculates bicycle summary correctly', () => {
         render(<MonthlySummaryReport />);
-        // Bicycle summary row for January
-        const janRow = screen.getAllByText('January').find(el => el.closest('table')?.textContent?.includes('Bicycle'))?.closest('tr');
+        // Bicycle summary row for January - use 2nd table
+        const tables = screen.getAllByRole('table');
+        const bicycleTable = tables[1];
+        const janRow = bicycleTable.querySelectorAll('tbody tr')[0];
+        expect(janRow?.textContent).toContain('January');
         expect(janRow?.textContent).toContain('1'); // New Bicycles
         expect(janRow?.textContent).toContain('1'); // Services
     });
 
     it('calculates shower and laundry summary correctly', () => {
         render(<MonthlySummaryReport />);
-        const janRow = screen.getAllByText('January').find(el => el.closest('table')?.textContent?.includes('Shower'))?.closest('tr');
+        const tables = screen.getAllByRole('table');
+        const showerTable = tables[2];
+        const janRow = showerTable.querySelectorAll('tbody tr')[0];
+        expect(janRow?.textContent).toContain('January');
         expect(janRow?.textContent).toContain('1'); // Showers
         expect(janRow?.textContent).toContain('1'); // Laundry Loads
     });
@@ -125,6 +137,17 @@ describe('MonthlySummaryReport', () => {
         expect(upcomingNote.textContent).not.toContain('February, March, April, May, June, July, August, September, October, November, December');
     });
 
+    it('de-duplicates guest IDs when calculating selected-month unique guest totals', () => {
+        const rows = [
+            { month: 'January', uniqueGuests: 2, uniqueGuestIds: ['g1', 'g2'] },
+            { month: 'February', uniqueGuests: 2, uniqueGuestIds: ['g2', 'g3'] },
+        ] as any;
+
+        const total = getMealSummaryTotalValue(rows, 'uniqueGuests', true, { uniqueGuests: 0 });
+
+        expect(total).toBe(3);
+    });
+
     describe('New Guests calculation', () => {
         it('counts guests whose first meal is in the given month as new guests', () => {
             // Use 2025 to ensure both January and February rows are shown
@@ -154,7 +177,7 @@ describe('MonthlySummaryReport', () => {
             render(<MonthlySummaryReport />);
             
             // Select 2025 to see both months
-            const select = screen.getByRole('combobox');
+            const select = screen.getAllByRole('combobox')[0];
             fireEvent.change(select, { target: { value: testYear.toString() } });
 
             // Get all table rows in the meals table
@@ -202,7 +225,7 @@ describe('MonthlySummaryReport', () => {
             render(<MonthlySummaryReport />);
             
             // Select 2025 to see the data
-            const select = screen.getByRole('combobox');
+            const select = screen.getAllByRole('combobox')[0];
             fireEvent.change(select, { target: { value: testYear.toString() } });
 
             const tables = screen.getAllByRole('table');
@@ -242,7 +265,7 @@ describe('MonthlySummaryReport', () => {
             render(<MonthlySummaryReport />);
             
             // Select 2025 to see the data
-            const select = screen.getByRole('combobox');
+            const select = screen.getAllByRole('combobox')[0];
             fireEvent.change(select, { target: { value: testYear.toString() } });
 
             const tables = screen.getAllByRole('table');
@@ -284,7 +307,7 @@ describe('MonthlySummaryReport', () => {
 
             render(<MonthlySummaryReport />);
             
-            const select = screen.getByRole('combobox');
+            const select = screen.getAllByRole('combobox')[0];
             fireEvent.change(select, { target: { value: testYear.toString() } });
 
             // Find the Shower & Laundry table - it's the 3rd table (after meals and bicycle)
@@ -328,7 +351,7 @@ describe('MonthlySummaryReport', () => {
 
             render(<MonthlySummaryReport />);
             
-            const select = screen.getByRole('combobox');
+            const select = screen.getAllByRole('combobox')[0];
             fireEvent.change(select, { target: { value: testYear.toString() } });
 
             const tables = screen.getAllByRole('table');
@@ -366,7 +389,7 @@ describe('MonthlySummaryReport', () => {
 
             render(<MonthlySummaryReport />);
             
-            const select = screen.getByRole('combobox');
+            const select = screen.getAllByRole('combobox')[0];
             fireEvent.change(select, { target: { value: testYear.toString() } });
 
             const tables = screen.getAllByRole('table');
@@ -409,7 +432,7 @@ describe('MonthlySummaryReport', () => {
 
             render(<MonthlySummaryReport />);
             
-            const select = screen.getByRole('combobox');
+            const select = screen.getAllByRole('combobox')[0];
             fireEvent.change(select, { target: { value: testYear.toString() } });
 
             // Find the Bicycle table - it's the 2nd table (after meals)
@@ -447,7 +470,7 @@ describe('MonthlySummaryReport', () => {
 
             render(<MonthlySummaryReport />);
             
-            const select = screen.getByRole('combobox');
+            const select = screen.getAllByRole('combobox')[0];
             fireEvent.change(select, { target: { value: testYear.toString() } });
 
             const tables = screen.getAllByRole('table');
@@ -557,6 +580,126 @@ describe('MonthlySummaryReport', () => {
 
             elemSpy.mockRestore();
             global.Blob = origBlob;
+        });
+    });
+
+    describe('Month range filter', () => {
+        it('renders start and end month dropdowns', () => {
+            render(<MonthlySummaryReport />);
+            expect(screen.getByLabelText('Start month')).toBeDefined();
+            expect(screen.getByLabelText('End month')).toBeDefined();
+            expect(screen.getByText('All Months (Year to Date)')).toBeDefined();
+        });
+
+        it('shows range label when start and end months are selected', () => {
+            render(<MonthlySummaryReport />);
+            fireEvent.change(screen.getByLabelText('Start month'), { target: { value: '0' } });
+            fireEvent.change(screen.getByLabelText('End month'), { target: { value: '5' } });
+            expect(screen.getByText('January – June')).toBeDefined();
+        });
+
+        it('exports only selected month range in CSV', () => {
+            const testYear = 2025;
+            vi.mocked(useMealsStore).mockReturnValue({
+                mealRecords: [
+                    { date: `${testYear}-01-06T12:00:00`, count: 10, guestId: 'g1' },
+                    { date: `${testYear}-02-03T12:00:00`, count: 20, guestId: 'g2' },
+                    { date: `${testYear}-03-03T12:00:00`, count: 30, guestId: 'g3' },
+                ],
+                extraMealRecords: [],
+                rvMealRecords: [],
+                unitedEffortMealRecords: [],
+                dayWorkerMealRecords: [],
+                lunchBagRecords: [],
+                shelterMealRecords: [],
+            } as any);
+            vi.mocked(useServicesStore.getState).mockReturnValue({
+                bicycleRecords: [],
+                showerRecords: [],
+                laundryRecords: [],
+            } as any);
+
+            const origBlob = global.Blob;
+            let capturedContent = '';
+            global.Blob = class extends origBlob {
+                constructor(parts?: BlobPart[], options?: BlobPropertyBag) {
+                    super(parts, options);
+                    capturedContent = (parts ?? []).join('');
+                }
+            } as typeof Blob;
+            global.URL.createObjectURL = vi.fn(() => 'blob:mock');
+            global.URL.revokeObjectURL = vi.fn();
+            const origCreateElement = Document.prototype.createElement.bind(document);
+            const elemSpy = vi.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+                const el = origCreateElement(tag);
+                if (tag === 'a') Object.defineProperty(el, 'click', { value: vi.fn(), writable: true });
+                return el;
+            });
+
+            render(<MonthlySummaryReport />);
+            const select = screen.getAllByRole('combobox')[0];
+            fireEvent.change(select, { target: { value: testYear.toString() } });
+
+            // Set range to January–January only
+            fireEvent.change(screen.getByLabelText('Start month'), { target: { value: '0' } });
+            fireEvent.change(screen.getByLabelText('End month'), { target: { value: '0' } });
+
+            // Export meals
+            fireEvent.click(screen.getAllByText('Export CSV')[0]);
+
+            expect(capturedContent).toContain('January');
+            expect(capturedContent).not.toContain('February');
+            expect(capturedContent).toContain('Selected Months Total');
+
+            elemSpy.mockRestore();
+            global.Blob = origBlob;
+        });
+
+        it('shows Clear button when range is active and clears on click', () => {
+            render(<MonthlySummaryReport />);
+            fireEvent.change(screen.getByLabelText('Start month'), { target: { value: '0' } });
+            fireEvent.change(screen.getByLabelText('End month'), { target: { value: '5' } });
+            expect(screen.getByText('Clear')).toBeDefined();
+            fireEvent.click(screen.getByText('Clear'));
+            expect(screen.getByText('All Months (Year to Date)')).toBeDefined();
+        });
+
+        it('filters display tables not just export', () => {
+            const testYear = 2025;
+            vi.mocked(useMealsStore).mockReturnValue({
+                mealRecords: [
+                    { date: `${testYear}-01-06T12:00:00`, count: 10, guestId: 'g1' },
+                    { date: `${testYear}-02-03T12:00:00`, count: 20, guestId: 'g2' },
+                ],
+                extraMealRecords: [],
+                rvMealRecords: [],
+                unitedEffortMealRecords: [],
+                dayWorkerMealRecords: [],
+                lunchBagRecords: [],
+                shelterMealRecords: [],
+            } as any);
+            vi.mocked(useServicesStore.getState).mockReturnValue({
+                bicycleRecords: [],
+                showerRecords: [],
+                laundryRecords: [],
+            } as any);
+
+            render(<MonthlySummaryReport />);
+            const select = screen.getAllByRole('combobox')[0];
+            fireEvent.change(select, { target: { value: testYear.toString() } });
+
+            // Set range to February only
+            fireEvent.change(screen.getByLabelText('Start month'), { target: { value: '1' } });
+            fireEvent.change(screen.getByLabelText('End month'), { target: { value: '1' } });
+
+            // In the meals table, January should not appear as a row
+            const tables = screen.getAllByRole('table');
+            const mealsTable = tables[0];
+            const bodyRows = mealsTable.querySelectorAll('tbody tr');
+            // Should have 1 data row (February) + 1 totals row
+            expect(bodyRows.length).toBe(2);
+            expect(bodyRows[0]?.textContent).toContain('February');
+            expect(bodyRows[1]?.textContent).toContain('Selected Months Total');
         });
     });
 });

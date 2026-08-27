@@ -19,6 +19,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { cn } from '@/lib/utils/cn';
 import { warmDashboardReportCache } from '@/lib/utils/dashboardReportCache';
+import { DashboardSectionErrorBoundary } from '@/components/admin/DashboardSectionErrorBoundary';
 import { useCallback, useRef } from 'react';
 
 const TabSkeleton = () => (
@@ -248,32 +249,44 @@ export default function DashboardPage() {
             <>
                 {visitedTabs.has('analytics') && (
                     <div hidden={activeTab !== 'analytics'}>
-                        <AnalyticsSection />
+                        <DashboardSectionErrorBoundary sectionLabel="Analytics">
+                            <AnalyticsSection />
+                        </DashboardSectionErrorBoundary>
                     </div>
                 )}
                 {visitedTabs.has('compare') && (
                     <div hidden={activeTab !== 'compare'}>
-                        <DashboardComparisonSection />
+                        <DashboardSectionErrorBoundary sectionLabel="Compare">
+                            <DashboardComparisonSection />
+                        </DashboardSectionErrorBoundary>
                     </div>
                 )}
                 {visitedTabs.has('monthly-report') && (
                     <div hidden={activeTab !== 'monthly-report'}>
-                        <MonthlyReportGenerator />
+                        <DashboardSectionErrorBoundary sectionLabel="Monthly Report">
+                            <MonthlyReportGenerator />
+                        </DashboardSectionErrorBoundary>
                     </div>
                 )}
                 {visitedTabs.has('meal-report') && (
                     <div hidden={activeTab !== 'meal-report'}>
-                        <MealReport />
+                        <DashboardSectionErrorBoundary sectionLabel="Meal Report">
+                            <MealReport />
+                        </DashboardSectionErrorBoundary>
                     </div>
                 )}
                 {visitedTabs.has('monthly-summary') && (
                     <div hidden={activeTab !== 'monthly-summary'}>
-                        <MonthlySummaryReport />
+                        <DashboardSectionErrorBoundary sectionLabel="Summary">
+                            <MonthlySummaryReport />
+                        </DashboardSectionErrorBoundary>
                     </div>
                 )}
                 {visitedTabs.has('export') && (
                     <div hidden={activeTab !== 'export'}>
-                        <DataExportSection />
+                        <DashboardSectionErrorBoundary sectionLabel="Data Export">
+                            <DataExportSection />
+                        </DashboardSectionErrorBoundary>
                     </div>
                 )}
             </>

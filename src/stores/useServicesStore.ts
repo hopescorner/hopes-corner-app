@@ -17,8 +17,8 @@ import {
     mapHolidayRow,
     mapShowerStatusToDb,
 } from '@/lib/utils/mappers';
-import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
-import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { todayPacificDateString, pacificDateStringFrom, weekStartPacificDateString, nextWeekStartPacificDateString } from '@/lib/utils/date';
+import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES, MAX_LAUNDRY_LOADS_PER_WEEK, LAUNDRY_WEEKLY_COUNT_STATUSES, LAUNDRY_WEEKLY_VOID_STATUSES } from '@/lib/constants/constants';
 
 const OPERATIONAL_WINDOW_DAYS = 45;
 
@@ -53,6 +53,21 @@ interface LaundryRecord {
     status: string;
     createdAt?: string;
     lastUpdated?: string;
+}
+
+export interface LaundryWeeklyUsage {
+    /** Total loads (onsite + offsite, non-void) the guest already has for the week. */
+    count: number;
+    /** Configured per-week cap. */
+    max: number;
+    /** Loads the guest can still be assigned this week (max - count, floored at 0). */
+    remaining: number;
+    /** True when count >= max — UI should block further assignments. */
+    limitReached: boolean;
+    /** Pacific date string (YYYY-MM-DD) for the Monday that starts the week. */
+    weekStart: string;
+    /** Pacific date string (YYYY-MM-DD) for the Monday that starts the next week. */
+    nextWeekStart: string;
 }
 
 interface BicycleRecord {
@@ -135,6 +150,8 @@ interface ServicesState {
     getTodayLaundry: () => LaundryRecord[];
     getTodayOnsiteLaundry: () => LaundryRecord[];
     getTodayOffsiteLaundry: () => LaundryRecord[];
+    /** Returns the guest's weekly laundry load usage for the week containing the given date (defaults to today). */
+    getLaundryWeeklyUsage: (guestId: string, dateLike?: string | Date) => LaundryWeeklyUsage;
     getActiveBicycles: () => BicycleRecord[];
     getTodayBicycles: () => BicycleRecord[];
 }
@@ -175,9 +192,9 @@ export const useServicesStore = create<ServicesState>()(
 
                             if (error) {
                                 console.error('Failed to book shower slot:', error);
-                                // Surface the DB capacity message when available
+                                // Surface the DB capacity / duplicate messages when available
                                 const msg = error.message || '';
-                                if (msg.includes('full')) {
+                                if (msg.includes('full') || msg.includes('already has a shower reservation')) {
                                     throw new Error(msg);
                                 }
                                 throw new Error('Unable to book shower slot. Please try again.');
@@ -185,7 +202,12 @@ export const useServicesStore = create<ServicesState>()(
 
                             const mapped = mapShowerRow(data as any);
                             set((state) => {
-                                state.showerRecords.push(mapped as any);
+                                const existingIndex = state.showerRecords.findIndex((record) => record.id === mapped.id);
+                                if (existingIndex === -1) {
+                                    state.showerRecords.push(mapped as any);
+                                } else {
+                                    state.showerRecords[existingIndex] = mapped as any;
+                                }
                             });
                             return mapped;
                         }
@@ -205,6 +227,9 @@ export const useServicesStore = create<ServicesState>()(
                             .single();
 
                         if (error) {
+                            if (error.code === '23505') {
+                                throw new Error('This guest already has a shower reservation for this date.');
+                            }
                             console.error('Failed to add shower record to Supabase:', error);
                             throw new Error('Unable to save shower record');
                         }
@@ -220,6 +245,34 @@ export const useServicesStore = create<ServicesState>()(
                         if (!guestId) throw new Error('Guest ID is required');
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
+
+                        const cancelledRecord = get().showerRecords.find((record) => {
+                            const recordDate = record.dateKey || record.scheduledFor || pacificDateStringFrom(record.date);
+                            return record.guestId === guestId &&
+                                recordDate === targetDate &&
+                                (record.status === 'cancelled' || record.status === 'no_show');
+                        });
+
+                        if (cancelledRecord) {
+                            const { data, error } = await supabase
+                                .from('shower_reservations')
+                                .update({ scheduled_time: null, status: 'waitlisted' })
+                                .eq('id', cancelledRecord.id)
+                                .select()
+                                .single();
+
+                            if (error) {
+                                console.error('Failed to re-add shower waitlist record:', error);
+                                throw new Error('Unable to add to waitlist');
+                            }
+
+                            const mapped = mapShowerRow(data);
+                            set((state) => {
+                                const existingIndex = state.showerRecords.findIndex((record) => record.id === mapped.id);
+                                if (existingIndex !== -1) state.showerRecords[existingIndex] = mapped as any;
+                            });
+                            return mapped;
+                        }
 
                         const payload = {
                             guest_id: guestId,
@@ -248,6 +301,7 @@ export const useServicesStore = create<ServicesState>()(
                     deleteShowerRecord: async (recordId: string) => {
                         const { showerRecords } = get();
                         const target = showerRecords.find((r) => r.id === recordId);
+                        const targetIndex = showerRecords.findIndex((r) => r.id === recordId);
 
                         set((state) => {
                             state.showerRecords = state.showerRecords.filter(
@@ -264,6 +318,12 @@ export const useServicesStore = create<ServicesState>()(
 
                             if (error) {
                                 console.error('Failed to delete shower record from Supabase:', error);
+                                set((state) => {
+                                    if (target && !state.showerRecords.some((r) => r.id === recordId)) {
+                                        state.showerRecords.splice(Math.max(targetIndex, 0), 0, target as any);
+                                    }
+                                });
+                                throw new Error('Unable to delete shower record');
                             }
                         }
                     },
@@ -298,6 +358,34 @@ export const useServicesStore = create<ServicesState>()(
                             }
                         }
 
+                        // ── Weekly per-guest laundry limit ──
+                        // Guests are capped at MAX_LAUNDRY_LOADS_PER_WEEK (onsite + offsite
+                        // combined) per rolling week. The week resets every Monday (Pacific).
+                        // Count only statuses that exist in the DB enum; invalid enum filters block booking.
+                        if (initialStatus !== 'waitlisted') {
+                            const weekStart = weekStartPacificDateString(targetDate);
+                            const nextWeekStart = nextWeekStartPacificDateString(targetDate);
+                            const { count: weekCount, error: weekCountError } = await supabase
+                                .from('laundry_bookings')
+                                .select('*', { count: 'exact', head: true })
+                                .eq('guest_id', guestId)
+                                .gte('scheduled_for', weekStart)
+                                .lt('scheduled_for', nextWeekStart)
+                                .in('status', LAUNDRY_WEEKLY_COUNT_STATUSES);
+
+                            if (weekCountError) {
+                                console.error('Failed to check weekly laundry limit:', weekCountError);
+                                throw new Error('Unable to verify weekly laundry limit');
+                            }
+
+                            if ((weekCount ?? 0) >= MAX_LAUNDRY_LOADS_PER_WEEK) {
+                                throw new Error(
+                                    `Weekly laundry limit reached (${MAX_LAUNDRY_LOADS_PER_WEEK} loads). ` +
+                                    `This guest can be assigned laundry again on Monday.`
+                                );
+                            }
+                        }
+
                         const payload = {
                             guest_id: guestId,
                             laundry_type: washType.toLowerCase(),
@@ -314,6 +402,18 @@ export const useServicesStore = create<ServicesState>()(
                             .single();
 
                         if (error) {
+                            // DB triggers are authoritative under parallel use; map their
+                            // errors to the same friendly messages as the pre-checks above.
+                            const message = error.message || '';
+                            if (message.includes('LAUNDRY_WEEKLY_LIMIT_REACHED')) {
+                                throw new Error(
+                                    `Weekly laundry limit reached (${MAX_LAUNDRY_LOADS_PER_WEEK} loads). ` +
+                                    `This guest can be assigned laundry again on Monday.`
+                                );
+                            }
+                            if (message.includes('already booked')) {
+                                throw new Error('This laundry slot was just booked on another device. Please choose another time.');
+                            }
                             console.error('Failed to add laundry record to Supabase:', error);
                             throw new Error('Unable to save laundry record');
                         }
@@ -357,6 +457,7 @@ export const useServicesStore = create<ServicesState>()(
                     deleteLaundryRecord: async (recordId: string) => {
                         const { laundryRecords } = get();
                         const target = laundryRecords.find((r) => r.id === recordId);
+                        const targetIndex = laundryRecords.findIndex((r) => r.id === recordId);
 
                         set((state) => {
                             state.laundryRecords = state.laundryRecords.filter(
@@ -373,6 +474,12 @@ export const useServicesStore = create<ServicesState>()(
 
                             if (error) {
                                 console.error('Failed to delete laundry record from Supabase:', error);
+                                set((state) => {
+                                    if (target && !state.laundryRecords.some((r) => r.id === recordId)) {
+                                        state.laundryRecords.splice(Math.max(targetIndex, 0), 0, target as any);
+                                    }
+                                });
+                                throw new Error('Unable to delete laundry record');
                             }
                         }
                     },
@@ -402,6 +509,15 @@ export const useServicesStore = create<ServicesState>()(
                                 const index = state.laundryRecords.findIndex((r) => r.id === recordId);
                                 if (index !== -1) state.laundryRecords[index].status = target.status;
                             });
+                            // Surface DB business-rule rejections (weekly limit, slot
+                            // capacity) so staff see the real reason, not a generic toast.
+                            const message = error.message || '';
+                            if (message.includes('LAUNDRY_WEEKLY_LIMIT_REACHED')) {
+                                throw new Error(`Weekly laundry limit reached (${MAX_LAUNDRY_LOADS_PER_WEEK} loads). This guest can be assigned laundry again on Monday.`);
+                            }
+                            if (message.includes('already booked')) {
+                                throw new Error('This laundry slot is already booked. Please choose another time.');
+                            }
                             return false;
                         }
                         return true;
@@ -442,6 +558,10 @@ export const useServicesStore = create<ServicesState>()(
                         const target = showerRecords.find((r) => r.id === recordId);
                         if (!target) return false;
 
+                        const canCompleteAsWaitlistGuest =
+                            status === 'done' &&
+                            (target.status === 'cancelled' || target.status === 'no_show');
+
                         set((state) => {
                             const index = state.showerRecords.findIndex((r) => r.id === recordId);
                             if (index !== -1) {
@@ -452,17 +572,39 @@ export const useServicesStore = create<ServicesState>()(
                         const supabase = createClient();
                         // Map app status to DB status (e.g., 'awaiting' -> 'booked')
                         const dbStatus = mapShowerStatusToDb(status as any);
-                        const { error } = await supabase
+                        let { error: updateError } = await supabase
                             .from('shower_reservations')
                             .update({ status: dbStatus })
                             .eq('id', recordId);
 
-                        if (error) {
-                            console.error('Failed to update shower status:', error);
+                        if (
+                            updateError &&
+                            canCompleteAsWaitlistGuest &&
+                            updateError.message?.toLowerCase().includes('full')
+                        ) {
+                            const { error: waitlistError } = await supabase
+                                .from('shower_reservations')
+                                .update({ scheduled_time: null, status: dbStatus })
+                                .eq('id', recordId);
+                            updateError = waitlistError;
+
+                            if (!updateError) {
+                                set((state) => {
+                                    const index = state.showerRecords.findIndex((r) => r.id === recordId);
+                                    if (index !== -1) state.showerRecords[index].time = null;
+                                });
+                            }
+                        }
+
+                        if (updateError) {
+                            console.error('Failed to update shower status:', updateError);
                             // Revert
                             set((state) => {
                                 const index = state.showerRecords.findIndex((r) => r.id === recordId);
-                                if (index !== -1) state.showerRecords[index].status = target.status;
+                                if (index !== -1) {
+                                    state.showerRecords[index].status = target.status;
+                                    state.showerRecords[index].time = target.time;
+                                }
                             });
                             return false;
                         }
@@ -720,6 +862,15 @@ export const useServicesStore = create<ServicesState>()(
                             .single();
 
                         if (error) {
+                            // Unique violations mean another device won the race; surface
+                            // the real reason instead of a generic failure.
+                            if (error.code === '23505') {
+                                const constraint = `${error.message || ''} ${error.details || ''}`;
+                                if (constraint.includes('haircut_visits_schedule_unique')) {
+                                    throw new Error('That stylist slot was just taken on another device. Please choose another slot.');
+                                }
+                                throw new Error('This guest already has a haircut for this date.');
+                            }
                             console.error('Failed to add haircut record to Supabase:', error);
                             throw new Error('Unable to save haircut record');
                         }
@@ -772,6 +923,9 @@ export const useServicesStore = create<ServicesState>()(
                             .single();
 
                         if (error) {
+                            if (error.code === '23505') {
+                                throw new Error('This guest already has a holiday visit for today.');
+                            }
                             console.error('Failed to add holiday record to Supabase:', error);
                             throw new Error('Unable to save holiday record');
                         }
@@ -932,6 +1086,39 @@ export const useServicesStore = create<ServicesState>()(
                                 pacificDateStringFrom(r.date) === today &&
                                 r.laundryType === 'offsite'
                         );
+                    },
+
+                    getLaundryWeeklyUsage: (guestId: string, dateLike: string | Date = new Date()) => {
+                        const weekStart = weekStartPacificDateString(dateLike);
+                        const nextWeekStart = nextWeekStartPacificDateString(dateLike);
+                        const count = get().laundryRecords.reduce((acc, r) => {
+                            if (r.guestId !== guestId) return acc;
+                            if (LAUNDRY_WEEKLY_VOID_STATUSES.has(r.status)) return acc;
+                            // Resolve the booking's Pacific YYYY-MM-DD. dateKey is the
+                            // mapper-populated Pacific date string; scheduledFor may be
+                            // either a plain date or ISO timestamp, so normalize carefully
+                            // to avoid UTC-midnight day-shifting.
+                            let recordDate = '';
+                            if (r.dateKey) {
+                                recordDate = r.dateKey;
+                            } else if (r.scheduledFor && /^\d{4}-\d{2}-\d{2}$/.test(r.scheduledFor)) {
+                                recordDate = r.scheduledFor;
+                            } else {
+                                recordDate = pacificDateStringFrom(r.scheduledFor || r.date);
+                            }
+                            return recordDate >= weekStart && recordDate < nextWeekStart
+                                ? acc + 1
+                                : acc;
+                        }, 0);
+                        const remaining = Math.max(MAX_LAUNDRY_LOADS_PER_WEEK - count, 0);
+                        return {
+                            count,
+                            max: MAX_LAUNDRY_LOADS_PER_WEEK,
+                            remaining,
+                            limitReached: count >= MAX_LAUNDRY_LOADS_PER_WEEK,
+                            weekStart,
+                            nextWeekStart,
+                        } as LaundryWeeklyUsage;
                     },
 
                     getActiveBicycles: () => {
