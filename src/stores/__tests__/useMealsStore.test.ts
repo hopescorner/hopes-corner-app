@@ -1368,5 +1368,61 @@ describe('useMealsStore', () => {
                 expect(record.id).toBe('new-extra-g2');
             });
         });
+
+        describe('deleteFamilyMealRecord', () => {
+            it('deletes family meal record from state and database', async () => {
+                useMealsStore.setState({
+                    familyMealRecords: [
+                        {
+                            id: 'fam-rec-1',
+                            familyId: 'fam-1',
+                            mealsPerMember: 2,
+                            memberCountSnapshot: 3,
+                            totalMeals: 6,
+                            servedOn: '2025-01-06',
+                            recordedAt: '2025-01-06T12:00:00Z',
+                            notes: null,
+                            createdAt: '2025-01-06T12:00:00Z',
+                            updatedAt: '2025-01-06T12:00:00Z',
+                        },
+                    ],
+                } as any);
+
+                mockSupabase.eq.mockResolvedValueOnce({ error: null });
+
+                await useMealsStore.getState().deleteFamilyMealRecord('fam-rec-1');
+
+                expect(useMealsStore.getState().familyMealRecords).toHaveLength(0);
+            });
+
+            it('rolls back state and throws an error when database delete fails', async () => {
+                const initialRecord = {
+                    id: 'fam-rec-1',
+                    familyId: 'fam-1',
+                    mealsPerMember: 2,
+                    memberCountSnapshot: 3,
+                    totalMeals: 6,
+                    servedOn: '2025-01-06',
+                    recordedAt: '2025-01-06T12:00:00Z',
+                    notes: null,
+                    createdAt: '2025-01-06T12:00:00Z',
+                    updatedAt: '2025-01-06T12:00:00Z',
+                };
+                useMealsStore.setState({
+                    familyMealRecords: [initialRecord],
+                } as any);
+
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Database delete failed' } });
+                const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+                await expect(
+                    useMealsStore.getState().deleteFamilyMealRecord('fam-rec-1')
+                ).rejects.toThrow('Unable to delete family meal record');
+
+                expect(useMealsStore.getState().familyMealRecords).toHaveLength(1);
+                expect(useMealsStore.getState().familyMealRecords[0].id).toBe('fam-rec-1');
+                spy.mockRestore();
+            });
+        });
     });
 });

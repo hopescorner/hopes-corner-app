@@ -260,6 +260,81 @@ describe('useGuestsStore', () => {
             expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(1);
             expect(useGuestsStore.getState().getFamilyMembers('family-1')).toHaveLength(1);
         });
+
+        it('removes family household when primary guest is removed from family', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'alice' }), createMockGuest({ id: 'child' })],
+                guestFamilies: [
+                    { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                ],
+                guestFamilyMembers: [
+                    { id: 'm-1', familyId: 'family-a', guestId: 'alice', createdAt: '' },
+                    { id: 'm-2', familyId: 'family-a', guestId: 'child', createdAt: '' },
+                ],
+            } as any);
+
+            mockSupabase.eq.mockResolvedValueOnce({ error: null });
+
+            const result = await useGuestsStore.getState().removeGuestFromFamily('alice');
+
+            expect(result).toBe(true);
+            expect(useGuestsStore.getState().guestFamilies).toHaveLength(0);
+            expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(0);
+        });
+
+        it('removes only the member row when a non-primary member leaves a family', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'bob' }), createMockGuest({ id: 'charlie' })],
+                guestFamilies: [
+                    { id: 'family-b', primaryGuestId: 'bob', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                ],
+                guestFamilyMembers: [
+                    { id: 'm-1', familyId: 'family-b', guestId: 'bob', createdAt: '' },
+                    { id: 'm-2', familyId: 'family-b', guestId: 'charlie', createdAt: '' },
+                ],
+            } as any);
+
+            mockSupabase.eq.mockResolvedValueOnce({ error: null });
+
+            const result = await useGuestsStore.getState().removeGuestFromFamily('charlie');
+
+            expect(result).toBe(true);
+            expect(useGuestsStore.getState().guestFamilies).toHaveLength(1);
+            expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(1);
+            expect(useGuestsStore.getState().guestFamilyMembers[0].guestId).toBe('bob');
+        });
+
+        it('cleans up old primary household when transitioning primary of Family A to member of Family B', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'alice' }), createMockGuest({ id: 'bob' })],
+                guestFamilies: [
+                    { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                    { id: 'family-b', primaryGuestId: 'bob', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                ],
+                guestFamilyMembers: [
+                    { id: 'm-a', familyId: 'family-a', guestId: 'alice', createdAt: '' },
+                    { id: 'm-b', familyId: 'family-b', guestId: 'bob', createdAt: '' },
+                ],
+            } as any);
+
+            mockSupabase.eq.mockResolvedValueOnce({ error: null });
+            mockSupabase.single.mockResolvedValueOnce({
+                data: {
+                    id: 'm-new',
+                    family_id: 'family-b',
+                    guest_id: 'alice',
+                    created_at: '2025-01-01T00:00:00Z',
+                },
+                error: null,
+            });
+
+            await useGuestsStore.getState().addGuestToFamily('family-b', 'alice');
+
+            expect(useGuestsStore.getState().guestFamilies).toHaveLength(1);
+            expect(useGuestsStore.getState().guestFamilies[0].id).toBe('family-b');
+            expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(2);
+            expect(useGuestsStore.getState().guestFamilyMembers.map((m) => m.guestId)).toEqual(['bob', 'alice']);
+        });
     });
 
     describe('async actions', () => {

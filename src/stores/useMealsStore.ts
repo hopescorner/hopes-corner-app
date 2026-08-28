@@ -726,13 +726,22 @@ export const useMealsStore = create<MealsState>()(
                     },
 
                     deleteFamilyMealRecord: async (recordId) => {
+                        const target = get().familyMealRecords.find((r) => r.id === recordId);
                         set((state) => {
                             state.familyMealRecords = state.familyMealRecords.filter((r) => r.id !== recordId);
                         });
                         const supabase = createClient();
                         const { error } = await supabase.from('family_meal_distributions').delete().eq('id', recordId);
                         if (error) {
+                            if (target) {
+                                set((state) => {
+                                    if (!state.familyMealRecords.some((r) => r.id === recordId)) {
+                                        state.familyMealRecords.push(target);
+                                    }
+                                });
+                            }
                             console.error('Failed to delete family meal record:', error);
+                            throw new Error('Unable to delete family meal record');
                         }
                     },
 

@@ -33,6 +33,7 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
         createFamilyForPrimary,
         addGuestToFamily,
         setFamilyEnrollment,
+        removeGuestFromFamily,
     } = useGuestsStore();
     const currentMembership = useMemo(
         () => (guestFamilyMembers || []).find((member) => member.guestId === guest.id),
@@ -111,17 +112,26 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
             await updateGuest(guest.id, updates);
             if (familyEnrolled) {
                 if (familyMode === 'member') {
+                    const oldPrimaryFamily = (guestFamilies || []).find(
+                        (f) => f.primaryGuestId === guest.id && f.id !== selectedFamilyId
+                    );
+                    if (oldPrimaryFamily) {
+                        await removeGuestFromFamily(guest.id);
+                    }
                     await addGuestToFamily(selectedFamilyId, guest.id);
                     await setFamilyEnrollment(selectedFamilyId, true);
                 } else {
+                    if (currentMembership && currentFamily?.primaryGuestId !== guest.id) {
+                        await removeGuestFromFamily(guest.id);
+                    }
                     const family = currentFamily?.primaryGuestId === guest.id
                         ? currentFamily
                         : await createFamilyForPrimary(guest.id, true);
                     if (!family?.id) throw new Error('Unable to create family household');
                     await setFamilyEnrollment(family.id, true);
                 }
-            } else if (currentFamily) {
-                await setFamilyEnrollment(currentFamily.id, false);
+            } else if (currentFamily || currentMembership) {
+                await removeGuestFromFamily(guest.id);
             }
             toast.success('Guest updated');
             onClose();

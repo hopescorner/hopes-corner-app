@@ -148,6 +148,7 @@ interface GuestsState {
     createFamilyForPrimary: (primaryGuestId: string, enrolled?: boolean) => Promise<GuestFamily>;
     addGuestToFamily: (familyId: string, guestId: string) => Promise<GuestFamilyMember>;
     setFamilyEnrollment: (familyId: string, enrolled: boolean) => Promise<boolean>;
+    removeGuestFromFamily: (guestId: string) => Promise<boolean>;
     fetchGuestById: (id: string) => Promise<Guest | null>;
 
     // Helpers
@@ -871,6 +872,12 @@ export const useGuestsStore = create<GuestsState>()(
                 },
 
                 addGuestToFamily: async (familyId, guestId) => {
+                    const { guestFamilies } = get();
+                    const oldPrimaryFamily = guestFamilies.find((f) => f.primaryGuestId === guestId && f.id !== familyId);
+                    if (oldPrimaryFamily) {
+                        await get().removeGuestFromFamily(guestId);
+                    }
+
                     const existing = get().guestFamilyMembers.find((m) => m.familyId === familyId && m.guestId === guestId);
                     if (existing) return existing;
 
@@ -894,6 +901,50 @@ export const useGuestsStore = create<GuestsState>()(
                         ];
                     });
                     return mapped as any;
+                },
+
+                removeGuestFromFamily: async (guestId) => {
+                    const { guestFamilies, guestFamilyMembers } = get();
+                    const supabase = createClient();
+
+                    const primaryFamily = guestFamilies.find((f) => f.primaryGuestId === guestId);
+                    if (primaryFamily) {
+                        const { error } = await supabase
+                            .from('guest_families')
+                            .delete()
+                            .eq('id', primaryFamily.id);
+
+                        if (error) {
+                            console.error('Failed to remove guest family from Supabase:', error);
+                            throw new Error('Unable to remove family.');
+                        }
+
+                        set((state) => {
+                            state.guestFamilies = state.guestFamilies.filter((f) => f.id !== primaryFamily.id);
+                            state.guestFamilyMembers = state.guestFamilyMembers.filter((m) => m.familyId !== primaryFamily.id);
+                        });
+                        return true;
+                    }
+
+                    const membership = guestFamilyMembers.find((m) => m.guestId === guestId);
+                    if (membership) {
+                        const { error } = await supabase
+                            .from('guest_family_members')
+                            .delete()
+                            .eq('guest_id', guestId);
+
+                        if (error) {
+                            console.error('Failed to remove family member from Supabase:', error);
+                            throw new Error('Unable to remove family member.');
+                        }
+
+                        set((state) => {
+                            state.guestFamilyMembers = state.guestFamilyMembers.filter((m) => m.guestId !== guestId);
+                        });
+                        return true;
+                    }
+
+                    return true;
                 },
 
                 setFamilyEnrollment: async (familyId, enrolled) => {
