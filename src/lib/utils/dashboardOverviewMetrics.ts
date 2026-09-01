@@ -23,6 +23,7 @@ export interface DashboardOverviewMetricsInput {
     mealRecords?: MaybeArray<MealRecordLike>;
     rvMealRecords?: MaybeArray<MealRecordLike>;
     extraMealRecords?: MaybeArray<MealRecordLike>;
+    familyMealRecords?: MaybeArray<MealRecordLike>;
     unitedEffortMealRecords?: MaybeArray<MealRecordLike>;
     showerRecords?: MaybeArray<ServiceRecordLike>;
     laundryRecords?: MaybeArray<ServiceRecordLike>;
@@ -88,6 +89,7 @@ export function calculateDashboardOverviewMetrics(
     addMealRecords(input.mealRecords);
     addMealRecords(input.rvMealRecords);
     addMealRecords(input.extraMealRecords);
+    addMealRecords(input.familyMealRecords);
     addMealRecords(input.unitedEffortMealRecords);
 
     const addCompletedServiceRecords = (

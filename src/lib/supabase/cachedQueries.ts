@@ -5,7 +5,10 @@ import {
     mapGuestRow,
     mapGuestWarningRow,
     mapGuestProxyRow,
+    mapGuestFamilyRow,
+    mapGuestFamilyMemberRow,
     mapMealRow,
+    mapFamilyMealRow,
     mapHolidayRow,
     mapHaircutRow,
     mapShowerRow,
@@ -66,6 +69,26 @@ export const getCachedGuestProxies = cache(async (_options?: QueryWindowOptions)
     return (data || []).map(mapGuestProxyRow);
 });
 
+export const getCachedGuestFamilies = cache(async (_options?: QueryWindowOptions) => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+        .from('guest_families')
+        .select('*');
+
+    if (error) throw error;
+    return (data || []).map(mapGuestFamilyRow);
+});
+
+export const getCachedGuestFamilyMembers = cache(async (_options?: QueryWindowOptions) => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+        .from('guest_family_members')
+        .select('*');
+
+    if (error) throw error;
+    return (data || []).map(mapGuestFamilyMemberRow);
+});
+
 // ============================================================================
 // MEALS QUERIES
 // ============================================================================
@@ -81,6 +104,20 @@ export const getCachedMealRecords = cache(async (options?: QueryWindowOptions) =
         sinceColumn: 'recorded_at',
         sinceValue: options?.since,
         mapper: mapMealRow,
+    });
+});
+
+export const getCachedFamilyMealRecords = cache(async (options?: QueryWindowOptions) => {
+    const supabase = createClient();
+    return await fetchAllPaginated(supabase, {
+        table: 'family_meal_distributions',
+        select: 'id,family_id,meals_per_member,member_count_snapshot,total_meals,served_on,recorded_at,notes,created_at,updated_at,guest_families(primary_guest_id)',
+        orderBy: 'recorded_at',
+        ascending: false,
+        pageSize: options?.pageSize || 1000,
+        sinceColumn: 'recorded_at',
+        sinceValue: options?.since,
+        mapper: mapFamilyMealRow,
     });
 });
 
@@ -168,26 +205,29 @@ export const getCachedBicycleRecords = cache(async (options?: QueryWindowOptions
  * each query only runs once.
  */
 export const loadAllGuestData = cache(async (options?: QueryWindowOptions) => {
-    const [guests, warnings, proxies] = await Promise.all([
+    const [guests, warnings, proxies, families, familyMembers] = await Promise.all([
         getCachedGuests(options),
         getCachedGuestWarnings(options),
         getCachedGuestProxies(options),
+        getCachedGuestFamilies(options),
+        getCachedGuestFamilyMembers(options),
     ]);
     
-    return { guests, warnings, proxies };
+    return { guests, warnings, proxies, families, familyMembers };
 });
 
 /**
  * Load all meal-related data in parallel with automatic deduplication.
  */
 export const loadAllMealData = cache(async (options?: QueryWindowOptions) => {
-    const [meals, holidays, haircuts] = await Promise.all([
+    const [meals, familyMeals, holidays, haircuts] = await Promise.all([
         getCachedMealRecords(options),
+        getCachedFamilyMealRecords(options),
         getCachedHolidayRecords(options),
         getCachedHaircutRecords(options),
     ]);
     
-    return { meals, holidays, haircuts };
+    return { meals, familyMeals, holidays, haircuts };
 });
 
 /**

@@ -52,13 +52,14 @@ const MEAL_TYPE_OPTIONS = [
     { key: "shelter", label: "Shelter", description: "Support sent to shelter guests.", color: "#EC4899" },
     { key: "unitedEffort", label: "United Effort", description: "Meals shared with United Effort.", color: "#6366F1" },
     { key: "lunchBags", label: "Lunch Bags", description: "Bagged lunches distributed.", color: "#EAB308" },
+    { key: "familyMeals", label: "Family Meals", description: "Family meal program distributions.", color: "#14B8A6" },
 ] as const;
 
 type MealTypeKey = typeof MEAL_TYPE_OPTIONS[number]['key'];
 
 const MEAL_TYPE_DEFAULTS: Record<MealTypeKey, boolean> = {
     guest: true, extras: true, rv: true, dayWorker: true,
-    shelter: true, unitedEffort: true, lunchBags: true,
+    shelter: true, unitedEffort: true, lunchBags: true, familyMeals: true,
 };
 
 const AGE_GROUP_COLORS = {
@@ -103,6 +104,7 @@ export const MealReport = () => {
         extraMealRecords: state.extraMealRecords,
         dayWorkerMealRecords: state.dayWorkerMealRecords,
         lunchBagRecords: state.lunchBagRecords,
+        familyMealRecords: state.familyMealRecords,
     })));
     const { guests } = useGuestsStore();
     const services = useServicesStore(useShallow((state) => ({
@@ -233,6 +235,7 @@ export const MealReport = () => {
             { name: "Shelter", value: currentMonthData.shelterMeals, color: "#EC4899" },
             { name: "United Effort", value: currentMonthData.unitedEffortMeals, color: "#6366F1" },
             { name: "Lunch Bags", value: currentMonthData.lunchBags, color: "#EAB308" },
+            { name: "Family Meals", value: currentMonthData.familyMeals, color: "#14B8A6" },
         ].filter(item => item.value > 0);
     }, [currentMonthData]);
 
@@ -264,6 +267,7 @@ export const MealReport = () => {
             "Shelter": m.shelterMeals,
             "United Effort": m.unitedEffortMeals,
             "Lunch Bags": m.lunchBags,
+            "Family Meals": m.familyMeals,
             "Unique Guests": m.uniqueGuests,
             "Avg Guests/Day": m.uniqueGuestsPerServiceDay.toFixed(1),
             "Adults": m.ageGroups["Adult 18-59"],
@@ -434,7 +438,8 @@ export const MealReport = () => {
                                 <Bar dataKey="dayWorkerMeals" name="Day Worker" stackId="a" fill="#22C55E" />
                                 <Bar dataKey="shelterMeals" name="Shelter" stackId="a" fill="#EC4899" />
                                 <Bar dataKey="unitedEffortMeals" name="United Effort" stackId="a" fill="#6366F1" />
-                                <Bar dataKey="lunchBags" name="Lunch Bags" stackId="a" fill="#EAB308" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="lunchBags" name="Lunch Bags" stackId="a" fill="#EAB308" />
+                                <Bar dataKey="familyMeals" name="Family Meals" stackId="a" fill="#14B8A6" radius={[4, 4, 0, 0]} />
                                 <Line type="monotone" dataKey="uniqueGuests" name="Unique Guests" stroke="#10B981" strokeWidth={mobile ? 2 : 3} dot={mobile ? false : { r: 4, strokeWidth: 2, fill: '#fff' }} />
                             </ComposedChart>
                         </ResponsiveContainer>
@@ -542,7 +547,7 @@ export const MealReport = () => {
                         <h4 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
                             Monthly Summary — {currentMonthData.month}
                         </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                             <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 hover:shadow-md transition-shadow">
                                 <p className="text-blue-600 font-medium text-sm mb-1">Total Meals Served</p>
                                 <p className="text-4xl font-black text-blue-900">{currentMonthData.totalMeals.toLocaleString()}</p>
@@ -567,6 +572,11 @@ export const MealReport = () => {
                                 </p>
                                 <p className="text-orange-600/80 text-xs mt-2">Supplemental</p>
                             </div>
+                            <div className="bg-teal-50 p-6 rounded-2xl border border-teal-100 hover:shadow-md transition-shadow">
+                                <p className="text-teal-600 font-medium text-sm mb-1">Family Meals</p>
+                                <p className="text-4xl font-black text-teal-900">{currentMonthData.familyMeals.toLocaleString()}</p>
+                                <p className="text-teal-600/80 text-xs mt-2">Family program</p>
+                            </div>
                         </div>
                     </div>
 
@@ -574,7 +584,7 @@ export const MealReport = () => {
                         <h4 className="text-sm font-bold uppercase tracking-wider text-gray-500 mb-3">
                             Year-to-Date (YTD) Cumulative — {selectedYear}
                         </h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                             <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 hover:shadow-md transition-shadow">
                                 <p className="text-indigo-600 font-medium text-sm mb-1">YTD Meals (Excl. Lunch Bags)</p>
                                 <p className="text-4xl font-black text-indigo-900">{ytdData.mealsExcludingLunchBags.toLocaleString()}</p>
@@ -594,6 +604,11 @@ export const MealReport = () => {
                                 <p className="text-amber-600 font-medium text-sm mb-1">YTD Lunch Bags</p>
                                 <p className="text-4xl font-black text-amber-900">{ytdData.lunchBags.toLocaleString()}</p>
                                 <p className="text-amber-600/80 text-xs mt-2">Supplemental</p>
+                            </div>
+                            <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 hover:shadow-md transition-shadow">
+                                <p className="text-emerald-600 font-medium text-sm mb-1">YTD Family Meals</p>
+                                <p className="text-4xl font-black text-emerald-900">{ytdData.familyMeals.toLocaleString()}</p>
+                                <p className="text-emerald-600/80 text-xs mt-2">Family program</p>
                             </div>
                         </div>
                     </div>

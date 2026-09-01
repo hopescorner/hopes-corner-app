@@ -9,9 +9,12 @@ import {
     mapLaundryRow,
     mapBicycleRow,
     mapMealRow,
+    mapFamilyMealRow,
     mapGuestRow,
     mapGuestWarningRow,
     mapGuestProxyRow,
+    mapGuestFamilyRow,
+    mapGuestFamilyMemberRow,
     mapGuestReminderRow,
     mapDailyNoteRow,
     mapDonationRow,
@@ -46,6 +49,7 @@ export function useRealtimeSync() {
     const guestsLoadFromSupabase = useGuestsStore(state => state.loadFromSupabase);
     const guestsLoadWarnings = useGuestsStore(state => state.loadGuestWarningsFromSupabase);
     const guestsLoadProxies = useGuestsStore(state => state.loadGuestProxiesFromSupabase);
+    const guestsLoadFamilies = useGuestsStore(state => state.loadGuestFamiliesFromSupabase);
     const remindersLoadFromSupabase = useRemindersStore(state => state.loadFromSupabase);
     const blockedSlotsFetch = useBlockedSlotsStore(state => state.fetchBlockedSlots);
     const dailyNotesLoadFromSupabase = useDailyNotesStore(state => state.loadFromSupabase);
@@ -76,6 +80,9 @@ export function useRealtimeSync() {
             guests: null,
             warnings: null,
             proxies: null,
+            families: null,
+            familyMembers: null,
+            familyMeals: null,
             reminders: null,
             blockedSlots: null,
             dailyNotes: null,
@@ -304,6 +311,35 @@ export function useRealtimeSync() {
             }),
         };
 
+        const familyMealSubscription: SubscriptionOptions = {
+            table: 'family_meal_distributions',
+            onChange: (payload) => debouncedWork('familyMeals', () => {
+                try {
+                    if (payload.eventType === 'DELETE') {
+                        const deletedId = (payload.old as any)?.id;
+                        if (!deletedId) throw new Error('missing family meal id in delete payload');
+                        useMealsStore.setState((state: any) => ({
+                            familyMealRecords: state.familyMealRecords.filter((r: any) => r.id !== deletedId),
+                        }));
+                        return;
+                    }
+                    const row = payload.new as any;
+                    if (!row?.id) throw new Error('missing family meal row payload');
+                    const mapped = mapFamilyMealRow(row);
+                    const family = useGuestsStore.getState().guestFamilies.find((item: any) => item.id === mapped.familyId);
+                    const record = mapped.primaryGuestId || !family
+                        ? mapped
+                        : { ...mapped, primaryGuestId: family.primaryGuestId };
+                    useMealsStore.setState((state: any) => ({
+                        familyMealRecords: [record, ...state.familyMealRecords.filter((r: any) => r.id !== record.id)],
+                    }));
+                } catch (error) {
+                    console.error('[RealtimeSync] Family meal patch failed, reloading:', error);
+                    fallbackReload(mealsLoadFromSupabase, 'family_meal');
+                }
+            }),
+        };
+
         // Subscribe to bicycle repairs changes
         const bicycleSubscription: SubscriptionOptions = {
             table: 'bicycle_repairs',
@@ -420,6 +456,60 @@ export function useRealtimeSync() {
             }),
         };
 
+        const familySubscription: SubscriptionOptions = {
+            table: 'guest_families',
+            onChange: (payload) => debouncedWork('families', () => {
+                try {
+                    if (payload.eventType === 'DELETE') {
+                        const deletedId = (payload.old as any)?.id;
+                        if (!deletedId) throw new Error('missing family id in delete payload');
+                        useGuestsStore.setState((state: any) => ({
+                            guestFamilies: state.guestFamilies.filter((f: any) => f.id !== deletedId),
+                            guestFamilyMembers: state.guestFamilyMembers.filter((m: any) => m.familyId !== deletedId),
+                        }));
+                        return;
+                    }
+                    const row = payload.new as any;
+                    if (!row?.id) throw new Error('missing family row payload');
+                    const mapped = mapGuestFamilyRow(row);
+                    useGuestsStore.setState((state: any) => ({
+                        guestFamilies: [mapped, ...state.guestFamilies.filter((f: any) => f.id !== mapped.id)],
+                    }));
+                } catch (error) {
+                    console.error('[RealtimeSync] Family patch failed, reloading:', error);
+                    fallbackReload(guestsLoadFamilies, 'family');
+                }
+            }),
+        };
+
+        const familyMemberSubscription: SubscriptionOptions = {
+            table: 'guest_family_members',
+            onChange: (payload) => debouncedWork('familyMembers', () => {
+                try {
+                    if (payload.eventType === 'DELETE') {
+                        const deletedId = (payload.old as any)?.id;
+                        if (!deletedId) throw new Error('missing family member id in delete payload');
+                        useGuestsStore.setState((state: any) => ({
+                            guestFamilyMembers: state.guestFamilyMembers.filter((m: any) => m.id !== deletedId),
+                        }));
+                        return;
+                    }
+                    const row = payload.new as any;
+                    if (!row?.id) throw new Error('missing family member row payload');
+                    const mapped = mapGuestFamilyMemberRow(row);
+                    useGuestsStore.setState((state: any) => ({
+                        guestFamilyMembers: [
+                            mapped,
+                            ...state.guestFamilyMembers.filter((m: any) => m.id !== mapped.id && m.guestId !== mapped.guestId),
+                        ],
+                    }));
+                } catch (error) {
+                    console.error('[RealtimeSync] Family member patch failed, reloading:', error);
+                    fallbackReload(guestsLoadFamilies, 'family_member');
+                }
+            }),
+        };
+
         // Subscribe to guest reminders changes
         const reminderSubscription: SubscriptionOptions = {
             table: 'guest_reminders',
@@ -509,10 +599,13 @@ export function useRealtimeSync() {
             showerSubscription,
             laundrySubscription,
             mealSubscription,
+            familyMealSubscription,
             bicycleSubscription,
             guestSubscription,
             warningSubscription,
             proxySubscription,
+            familySubscription,
+            familyMemberSubscription,
             reminderSubscription,
             blockedSlotSubscription,
             dailyNoteSubscription,
@@ -542,6 +635,7 @@ export function useRealtimeSync() {
         guestsLoadFromSupabase,
         guestsLoadWarnings,
         guestsLoadProxies,
+        guestsLoadFamilies,
         remindersLoadFromSupabase,
         blockedSlotsFetch,
         dailyNotesLoadFromSupabase,

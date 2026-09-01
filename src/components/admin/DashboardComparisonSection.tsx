@@ -124,6 +124,7 @@ export function DashboardComparisonSection() {
         shelterMealRecords: state.shelterMealRecords,
         unitedEffortMealRecords: state.unitedEffortMealRecords,
         lunchBagRecords: state.lunchBagRecords,
+        familyMealRecords: state.familyMealRecords,
     })));
     const services = useServicesStore(useShallow((state) => ({
         showerRecords: state.showerRecords,

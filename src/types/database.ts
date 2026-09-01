@@ -50,6 +50,34 @@ export interface MealAttendance {
     updated_at: string;
 }
 
+export interface GuestFamily {
+    id: string;
+    primary_guest_id: string;
+    enrolled_in_family_meal: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface GuestFamilyMember {
+    id: string;
+    family_id: string;
+    guest_id: string;
+    created_at: string;
+}
+
+export interface FamilyMealDistribution {
+    id: string;
+    family_id: string;
+    meals_per_member: number;
+    member_count_snapshot: number;
+    total_meals: number;
+    served_on: string;
+    recorded_at: string;
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface ShowerReservation {
     id: string;
     guest_id: string;
@@ -253,4 +281,5 @@ export interface GuestWithRelations extends Guest {
     proxies?: GuestProxy[];
     linked_guests?: Guest[];
     reminders?: GuestReminder[];
+    family?: GuestFamily;
 }

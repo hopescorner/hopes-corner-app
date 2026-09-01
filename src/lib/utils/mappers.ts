@@ -51,6 +51,35 @@ interface MealRow {
   created_at?: string;
 }
 
+interface GuestFamilyRow {
+  id: string;
+  primary_guest_id: string;
+  enrolled_in_family_meal?: boolean | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface GuestFamilyMemberRow {
+  id: string;
+  family_id: string;
+  guest_id: string;
+  created_at?: string;
+}
+
+interface FamilyMealRow {
+  id: string;
+  family_id: string;
+  meals_per_member?: number | null;
+  member_count_snapshot?: number | null;
+  total_meals?: number | null;
+  served_on?: string | null;
+  recorded_at?: string | null;
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  guest_families?: { primary_guest_id?: string | null } | { primary_guest_id?: string | null }[] | null;
+}
+
 interface ShowerRow {
   id: string;
   guest_id: string;
@@ -338,6 +367,47 @@ export const mapMealRow = (row: MealRow) => {
     servedOn: row.served_on,
     createdAt: row.created_at,
     type: row.meal_type,
+  };
+};
+
+export const mapGuestFamilyRow = (row: GuestFamilyRow) => ({
+  id: row.id,
+  primaryGuestId: row.primary_guest_id,
+  enrolledInFamilyMeal: row.enrolled_in_family_meal === true,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+
+export const mapGuestFamilyMemberRow = (row: GuestFamilyMemberRow) => ({
+  id: row.id,
+  familyId: row.family_id,
+  guestId: row.guest_id,
+  createdAt: row.created_at,
+});
+
+export const mapFamilyMealRow = (row: FamilyMealRow) => {
+  const servedOnDate = row.served_on
+    ? new Date(`${row.served_on}T12:00:00Z`).toISOString()
+    : null;
+  const recordedAt = row.recorded_at || row.created_at || null;
+  const effectiveTimestamp = servedOnDate || recordedAt || new Date().toISOString();
+  const familyRow = Array.isArray(row.guest_families) ? row.guest_families[0] : row.guest_families;
+
+  return {
+    id: row.id,
+    familyId: row.family_id,
+    primaryGuestId: familyRow?.primary_guest_id || null,
+    mealsPerMember: Number(row.meals_per_member) || 0,
+    memberCountSnapshot: Number(row.member_count_snapshot) || 0,
+    count: Number(row.total_meals) || 0,
+    date: effectiveTimestamp,
+    dateKey: pacificDateStringFrom(effectiveTimestamp),
+    recordedAt,
+    servedOn: row.served_on,
+    notes: row.notes || null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    type: 'family',
   };
 };
 

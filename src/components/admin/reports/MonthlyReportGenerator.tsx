@@ -40,6 +40,7 @@ interface ServiceStats {
     totalMeals: number;
     onsiteHotMeals: number;
     bagLunch: number;
+    familyMeals: number;
     rvMeals: number;
     shelter: number;
     rvSafePark: number;
@@ -124,6 +125,7 @@ export default function MonthlyReportGenerator() {
         rvMealRecords: state.rvMealRecords,
         dayWorkerMealRecords: state.dayWorkerMealRecords,
         lunchBagRecords: state.lunchBagRecords,
+        familyMealRecords: state.familyMealRecords,
         shelterMealRecords: state.shelterMealRecords,
         unitedEffortMealRecords: state.unitedEffortMealRecords,
     })));
@@ -297,6 +299,7 @@ export default function MonthlyReportGenerator() {
             const statsRows: ServiceRow[] = [
                 { label: 'Total Meals', month: reportData.monthStats.totalMeals, ytd: reportData.ytdStats.totalMeals, bold: true, iconColor: purple600 },
                 { label: 'On-Site Hot Meals', month: reportData.monthStats.onsiteHotMeals, ytd: reportData.ytdStats.onsiteHotMeals, bold: false, indent: true },
+                { label: 'Family Meals', month: reportData.monthStats.familyMeals, ytd: reportData.ytdStats.familyMeals, bold: false, indent: true },
                 { label: 'Bag Lunch', month: reportData.monthStats.bagLunch, ytd: reportData.ytdStats.bagLunch, bold: false, indent: true },
                 { label: 'RV / Safe Park', month: reportData.monthStats.rvSafePark, ytd: reportData.ytdStats.rvSafePark, bold: false, indent: true },
                 { label: '    RV Meals', month: reportData.monthStats.rvMeals, ytd: reportData.ytdStats.rvMeals, bold: false, indent: true },
@@ -631,6 +634,11 @@ export default function MonthlyReportGenerator() {
                                         <td className="py-2.5 px-4 pl-10 text-gray-600">Bag Lunch</td>
                                         <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.monthStats.bagLunch)}</td>
                                         <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.ytdStats.bagLunch)}</td>
+                                    </tr>
+                                    <tr className="border-l-4 border-l-purple-200 border-b border-gray-100">
+                                        <td className="py-2.5 px-4 pl-10 text-gray-600">Family Meals</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.monthStats.familyMeals)}</td>
+                                        <td className="text-right py-2.5 px-4 text-gray-700">{formatNumber(reportData.ytdStats.familyMeals)}</td>
                                     </tr>
                                     <tr className="border-l-4 border-l-purple-200 border-b border-gray-100">
                                         <td className="py-2.5 px-4 pl-10 text-gray-600">RV / Safe Park</td>

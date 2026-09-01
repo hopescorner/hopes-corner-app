@@ -49,6 +49,11 @@ const MEAL_CATEGORIES = [
     { id: 'united_effort', label: 'United Effort', icon: HandHeart, color: 'rose', description: 'Partner organization' },
 ];
 
+const getGuestDisplayName = (guest: any) => {
+    if (!guest) return 'Unknown Guest';
+    return guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
+};
+
 export function MealsSection() {
     const [selectedDate, setSelectedDate] = useState(todayPacificDateString());
     const [showAddPanel, setShowAddPanel] = useState(false);
@@ -68,6 +73,12 @@ export function MealsSection() {
     const [bulkGuestMealCount, setBulkGuestMealCount] = useState(1);
     const [isBulkAddingGuests, setIsBulkAddingGuests] = useState(false);
 
+    const [familySearch, setFamilySearch] = useState('');
+    const [showUnenrolledFamilies, setShowUnenrolledFamilies] = useState(false);
+    const [selectedFamilyIds, setSelectedFamilyIds] = useState<Set<string>>(new Set());
+    const [familyMealCounts, setFamilyMealCounts] = useState<Record<string, number>>({});
+    const [isAddingFamilyMeals, setIsAddingFamilyMeals] = useState(false);
+
     const {
         mealRecords,
         rvMealRecords,
@@ -76,12 +87,16 @@ export function MealsSection() {
         shelterMealRecords,
         unitedEffortMealRecords,
         lunchBagRecords,
+        familyMealRecords,
         deleteMealRecord,
         deleteExtraMealRecord,
         addBulkMealRecord,
         deleteBulkMealRecord,
         updateBulkMealRecord,
         updateMealRecord,
+        addFamilyMealRecord,
+        updateFamilyMealRecord,
+        deleteFamilyMealRecord,
         checkAndAddAutomaticMeals,
         addMealRecord,
         mealsDataIsLoaded,
@@ -94,12 +109,16 @@ export function MealsSection() {
         shelterMealRecords: s.shelterMealRecords,
         unitedEffortMealRecords: s.unitedEffortMealRecords,
         lunchBagRecords: s.lunchBagRecords,
+        familyMealRecords: s.familyMealRecords || [],
         deleteMealRecord: s.deleteMealRecord,
         deleteExtraMealRecord: s.deleteExtraMealRecord,
         addBulkMealRecord: s.addBulkMealRecord,
         deleteBulkMealRecord: s.deleteBulkMealRecord,
         updateBulkMealRecord: s.updateBulkMealRecord,
         updateMealRecord: s.updateMealRecord,
+        addFamilyMealRecord: s.addFamilyMealRecord,
+        updateFamilyMealRecord: s.updateFamilyMealRecord,
+        deleteFamilyMealRecord: s.deleteFamilyMealRecord,
         checkAndAddAutomaticMeals: s.checkAndAddAutomaticMeals,
         addMealRecord: s.addMealRecord,
     })));
@@ -114,7 +133,11 @@ export function MealsSection() {
         loadSettings: s.loadSettings,
     })));
 
-    const guests = useGuestsStore((s) => s.guests);
+    const { guests, guestFamilies, guestFamilyMembers } = useGuestsStore(useShallow((s) => ({
+        guests: s.guests,
+        guestFamilies: s.guestFamilies,
+        guestFamilyMembers: s.guestFamilyMembers,
+    })));
 
     useEffect(() => {
         const initializeMealAutomation = async () => {
@@ -151,7 +174,56 @@ export function MealsSection() {
         return map;
     }, [guests]);
 
+    const familyMembersByFamilyId = useMemo(() => {
+        const map = new Map<string, typeof guestFamilyMembers>();
+        for (const member of guestFamilyMembers || []) {
+            if (!member?.familyId) continue;
+            const list = map.get(member.familyId) || [];
+            map.set(member.familyId, [...list, member]);
+        }
+        return map;
+    }, [guestFamilyMembers]);
+
     const isToday = selectedDate === todayPacificDateString();
+
+    const familyMealRecordByFamilyId = useMemo(() => {
+        const map = new Map<string, any>();
+        for (const record of familyMealRecords || []) {
+            if ((record?.dateKey || pacificDateStringFrom(record.date)) === selectedDate) {
+                map.set(record.familyId, record);
+            }
+        }
+        return map;
+    }, [familyMealRecords, selectedDate]);
+
+    const familyRows = useMemo(() => {
+        const query = familySearch.trim().toLowerCase();
+        return (guestFamilies || [])
+            .filter((family) => showUnenrolledFamilies || family.enrolledInFamilyMeal)
+            .map((family) => {
+                const memberships = familyMembersByFamilyId.get(family.id) || [];
+                const memberGuests = memberships
+                    .map((member) => guestMap.get(member.guestId))
+                    .filter(Boolean) as (typeof guests)[number][];
+                const primaryGuest = guestMap.get(family.primaryGuestId) || memberGuests[0];
+                const memberNames = memberGuests.map(getGuestDisplayName);
+                const searchableText = [
+                    getGuestDisplayName(primaryGuest),
+                    ...memberNames,
+                ].join(' ').toLowerCase();
+                return {
+                    family,
+                    primaryGuest,
+                    memberGuests,
+                    memberCount: Math.max(1, memberships.length),
+                    memberNames,
+                    existingRecord: familyMealRecordByFamilyId.get(family.id),
+                    searchableText,
+                };
+            })
+            .filter((row) => !query || row.searchableText.includes(query))
+            .sort((a, b) => getGuestDisplayName(a.primaryGuest).localeCompare(getGuestDisplayName(b.primaryGuest)));
+    }, [familySearch, showUnenrolledFamilies, guestFamilies, familyMembersByFamilyId, guestMap, guests, familyMealRecordByFamilyId]);
 
     // RV meals are not distributed on Wednesdays
     const isWednesdayDate = parsePacificDateParts(selectedDate)?.dayOfWeek === 3;
@@ -228,6 +300,7 @@ export function MealsSection() {
         const shelterMeals = filterByDate(shelterMealRecords);
         const ueMeals = filterByDate(unitedEffortMealRecords);
         const lunchBags = filterByDate(lunchBagRecords);
+        const familyMeals = filterByDate(familyMealRecords);
 
         const sumCount = (arr: any[]) => arr.reduce((sum, r) => sum + (r.count || 0), 0);
 
@@ -247,8 +320,10 @@ const proxyPickerIds = new Set<string>();
         const proxyPickupPercent = guestCount > 0 ? Math.round((proxyPickupCount / guestCount) * 100) : 0;
 
         return {
-            total: sumCount([...guestMeals, ...rvMeals, ...extraMeals, ...dayWorkerMeals, ...shelterMeals, ...ueMeals]),
+            total: sumCount([...guestMeals, ...rvMeals, ...extraMeals, ...dayWorkerMeals, ...shelterMeals, ...ueMeals, ...familyMeals]),
             guestCount,
+            familyCount: sumCount(familyMeals),
+            familyHouseholds: familyMeals.length,
             rvCount: sumCount(rvMeals),
             dayWorkerCount: sumCount(dayWorkerMeals),
             shelterCount: sumCount(shelterMeals),
@@ -262,7 +337,7 @@ const proxyPickerIds = new Set<string>();
             proxyPickerCount: proxyPickerIds.size,
             proxyPickerSelfMeals,
         };
-    }, [selectedDate, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords]);
+    }, [selectedDate, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, familyMealRecords]);
 
     const history = useMemo(() => {
         const allRecords = [
@@ -277,11 +352,12 @@ const proxyPickerIds = new Set<string>();
             ...shelterMealRecords.map(r => ({ ...r, type: 'shelter', isProxyPickup: false })),
             ...unitedEffortMealRecords.map(r => ({ ...r, type: 'united_effort', isProxyPickup: false })),
             ...lunchBagRecords.map(r => ({ ...r, type: 'lunch_bag', isProxyPickup: false })),
+            ...familyMealRecords.map(r => ({ ...r, type: 'family', isProxyPickup: false })),
         ];
         return allRecords
             .filter((r) => (r?.dateKey || pacificDateStringFrom(r.date)) === selectedDate)
             .sort((a, b) => new Date(b.createdAt || b.date).getTime() - new Date(a.createdAt || a.date).getTime());
-    }, [selectedDate, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords]);
+    }, [selectedDate, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, familyMealRecords]);
 
     const filteredHistory = useMemo(() => {
         if (activityFilter === 'all') return history;
@@ -345,6 +421,7 @@ const proxyPickerIds = new Set<string>();
             { label: 'Day Worker', value: dayMetrics.dayWorkerCount, icon: Building2, iconClass: 'bg-sky-50 text-sky-600', barClass: 'bg-sky-500' },
             { label: 'Shelter', value: dayMetrics.shelterCount, icon: Home, iconClass: 'bg-amber-50 text-amber-600', barClass: 'bg-amber-500' },
             { label: 'United Effort', value: dayMetrics.ueCount, icon: HandHeart, iconClass: 'bg-rose-50 text-rose-600', barClass: 'bg-rose-500' },
+            { label: 'Family', value: dayMetrics.familyCount, icon: Heart, iconClass: 'bg-teal-50 text-teal-600', barClass: 'bg-teal-500' },
         ];
         const max = Math.max(1, ...items.map((i) => i.value));
         return { items, max };
@@ -372,7 +449,7 @@ const proxyPickerIds = new Set<string>();
 
     const handleEdit = (record: any) => {
         setEditingId(record.id);
-        setEditValue(record.count || 0);
+        setEditValue(record.type === 'family' ? (record.mealsPerMember || 1) : (record.count || 0));
     };
 
     const handleSaveEdit = async (record: any) => {
@@ -380,7 +457,12 @@ const proxyPickerIds = new Set<string>();
 
         try {
             const type = record.type;
-            if (['rv', 'day_worker', 'shelter', 'lunch_bag', 'united_effort', 'extra'].includes(type)) {
+            if (type === 'family') {
+                await updateFamilyMealRecord(editingId, {
+                    mealsPerMember: Math.max(1, editValue),
+                    memberCountSnapshot: record.memberCountSnapshot || 1,
+                });
+            } else if (['rv', 'day_worker', 'shelter', 'lunch_bag', 'united_effort', 'extra'].includes(type)) {
                 await updateBulkMealRecord(editingId, type, { count: editValue });
             } else {
                 await updateMealRecord(editingId, { count: editValue });
@@ -399,7 +481,9 @@ const proxyPickerIds = new Set<string>();
 
         try {
             const type = record.type;
-            if (type === 'rv' || type === 'day_worker' || type === 'shelter' || type === 'lunch_bag' || type === 'united_effort') {
+            if (type === 'family') {
+                await deleteFamilyMealRecord(record.id);
+            } else if (type === 'rv' || type === 'day_worker' || type === 'shelter' || type === 'lunch_bag' || type === 'united_effort') {
                 await deleteBulkMealRecord(record.id, type);
             } else if (type === 'extra') {
                 await deleteExtraMealRecord(record.id);
@@ -410,6 +494,38 @@ const proxyPickerIds = new Set<string>();
         } catch (error) {
             console.error('Failed to delete record:', error);
             toast.error('Failed to delete record');
+        }
+    };
+
+    const handleAddFamilyMeals = async () => {
+        if (selectedFamilyIds.size === 0) {
+            toast.error('Please select at least one family');
+            return;
+        }
+
+        const selectedRows = familyRows.filter((row) => selectedFamilyIds.has(row.family.id));
+        if (selectedRows.length === 0) {
+            toast.error('No visible selected families');
+            return;
+        }
+
+        setIsAddingFamilyMeals(true);
+        const results = await Promise.allSettled(
+            selectedRows.map((row) => {
+                const mealsPerMember = Math.max(1, familyMealCounts[row.family.id] ?? row.existingRecord?.mealsPerMember ?? 1);
+                return addFamilyMealRecord(row.family.id, mealsPerMember, row.memberCount, selectedDate);
+            })
+        );
+        setIsAddingFamilyMeals(false);
+
+        const successCount = results.filter((result) => result.status === 'fulfilled').length;
+        const failCount = results.length - successCount;
+        if (successCount > 0) {
+            toast.success(`Saved family meal${successCount > 1 ? 's' : ''} for ${successCount} household${successCount > 1 ? 's' : ''}`);
+            setSelectedFamilyIds(new Set());
+        }
+        if (failCount > 0) {
+            toast.error(`${failCount} family meal record${failCount > 1 ? 's' : ''} failed to save`);
         }
     };
 
@@ -528,6 +644,11 @@ const proxyPickerIds = new Set<string>();
 
     const getDisplayName = (record: any) => {
         const type = record.type;
+        if (type === 'family') {
+            const family = guestFamilies.find((item) => item.id === record.familyId);
+            const primaryGuest = guestMap.get(record.primaryGuestId || family?.primaryGuestId || '');
+            return `${getGuestDisplayName(primaryGuest)} Household`;
+        }
         if (type === 'rv') return 'RV Meal Distribution';
         if (type === 'day_worker') return 'Day Worker Center';
         if (type === 'shelter') return 'Shelter Meals';
@@ -541,7 +662,7 @@ const proxyPickerIds = new Set<string>();
             return `${guest ? (guest.preferredName || guest.firstName) : 'Guest'} (Extra)`;
         }
         const guest = guestMap.get(record.guestId);
-        return guest ? (guest.preferredName || guest.firstName + ' ' + (guest.lastName || '')) : 'Unknown Guest';
+        return getGuestDisplayName(guest);
     };
 
     const getPickedUpByName = (record: any) => {
@@ -557,6 +678,7 @@ const proxyPickerIds = new Set<string>();
     // ... getRecordIcon, getRecordColor ...
 
     const getRecordIcon = (type: string) => {
+        if (type === 'family') return Users;
         const category = MEAL_CATEGORIES.find(c => c.id === type);
         if (category) return category.icon;
         return User;
@@ -569,6 +691,7 @@ const proxyPickerIds = new Set<string>();
             shelter: 'bg-amber-100 text-amber-600',
             lunch_bag: 'bg-emerald-100 text-emerald-600',
             united_effort: 'bg-rose-100 text-rose-600',
+            family: 'bg-teal-100 text-teal-700',
             extra: 'bg-orange-100 text-orange-600',
             guest: 'bg-gray-100 text-gray-400 group-hover:bg-emerald-100 group-hover:text-emerald-600',
         };
@@ -895,6 +1018,127 @@ const proxyPickerIds = new Set<string>();
                                 </div>
                             </div>
 
+                            <div className="mb-5 p-4 rounded-2xl border border-teal-100 bg-teal-50/50">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
+                                    <p className="text-[11px] font-black uppercase tracking-widest text-teal-700 flex items-center gap-2">
+                                        <Users size={13} /> Family Meal Program
+                                    </p>
+                                    <label className="inline-flex items-center gap-2 text-[11px] font-bold text-teal-700">
+                                        <input
+                                            type="checkbox"
+                                            checked={showUnenrolledFamilies}
+                                            onChange={(event) => setShowUnenrolledFamilies(event.target.checked)}
+                                            className="h-4 w-4 rounded border-teal-300 text-teal-600"
+                                        />
+                                        Show unenrolled
+                                    </label>
+                                </div>
+
+                                <div className="relative mb-3">
+                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-500 pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search enrolled families..."
+                                        value={familySearch}
+                                        onChange={(event) => setFamilySearch(event.target.value)}
+                                        className="w-full pl-8 pr-3 py-2 rounded-xl border border-teal-200 bg-white text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-teal-300"
+                                        aria-label="Search family meal program households"
+                                    />
+                                </div>
+
+                                <div className="max-h-60 overflow-y-auto rounded-xl border border-teal-100 bg-white divide-y divide-gray-50 mb-3">
+                                    {familyRows.length === 0 ? (
+                                        <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                            {showUnenrolledFamilies ? 'No families found' : 'No enrolled families found'}
+                                        </p>
+                                    ) : (
+                                        familyRows.map((row) => {
+                                            const checked = selectedFamilyIds.has(row.family.id);
+                                            const mealsPerMember = Math.max(1, familyMealCounts[row.family.id] ?? row.existingRecord?.mealsPerMember ?? 1);
+                                            const totalMeals = mealsPerMember * row.memberCount;
+                                            const memberPreview = row.memberNames.slice(0, 3).join(', ');
+                                            return (
+                                                <div
+                                                    key={row.family.id}
+                                                    className={cn(
+                                                        "flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center",
+                                                        checked ? "bg-teal-50" : "hover:bg-gray-50"
+                                                    )}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedFamilyIds((prev) => {
+                                                                const next = new Set(prev);
+                                                                if (next.has(row.family.id)) next.delete(row.family.id);
+                                                                else next.add(row.family.id);
+                                                                return next;
+                                                            });
+                                                        }}
+                                                        className="flex flex-1 items-start gap-3 text-left"
+                                                        aria-pressed={checked}
+                                                    >
+                                                        {checked
+                                                            ? <CheckSquare size={16} className="mt-0.5 shrink-0 text-teal-600" />
+                                                            : <Square size={16} className="mt-0.5 shrink-0 text-gray-300" />
+                                                        }
+                                                        <span className="min-w-0 flex-1">
+                                                            <span className="block text-sm font-black text-gray-900 truncate">{getGuestDisplayName(row.primaryGuest)} Household</span>
+                                                            <span className="mt-0.5 block text-xs font-medium text-gray-500 truncate">
+                                                                {row.memberCount} member{row.memberCount !== 1 ? 's' : ''}{memberPreview ? ` · ${memberPreview}` : ''}
+                                                            </span>
+                                                            {row.existingRecord && (
+                                                                <span className="mt-1 inline-block rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-teal-700">
+                                                                    Existing: {row.existingRecord.count} meal{row.existingRecord.count !== 1 ? 's' : ''}
+                                                                </span>
+                                                            )}
+                                                            {!row.family.enrolledInFamilyMeal && (
+                                                                <span className="ml-2 mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700">
+                                                                    Unenrolled
+                                                                </span>
+                                                            )}
+                                                        </span>
+                                                    </button>
+                                                    <div className="flex items-center gap-2 sm:w-56">
+                                                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500">Per Person</label>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            value={mealsPerMember}
+                                                            onChange={(event) => {
+                                                                const next = Math.max(1, parseInt(event.target.value) || 1);
+                                                                setFamilyMealCounts((prev) => ({ ...prev, [row.family.id]: next }));
+                                                            }}
+                                                            className="w-16 rounded-xl border border-teal-200 bg-white p-2 text-center text-sm font-black text-gray-900 focus:outline-none focus:ring-1 focus:ring-teal-300"
+                                                            aria-label={`Meals per member for ${getGuestDisplayName(row.primaryGuest)} household`}
+                                                        />
+                                                        <span className="text-xs font-bold text-teal-700">{totalMeals} total</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={handleAddFamilyMeals}
+                                    disabled={selectedFamilyIds.size === 0 || isAddingFamilyMeals}
+                                    className={cn(
+                                        "w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                                        selectedFamilyIds.size > 0 && !isAddingFamilyMeals
+                                            ? "bg-teal-600 text-white hover:bg-teal-700 active:scale-95"
+                                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                    )}
+                                >
+                                    {isAddingFamilyMeals
+                                        ? 'Saving...'
+                                        : selectedFamilyIds.size > 0
+                                            ? `Save ${selectedFamilyIds.size} Family Meal${selectedFamilyIds.size > 1 ? 's' : ''}`
+                                            : 'Select Families Above'}
+                                </button>
+                            </div>
+
                             <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3">Bulk Meal Entry</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                                 {MEAL_CATEGORIES.filter((category) => !(category.id === 'rv' && isWednesdayDate)).map((category) => {
@@ -983,6 +1227,7 @@ const proxyPickerIds = new Set<string>();
                     <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" icon={Utensils} />
                     <StatCard label="Guests Served" value={dayMetrics.uniqueGuests} color="purple" icon={User} />
                     <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" icon={Users} />
+                    <StatCard label="Family Meals" value={dayMetrics.familyCount} color="teal" icon={Heart} />
                     <StatCard label="Proxy Pickups" value={dayMetrics.proxyPickups} color="indigo" icon={HandshakeIcon} />
                     <StatCard label="Lunch Bags" value={dayMetrics.lunchBagCount} color="amber" icon={Package} />
                 </div>
@@ -1141,6 +1386,7 @@ const proxyPickerIds = new Set<string>();
                                 <option value="shelter">Shelter</option>
                                 <option value="lunch_bag">Lunch Bags</option>
                                 <option value="united_effort">United Effort</option>
+                                <option value="family">Family Meals</option>
                             </select>
                         </div>
                         {activityFilter === 'lunch_bag' && filteredHistory.length > 0 && (
@@ -1198,7 +1444,10 @@ const proxyPickerIds = new Set<string>();
                                                     </div>
                                                 ) : (
                                                     <p className="text-xs text-gray-400 font-bold uppercase tracking-widest cursor-pointer hover:text-gray-600" onClick={() => handleEdit(record)}>
-                                                        {record.count} Meal{record.count > 1 ? 's' : ''} · {formatTimeInPacific(record.createdAt || record.date, { hour: '2-digit', minute: '2-digit' })}
+                                                        {record.type === 'family'
+                                                            ? `${(record as any).mealsPerMember || 0} per member · ${record.count} total`
+                                                            : `${record.count} Meal${record.count > 1 ? 's' : ''}`
+                                                        } · {formatTimeInPacific(record.createdAt || record.date, { hour: '2-digit', minute: '2-digit' })}
                                                     </p>
                                                 )}
                                             </div>
@@ -1220,6 +1469,7 @@ const proxyPickerIds = new Set<string>();
                                             record.type === 'shelter' && "bg-amber-100 text-amber-700",
                                             record.type === 'lunch_bag' && "bg-emerald-100 text-emerald-700",
                                             record.type === 'united_effort' && "bg-rose-100 text-rose-700",
+                                            record.type === 'family' && "bg-teal-100 text-teal-700",
                                             record.type === 'extra' && "bg-orange-100 text-orange-700",
                                             record.type === 'guest' && !record?.isProxyPickup && "bg-gray-100 text-gray-700",
                                             record.type === 'guest' && record?.isProxyPickup && "bg-emerald-100 text-emerald-700",
@@ -1232,11 +1482,13 @@ const proxyPickerIds = new Set<string>();
                                                         ? 'Lunch Bag'
                                                         : record.type === 'united_effort'
                                                             ? 'United Effort'
-                                                            : record.type === 'extra'
-                                                                ? 'Extra'
-                                                                : record.type === 'guest'
-                                                                    ? 'Guest'
-                                                                    : record.type}
+                                                            : record.type === 'family'
+                                                                ? 'Family Meal'
+                                                                : record.type === 'extra'
+                                                                    ? 'Extra'
+                                                                    : record.type === 'guest'
+                                                                        ? 'Guest'
+                                                                        : record.type}
                                         </span>
                                         {!isEditing && (
                                             <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1277,7 +1529,7 @@ const proxyPickerIds = new Set<string>();
     );
 }
 
-type StatColor = 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose';
+type StatColor = 'emerald' | 'blue' | 'indigo' | 'purple' | 'sky' | 'amber' | 'rose' | 'teal';
 
 type IconComponentType = LucideIcon | React.ComponentType<{
     size?: number;
@@ -1295,6 +1547,7 @@ function StatCard({ label, value, color, icon: Icon }: { label: string, value: n
         sky: 'text-sky-600',
         amber: 'text-amber-600',
         rose: 'text-rose-600',
+        teal: 'text-teal-600',
     };
     const iconColors: Record<string, string> = {
         emerald: 'bg-emerald-100 text-emerald-600',
@@ -1304,6 +1557,7 @@ function StatCard({ label, value, color, icon: Icon }: { label: string, value: n
         sky: 'bg-sky-100 text-sky-600',
         amber: 'bg-amber-100 text-amber-600',
         rose: 'bg-rose-100 text-rose-600',
+        teal: 'bg-teal-100 text-teal-600',
     };
 
     return (
@@ -1334,6 +1588,7 @@ function CompactStat({ label, value, color, icon: Icon }: { label: string, value
         sky: 'text-sky-600',
         amber: 'text-amber-600',
         rose: 'text-rose-600',
+        teal: 'text-teal-600',
     };
     const iconColors: Record<string, string> = {
         emerald: 'bg-emerald-50 text-emerald-600',
@@ -1343,6 +1598,7 @@ function CompactStat({ label, value, color, icon: Icon }: { label: string, value
         sky: 'bg-sky-50 text-sky-600',
         amber: 'bg-amber-50 text-amber-600',
         rose: 'bg-rose-50 text-rose-600',
+        teal: 'bg-teal-50 text-teal-600',
     };
 
     return (

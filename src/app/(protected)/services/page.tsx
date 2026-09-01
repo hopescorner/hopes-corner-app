@@ -98,7 +98,7 @@ export default function ServicesPage() {
     const { ensureLoaded: ensureGuestsLoaded, guests } = useGuestsStore(
         useShallow((s) => ({ ensureLoaded: s.ensureLoaded, guests: s.guests }))
     );
-    const { ensureLoaded: ensureMealsLoaded, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, shelterMealRecords } = useMealsStore(
+    const { ensureLoaded: ensureMealsLoaded, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, shelterMealRecords, familyMealRecords } = useMealsStore(
         useShallow((s) => ({
             ensureLoaded: s.ensureLoaded,
             mealRecords: s.mealRecords,
@@ -107,6 +107,7 @@ export default function ServicesPage() {
             unitedEffortMealRecords: s.unitedEffortMealRecords,
             dayWorkerMealRecords: s.dayWorkerMealRecords,
             shelterMealRecords: s.shelterMealRecords,
+            familyMealRecords: s.familyMealRecords || [],
         }))
     );
     const ensureDonationsLoaded = useDonationsStore((s) => s.ensureLoaded);
@@ -169,7 +170,7 @@ export default function ServicesPage() {
             for (const record of records) {
                 if (dateKeyOf(record) !== today) continue;
                 mealsToday += record.count || 0;
-                if (record.guestId) uniqueGuests.add(record.guestId);
+                if (record.primaryGuestId || record.guestId) uniqueGuests.add(record.primaryGuestId || record.guestId);
             }
         };
         addMealCount(mealRecords);
@@ -178,6 +179,7 @@ export default function ServicesPage() {
         addMealCount(unitedEffortMealRecords);
         addMealCount(dayWorkerMealRecords);
         addMealCount(shelterMealRecords);
+        addMealCount(familyMealRecords);
 
         let showersDone = 0;
         let showersActive = 0;
@@ -237,7 +239,7 @@ export default function ServicesPage() {
             bicyclesCompletedThisWeek,
             timelineCount: timelineShowers + timelineLaundry,
         };
-    }, [guests, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, shelterMealRecords, showerRecords, laundryRecords, bicycleRecords, today, startOfWeek]);
+    }, [guests, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, shelterMealRecords, familyMealRecords, showerRecords, laundryRecords, bicycleRecords, today, startOfWeek]);
 
     const renderContent = () => {
         switch (activeTab) {

@@ -8,6 +8,7 @@ const mockSupabase = {
     from: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     insert: vi.fn().mockReturnThis(),
+    upsert: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
     delete: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
@@ -61,6 +62,19 @@ vi.mock('@/lib/utils/mappers', () => ({
         guestId: row.guest_id,
         date: row.service_date || row.served_at,
         type: 'haircut'
+    })),
+    mapFamilyMealRow: vi.fn(row => ({
+        id: row.id,
+        familyId: row.family_id,
+        mealsPerMember: row.meals_per_member,
+        memberCountSnapshot: row.member_count_snapshot,
+        count: row.total_meals,
+        date: row.served_on,
+        dateKey: row.served_on,
+        servedOn: row.served_on,
+        notes: row.notes || null,
+        createdAt: row.created_at || null,
+        updatedAt: row.updated_at || null,
     }))
 }));
 
@@ -87,6 +101,7 @@ describe('useMealsStore', () => {
         mockSupabase.from.mockReturnThis();
         mockSupabase.select.mockReturnThis();
         mockSupabase.insert.mockReturnThis();
+        mockSupabase.upsert.mockReturnThis();
         mockSupabase.update.mockReturnThis();
         mockSupabase.delete.mockReturnThis();
         mockSupabase.eq.mockReturnThis();
@@ -95,6 +110,7 @@ describe('useMealsStore', () => {
         mockSupabase.limit.mockReturnThis();
 
         // Default Supabase Single Response
+        mockSupabase.single.mockReset();
         mockSupabase.single.mockResolvedValue({
             data: {
                 id: 'meal-id',
@@ -114,6 +130,7 @@ describe('useMealsStore', () => {
             shelterMealRecords: [],
             unitedEffortMealRecords: [],
             lunchBagRecords: [],
+            familyMealRecords: [],
             holidayRecords: [],
             haircutRecords: [],
         });
@@ -174,6 +191,38 @@ describe('useMealsStore', () => {
             useMealsStore.setState({ mealRecords: records });
             const uniqueGuests = new Set(useMealsStore.getState().mealRecords.map((r) => r.guestId));
             expect(uniqueGuests.size).toBe(2);
+        });
+    });
+
+    describe('family meal records', () => {
+        it('upserts one family/date record and stores total meals from the member snapshot', async () => {
+            mockSupabase.single.mockResolvedValueOnce({
+                data: {
+                    id: 'family-meal-1',
+                    family_id: 'family-1',
+                    meals_per_member: 2,
+                    member_count_snapshot: 3,
+                    total_meals: 6,
+                    served_on: '2025-01-06',
+                    notes: null,
+                    created_at: '2025-01-06T12:00:00Z',
+                    updated_at: '2025-01-06T12:00:00Z',
+                },
+                error: null,
+            });
+
+            const record = await useMealsStore.getState().addFamilyMealRecord('family-1', 2, 3, '2025-01-06');
+
+            expect(mockSupabase.from).toHaveBeenCalledWith('family_meal_distributions');
+            expect(mockSupabase.upsert).toHaveBeenCalledWith(expect.objectContaining({
+                family_id: 'family-1',
+                meals_per_member: 2,
+                member_count_snapshot: 3,
+                served_on: '2025-01-06',
+            }), { onConflict: 'family_id,served_on' });
+            expect(record.count).toBe(6);
+            expect(useMealsStore.getState().familyMealRecords).toHaveLength(1);
+            expect(useMealsStore.getState().mealRecords).toHaveLength(0);
         });
     });
 
@@ -1317,6 +1366,62 @@ describe('useMealsStore', () => {
                 // g1 is at limit, but g2 should be fine
                 const record = await useMealsStore.getState().addExtraMealRecord('g2', 1);
                 expect(record.id).toBe('new-extra-g2');
+            });
+        });
+
+        describe('deleteFamilyMealRecord', () => {
+            it('deletes family meal record from state and database', async () => {
+                useMealsStore.setState({
+                    familyMealRecords: [
+                        {
+                            id: 'fam-rec-1',
+                            familyId: 'fam-1',
+                            mealsPerMember: 2,
+                            memberCountSnapshot: 3,
+                            totalMeals: 6,
+                            servedOn: '2025-01-06',
+                            recordedAt: '2025-01-06T12:00:00Z',
+                            notes: null,
+                            createdAt: '2025-01-06T12:00:00Z',
+                            updatedAt: '2025-01-06T12:00:00Z',
+                        },
+                    ],
+                } as any);
+
+                mockSupabase.eq.mockResolvedValueOnce({ error: null });
+
+                await useMealsStore.getState().deleteFamilyMealRecord('fam-rec-1');
+
+                expect(useMealsStore.getState().familyMealRecords).toHaveLength(0);
+            });
+
+            it('rolls back state and throws an error when database delete fails', async () => {
+                const initialRecord = {
+                    id: 'fam-rec-1',
+                    familyId: 'fam-1',
+                    mealsPerMember: 2,
+                    memberCountSnapshot: 3,
+                    totalMeals: 6,
+                    servedOn: '2025-01-06',
+                    recordedAt: '2025-01-06T12:00:00Z',
+                    notes: null,
+                    createdAt: '2025-01-06T12:00:00Z',
+                    updatedAt: '2025-01-06T12:00:00Z',
+                };
+                useMealsStore.setState({
+                    familyMealRecords: [initialRecord],
+                } as any);
+
+                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Database delete failed' } });
+                const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+                await expect(
+                    useMealsStore.getState().deleteFamilyMealRecord('fam-rec-1')
+                ).rejects.toThrow('Unable to delete family meal record');
+
+                expect(useMealsStore.getState().familyMealRecords).toHaveLength(1);
+                expect(useMealsStore.getState().familyMealRecords[0].id).toBe('fam-rec-1');
+                spy.mockRestore();
             });
         });
     });

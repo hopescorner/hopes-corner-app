@@ -367,6 +367,7 @@ describe('MealsSection Component', () => {
                 'Shelter',
                 'Lunch Bags',
                 'United Effort',
+                'Family Meals',
             ]);
         });
 

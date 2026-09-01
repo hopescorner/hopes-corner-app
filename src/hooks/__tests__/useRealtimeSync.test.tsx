@@ -40,6 +40,7 @@ const mockMealsSetState = vi.fn();
 const mockGuestsLoadFromSupabase = vi.fn();
 const mockGuestsLoadWarnings = vi.fn();
 const mockGuestsLoadProxies = vi.fn();
+const mockGuestsLoadFamilies = vi.fn();
 const mockGuestsSetState = vi.fn();
 const mockRemindersLoadFromSupabase = vi.fn();
 const mockRemindersSetState = vi.fn();
@@ -86,12 +87,14 @@ vi.mock('@/stores/useGuestsStore', () => ({
                 loadFromSupabase: mockGuestsLoadFromSupabase,
                 loadGuestWarningsFromSupabase: mockGuestsLoadWarnings,
                 loadGuestProxiesFromSupabase: mockGuestsLoadProxies,
+                loadGuestFamiliesFromSupabase: mockGuestsLoadFamilies,
             });
         }
         return {
             loadFromSupabase: mockGuestsLoadFromSupabase,
             loadGuestWarningsFromSupabase: mockGuestsLoadWarnings,
             loadGuestProxiesFromSupabase: mockGuestsLoadProxies,
+            loadGuestFamiliesFromSupabase: mockGuestsLoadFamilies,
         };
     }, {
         setState: (...args: any[]) => mockGuestsSetState(...args),
@@ -179,6 +182,15 @@ describe('useRealtimeSync', () => {
             expect.objectContaining({ table: 'guest_proxies' })
         );
         expect(mockSubscribeToTable).toHaveBeenCalledWith(
+            expect.objectContaining({ table: 'guest_families' })
+        );
+        expect(mockSubscribeToTable).toHaveBeenCalledWith(
+            expect.objectContaining({ table: 'guest_family_members' })
+        );
+        expect(mockSubscribeToTable).toHaveBeenCalledWith(
+            expect.objectContaining({ table: 'family_meal_distributions' })
+        );
+        expect(mockSubscribeToTable).toHaveBeenCalledWith(
             expect.objectContaining({ table: 'guest_reminders' })
         );
         expect(mockSubscribeToTable).toHaveBeenCalledWith(
@@ -192,11 +204,10 @@ describe('useRealtimeSync', () => {
         );
     });
 
-    it('subscribes to 11 tables through one route-scoped channel', () => {
+    it('subscribes to 14 tables through one route-scoped channel', () => {
         renderHook(() => useRealtimeSync());
         
-        // 11 tables: showers, laundry, meals, bicycles, guests, warnings, proxies, reminders, blocked_slots, daily_notes, donations
-        expect(mockSubscribeToTable).toHaveBeenCalledTimes(11);
+        expect(mockSubscribeToTable).toHaveBeenCalledTimes(14);
         expect(mockSubscribeToTables).toHaveBeenCalledTimes(1);
         expect(mockSubscribeToTables).toHaveBeenCalledWith(expect.any(Array), 'operations', expect.any(Function));
     });
@@ -209,7 +220,7 @@ describe('useRealtimeSync', () => {
         await act(async () => {
             vi.advanceTimersByTime(600);
         });
-
+        expect(mockServicesLoadFromSupabase).toHaveBeenCalledTimes(1);
         expect(mockServicesLoadFromSupabase).toHaveBeenCalledTimes(1);
     });
 

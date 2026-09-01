@@ -18,6 +18,8 @@ type ParticipantAgeBucket = 'adult' | 'child' | 'senior';
 
 interface MealRecordLike {
     guestId?: string | null;
+    primaryGuestId?: string | null;
+    familyId?: string | null;
     pickedUpByGuestId?: string | null;
     count?: number | null;
     quantity?: number | null;
@@ -86,6 +88,7 @@ export interface DashboardReportCacheInput {
     shelterMealRecords?: MaybeArray<MealRecordLike>;
     unitedEffortMealRecords?: MaybeArray<MealRecordLike>;
     lunchBagRecords?: MaybeArray<MealRecordLike>;
+    familyMealRecords?: MaybeArray<MealRecordLike>;
     showerRecords?: MaybeArray<ShowerRecordLike>;
     laundryRecords?: MaybeArray<LaundryRecordLike>;
     bicycleRecords?: MaybeArray<BicycleRecordLike>;
@@ -102,12 +105,14 @@ export interface MealTypeFilters {
     shelter: boolean;
     unitedEffort: boolean;
     lunchBags: boolean;
+    familyMeals?: boolean;
 }
 
 export interface ServiceStats {
     totalMeals: number;
     onsiteHotMeals: number;
     bagLunch: number;
+    familyMeals: number;
     rvMeals: number;
     shelter: number;
     rvSafePark: number;
@@ -149,6 +154,7 @@ export interface MealReportRow {
     shelterMeals: number;
     unitedEffortMeals: number;
     lunchBags: number;
+    familyMeals: number;
     totalMeals: number;
     uniqueGuestsPerServiceDay: number;
     uniqueGuests: number;
@@ -175,6 +181,7 @@ export interface MonthlySummaryRow {
     shelter: number;
     extraMeals: number;
     lunchBags: number;
+    familyMeals: number;
     totalHotMeals: number;
     totalWithLunchBags: number;
     donationValue: number;
@@ -246,6 +253,7 @@ type DashboardReportRefs = {
     shelterMealRecords: ReadonlyArray<MealRecordLike>;
     unitedEffortMealRecords: ReadonlyArray<MealRecordLike>;
     lunchBagRecords: ReadonlyArray<MealRecordLike>;
+    familyMealRecords: ReadonlyArray<MealRecordLike>;
     showerRecords: ReadonlyArray<ShowerRecordLike>;
     laundryRecords: ReadonlyArray<LaundryRecordLike>;
     bicycleRecords: ReadonlyArray<BicycleRecordLike>;
@@ -272,6 +280,10 @@ type MonthAggregate = {
     unitedEffortGuestIds: Set<string>;
     lunchBagMealsTotal: number;
     lunchBagGuestIds: Set<string>;
+    familyMealsByDay: number[];
+    familyMealGuestIdsByDay: Set<string>[];
+    familyMealsTotal: number;
+    familyMealGuestIds: Set<string>;
     allMealGuestIds: Set<string>;
     proxyPickups: number;
     showersDoneGenerator: number;
@@ -315,6 +327,7 @@ const normalizeInput = (input: DashboardReportCacheInput): DashboardReportRefs =
     shelterMealRecords: input.shelterMealRecords ?? EMPTY_LIST,
     unitedEffortMealRecords: input.unitedEffortMealRecords ?? EMPTY_LIST,
     lunchBagRecords: input.lunchBagRecords ?? EMPTY_LIST,
+    familyMealRecords: input.familyMealRecords ?? EMPTY_LIST,
     showerRecords: input.showerRecords ?? EMPTY_LIST,
     laundryRecords: input.laundryRecords ?? EMPTY_LIST,
     bicycleRecords: input.bicycleRecords ?? EMPTY_LIST,
@@ -331,6 +344,7 @@ const hasSameRefs = (left: DashboardReportRefs, right: DashboardReportRefs) => {
         && left.shelterMealRecords === right.shelterMealRecords
         && left.unitedEffortMealRecords === right.unitedEffortMealRecords
         && left.lunchBagRecords === right.lunchBagRecords
+        && left.familyMealRecords === right.familyMealRecords
         && left.showerRecords === right.showerRecords
         && left.laundryRecords === right.laundryRecords
         && left.bicycleRecords === right.bicycleRecords
@@ -360,6 +374,10 @@ const createMonthAggregate = (): MonthAggregate => ({
     unitedEffortGuestIds: new Set<string>(),
     lunchBagMealsTotal: 0,
     lunchBagGuestIds: new Set<string>(),
+    familyMealsByDay: createDayCounts(),
+    familyMealGuestIdsByDay: createDayGuestSets(),
+    familyMealsTotal: 0,
+    familyMealGuestIds: new Set<string>(),
     allMealGuestIds: new Set<string>(),
     proxyPickups: 0,
     showersDoneGenerator: 0,
@@ -485,6 +503,7 @@ const buildServiceStats = (cache: DashboardReportCache, year: number, endMonth: 
         totalMeals: 0,
         onsiteHotMeals: 0,
         bagLunch: 0,
+        familyMeals: 0,
         rvMeals: 0,
         shelter: 0,
         rvSafePark: 0,
@@ -506,6 +525,7 @@ const buildServiceStats = (cache: DashboardReportCache, year: number, endMonth: 
 
         totals.onsiteHotMeals += onsiteHotMeals;
         totals.bagLunch += aggregate.lunchBagMealsTotal;
+        totals.familyMeals += aggregate.familyMealsTotal;
         totals.rvMeals += aggregate.rvMealsTotal;
         totals.shelter += aggregate.shelterMealsTotal;
         totals.rvSafePark += rvSafePark;
@@ -519,6 +539,7 @@ const buildServiceStats = (cache: DashboardReportCache, year: number, endMonth: 
         totals.totalMeals += onsiteHotMeals
             + aggregate.rvMealsTotal
             + aggregate.dayWorkerMealsTotal
+            + aggregate.familyMealsTotal
             + aggregate.lunchBagMealsTotal
             + aggregate.shelterMealsTotal
             + aggregate.unitedEffortMealsTotal;
@@ -616,6 +637,24 @@ const buildDashboardReportCache = (refs: DashboardReportRefs): DashboardReportCa
     processMealRecords(refs.shelterMealRecords, 'shelter');
     processMealRecords(refs.unitedEffortMealRecords, 'unitedEffort');
     processMealRecords(refs.lunchBagRecords, 'lunchBags');
+
+    refs.familyMealRecords.forEach((record) => {
+        const parts = getDateParts(record.dateKey, record.date);
+        if (!parts) return;
+
+        const aggregate = getOrCreateMonthAggregate(monthAggregates, parts.year, parts.month);
+        const guestId = normalizeGuestId(record.primaryGuestId || record.guestId);
+        const count = getRecordCount(record);
+
+        aggregate.familyMealsTotal += count;
+        aggregate.familyMealsByDay[parts.dayOfWeek] += count;
+        addGuestId(aggregate.familyMealGuestIds, guestId);
+        if (guestId) {
+            aggregate.familyMealGuestIdsByDay[parts.dayOfWeek].add(guestId);
+            aggregate.allMealGuestIds.add(guestId);
+            rememberFirstMonth(firstMealMonthByGuest, guestId, parts.year, parts.month);
+        }
+    });
 
     refs.showerRecords.forEach((record) => {
         const parts = getDateParts(record.dateKey, record.date);
@@ -751,6 +790,7 @@ export const getMealReportData = (
 ): MealReportRow[] => {
     const cache = warmDashboardReportCache(input);
     const { selectedYear, selectedMonth, comparisonMonths, selectedDays, mealTypeFilters } = options;
+    const familyMealsEnabled = mealTypeFilters.familyMeals !== false;
     const results: MealReportRow[] = [];
     const now = new Date();
 
@@ -798,6 +838,9 @@ export const getMealReportData = (
             if (mealTypeFilters.lunchBags) {
                 addSetToSet(uniqueGuestIds, aggregate.lunchBagGuestIds);
             }
+            if (familyMealsEnabled) {
+                addDaysToGuestSet(uniqueGuestIds, aggregate.familyMealGuestIdsByDay, selectedDays);
+            }
         }
 
         const ageGroups: Record<AgeGroupLabel, number> = {
@@ -819,7 +862,8 @@ export const getMealReportData = (
         const shelterMeals = aggregate && mealTypeFilters.shelter ? aggregate.shelterMealsTotal : 0;
         const unitedEffortMeals = aggregate && mealTypeFilters.unitedEffort ? aggregate.unitedEffortMealsTotal : 0;
         const lunchBags = aggregate && mealTypeFilters.lunchBags ? aggregate.lunchBagMealsTotal : 0;
-        const totalMeals = guestMeals + extras + rvMeals + dayWorkerMeals + shelterMeals + unitedEffortMeals + lunchBags;
+        const familyMeals = aggregate && familyMealsEnabled ? sumDays(aggregate.familyMealsByDay, selectedDays) : 0;
+        const totalMeals = guestMeals + extras + rvMeals + dayWorkerMeals + shelterMeals + unitedEffortMeals + lunchBags + familyMeals;
 
         results.push({
             month: monthLabel,
@@ -832,6 +876,7 @@ export const getMealReportData = (
             shelterMeals,
             unitedEffortMeals,
             lunchBags,
+            familyMeals,
             totalMeals,
             uniqueGuestsPerServiceDay: validDaysCount ? uniqueGuestIds.size / validDaysCount : uniqueGuestIds.size,
             uniqueGuests: uniqueGuestIds.size,
@@ -853,6 +898,7 @@ export interface MealReportYTDData {
     shelterMeals: number;
     unitedEffortMeals: number;
     lunchBags: number;
+    familyMeals: number;
     mealsExcludingLunchBags: number;
     uniqueGuests: number;
 }
@@ -868,6 +914,7 @@ export const getMealReportYTDData = (
 ): MealReportYTDData => {
     const cache = warmDashboardReportCache(input);
     const { selectedYear, selectedMonth, selectedDays, mealTypeFilters } = options;
+    const familyMealsEnabled = mealTypeFilters.familyMeals !== false;
 
     let totalMeals = 0;
     let guestMeals = 0;
@@ -877,6 +924,7 @@ export const getMealReportYTDData = (
     let shelterMeals = 0;
     let unitedEffortMeals = 0;
     let lunchBags = 0;
+    let familyMeals = 0;
     const uniqueGuestIds = new Set<string>();
 
     for (let m = 0; m <= selectedMonth; m++) {
@@ -890,6 +938,7 @@ export const getMealReportYTDData = (
         const shM = mealTypeFilters.shelter ? aggregate.shelterMealsTotal : 0;
         const ueM = mealTypeFilters.unitedEffort ? aggregate.unitedEffortMealsTotal : 0;
         const lb = mealTypeFilters.lunchBags ? aggregate.lunchBagMealsTotal : 0;
+        const fm = familyMealsEnabled ? sumDays(aggregate.familyMealsByDay, selectedDays) : 0;
 
         guestMeals += gMeals;
         extras += exMeals;
@@ -898,8 +947,9 @@ export const getMealReportYTDData = (
         shelterMeals += shM;
         unitedEffortMeals += ueM;
         lunchBags += lb;
+        familyMeals += fm;
 
-        totalMeals += gMeals + exMeals + rvM + dwM + shM + ueM + lb;
+        totalMeals += gMeals + exMeals + rvM + dwM + shM + ueM + lb + fm;
 
         if (mealTypeFilters.guest) {
             addDaysToGuestSet(uniqueGuestIds, aggregate.guestMealGuestIdsByDay, selectedDays);
@@ -922,9 +972,12 @@ export const getMealReportYTDData = (
         if (mealTypeFilters.lunchBags) {
             addSetToSet(uniqueGuestIds, aggregate.lunchBagGuestIds);
         }
+        if (familyMealsEnabled) {
+            addDaysToGuestSet(uniqueGuestIds, aggregate.familyMealGuestIdsByDay, selectedDays);
+        }
     }
 
-    const mealsExcludingLunchBags = guestMeals + extras + rvMeals + dayWorkerMeals + shelterMeals + unitedEffortMeals;
+    const mealsExcludingLunchBags = guestMeals + extras + rvMeals + dayWorkerMeals + shelterMeals + unitedEffortMeals + familyMeals;
 
     return {
         totalMeals,
@@ -935,6 +988,7 @@ export const getMealReportYTDData = (
         shelterMeals,
         unitedEffortMeals,
         lunchBags,
+        familyMeals,
         mealsExcludingLunchBags,
         uniqueGuests: uniqueGuestIds.size,
     };
@@ -1049,8 +1103,9 @@ export const getMonthlySummaryDatasets = (
         const shelter = aggregate?.shelterMealsTotal ?? 0;
         const unitedEffort = aggregate?.unitedEffortMealsTotal ?? 0;
         const dayWorkerMeals = aggregate?.dayWorkerMealsTotal ?? 0;
+        const familyMeals = aggregate?.familyMealsTotal ?? 0;
         const onsiteHotMeals = mondayMeals + wednesdayMeals + fridayMeals + saturdayMeals + (aggregate ? sumDays(aggregate.extraMealsByDay, [1, 3, 5, 6]) : 0);
-        const totalHotMeals = mondayMeals + wednesdayMeals + fridayMeals + saturdayMeals + dayWorkerMeals + extraMeals + rvWedSat + rvMonThu + rvOther + shelter + unitedEffort;
+        const totalHotMeals = mondayMeals + wednesdayMeals + fridayMeals + saturdayMeals + dayWorkerMeals + extraMeals + familyMeals + rvWedSat + rvMonThu + rvOther + shelter + unitedEffort;
         const uniqueGuests = aggregate?.guestMealGuestIds.size ?? 0;
 
         let newGuests = 0;
@@ -1080,6 +1135,7 @@ export const getMonthlySummaryDatasets = (
             shelter,
             extraMeals,
             lunchBags,
+            familyMeals,
             totalHotMeals,
             totalWithLunchBags: totalHotMeals + lunchBags,
             donationValue: aggregate?.donationValue ?? 0,
@@ -1103,6 +1159,7 @@ export const getMonthlySummaryDatasets = (
         shelter: monthlyRows.reduce((sum, row) => sum + row.shelter, 0),
         extraMeals: monthlyRows.reduce((sum, row) => sum + row.extraMeals, 0),
         lunchBags: monthlyRows.reduce((sum, row) => sum + row.lunchBags, 0),
+        familyMeals: monthlyRows.reduce((sum, row) => sum + row.familyMeals, 0),
         totalHotMeals: monthlyRows.reduce((sum, row) => sum + row.totalHotMeals, 0),
         totalWithLunchBags: monthlyRows.reduce((sum, row) => sum + row.totalWithLunchBags, 0),
         donationValue: monthlyRows.reduce((sum, row) => sum + row.donationValue, 0),

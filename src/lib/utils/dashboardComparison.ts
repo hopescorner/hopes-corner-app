@@ -31,6 +31,7 @@ export interface DashboardComparisonGuest {
 export interface DashboardComparisonMealRecord {
     id?: string;
     guestId?: string | null;
+    primaryGuestId?: string | null;
     pickedUpByGuestId?: string | null;
     count?: number | null;
     date?: string | null;
@@ -59,6 +60,7 @@ export interface DashboardComparisonData {
     shelterMealRecords: DashboardComparisonMealRecord[];
     unitedEffortMealRecords: DashboardComparisonMealRecord[];
     lunchBagRecords: DashboardComparisonMealRecord[];
+    familyMealRecords?: DashboardComparisonMealRecord[];
     showerRecords: DashboardComparisonServiceRecord[];
     laundryRecords: DashboardComparisonServiceRecord[];
     bicycleRecords: DashboardComparisonServiceRecord[];
@@ -122,6 +124,10 @@ function countBicycleServices(record: DashboardComparisonServiceRecord) {
     return 1;
 }
 
+function getMealGuestId(record: DashboardComparisonMealRecord) {
+    return record.primaryGuestId || record.guestId || null;
+}
+
 function emptyMetrics(): DashboardComparisonMetrics {
     return {
         newGuests: 0,
@@ -167,13 +173,15 @@ export function calculateDashboardComparisonMetrics(
         data.shelterMealRecords,
         data.unitedEffortMealRecords,
         data.lunchBagRecords,
+        data.familyMealRecords || [],
     ];
 
     for (const group of mealGroups) {
         for (const record of group) {
-            if (!isInRange(getComparisonDateKey(record), range) || !isGuestIncluded(record.guestId)) continue;
+            const guestId = getMealGuestId(record);
+            if (!isInRange(getComparisonDateKey(record), range) || !isGuestIncluded(guestId)) continue;
             metrics.meals += Number(record.count) || 0;
-            addActiveGuest(record.guestId);
+            addActiveGuest(guestId);
         }
     }
 
