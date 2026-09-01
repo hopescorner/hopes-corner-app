@@ -18,6 +18,7 @@ const {
         'MealReport',
         'MonthlySummaryReport',
         'MonthlyReportGenerator',
+        'HolidayReport',
     ],
     dynamicState: { index: 0 },
     warmDashboardReportCache: vi.fn(),

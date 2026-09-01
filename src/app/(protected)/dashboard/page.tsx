@@ -9,7 +9,8 @@ import {
     Activity,
     Utensils,
     ClipboardList,
-    FileText
+    FileText,
+    Gift,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -34,6 +35,7 @@ const DataExportSection = dynamic(() => import('@/components/admin/DataExportSec
 const MealReport = dynamic(() => import('@/components/admin/reports/MealReport').then((m) => m.MealReport), { loading: TabSkeleton });
 const MonthlySummaryReport = dynamic(() => import('@/components/admin/reports/MonthlySummaryReport'), { loading: TabSkeleton });
 const MonthlyReportGenerator = dynamic(() => import('@/components/admin/reports/MonthlyReportGenerator'), { loading: TabSkeleton });
+const HolidayReport = dynamic(() => import('@/components/admin/reports/HolidayReport').then((m) => m.HolidayReport), { loading: TabSkeleton });
 
 const DASHBOARD_TABS = [
     { id: 'analytics', label: 'Analytics', icon: Activity, color: 'text-blue-600' },
@@ -41,10 +43,11 @@ const DASHBOARD_TABS = [
     { id: 'monthly-report', label: 'Monthly Report', icon: FileText, color: 'text-purple-600' },
     { id: 'meal-report', label: 'Meal Report', icon: Utensils, color: 'text-orange-600' },
     { id: 'monthly-summary', label: 'Summary', icon: ClipboardList, color: 'text-emerald-600' },
+    { id: 'holiday-report', label: 'Holiday Report', icon: Gift, color: 'text-pink-600' },
     { id: 'export', label: 'Data Export', icon: Download, color: 'text-gray-600' },
 ];
 
-const REPORT_TAB_IDS = new Set(['monthly-report', 'meal-report', 'monthly-summary', 'export']);
+const REPORT_TAB_IDS = new Set(['monthly-report', 'meal-report', 'monthly-summary', 'holiday-report', 'export']);
 // Keep dashboard/report data accurate for 2025+ while avoiding expensive all-time fetches.
 const REPORT_BASELINE_YEAR = 2025;
 type IdleWindow = Window & typeof globalThis & {
@@ -86,6 +89,7 @@ export default function DashboardPage() {
             import('@/components/admin/reports/MonthlyReportGenerator'),
             import('@/components/admin/reports/MealReport'),
             import('@/components/admin/reports/MonthlySummaryReport'),
+            import('@/components/admin/reports/HolidayReport'),
             import('@/components/admin/DataExportSection'),
         ]);
         reportModulesReadyRef.current = true;
@@ -279,6 +283,13 @@ export default function DashboardPage() {
                     <div hidden={activeTab !== 'monthly-summary'}>
                         <DashboardSectionErrorBoundary sectionLabel="Summary">
                             <MonthlySummaryReport />
+                        </DashboardSectionErrorBoundary>
+                    </div>
+                )}
+                {visitedTabs.has('holiday-report') && (
+                    <div hidden={activeTab !== 'holiday-report'}>
+                        <DashboardSectionErrorBoundary sectionLabel="Holiday Report">
+                            <HolidayReport />
                         </DashboardSectionErrorBoundary>
                     </div>
                 )}
