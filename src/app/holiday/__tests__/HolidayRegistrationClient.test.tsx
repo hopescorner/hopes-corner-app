@@ -52,6 +52,10 @@ describe('HolidayRegistrationClient', () => {
     it('renders the public registration form in English by default', async () => {
         render(<HolidayRegistrationClient />);
 
+        const page = screen.getByTestId('holiday-registration-page');
+        expect(page.className).toContain('bg-slate-50');
+        expect(page.className).toContain('text-slate-900');
+        expect(page.className).not.toContain('bg-slate-950');
         expect(screen.getByText(/2026 HOLIDAY TOY DISTRIBUTION/i)).toBeDefined();
         expect(screen.getByText(/Parent \/ Guardian Information/i)).toBeDefined();
         expect(screen.getByText(/Automatic Arrival Window/i)).toBeDefined();
