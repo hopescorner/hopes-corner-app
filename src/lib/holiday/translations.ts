@@ -118,7 +118,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         childAgeLabel: "Age (0–18)",
         childSchoolLabel: "School (Optional)",
         childSchoolPlaceholder: "e.g. Mountain View High",
-        addChildButton: "+ Add Another Child",
+        addChildButton: "Add Another Child",
         removeChildButton: "Remove",
         childNumberLabel: "Child",
 
@@ -196,7 +196,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         childAgeLabel: "Edad (0–18)",
         childSchoolLabel: "Escuela (Opcional)",
         childSchoolPlaceholder: "ej. Mountain View High",
-        addChildButton: "+ Agregar Otro Niño/a",
+        addChildButton: "Agregar Otro Niño/a",
         removeChildButton: "Eliminar",
         childNumberLabel: "Niño/a",
 
@@ -274,7 +274,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         childAgeLabel: "年龄 (0–18)",
         childSchoolLabel: "就读学校（选填）",
         childSchoolPlaceholder: "例：Mountain View High",
-        addChildButton: "+ 添加另一位儿童",
+        addChildButton: "添加另一位儿童",
         removeChildButton: "删除",
         childNumberLabel: "儿童",
 

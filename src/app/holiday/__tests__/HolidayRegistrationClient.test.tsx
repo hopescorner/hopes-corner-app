@@ -83,7 +83,7 @@ describe('HolidayRegistrationClient', () => {
     it('allows adding and removing children', async () => {
         render(<HolidayRegistrationClient />);
 
-        const addChildBtn = screen.getByRole('button', { name: /\+ Add Another Child/i });
+        const addChildBtn = screen.getByRole('button', { name: /Add Another Child/i });
         fireEvent.click(addChildBtn);
 
         expect(screen.getByText(/Child #2/i)).toBeDefined();
