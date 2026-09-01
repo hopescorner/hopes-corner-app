@@ -1,4 +1,5 @@
 import { HolidayLanguage } from '@/types/holiday';
+import { HOLIDAY_EVENT_YEAR } from './constants';
 
 export interface HolidayTranslation {
     appTitle: string;
@@ -83,7 +84,7 @@ export interface HolidayTranslation {
 export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> = {
     en: {
         appTitle: "Hope's Corner",
-        programTitle: "HOPE'S CORNER, INC. 2026 HOLIDAY TOY DISTRIBUTION",
+        programTitle: `HOPE'S CORNER, INC. ${HOLIDAY_EVENT_YEAR} HOLIDAY TOY DISTRIBUTION`,
         registrationTitle: "Holiday Program Registration",
         registrationNotice: "Parents & legal guardians may register children age 0-18. Do not register children that are not your legal dependents.",
         languageLabel: "Language / Idioma / 语言",
@@ -163,7 +164,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
 
     es: {
         appTitle: "Hope's Corner",
-        programTitle: "HOPE'S CORNER, INC. DISTRIBUCIÓN DE JUGUETES NAVIDEÑOS 2026",
+        programTitle: `HOPE'S CORNER, INC. DISTRIBUCIÓN DE JUGUETES NAVIDEÑOS ${HOLIDAY_EVENT_YEAR}`,
         registrationTitle: "Registro para el Programa Navideño",
         registrationNotice: "Los padres y tutores legales pueden inscribir a niños de 0 a 18 años. No registre a niños que no sean sus dependientes legales.",
         languageLabel: "Idioma / Language / 语言",
@@ -243,7 +244,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
 
     zh: {
         appTitle: "Hope's Corner",
-        programTitle: "HOPE'S CORNER 2026年度节日玩具分发活动",
+        programTitle: `HOPE'S CORNER ${HOLIDAY_EVENT_YEAR}年度节日玩具分发活动`,
         registrationTitle: "节日活动登记表",
         registrationNotice: "父母及法定监护人可为0至18岁的子女进行登记。请勿登记非直系受抚养儿童。",
         languageLabel: "语言 / Language / Idioma",

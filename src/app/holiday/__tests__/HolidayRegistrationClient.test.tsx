@@ -50,14 +50,16 @@ describe('HolidayRegistrationClient', () => {
         });
     });
 
-    it('renders the public registration form in English by default', async () => {
+    it('renders the public registration form in English by default with dynamic year and gift icon', async () => {
         render(<HolidayRegistrationClient />);
 
+        const currentYear = new Date().getFullYear();
         const page = screen.getByTestId('holiday-registration-page');
         expect(page.className).toContain('bg-slate-50');
         expect(page.className).toContain('text-slate-900');
         expect(page.className).not.toContain('bg-slate-950');
-        expect(screen.getByText(/2026 HOLIDAY TOY DISTRIBUTION/i)).toBeDefined();
+        expect(screen.getByTestId('holiday-gift-icon')).toBeDefined();
+        expect(screen.getByText(new RegExp(`${currentYear} HOLIDAY TOY DISTRIBUTION`, 'i'))).toBeDefined();
         expect(screen.getByText(/Parent \/ Guardian Information/i)).toBeDefined();
         expect(screen.getByText(/Automatic Arrival Window/i)).toBeDefined();
         expect(screen.getByText(/Complete Registration & Get Ticket/i)).toBeDefined();

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac } from 'node:crypto';
 import { getHolidayServiceClient } from '@/lib/holiday/server';
 import { HolidayRegistrationInput } from '@/types/holiday';
+import { HOLIDAY_EVENT_YEAR } from '@/lib/holiday/constants';
 import { holidayRegistrationValidationError } from '@/lib/holiday/validation';
 import { generateHolidayTicketToken, generateTicketQRCodeDataUrl } from '@/lib/holiday/ticketToken';
 
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
         const ticketToken = generateHolidayTicketToken({
             id: data.id,
             ticketNumber: data.ticketNumber,
-            eventYear: data.eventYear || 2026,
+            eventYear: data.eventYear || HOLIDAY_EVENT_YEAR,
             parentName: data.parentName,
             timeSlot: data.timeSlot,
             childrenCount: Array.isArray(data.children) ? data.children.length : body.children.length,

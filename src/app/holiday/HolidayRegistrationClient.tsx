@@ -11,6 +11,7 @@ import {
     Plus,
     Trash2,
     Globe,
+    Gift,
 } from 'lucide-react';
 import {
     HolidayLanguage,
@@ -342,8 +343,13 @@ export default function HolidayRegistrationClient() {
                 </div>
 
                 <header className="rounded-2xl border border-slate-200 border-t-4 border-t-emerald-700 bg-white p-6 shadow-sm sm:p-8">
-                    <p className="text-sm font-semibold text-emerald-700">{t.registrationTitle}</p>
-                    <h1 className="mt-2 max-w-2xl text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-3xl">
+                    <div className="flex items-center gap-2">
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                            <Gift className="h-4 w-4" data-testid="holiday-gift-icon" />
+                        </span>
+                        <p className="text-sm font-semibold text-emerald-700">{t.registrationTitle}</p>
+                    </div>
+                    <h1 className="mt-3 max-w-2xl text-2xl font-bold leading-tight tracking-tight text-slate-950 sm:text-3xl">
                         {t.programTitle}
                     </h1>
                     <div className="mt-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
@@ -525,8 +531,9 @@ export default function HolidayRegistrationClient() {
                                                     {formatAgeGroupLabel(ageGroup)}
                                                 </span>
                                                 {isTeen && (
-                                                    <span className="rounded-md bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900">
-                                                        Gift Card
+                                                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900">
+                                                        <Gift className="h-3 w-3 text-amber-700" />
+                                                        <span>Gift Card</span>
                                                     </span>
                                                 )}
                                                 {children.length > 1 && (

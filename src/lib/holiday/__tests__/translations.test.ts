@@ -59,4 +59,11 @@ describe('Holiday translations', () => {
             expect(translation.errors.allSlotsFull).toBeTypeOf('string');
         });
     });
+
+    it('dynamically includes the current year in programTitle across all languages', () => {
+        const currentYear = String(new Date().getFullYear());
+        languages.forEach((lang) => {
+            expect(HOLIDAY_TRANSLATIONS[lang].programTitle).toContain(currentYear);
+        });
+    });
 });

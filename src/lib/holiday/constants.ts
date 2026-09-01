@@ -1,4 +1,4 @@
-export const HOLIDAY_EVENT_YEAR = 2026;
+export const HOLIDAY_EVENT_YEAR = new Date().getFullYear();
 export const MAX_PARENTS_PER_HOLIDAY_SLOT = 16;
 
 export const HOLIDAY_TIME_SLOTS = [
