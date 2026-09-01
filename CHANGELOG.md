@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.0] - 2026-08-31
+
+### Added
+
+- Added support for the Family Meal Program across guest management, meal services, reports, and data exports.
+- Staff can enroll a guest as a household primary or member in the guest create and edit forms, setting the household name and family size.
+- The Meals tab now includes a Family Meals section to record household meal pickups, edit entries, and view daily family meal totals.
+- Family meal distributions are included in Dashboard Overview, Analytics, Meal Reports, Monthly Reports, and CSV data exports.
+- Users with grants-related email addresses now receive board-level dashboard access for grant reporting.
+
 ## [0.8.6] - 2026-08-22
 
 ### Fixed

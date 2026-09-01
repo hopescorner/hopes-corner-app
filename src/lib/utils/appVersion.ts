@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.8.6';
+export const APP_VERSION = '0.9.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.9.0',
+        date: 'August 31, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Family Meal Program',
+                description: 'Staff can enroll guests into household profiles and track family meal distributions on the Meals tab. Family meal counts are included in dashboard metrics, reports, and CSV exports.',
+            },
+            {
+                type: 'feature',
+                title: 'Grants User Access',
+                description: 'Users with grants email addresses now receive board-level dashboard access to view reports and export data.',
+            },
+        ],
+    },
     {
         version: '0.8.6',
         date: 'August 22, 2026',
