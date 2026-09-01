@@ -3,6 +3,7 @@ import { createHmac } from 'node:crypto';
 import { getHolidayServiceClient } from '@/lib/holiday/server';
 import { HolidayRegistrationInput } from '@/types/holiday';
 import { holidayRegistrationValidationError } from '@/lib/holiday/validation';
+import { generateHolidayTicketToken, generateTicketQRCodeDataUrl } from '@/lib/holiday/ticketToken';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,8 +90,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: error.message || 'Failed to create registration record' }, { status: 500 });
         }
 
+        const ticketToken = generateHolidayTicketToken({
+            id: data.id,
+            ticketNumber: data.ticketNumber,
+            eventYear: data.eventYear || 2026,
+            parentName: data.parentName,
+            timeSlot: data.timeSlot,
+            childrenCount: Array.isArray(data.children) ? data.children.length : body.children.length,
+        });
+
+        const qrCodeDataUrl = await generateTicketQRCodeDataUrl(ticketToken);
+
         return NextResponse.json({
-            registration: data,
+            registration: {
+                ...data,
+                ticketToken,
+                qrCodeDataUrl,
+            },
         });
     } catch (error) {
         console.error('[holiday-register] Unexpected error:', error);

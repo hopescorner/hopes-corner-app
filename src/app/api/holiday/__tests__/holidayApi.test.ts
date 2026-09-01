@@ -194,6 +194,8 @@ describe('Holiday API Routes', () => {
             }));
             expect(json.registration.timeSlot).toBe('09:00 AM - 09:20 AM');
             expect(json.registration.ticketNumber).toBe(1);
+            expect(json.registration.ticketToken).toMatch(/^HCT1\./);
+            expect(json.registration.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
         });
 
         it('returns 409 error when RPC returns ALL_SLOTS_FULL error', async () => {

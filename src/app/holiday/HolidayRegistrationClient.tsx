@@ -204,6 +204,27 @@ export default function HolidayRegistrationClient() {
                                     <Clock className="h-4 w-4" />
                                     <span>{confirmedRegistration.timeSlot}</span>
                                 </div>
+
+                                {confirmedRegistration.qrCodeDataUrl && (
+                                    <div className="mt-6 flex flex-col items-center justify-center rounded-xl border border-emerald-200 bg-white p-4 text-center shadow-xs">
+                                        <div className="relative h-44 w-44 overflow-hidden rounded-lg border border-slate-100 bg-white p-1">
+                                            <Image
+                                                src={confirmedRegistration.qrCodeDataUrl}
+                                                alt="Ticket QR Code"
+                                                width={176}
+                                                height={176}
+                                                className="h-full w-full object-contain"
+                                                unoptimized
+                                            />
+                                        </div>
+                                        <span className="mt-2 text-xs font-bold uppercase tracking-wider text-emerald-900">
+                                            {t.ticketQrTitle}
+                                        </span>
+                                        <span className="mt-0.5 max-w-xs text-[11px] text-slate-500">
+                                            {t.ticketQrSubtitle}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-2">

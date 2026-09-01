@@ -27,6 +27,7 @@ describe('HolidayRegistrationClient', () => {
                             status: 'registered',
                             groceryCards: 1,
                             teenCards: 1,
+                            qrCodeDataUrl: 'data:image/png;base64,mockqrdata',
                             children: [
                                 {
                                     id: 'c1',
@@ -116,6 +117,8 @@ describe('HolidayRegistrationClient', () => {
             expect(screen.queryByText(/Eligible Items Summary/i)).toBeNull();
             expect(screen.queryByText(/Family Grocery Card/i)).toBeNull();
             expect(screen.getByText(/Please arrive 10 minutes before your assigned time slot and bring your ticket confirmation on your phone\./i)).toBeDefined();
+            expect(screen.getByText(/Official Event Check-In QR Code/i)).toBeDefined();
+            expect(screen.getByAltText(/Ticket QR Code/i)).toBeDefined();
         });
     });
 

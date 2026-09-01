@@ -53,6 +53,8 @@ export interface HolidayTranslation {
     confirmationTitle: string;
     confirmationSubtitle: string;
     ticketNumberLabel: string;
+    ticketQrTitle: string;
+    ticketQrSubtitle: string;
     yourTimeSlot: string;
     eventLocationLabel: string;
     eventLocationValue: string;
@@ -132,6 +134,8 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         confirmationTitle: "Registration Confirmed!",
         confirmationSubtitle: "Please take a screenshot or print this ticket for check-in on event day.",
         ticketNumberLabel: "Ticket Number",
+        ticketQrTitle: "Official Event Check-In QR Code",
+        ticketQrSubtitle: "Show this secure QR code to staff upon arrival for instant check-in",
         yourTimeSlot: "Assigned Time Slot",
         eventLocationLabel: "Event Location",
         eventLocationValue: "Hope's Corner (Trinity United Methodist Church), 748 Mercy St, Mountain View, CA 94041",
@@ -210,6 +214,8 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         confirmationTitle: "¡Registro Confirmado!",
         confirmationSubtitle: "Tome una captura de pantalla o imprima este boleto para el día del evento.",
         ticketNumberLabel: "Número de Boleto",
+        ticketQrTitle: "Código QR Oficial de Registro",
+        ticketQrSubtitle: "Muestre este código seguro al personal a su llegada para registrarse al instante",
         yourTimeSlot: "Horario Asignado",
         eventLocationLabel: "Ubicación del Evento",
         eventLocationValue: "Hope's Corner (Iglesia Trinity United Methodist), 748 Mercy St, Mountain View, CA 94041",
@@ -288,6 +294,8 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         confirmationTitle: "登记成功！",
         confirmationSubtitle: "请截图或打印此入场凭证，以便在活动当天签到使用。",
         ticketNumberLabel: "凭证票号",
+        ticketQrTitle: "官方入场签到二维码",
+        ticketQrSubtitle: "到达现场时请向工作人员出示此安全二维码以便快速签到",
         yourTimeSlot: "已分配时间段",
         eventLocationLabel: "活动地点",
         eventLocationValue: "Hope's Corner (Trinity United Methodist Church), 748 Mercy St, Mountain View, CA 94041",

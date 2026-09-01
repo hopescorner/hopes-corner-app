@@ -45,6 +45,7 @@ import {
     getHolidayAgeGroup,
     calculateRecommendedCards,
 } from '@/lib/holiday/ageGroups';
+import { HolidayQRScannerModal } from '@/components/services/HolidayQRScannerModal';
 import toast from 'react-hot-toast';
 
 export function HolidayProgramSection() {
@@ -108,6 +109,7 @@ export function HolidayProgramSection() {
 
     const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isScanModalOpen, setIsScanModalOpen] = useState(false);
 
     // Walk-in form state
     const [walkInParentName, setWalkInParentName] = useState('');
@@ -156,6 +158,18 @@ export function HolidayProgramSection() {
         } else {
             toast.error('Failed to check in registration');
         }
+    };
+
+    const handleFastCheckIn = async (reg: HolidayRegistration): Promise<boolean> => {
+        const rec = calculateRecommendedCards(reg.children || []);
+        const grocery = reg.groceryCards || rec.groceryCards || 1;
+        const teen = reg.teenCards ?? rec.teenCards ?? 0;
+        return checkInRegistration(reg.id, {
+            groceryCards: grocery,
+            teenCards: teen,
+            notes: reg.notes || '',
+            checkedInBy: staffName,
+        });
     };
 
     const handleUndoCheckIn = async (reg: HolidayRegistration) => {
@@ -338,6 +352,15 @@ export function HolidayProgramSection() {
                 <div className="flex flex-wrap items-center gap-2">
                     <button
                         type="button"
+                        onClick={() => setIsScanModalOpen(true)}
+                        className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
+                        title="Scan guest ticket QR code with camera or barcode scanner"
+                    >
+                        <QrCode className="w-4 h-4" />
+                        <span>Scan Ticket QR</span>
+                    </button>
+                    <button
+                        type="button"
                         onClick={() => setIsWalkInModalOpen(true)}
                         className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
                     >
@@ -512,29 +535,40 @@ export function HolidayProgramSection() {
 
             {/* Search & Filter Controls */}
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-                {/* Search Input */}
-                <div className="relative w-full sm:max-w-md">
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <label htmlFor={searchInputId} className="sr-only">
-                        Search by ticket number, parent, phone, child, or city
-                    </label>
-                    <input
-                        id={searchInputId}
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Search by ticket #, parent, phone, child, city..."
-                        className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
-                    />
-                    {searchQuery && (
-                        <button
-                            type="button"
-                            onClick={() => setSearchQuery('')}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                        >
-                            <X className="w-4 h-4" />
-                        </button>
-                    )}
+                {/* Search Input & Quick Scan Button */}
+                <div className="flex items-center gap-2 w-full sm:max-w-lg">
+                    <div className="relative flex-1">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <label htmlFor={searchInputId} className="sr-only">
+                            Search by ticket number, parent, phone, child, or city
+                        </label>
+                        <input
+                            id={searchInputId}
+                            type="text"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search by ticket #, parent, phone, child, city..."
+                            className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setIsScanModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold transition-colors whitespace-nowrap shadow-2xs"
+                        title="Scan Ticket QR code"
+                    >
+                        <QrCode className="w-4 h-4" />
+                        <span className="hidden sm:inline">Scan QR</span>
+                    </button>
                 </div>
 
                 {/* Status Tabs */}
@@ -1070,6 +1104,14 @@ export function HolidayProgramSection() {
                     </div>
                 </div>
             )}
+
+            {/* Holiday Ticket QR Scanner Modal */}
+            <HolidayQRScannerModal
+                isOpen={isScanModalOpen}
+                onClose={() => setIsScanModalOpen(false)}
+                onSelectRegistration={openCheckInModal}
+                onFastCheckIn={handleFastCheckIn}
+            />
         </div>
     );
 }

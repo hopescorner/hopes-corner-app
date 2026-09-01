@@ -57,6 +57,8 @@ export interface HolidayRegistration {
     checkedInAt?: string;
     checkedInBy?: string;
     children?: HolidayChild[];
+    ticketToken?: string;
+    qrCodeDataUrl?: string;
     createdAt: string;
     updatedAt: string;
 }

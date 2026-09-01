@@ -3,6 +3,7 @@ import { getHolidayServiceClient } from '@/lib/holiday/server';
 import { HolidayRegistrationInput } from '@/types/holiday';
 import { requireHolidayStaff } from '@/lib/holiday/staffAuth';
 import { holidayRegistrationValidationError } from '@/lib/holiday/validation';
+import { generateHolidayTicketToken, generateTicketQRCodeDataUrl } from '@/lib/holiday/ticketToken';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,7 +53,24 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: error.message || 'Failed to create walk-in record' }, { status: 500 });
         }
 
-        return NextResponse.json({ registration: data });
+        const ticketToken = generateHolidayTicketToken({
+            id: data.id,
+            ticketNumber: data.ticketNumber,
+            eventYear: data.eventYear || 2026,
+            parentName: data.parentName,
+            timeSlot: data.timeSlot,
+            childrenCount: Array.isArray(data.children) ? data.children.length : body.children.length,
+        });
+
+        const qrCodeDataUrl = await generateTicketQRCodeDataUrl(ticketToken);
+
+        return NextResponse.json({
+            registration: {
+                ...data,
+                ticketToken,
+                qrCodeDataUrl,
+            },
+        });
     } catch (error) {
         console.error('[holiday-staff-walkin] Unexpected error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
