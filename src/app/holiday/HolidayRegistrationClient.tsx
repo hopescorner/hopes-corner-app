@@ -3,7 +3,6 @@
 import { useId, useState } from 'react';
 import Image from 'next/image';
 import {
-    Gift,
     Clock,
     CheckCircle2,
     Printer,
@@ -248,25 +247,6 @@ export default function HolidayRegistrationClient() {
                                         </div>
                                     ))}
                                 </div>
-                            </div>
-
-                            <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                                <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-950">
-                                    <Gift className="h-4 w-4 text-amber-700" />
-                                    {t.entitlementsTitle}
-                                </h3>
-                                <ul className="space-y-1.5 text-sm text-amber-950">
-                                    <li className="flex items-center gap-2">
-                                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
-                                        <span>{t.groceryCardEntitlement}</span>
-                                    </li>
-                                    {confirmedRegistration.teenCards > 0 && (
-                                        <li className="flex items-center gap-2">
-                                            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-700" />
-                                            <span>{confirmedRegistration.teenCards}x {t.teenCardEntitlement}</span>
-                                        </li>
-                                    )}
-                                </ul>
                             </div>
 
                             <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">

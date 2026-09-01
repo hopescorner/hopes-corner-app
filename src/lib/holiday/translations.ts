@@ -140,7 +140,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         groceryCardEntitlement: "1 Family Grocery Card",
         teenCardEntitlement: "Teen Gift Card(s) (Ages 14–18)",
         importantNotesTitle: "Important Event Day Instructions",
-        importantNotesText: "Please arrive during your assigned 20-minute time slot. Bring a photo ID matching the parent/guardian name or this ticket confirmation.",
+        importantNotesText: "Please arrive 10 minutes before your assigned time slot and bring your ticket confirmation on your phone.",
         printTicketButton: "Print / Save Ticket",
         registerAnotherButton: "Register Another Family",
 
@@ -218,7 +218,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         groceryCardEntitlement: "1 Tarjeta de Supermercado Familiar",
         teenCardEntitlement: "Tarjeta(s) de Regalo para Adolescentes (14–18 años)",
         importantNotesTitle: "Instrucciones Importantes para el Evento",
-        importantNotesText: "Por favor llegue durante su ventana de 20 minutos asignada con una identificación con foto o esta confirmación.",
+        importantNotesText: "Por favor llegue 10 minutos antes de su horario asignado y traiga la confirmación de su boleto en su teléfono.",
         printTicketButton: "Imprimir / Guardar Boleto",
         registerAnotherButton: "Registrar Otra Familia",
 
@@ -296,7 +296,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         groceryCardEntitlement: "家庭食品杂货卡 1 张",
         teenCardEntitlement: "青少年礼品卡（14–18岁）",
         importantNotesTitle: "活动当天重要须知",
-        importantNotesText: "请在您被分配的 20 分钟时间段内到达。请携带与家长/监护人姓名一致的带照片身份证件或本入场凭证。",
+        importantNotesText: "请在您被分配的时间段前 10 分钟到达，并出示手机上的凭证确认页面。",
         printTicketButton: "打印 / 保存凭证",
         registerAnotherButton: "登记另一个家庭",
 

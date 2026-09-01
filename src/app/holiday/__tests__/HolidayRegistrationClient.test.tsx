@@ -113,6 +113,9 @@ describe('HolidayRegistrationClient', () => {
             expect(screen.getByText('09:00 AM - 09:20 AM')).toBeDefined();
             expect(screen.getByText(/Registration Confirmed!/i)).toBeDefined();
             expect(screen.getByText(/Print \/ Save Ticket/i)).toBeDefined();
+            expect(screen.queryByText(/Eligible Items Summary/i)).toBeNull();
+            expect(screen.queryByText(/Family Grocery Card/i)).toBeNull();
+            expect(screen.getByText(/Please arrive 10 minutes before your assigned time slot and bring your ticket confirmation on your phone\./i)).toBeDefined();
         });
     });
 
