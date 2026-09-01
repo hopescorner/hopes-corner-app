@@ -8,8 +8,9 @@ export async function proxy(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
 
     // Public routes and API handlers manage their own auth behavior.
-    const publicRoutes = ['/login', '/api', '/sw.js'];
+    const publicRoutes = ['/login', '/api', '/sw.js', '/holiday'];
     const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+
 
     if (isPublicRoute) {
         return response;

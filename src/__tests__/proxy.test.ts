@@ -50,7 +50,12 @@ describe('proxy', () => {
         const res = await proxy(req as any);
         expect(res).toEqual({ type: 'next' });
         expect(mocks.updateSession).not.toHaveBeenCalled();
+
+        const holidayReq = buildRequest('/holiday');
+        const holidayRes = await proxy(holidayReq as any);
+        expect(holidayRes).toEqual({ type: 'next' });
     });
+
 
     it('returns early for api routes so handlers can enforce auth themselves', async () => {
         const req = buildRequest('/api/auth/session');

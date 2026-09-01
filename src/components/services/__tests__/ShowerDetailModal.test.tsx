@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import React from 'react';
 import { ShowerDetailModal } from '../ShowerDetailModal';
 
@@ -416,7 +416,10 @@ describe('ShowerDetailModal', () => {
         });
 
         it('disables button while marking as done', async () => {
-            mockUpdateShowerStatus.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve(true), 100)));
+            let resolveUpdate: (success: boolean) => void = () => undefined;
+            mockUpdateShowerStatus.mockImplementation(() => new Promise(resolve => {
+                resolveUpdate = resolve;
+            }));
             render(<ShowerDetailModal {...defaultProps} />);
 
             const markDoneButton = screen.getByText('Mark as Done').closest('button') as HTMLButtonElement;
@@ -426,6 +429,11 @@ describe('ShowerDetailModal', () => {
             
             // Button should be disabled while processing
             expect(markDoneButton?.disabled).toBe(true);
+
+            await act(async () => {
+                resolveUpdate(true);
+            });
+            await waitFor(() => expect(defaultProps.onClose).toHaveBeenCalled());
         });
 
         it('shows different status badge colors for done vs awaiting', () => {

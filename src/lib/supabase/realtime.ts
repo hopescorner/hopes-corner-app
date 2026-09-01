@@ -17,6 +17,7 @@ export type TableName =
     | 'daily_notes'
     | 'donations';
 
+
 type ChangeEvent = 'INSERT' | 'UPDATE' | 'DELETE' | '*';
 
 export interface SubscriptionOptions {

@@ -11,7 +11,8 @@ import {
     Bike,
     History,
     Utensils,
-    Heart
+    Heart,
+    Gift
 } from 'lucide-react';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
@@ -19,6 +20,7 @@ import { useMealsStore } from '@/stores/useMealsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useRemindersStore } from '@/stores/useRemindersStore';
 import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
+import { useHolidayStore } from '@/stores/useHolidayStore';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
@@ -34,6 +36,7 @@ const ALL_TABS = [
     { id: 'laundry', label: 'Laundry', icon: WashingMachine, color: 'text-purple-600', bg: 'bg-purple-50' },
     { id: 'haircuts', label: 'Haircuts', icon: Scissors, color: 'text-violet-600', bg: 'bg-violet-50' },
     { id: 'bicycles', label: 'Bicycles', icon: Bike, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { id: 'holiday', label: 'Holiday', icon: Gift, color: 'text-pink-600', bg: 'bg-pink-50' },
     { id: 'donations', label: 'Donations', icon: Heart, color: 'text-rose-600', bg: 'bg-rose-50' },
 ];
 
@@ -48,9 +51,11 @@ const ShowersSection = dynamic(() => import('@/components/services/ShowersSectio
 const LaundrySection = dynamic(() => import('@/components/services/LaundrySection').then((m) => m.LaundrySection), { loading: TabSkeleton });
 const HaircutsSection = dynamic(() => import('@/components/services/HaircutsSection').then((m) => m.HaircutsSection), { loading: TabSkeleton });
 const BicycleSection = dynamic(() => import('@/components/services/BicycleSection').then((m) => m.BicycleSection), { loading: TabSkeleton });
+const HolidayProgramSection = dynamic(() => import('@/components/services/HolidayProgramSection').then((m) => m.HolidayProgramSection), { loading: TabSkeleton });
 const TimelineSection = dynamic(() => import('@/components/services/TimelineSection').then((m) => m.TimelineSection), { loading: TabSkeleton });
 const MealsSection = dynamic(() => import('@/components/services/MealsSection').then((m) => m.MealsSection), { loading: TabSkeleton });
 const DonationsSection = dynamic(() => import('@/components/services/DonationsSection').then((m) => m.DonationsSection), { loading: TabSkeleton });
+
 const RealtimeSyncProvider = dynamic(
     () => import('@/components/providers/RealtimeSyncProvider').then((module) => module.RealtimeSyncProvider),
     { ssr: false },
@@ -113,6 +118,7 @@ export default function ServicesPage() {
     const ensureDonationsLoaded = useDonationsStore((s) => s.ensureLoaded);
     const ensureRemindersLoaded = useRemindersStore((s) => s.ensureLoaded);
     const ensureDailyNotesLoaded = useDailyNotesStore((s) => s.ensureLoaded);
+    const ensureHolidayLoaded = useHolidayStore((s) => s.ensureLoaded);
 
     const loadTabData = useCallback((tab: string) => {
         const loaders: Record<ServiceDataKey, () => Promise<void>> = {
@@ -122,9 +128,10 @@ export default function ServicesPage() {
             donations: ensureDonationsLoaded,
             reminders: ensureRemindersLoaded,
             dailyNotes: ensureDailyNotesLoaded,
+            holiday: ensureHolidayLoaded,
         };
         return Promise.all(serviceTabDataKeys(tab).map((key) => loaders[key]()));
-    }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded, ensureRemindersLoaded, ensureDailyNotesLoaded]);
+    }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded, ensureRemindersLoaded, ensureDailyNotesLoaded, ensureHolidayLoaded]);
 
     useEffect(() => {
         void loadTabData(activeTab);
@@ -248,6 +255,7 @@ export default function ServicesPage() {
             case 'laundry': return <LaundrySection />;
             case 'haircuts': return <HaircutsSection />;
             case 'bicycles': return <BicycleSection />;
+            case 'holiday': return <HolidayProgramSection />;
             case 'timeline': return <TimelineSection />;
             case 'meals': return <MealsSection />;
             case 'donations': return <DonationsSection />;

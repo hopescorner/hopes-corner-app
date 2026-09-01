@@ -14,6 +14,10 @@ describe('serviceTabDataKeys', () => {
         expect(serviceTabDataKeys('showers')).toEqual(['services', 'guests', 'reminders', 'dailyNotes']);
     });
 
+    it('loads only holiday data for the holiday tab', () => {
+        expect(serviceTabDataKeys('holiday')).toEqual(['holiday']);
+    });
+
     it('loads the datasets required to calculate overview metrics', () => {
         expect(serviceTabDataKeys('overview')).toEqual(['services', 'guests', 'meals']);
     });

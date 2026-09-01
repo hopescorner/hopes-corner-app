@@ -27,6 +27,8 @@ import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useCheckInStore } from '@/stores/useCheckInStore';
+
+
 import { pacificDateStringFrom } from '@/lib/utils/date';
 
 function resolveGuestName(guestId: string): string {
@@ -87,8 +89,10 @@ export function useRealtimeSync() {
             blockedSlots: null,
             dailyNotes: null,
             donations: null,
+            holiday: null,
             serviceReconcile: null,
         };
+
 
         const debouncedWork = (key: keyof typeof refreshTimeouts, work: () => void | Promise<void>, delay = 150) => {
             if (refreshTimeouts[key]) {
@@ -615,6 +619,7 @@ export function useRealtimeSync() {
                 debouncedWork('serviceReconcile', servicesLoadFromSupabase);
             }
         })];
+
 
         // Cleanup on unmount
         return () => {

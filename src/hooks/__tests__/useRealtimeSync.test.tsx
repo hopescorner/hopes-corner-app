@@ -49,6 +49,27 @@ const mockDailyNotesLoadFromSupabase = vi.fn();
 const mockDailyNotesSetState = vi.fn();
 const mockDonationsLoadFromSupabase = vi.fn();
 const mockDonationsSetState = vi.fn();
+const mockHolidayLoadFromSupabase = vi.fn();
+const mockHolidaySetState = vi.fn();
+const mockHolidayGetState = vi.fn(() => ({
+    isLoaded: true,
+    loadFromSupabase: mockHolidayLoadFromSupabase,
+}));
+
+vi.mock('@/stores/useHolidayStore', () => ({
+    useHolidayStore: Object.assign(function useHolidayStore(selector: any) {
+        if (typeof selector === 'function') {
+            return selector({
+                loadFromSupabase: mockHolidayLoadFromSupabase,
+            });
+        }
+        return { loadFromSupabase: mockHolidayLoadFromSupabase };
+    }, {
+        setState: (...args: any[]) => mockHolidaySetState(...args),
+        getState: () => mockHolidayGetState(),
+    }),
+}));
+
 
 vi.mock('@/stores/useServicesStore', () => ({
     useServicesStore: Object.assign(function useServicesStore(selector: any) {
@@ -202,15 +223,22 @@ describe('useRealtimeSync', () => {
         expect(mockSubscribeToTable).toHaveBeenCalledWith(
             expect.objectContaining({ table: 'donations' })
         );
+        expect(mockSubscribeToTable).not.toHaveBeenCalledWith(
+            expect.objectContaining({ table: 'holiday_registrations' })
+        );
+        expect(mockSubscribeToTable).not.toHaveBeenCalledWith(
+            expect.objectContaining({ table: 'holiday_children' })
+        );
     });
 
-    it('subscribes to 14 tables through one route-scoped channel', () => {
+    it('subscribes to 14 browser-readable tables through one route-scoped channel', () => {
         renderHook(() => useRealtimeSync());
         
         expect(mockSubscribeToTable).toHaveBeenCalledTimes(14);
         expect(mockSubscribeToTables).toHaveBeenCalledTimes(1);
         expect(mockSubscribeToTables).toHaveBeenCalledWith(expect.any(Array), 'operations', expect.any(Function));
     });
+
 
     it('reloads service records after the realtime channel subscribes', async () => {
         renderHook(() => useRealtimeSync());

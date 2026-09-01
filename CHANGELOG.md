@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.0] - 2026-08-31
+
+### Added
+
+- Added the Holiday Toy Distribution Program to help families register online for the annual holiday event.
+- Families can sign up online in English, Spanish, or Mandarin without logging in, and automatically receive a 20-minute arrival time slot and ticket number.
+- Staff can manage holiday registrations on the Services page, check in families on the day of the event, track grocery and teen gift cards, add day-of notes, register walk-ins, and export registration lists to CSV.
+- Added automatic staff-screen refreshes, shared registration throttling, and service-role-only database protection for family and child information.
+
 ## [0.9.0] - 2026-08-31
 
 ### Added

@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.9.0';
+export const APP_VERSION = '0.10.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -20,8 +20,20 @@ export interface ChangelogEntry {
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: '0.10.0',
+        date: 'August 31, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Holiday Toy Distribution Program',
+                description: 'Families can sign up online in English, Spanish, or Mandarin to receive an arrival time slot and ticket number. Staff can manage registrations, check in families, record gift cards, add notes, and register walk-in guests on the Services page.',
+            },
+        ],
+    },
+    {
         version: '0.9.0',
         date: 'August 31, 2026',
+
         highlights: [
             {
                 type: 'feature',
