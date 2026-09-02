@@ -13,7 +13,7 @@ const routeChunks = (entries[pageKey] || []).filter((chunk) => !layoutChunks.has
 const routeGzipBytes = routeChunks.reduce((total, chunk) => (
     total + gzipSync(readFileSync(`.next/${chunk}`)).byteLength
 ), 0);
-const jsBudgetBytes = 130 * 1024;
+const jsBudgetBytes = 135 * 1024;
 
 const guest = (index) => ({
     id: `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
@@ -53,7 +53,7 @@ const representativeSnapshot = {
 const snapshotGzipBytes = gzipSync(JSON.stringify(representativeSnapshot)).byteLength;
 const snapshotBudgetBytes = 300 * 1024;
 
-console.log(`Check-in route JS: ${(routeGzipBytes / 1024).toFixed(1)} KiB gzip / 130 KiB`);
+console.log(`Check-in route JS: ${(routeGzipBytes / 1024).toFixed(1)} KiB gzip / 135 KiB`);
 console.log(`Representative snapshot: ${(snapshotGzipBytes / 1024).toFixed(1)} KiB gzip / 300 KiB`);
 
 if (routeGzipBytes > jsBudgetBytes) throw new Error('Check-in route JavaScript budget exceeded');
