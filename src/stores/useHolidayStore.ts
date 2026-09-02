@@ -244,6 +244,11 @@ export const useHolidayStore = create<HolidayStoreState>()(
                     }
 
                     const json = await res.json();
+                    if (options?.clearRegistrations !== false) {
+                        set((state) => {
+                            state.registrations = [];
+                        });
+                    }
                     await get().loadFromSupabase();
                     return json;
                 } catch (error) {

@@ -143,7 +143,7 @@ describe('HolidayProgramSection', () => {
 
         await waitFor(() => {
             expect(screen.getByText(/Volunteer Shopper QR/i)).toBeDefined();
-            expect(screen.getByText(/Ticket #1/i)).toBeDefined();
+            expect(screen.getAllByText(/Ticket #1/i).length).toBeGreaterThan(0);
             expect(screen.getByRole('button', { name: /Copy Link/i })).toBeDefined();
         });
     });
@@ -165,15 +165,15 @@ describe('HolidayProgramSection', () => {
 
         render(<HolidayProgramSection />);
 
-        const resetBtn = screen.getByRole('button', { name: /Reset Tickets to #1/i });
+        const resetBtn = screen.getByRole('button', { name: /Reset Test Data/i });
         fireEvent.click(resetBtn);
 
         await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /Reset Ticket Counter to #1/i })).toBeDefined();
-            expect(screen.getByText(/Clear existing test registrations/i)).toBeDefined();
+            expect(screen.getByRole('heading', { name: /Reset Test Data & Ticket Counter/i })).toBeDefined();
+            expect(screen.getByText(/Delete all test registrations/i)).toBeDefined();
         });
 
-        const confirmBtn = screen.getByRole('button', { name: /Confirm Reset to #1/i });
+        const confirmBtn = screen.getByRole('button', { name: /Reset Test Data & Start at #1/i });
         fireEvent.click(confirmBtn);
 
         await waitFor(() => {

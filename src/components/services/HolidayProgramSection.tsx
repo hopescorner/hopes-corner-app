@@ -247,7 +247,9 @@ export function HolidayProgramSection() {
             });
             if (res && res.success) {
                 toast.success(
-                    `Ticket counter reset to #1${res.deletedRegistrations ? ` (${res.deletedRegistrations} test registrations removed)` : ''}`
+                    res.deletedRegistrations
+                        ? `Cleared ${res.deletedRegistrations} test registration(s) and restarted ticket counter to #1`
+                        : 'Ticket counter reset to #1'
                 );
                 setIsResetModalOpen(false);
             } else {
@@ -422,11 +424,11 @@ export function HolidayProgramSection() {
                         type="button"
                         onClick={() => setIsResetModalOpen(true)}
                         className="inline-flex items-center justify-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/30 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl transition-all"
-                        title="Reset ticket sequence counter to #1 for registration launch"
+                        title="Reset all test registrations and restart ticket sequence at #1"
                     >
                         <RotateCcw className="w-4 h-4" />
-                        <span className="hidden sm:inline">Reset Tickets to #1</span>
-                        <span className="sm:hidden">Reset #1</span>
+                        <span className="hidden sm:inline">Reset Test Data & Ticket #1</span>
+                        <span className="sm:hidden">Reset Test Data</span>
                     </button>
                 </div>
             </div>
@@ -1334,10 +1336,10 @@ export function HolidayProgramSection() {
                                 </div>
                                 <div>
                                     <div className="text-[10px] font-bold uppercase tracking-wider text-rose-200">
-                                        Registration Launch Setup
+                                        Testing & Launch Setup
                                     </div>
                                     <h2 className="text-lg font-black leading-tight">
-                                        Reset Ticket Counter to #1
+                                        Reset Test Data & Ticket Counter
                                     </h2>
                                 </div>
                             </div>
@@ -1355,10 +1357,10 @@ export function HolidayProgramSection() {
                             <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs space-y-1.5">
                                 <p className="font-bold flex items-center gap-1.5 text-amber-900">
                                     <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                                    <span>Prepare for Registration Launch Day</span>
+                                    <span>Clear Test Data & Restart at Ticket #1</span>
                                 </p>
                                 <p className="leading-relaxed">
-                                    This will restart the ticket sequence so the next registered family will receive <strong>Ticket #1</strong>.
+                                    This clears all test family registrations, resets registration rate limits, and restarts the sequence so the next registration starts cleanly at <strong>Ticket #1</strong>.
                                 </p>
                             </div>
 
@@ -1372,10 +1374,10 @@ export function HolidayProgramSection() {
                                 />
                                 <div className="text-xs space-y-0.5">
                                     <span className="font-bold text-slate-900 block">
-                                        Clear existing test registrations
+                                        Delete all test registrations
                                     </span>
                                     <span className="text-slate-500 block">
-                                        Purges all test family registrations for 2026 to ensure no ticket number conflicts when public registration opens.
+                                        Deletes all 2026 holiday registrations and children records from the database to avoid ticket number collisions.
                                     </span>
                                 </div>
                             </label>
@@ -1396,7 +1398,7 @@ export function HolidayProgramSection() {
                                     className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50"
                                 >
                                     <RotateCcw className="w-3.5 h-3.5" />
-                                    <span>{isResetting ? 'Resetting...' : 'Confirm Reset to #1'}</span>
+                                    <span>{isResetting ? 'Resetting...' : 'Reset Test Data & Start at #1'}</span>
                                 </button>
                             </div>
                         </div>

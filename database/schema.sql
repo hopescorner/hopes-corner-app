@@ -2334,8 +2334,7 @@ begin
     )
     select count(*) into v_deleted_count from deleted;
 
-    delete from public.holiday_rate_limits
-    where bucket_key like 'holiday_reg_%';
+    delete from public.holiday_registration_rate_limits;
   end if;
 
   v_seq_name := pg_get_serial_sequence('public.holiday_registrations', 'ticket_number');

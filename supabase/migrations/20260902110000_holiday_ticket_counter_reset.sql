@@ -22,9 +22,8 @@ begin
     )
     select count(*) into v_deleted_count from deleted;
 
-    -- Also clear rate limit buckets for fresh start
-    delete from public.holiday_rate_limits
-    where bucket_key like 'holiday_reg_%';
+    -- Also clear rate limit attempts for fresh start
+    delete from public.holiday_registration_rate_limits;
   end if;
 
   -- Get sequence name for holiday_registrations ticket_number
