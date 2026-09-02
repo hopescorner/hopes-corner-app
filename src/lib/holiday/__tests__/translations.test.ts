@@ -36,7 +36,7 @@ describe('Holiday translations', () => {
             'guidelinesTitle',
             'guidelineScreenshot',
             'guidelineArrival',
-            'guidelineGifts',
+            'guidelineHousehold',
             'arrivalInfoTitle',
             'arrivalInfoNotice',
             'submitButton',

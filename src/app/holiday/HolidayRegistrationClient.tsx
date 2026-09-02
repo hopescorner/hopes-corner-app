@@ -419,7 +419,7 @@ export default function HolidayRegistrationClient() {
                         <ul className="text-xs text-emerald-900/90 space-y-1 list-disc pl-4 leading-relaxed">
                             <li>{t.guidelineScreenshot}</li>
                             <li>{t.guidelineArrival}</li>
-                            <li>{t.guidelineGifts}</li>
+                            <li>{t.guidelineHousehold}</li>
                         </ul>
                     </div>
                 </section>

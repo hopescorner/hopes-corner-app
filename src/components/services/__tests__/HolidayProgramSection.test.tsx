@@ -159,6 +159,31 @@ describe('HolidayProgramSection', () => {
         });
     });
 
+    it('opens reset modal and confirms resetting ticket counter to #1', async () => {
+        const resetSpy = vi.fn().mockResolvedValue({ success: true, deletedRegistrations: 2, nextTicketNumber: 1 });
+        useHolidayStore.setState({ resetTicketCounter: resetSpy });
+
+        render(<HolidayProgramSection />);
+
+        const resetBtn = screen.getByRole('button', { name: /Reset Tickets to #1/i });
+        fireEvent.click(resetBtn);
+
+        await waitFor(() => {
+            expect(screen.getByRole('heading', { name: /Reset Ticket Counter to #1/i })).toBeDefined();
+            expect(screen.getByText(/Clear existing test registrations/i)).toBeDefined();
+        });
+
+        const confirmBtn = screen.getByRole('button', { name: /Confirm Reset to #1/i });
+        fireEvent.click(confirmBtn);
+
+        await waitFor(() => {
+            expect(resetSpy).toHaveBeenCalledWith({
+                clearRegistrations: true,
+                targetNumber: 1,
+            });
+        });
+    });
+
     it('refreshes registrations from the protected API every 30 seconds', async () => {
         vi.useFakeTimers();
         const reload = vi.fn().mockResolvedValue(undefined);

@@ -24,7 +24,7 @@ export interface HolidayTranslation {
     guidelinesTitle: string;
     guidelineScreenshot: string;
     guidelineArrival: string;
-    guidelineGifts: string;
+    guidelineHousehold: string;
     cityLabel: string;
     otherCityPlaceholder: string;
 
@@ -114,11 +114,11 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         step2Title: "2. Receive Arrival Ticket",
         step2Desc: "You will be assigned a 20-minute arrival window and an official check-in QR code immediately.",
         step3Title: "3. Shop with a Volunteer",
-        step3Desc: "On event day, a volunteer personal shopper will guide you to select gifts and cards for your children.",
+        step3Desc: "On event day, a volunteer personal shopper will guide you to select gifts for your children.",
         guidelinesTitle: "Helpful Registration Instructions & Guidelines",
         guidelineScreenshot: "Save or screenshot your ticket QR code on your phone right after submitting.",
         guidelineArrival: "Please arrive 10 minutes before your assigned arrival window at Hope's Corner.",
-        guidelineGifts: "Eligible families receive 1 grocery card, toys for children (ages 0–13), and gift cards for teens (ages 14–18).",
+        guidelineHousehold: "Please register each dependent child living in your household (ages 0–18). One registration per family.",
         cityLabel: "City of Residence",
         otherCityPlaceholder: "Enter your city",
 
@@ -207,11 +207,11 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         step2Title: "2. Reciba su Horario y Boleto",
         step2Desc: "Se le asignará de inmediato un horario de llegada de 20 minutos y su código QR oficial de registro.",
         step3Title: "3. Elija Regalos con un Voluntario",
-        step3Desc: "El día del evento, un voluntario le ayudará personalmente a elegir los juguetes y tarjetas para sus hijos.",
+        step3Desc: "El día del evento, un voluntario le ayudará personalmente a elegir los regalos para sus hijos.",
         guidelinesTitle: "Instrucciones Útiles y Pautas de Registro",
         guidelineScreenshot: "Guarde o tome una captura de pantalla del código QR de su boleto después de registrarse.",
         guidelineArrival: "Por favor llegue 10 minutos antes de su horario asignado a Hope's Corner.",
-        guidelineGifts: "Las familias elegibles reciben 1 tarjeta de supermercado, juguetes para niños (0–13 años) y tarjetas de regalo para jóvenes (14–18 años).",
+        guidelineHousehold: "Por favor inscriba a cada hijo/a dependiente que viva en su hogar (0 a 18 años). Un registro por familia.",
         cityLabel: "Ciudad de Residencia",
         otherCityPlaceholder: "Ingrese su ciudad",
 
@@ -300,11 +300,11 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         step2Title: "2. 获取入场时间与凭证",
         step2Desc: "提交后系统将即时自动分配20分钟到场时段与官方入场签到二维码。",
         step3Title: "3. 志愿者协助现场挑选",
-        step3Desc: "活动当天到达现场签到后，将有专属志愿者陪同为您孩子挑选心仪的玩具或礼品卡。",
+        step3Desc: "活动当天到达现场签到后，将有专属志愿者陪同为您孩子挑选心仪的节日礼物。",
         guidelinesTitle: "温馨登记须知与提示",
         guidelineScreenshot: "登记成功后，请立即在手机上截图保存或打印您的确认票据及二维码。",
         guidelineArrival: "请在您被分配的时间段前 10 分钟到达 Hope's Corner 现场办理签到。",
-        guidelineGifts: "符合资格的家庭将获得1张家庭杂货卡、0–13岁儿童礼物，以及14–18岁青少年专属礼品卡。",
+        guidelineHousehold: "请为您家中共同居住的每位受抚养子女（0–18岁）进行登记，每个家庭仅限登记一次。",
         cityLabel: "居住城市",
         otherCityPlaceholder: "请输入所在城市",
 

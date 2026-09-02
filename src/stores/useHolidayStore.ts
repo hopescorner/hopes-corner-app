@@ -28,6 +28,10 @@ interface HolidayStoreState {
     updateRegistration: (id: string, updates: Partial<HolidayRegistration>) => Promise<boolean>;
     deleteRegistration: (id: string) => Promise<boolean>;
     addWalkInRegistration: (input: HolidayRegistrationInput) => Promise<HolidayRegistration | null>;
+    resetTicketCounter: (options?: {
+        clearRegistrations?: boolean;
+        targetNumber?: number;
+    }) => Promise<{ success: boolean; deletedRegistrations: number; nextTicketNumber: number } | null>;
     setSelectedSlotFilter: (slot: string | null) => void;
     setSearchQuery: (query: string) => void;
     setStatusFilter: (filter: 'all' | 'registered' | 'checked_in') => void;
@@ -226,7 +230,27 @@ export const useHolidayStore = create<HolidayStoreState>()(
                 }
             },
 
+            resetTicketCounter: async (options) => {
+                try {
+                    const res = await fetch('/api/holiday/staff/reset-tickets', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(options || {}),
+                    });
 
+                    if (!res.ok) {
+                        console.error('[useHolidayStore] Error resetting ticket counter:', res.statusText);
+                        return null;
+                    }
+
+                    const json = await res.json();
+                    await get().loadFromSupabase();
+                    return json;
+                } catch (error) {
+                    console.error('[useHolidayStore] Exception resetting ticket counter:', error);
+                    return null;
+                }
+            },
 
             setSelectedSlotFilter: (slot) => {
                 set((state) => {

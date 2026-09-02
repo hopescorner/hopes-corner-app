@@ -430,6 +430,34 @@ describe('Holiday API Routes', () => {
                 const json = await res.json();
                 expect(json.success).toBe(true);
             });
+
+            it('resets ticket counter and clears test registrations', async () => {
+                mockRpc.mockResolvedValueOnce({
+                    data: {
+                        success: true,
+                        deletedRegistrations: 5,
+                        nextTicketNumber: 1,
+                    },
+                    error: null,
+                });
+
+                const { POST } = await import('../staff/reset-tickets/route');
+                const req = new NextRequest('http://localhost/api/holiday/staff/reset-tickets', {
+                    method: 'POST',
+                    body: JSON.stringify({ clearRegistrations: true, targetNumber: 1 }),
+                });
+
+                const res = await POST(req);
+                expect(res.status).toBe(200);
+                const json = await res.json();
+                expect(mockRpc).toHaveBeenCalledWith('reset_holiday_ticket_counter', {
+                    p_clear_registrations: true,
+                    p_target_number: 1,
+                });
+                expect(json.success).toBe(true);
+                expect(json.deletedRegistrations).toBe(5);
+                expect(json.nextTicketNumber).toBe(1);
+            });
         });
 
         it.each([
@@ -471,6 +499,13 @@ describe('Holiday API Routes', () => {
                     new NextRequest('http://localhost/api/holiday/staff/registrations/reg-1', { method: 'DELETE' }),
                     { params: Promise.resolve({ id: 'reg-1' }) }
                 );
+            }],
+            ['reset-tickets', async () => {
+                const { POST } = await import('../staff/reset-tickets/route');
+                return POST(new NextRequest('http://localhost/api/holiday/staff/reset-tickets', {
+                    method: 'POST',
+                    body: JSON.stringify({ clearRegistrations: true }),
+                }));
             }],
         ])('returns 403 from the %s endpoint for a non-staff role', async (_name, invoke) => {
             mockAuth.mockResolvedValueOnce({

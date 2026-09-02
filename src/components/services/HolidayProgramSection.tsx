@@ -20,6 +20,7 @@ import {
     FileSpreadsheet,
     QrCode,
     ShoppingBag,
+    AlertCircle,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import {
@@ -112,7 +113,12 @@ export function HolidayProgramSection() {
     const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [clearTestRegistrations, setClearTestRegistrations] = useState(true);
+    const [isResetting, setIsResetting] = useState(false);
     const [shopperQRModalReg, setShopperQRModalReg] = useState<HolidayRegistration | null>(null);
+
+    const resetTicketCounter = useHolidayStore((s) => s.resetTicketCounter);
 
     // Walk-in form state
     const [walkInParentName, setWalkInParentName] = useState('');
@@ -228,6 +234,28 @@ export function HolidayProgramSection() {
             setWalkInChildren([{ name: '', age: 0, school: '' }]);
         } else {
             toast.error('Failed to add walk-in registration');
+        }
+    };
+
+    const handleConfirmReset = async () => {
+        setIsResetting(true);
+        try {
+            const res = await resetTicketCounter({
+                clearRegistrations: clearTestRegistrations,
+                targetNumber: 1,
+            });
+            if (res && res.success) {
+                toast.success(
+                    `Ticket counter reset to #1${res.deletedRegistrations ? ` (${res.deletedRegistrations} test registrations removed)` : ''}`
+                );
+                setIsResetModalOpen(false);
+            } else {
+                toast.error('Failed to reset ticket counter');
+            }
+        } catch {
+            toast.error('Error resetting ticket counter');
+        } finally {
+            setIsResetting(false);
         }
     };
 
@@ -388,6 +416,16 @@ export function HolidayProgramSection() {
                         <Share2 className="w-4 h-4" />
                         <span className="hidden sm:inline">Public Link</span>
                         <span className="sm:hidden">Share</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setIsResetModalOpen(true)}
+                        className="inline-flex items-center justify-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/30 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl transition-all"
+                        title="Reset ticket sequence counter to #1 for registration launch"
+                    >
+                        <RotateCcw className="w-4 h-4" />
+                        <span className="hidden sm:inline">Reset Tickets to #1</span>
+                        <span className="sm:hidden">Reset #1</span>
                     </button>
                 </div>
             </div>
@@ -1271,6 +1309,87 @@ export function HolidayProgramSection() {
                 onClose={() => setShopperQRModalReg(null)}
                 registration={shopperQRModalReg}
             />
+
+            {/* Reset Ticket Counter Modal */}
+            {isResetModalOpen && (
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in duration-150">
+                        <div className="bg-rose-900 text-white p-6 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-800 text-rose-200">
+                                    <RotateCcw className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-rose-200">
+                                        Registration Launch Setup
+                                    </div>
+                                    <h2 className="text-lg font-black leading-tight">
+                                        Reset Ticket Counter to #1
+                                    </h2>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => !isResetting && setIsResetModalOpen(false)}
+                                className="text-rose-200 hover:text-white p-1 rounded-lg"
+                                disabled={isResetting}
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 space-y-4">
+                            <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-xs space-y-1.5">
+                                <p className="font-bold flex items-center gap-1.5 text-amber-900">
+                                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                                    <span>Prepare for Registration Launch Day</span>
+                                </p>
+                                <p className="leading-relaxed">
+                                    This will restart the ticket sequence so the next registered family will receive <strong>Ticket #1</strong>.
+                                </p>
+                            </div>
+
+                            <label className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors">
+                                <input
+                                    type="checkbox"
+                                    checked={clearTestRegistrations}
+                                    onChange={(e) => setClearTestRegistrations(e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300"
+                                    disabled={isResetting}
+                                />
+                                <div className="text-xs space-y-0.5">
+                                    <span className="font-bold text-slate-900 block">
+                                        Clear existing test registrations
+                                    </span>
+                                    <span className="text-slate-500 block">
+                                        Purges all test family registrations for 2026 to ensure no ticket number conflicts when public registration opens.
+                                    </span>
+                                </div>
+                            </label>
+
+                            <div className="flex items-center gap-2 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsResetModalOpen(false)}
+                                    disabled={isResetting}
+                                    className="flex-1 px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleConfirmReset}
+                                    disabled={isResetting}
+                                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-xl shadow-md transition-all active:scale-95 disabled:opacity-50"
+                                >
+                                    <RotateCcw className="w-3.5 h-3.5" />
+                                    <span>{isResetting ? 'Resetting...' : 'Confirm Reset to #1'}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
