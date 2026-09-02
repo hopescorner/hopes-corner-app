@@ -12,6 +12,7 @@ import {
     Trash2,
     Globe,
     Gift,
+    Info,
 } from 'lucide-react';
 import {
     HolidayLanguage,
@@ -109,6 +110,10 @@ export default function HolidayRegistrationClient() {
         for (const child of children) {
             if (!child.name.trim()) {
                 setErrorMessage(t.errors.childNameRequired);
+                return;
+            }
+            if (!child.birthdate || !child.birthdate.trim()) {
+                setErrorMessage(t.errors.childBirthdateRequired);
                 return;
             }
             if (child.age < 0 || child.age > 18) {
@@ -358,6 +363,67 @@ export default function HolidayRegistrationClient() {
                     </div>
                 </header>
 
+                {/* Helpful Instructions & How It Works */}
+                <section aria-labelledby="instructions-heading" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm space-y-4">
+                    <div className="flex items-center gap-2">
+                        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-800 text-xs font-bold">
+                            <Info className="h-3.5 w-3.5" />
+                        </span>
+                        <h2 id="instructions-heading" className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900">
+                            {t.howItWorksTitle}
+                        </h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white font-black text-xs">
+                                    1
+                                </span>
+                                <h3 className="font-bold text-xs sm:text-sm text-slate-900">{t.step1Title}</h3>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed pl-8">
+                                {t.step1Desc}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white font-black text-xs">
+                                    2
+                                </span>
+                                <h3 className="font-bold text-xs sm:text-sm text-slate-900">{t.step2Title}</h3>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed pl-8">
+                                {t.step2Desc}
+                            </p>
+                        </div>
+
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-3.5 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white font-black text-xs">
+                                    3
+                                </span>
+                                <h3 className="font-bold text-xs sm:text-sm text-slate-900">{t.step3Title}</h3>
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed pl-8">
+                                {t.step3Desc}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 p-3.5 space-y-2">
+                        <h3 className="text-[11px] font-bold text-emerald-950 uppercase tracking-wider">
+                            {t.guidelinesTitle}
+                        </h3>
+                        <ul className="text-xs text-emerald-900/90 space-y-1 list-disc pl-4 leading-relaxed">
+                            <li>{t.guidelineScreenshot}</li>
+                            <li>{t.guidelineArrival}</li>
+                            <li>{t.guidelineGifts}</li>
+                        </ul>
+                    </div>
+                </section>
+
                 <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
                         <label htmlFor="holiday-website">Website</label>
@@ -567,10 +633,11 @@ export default function HolidayRegistrationClient() {
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div className="space-y-1">
                                                     <label className="block text-sm font-medium text-slate-700">
-                                                        {t.childBirthdateLabel}
+                                                        {t.childBirthdateLabel} <span className="text-rose-600">*</span>
                                                     </label>
                                                     <input
                                                         type="date"
+                                                        required
                                                         value={child.birthdate}
                                                         onChange={(e) => handleChildChange(index, 'birthdate', e.target.value)}
                                                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
@@ -578,22 +645,15 @@ export default function HolidayRegistrationClient() {
                                                 </div>
                                                 <div className="space-y-1">
                                                     <label className="block text-sm font-medium text-slate-700">
-                                                        {t.childAgeLabel} <span className="text-rose-600">*</span>
+                                                        {t.childAgeLabel}
                                                     </label>
                                                     <input
-                                                        type="number"
-                                                        min={0}
-                                                        max={18}
-                                                        required
-                                                        value={child.age}
-                                                        onChange={(e) =>
-                                                            handleChildChange(
-                                                                index,
-                                                                'age',
-                                                                Math.max(0, Math.min(18, parseInt(e.target.value, 10) || 0))
-                                                            )
-                                                        }
-                                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+                                                        type="text"
+                                                        readOnly
+                                                        tabIndex={-1}
+                                                        value={child.birthdate ? `${child.age} ${child.age === 1 ? 'yr' : 'yrs'}` : '—'}
+                                                        aria-label={`${t.childAgeLabel}: ${child.birthdate ? child.age : 'not entered'}`}
+                                                        className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-center text-sm font-semibold text-slate-700 select-none cursor-not-allowed"
                                                     />
                                                 </div>
                                             </div>

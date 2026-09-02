@@ -180,7 +180,7 @@ describe('Holiday API Routes', () => {
                     phone: '6505551234',
                     city: 'Mountain View',
                     language: 'en',
-                    children: [{ name: 'Child A', age: 7 }],
+                    children: [{ name: 'Child A', birthdate: '2019-03-15', age: 7 }],
                 }),
             });
 
@@ -212,7 +212,7 @@ describe('Holiday API Routes', () => {
                     parentName: 'Late Parent',
                     phone: '6505550000',
                     city: 'Mountain View',
-                    children: [{ name: 'Child C', age: 5 }],
+                    children: [{ name: 'Child C', birthdate: '2021-04-10', age: 5 }],
                 }),
             });
 
@@ -237,7 +237,7 @@ describe('Holiday API Routes', () => {
                     phone: '6505550000',
                     city: 'Mountain View',
                     timeSlot: '09:00 AM - 09:20 AM',
-                    children: [{ name: 'Child C', age: 5 }],
+                    children: [{ name: 'Child C', birthdate: '2021-04-10', age: 5 }],
                 }),
             });
 

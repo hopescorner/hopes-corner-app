@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getHolidayServiceClient } from '@/lib/holiday/server';
 import { requireHolidayStaff } from '@/lib/holiday/staffAuth';
 import { HOLIDAY_EVENT_YEAR } from '@/lib/holiday/constants';
+import { generateHolidayShopperToken } from '@/lib/holiday/shopperToken';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,27 +58,42 @@ export async function GET() {
             });
         }
 
-        const registrations = (regRows || []).map((row) => ({
-            id: row.id,
-            ticketNumber: row.ticket_number,
-            eventYear: row.event_year,
-            parentName: row.parent_name,
-            phone: row.phone,
-            city: row.city,
-            housingStatus: row.housing_status,
-            incomeRange: row.income_range,
-            timeSlot: row.time_slot,
-            language: row.language,
-            status: row.status,
-            groceryCards: row.grocery_cards,
-            teenCards: row.teen_cards,
-            notes: row.notes,
-            checkedInAt: row.checked_in_at,
-            checkedInBy: row.checked_in_by,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at,
-            children: childrenByReg[row.id] || [],
-        }));
+        const registrations = (regRows || []).map((row) => {
+            const children = childrenByReg[row.id] || [];
+            const shopperToken = generateHolidayShopperToken({
+                ticketNumber: row.ticket_number,
+                timeSlot: row.time_slot,
+                children: children.map((c: any) => ({
+                    id: c.id,
+                    age: c.age,
+                    ageGroup: c.ageGroup,
+                    gender: c.gender,
+                })),
+            });
+
+            return {
+                id: row.id,
+                ticketNumber: row.ticket_number,
+                eventYear: row.event_year,
+                parentName: row.parent_name,
+                phone: row.phone,
+                city: row.city,
+                housingStatus: row.housing_status,
+                incomeRange: row.income_range,
+                timeSlot: row.time_slot,
+                language: row.language,
+                status: row.status,
+                groceryCards: row.grocery_cards,
+                teenCards: row.teen_cards,
+                notes: row.notes,
+                checkedInAt: row.checked_in_at,
+                checkedInBy: row.checked_in_by,
+                createdAt: row.created_at,
+                updatedAt: row.updated_at,
+                children,
+                shopperToken,
+            };
+        });
 
         return NextResponse.json({ registrations });
     } catch (error) {

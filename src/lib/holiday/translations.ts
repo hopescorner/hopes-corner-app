@@ -13,6 +13,18 @@ export interface HolidayTranslation {
     parentNamePlaceholder: string;
     phoneLabel: string;
     phonePlaceholder: string;
+
+    howItWorksTitle: string;
+    step1Title: string;
+    step1Desc: string;
+    step2Title: string;
+    step2Desc: string;
+    step3Title: string;
+    step3Desc: string;
+    guidelinesTitle: string;
+    guidelineScreenshot: string;
+    guidelineArrival: string;
+    guidelineGifts: string;
     cityLabel: string;
     otherCityPlaceholder: string;
 
@@ -74,6 +86,7 @@ export interface HolidayTranslation {
         cityRequired: string;
         atLeastOneChild: string;
         childNameRequired: string;
+        childBirthdateRequired: string;
         childAgeRange: string;
         slotRequired: string;
         allSlotsFull: string;
@@ -94,6 +107,18 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         parentNamePlaceholder: "e.g. Maria Gonzalez",
         phoneLabel: "Phone Number",
         phonePlaceholder: "e.g. (650) 555-0123",
+
+        howItWorksTitle: "How Registration & Event Day Works",
+        step1Title: "1. Register Your Family",
+        step1Desc: "Provide your contact info and add each dependent child with their birthdate (age will auto-calculate).",
+        step2Title: "2. Receive Arrival Ticket",
+        step2Desc: "You will be assigned a 20-minute arrival window and an official check-in QR code immediately.",
+        step3Title: "3. Shop with a Volunteer",
+        step3Desc: "On event day, a volunteer personal shopper will guide you to select gifts and cards for your children.",
+        guidelinesTitle: "Helpful Registration Instructions & Guidelines",
+        guidelineScreenshot: "Save or screenshot your ticket QR code on your phone right after submitting.",
+        guidelineArrival: "Please arrive 10 minutes before your assigned arrival window at Hope's Corner.",
+        guidelineGifts: "Eligible families receive 1 grocery card, toys for children (ages 0–13), and gift cards for teens (ages 14–18).",
         cityLabel: "City of Residence",
         otherCityPlaceholder: "Enter your city",
 
@@ -155,6 +180,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
             cityRequired: "Please select or specify your city.",
             atLeastOneChild: "Please add at least one child (age 0–18).",
             childNameRequired: "Please enter the child's name.",
+            childBirthdateRequired: "Please enter the child's birthdate.",
             childAgeRange: "Age must be between 0 and 18 years old.",
             slotRequired: "Please select an available time slot.",
             allSlotsFull: "All arrival time slots are full. Registration is currently closed.",
@@ -174,6 +200,18 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         parentNamePlaceholder: "ej. María González",
         phoneLabel: "Número de Teléfono",
         phonePlaceholder: "ej. (650) 555-0123",
+
+        howItWorksTitle: "Cómo Funciona el Registro y el Día del Evento",
+        step1Title: "1. Inscriba a su Familia",
+        step1Desc: "Ingrese sus datos de contacto y agregue a cada hijo/a con su fecha de nacimiento (la edad se calculará automáticamente).",
+        step2Title: "2. Reciba su Horario y Boleto",
+        step2Desc: "Se le asignará de inmediato un horario de llegada de 20 minutos y su código QR oficial de registro.",
+        step3Title: "3. Elija Regalos con un Voluntario",
+        step3Desc: "El día del evento, un voluntario le ayudará personalmente a elegir los juguetes y tarjetas para sus hijos.",
+        guidelinesTitle: "Instrucciones Útiles y Pautas de Registro",
+        guidelineScreenshot: "Guarde o tome una captura de pantalla del código QR de su boleto después de registrarse.",
+        guidelineArrival: "Por favor llegue 10 minutos antes de su horario asignado a Hope's Corner.",
+        guidelineGifts: "Las familias elegibles reciben 1 tarjeta de supermercado, juguetes para niños (0–13 años) y tarjetas de regalo para jóvenes (14–18 años).",
         cityLabel: "Ciudad de Residencia",
         otherCityPlaceholder: "Ingrese su ciudad",
 
@@ -235,6 +273,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
             cityRequired: "Por favor seleccione su ciudad.",
             atLeastOneChild: "Por favor agregue al menos un niño/a (edad 0–18).",
             childNameRequired: "Por favor ingrese el nombre del niño/a.",
+            childBirthdateRequired: "Por favor ingrese la fecha de nacimiento del niño/a.",
             childAgeRange: "La edad debe estar entre 0 y 18 años.",
             slotRequired: "Por favor seleccione un horario disponible.",
             allSlotsFull: "Todos los horarios están llenos. El registro está cerrado actualmente.",
@@ -254,6 +293,18 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         parentNamePlaceholder: "例：张三 / San Zhang",
         phoneLabel: "联系电话",
         phonePlaceholder: "例：(650) 555-0123",
+
+        howItWorksTitle: "活动登记与参与流程说明",
+        step1Title: "1. 填写家庭信息",
+        step1Desc: "填写家长联系方式，并输入每位受抚养子女的出生日期（系统将自动计算年龄）。",
+        step2Title: "2. 获取入场时间与凭证",
+        step2Desc: "提交后系统将即时自动分配20分钟到场时段与官方入场签到二维码。",
+        step3Title: "3. 志愿者协助现场挑选",
+        step3Desc: "活动当天到达现场签到后，将有专属志愿者陪同为您孩子挑选心仪的玩具或礼品卡。",
+        guidelinesTitle: "温馨登记须知与提示",
+        guidelineScreenshot: "登记成功后，请立即在手机上截图保存或打印您的确认票据及二维码。",
+        guidelineArrival: "请在您被分配的时间段前 10 分钟到达 Hope's Corner 现场办理签到。",
+        guidelineGifts: "符合资格的家庭将获得1张家庭杂货卡、0–13岁儿童礼物，以及14–18岁青少年专属礼品卡。",
         cityLabel: "居住城市",
         otherCityPlaceholder: "请输入所在城市",
 
@@ -315,6 +366,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
             cityRequired: "请选择或输入所在城市。",
             atLeastOneChild: "请至少添加一名儿童（0–18岁）。",
             childNameRequired: "请输入儿童姓名。",
+            childBirthdateRequired: "请输入儿童出生日期。",
             childAgeRange: "儿童年龄须在 0 至 18 岁之间。",
             slotRequired: "请选择一个有效的时间段。",
             allSlotsFull: "所有到场时间段均已满额，登记通道已关闭。",

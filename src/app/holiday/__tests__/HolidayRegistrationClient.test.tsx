@@ -60,18 +60,25 @@ describe('HolidayRegistrationClient', () => {
         expect(page.className).not.toContain('bg-slate-950');
         expect(screen.getByTestId('holiday-gift-icon')).toBeDefined();
         expect(screen.getByText(new RegExp(`${currentYear} HOLIDAY TOY DISTRIBUTION`, 'i'))).toBeDefined();
+        expect(screen.getByText(/How Registration & Event Day Works/i)).toBeDefined();
+        expect(screen.getByText(/1\. Register Your Family/i)).toBeDefined();
+        expect(screen.getByText(/2\. Receive Arrival Ticket/i)).toBeDefined();
+        expect(screen.getByText(/3\. Shop with a Volunteer/i)).toBeDefined();
+        expect(screen.getByText(/Helpful Registration Instructions & Guidelines/i)).toBeDefined();
         expect(screen.getByText(/Parent \/ Guardian Information/i)).toBeDefined();
         expect(screen.getByText(/Automatic Arrival Window/i)).toBeDefined();
         expect(screen.getByText(/Complete Registration & Get Ticket/i)).toBeDefined();
     });
 
-    it('switches languages dynamically to Spanish and Mandarin', async () => {
+    it('switches languages dynamically to Spanish and Mandarin including instructions', async () => {
         render(<HolidayRegistrationClient />);
 
         // Switch to Spanish
         const esBtn = screen.getByRole('button', { name: 'Español' });
         fireEvent.click(esBtn);
         expect(screen.getByText(/DISTRIBUCIÓN DE JUGUETES NAVIDEÑOS/i)).toBeDefined();
+        expect(screen.getByText(/Cómo Funciona el Registro y el Día del Evento/i)).toBeDefined();
+        expect(screen.getByText(/1\. Inscriba a su Familia/i)).toBeDefined();
         expect(screen.getByText(/Información del Padre \/ Tutor/i)).toBeDefined();
         expect(screen.getByText(/Horario de Llegada Automático/i)).toBeDefined();
 
@@ -79,6 +86,8 @@ describe('HolidayRegistrationClient', () => {
         const zhBtn = screen.getByRole('button', { name: /中文/i });
         fireEvent.click(zhBtn);
         expect(screen.getByText(/年度节日玩具分发活动/i)).toBeDefined();
+        expect(screen.getByText(/活动登记与参与流程说明/i)).toBeDefined();
+        expect(screen.getByText(/1\. 填写家庭信息/i)).toBeDefined();
         expect(screen.getByText(/家长 \/ 监护人信息/i)).toBeDefined();
         expect(screen.getByText(/自动分配到场时间段/i)).toBeDefined();
     });
@@ -107,6 +116,10 @@ describe('HolidayRegistrationClient', () => {
         const childNameInput = screen.getByPlaceholderText(/e\.g\. Alexander Gonzalez/i);
         fireEvent.change(childNameInput, { target: { value: 'Child 1' } });
 
+        // Fill Child Birthdate
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        fireEvent.change(birthdateInput, { target: { value: '2012-05-15' } });
+
         // Submit form directly without slot selection
         const submitBtn = screen.getByRole('button', { name: /Complete Registration & Get Ticket/i });
         fireEvent.click(submitBtn);
@@ -124,6 +137,44 @@ describe('HolidayRegistrationClient', () => {
         });
     });
 
+    it('requires child birthdate and shows error when missing', async () => {
+        render(<HolidayRegistrationClient />);
+
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i), {
+            target: { value: '650-555-1111' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Alexander Gonzalez/i), {
+            target: { value: 'Child 1' },
+        });
+
+        // Submit form without entering birthdate
+        const submitBtn = screen.getByRole('button', { name: /Complete Registration & Get Ticket/i });
+        fireEvent.submit(submitBtn.closest('form')!);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Please enter the child's birthdate\./i)).toBeDefined();
+        });
+    });
+
+    it('auto-populates read-only age when birthdate is entered', () => {
+        render(<HolidayRegistrationClient />);
+
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        expect(birthdateInput.required).toBe(true);
+
+        const ageInput = screen.getByLabelText(/Age \(0–18\)/i) as HTMLInputElement;
+        expect(ageInput.readOnly).toBe(true);
+        expect(ageInput.value).toBe('—');
+
+        const currentYear = new Date().getFullYear();
+        fireEvent.change(birthdateInput, { target: { value: `${currentYear - 8}-01-01` } });
+
+        expect(ageInput.value).toContain('8');
+    });
+
     it('sends the hidden website field so automated form fillers are rejected server-side', async () => {
         const { container } = render(<HolidayRegistrationClient />);
         const websiteInput = container.querySelector<HTMLInputElement>('input[name="website"]');
@@ -139,6 +190,8 @@ describe('HolidayRegistrationClient', () => {
         fireEvent.change(screen.getByPlaceholderText(/e\.g\. Alexander Gonzalez/i), {
             target: { value: 'Child 1' },
         });
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        fireEvent.change(birthdateInput, { target: { value: '2015-06-01' } });
 
         fireEvent.click(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }));
 

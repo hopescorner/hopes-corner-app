@@ -21,7 +21,7 @@ function optionalStringIsValid(value: unknown, maxLength: number): boolean {
     return value === undefined || value === null || (typeof value === 'string' && value.length <= maxLength);
 }
 
-export function holidayRegistrationValidationError(input: unknown): string | null {
+export function holidayRegistrationValidationError(input: unknown, options?: { requireBirthdate?: boolean }): string | null {
     if (!input || typeof input !== 'object') return 'Invalid registration payload';
 
     const body = input as Partial<HolidayRegistrationInput>;
@@ -65,7 +65,10 @@ export function holidayRegistrationValidationError(input: unknown): string | nul
         }
         if (!optionalStringIsValid(child.school, MAX_SCHOOL_LENGTH)) return 'School name is too long';
         if (!optionalStringIsValid(child.gender, MAX_GENDER_LENGTH)) return 'Gender value is too long';
-        if (child.birthdate !== undefined) {
+        if (options?.requireBirthdate && (!child.birthdate || typeof child.birthdate !== 'string')) {
+            return 'Child birthdate is required';
+        }
+        if (child.birthdate !== undefined && child.birthdate !== null && child.birthdate !== '') {
             if (typeof child.birthdate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(child.birthdate)) {
                 return 'Child birthdate must use YYYY-MM-DD format';
             }

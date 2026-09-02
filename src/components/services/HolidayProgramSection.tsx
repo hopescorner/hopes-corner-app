@@ -19,6 +19,7 @@ import {
     Edit3,
     FileSpreadsheet,
     QrCode,
+    ShoppingBag,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import {
@@ -46,6 +47,7 @@ import {
     calculateRecommendedCards,
 } from '@/lib/holiday/ageGroups';
 import { HolidayQRScannerModal } from '@/components/services/HolidayQRScannerModal';
+import { HolidayShopperQRModal } from '@/components/services/HolidayShopperQRModal';
 import toast from 'react-hot-toast';
 
 export function HolidayProgramSection() {
@@ -110,6 +112,7 @@ export function HolidayProgramSection() {
     const [isWalkInModalOpen, setIsWalkInModalOpen] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+    const [shopperQRModalReg, setShopperQRModalReg] = useState<HolidayRegistration | null>(null);
 
     // Walk-in form state
     const [walkInParentName, setWalkInParentName] = useState('');
@@ -337,7 +340,7 @@ export function HolidayProgramSection() {
     return (
         <div className="space-y-6">
             {/* Top Hub Banner */}
-            <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-2xl p-4 sm:p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="space-y-1">
                     <div className="inline-flex items-center gap-2 bg-pink-500/20 text-pink-300 border border-pink-400/30 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">
                         <Gift className="w-3.5 h-3.5" />
@@ -349,11 +352,11 @@ export function HolidayProgramSection() {
                     </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
                     <button
                         type="button"
                         onClick={() => setIsScanModalOpen(true)}
-                        className="inline-flex items-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
+                        className="inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs sm:text-sm font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
                         title="Scan guest ticket QR code with camera or barcode scanner"
                     >
                         <QrCode className="w-4 h-4" />
@@ -362,7 +365,7 @@ export function HolidayProgramSection() {
                     <button
                         type="button"
                         onClick={() => setIsWalkInModalOpen(true)}
-                        className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
+                        className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
                     >
                         <Plus className="w-4 h-4" />
                         <span>Add Walk-In</span>
@@ -370,7 +373,7 @@ export function HolidayProgramSection() {
                     <button
                         type="button"
                         onClick={handleExportCSV}
-                        className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-semibold px-4 py-2.5 rounded-xl transition-all"
+                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2.5 rounded-xl transition-all"
                         title="Download distribution spreadsheet matching reporting format"
                     >
                         <Download className="w-4 h-4" />
@@ -379,11 +382,12 @@ export function HolidayProgramSection() {
                     <button
                         type="button"
                         onClick={() => setIsShareModalOpen(true)}
-                        className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl transition-all"
+                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl transition-all"
                         title="Share public sign-up link & QR code"
                     >
                         <Share2 className="w-4 h-4" />
                         <span className="hidden sm:inline">Public Link</span>
+                        <span className="sm:hidden">Share</span>
                     </button>
                 </div>
             </div>
@@ -602,151 +606,299 @@ export function HolidayProgramSection() {
                         <p className="text-xs text-slate-400">Try changing the time slot or search terms.</p>
                     </div>
                 ) : (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
-                                <tr>
-                                    <th className="py-3 px-4">Ticket</th>
-                                    <th className="py-3 px-4">Parent / Guardian</th>
-                                    <th className="py-3 px-4">Contact &amp; City</th>
-                                    <th className="py-3 px-4">Time Slot</th>
-                                    <th className="py-3 px-4">Children Details</th>
-                                    <th className="py-3 px-4 text-center">Cards</th>
-                                    <th className="py-3 px-4">Notes</th>
-                                    <th className="py-3 px-4">Status</th>
-                                    <th className="py-3 px-4 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {filteredRegistrations.map((reg) => {
-                                    const isCheckedIn = reg.status === 'checked_in';
-                                    const children = reg.children || [];
+                    <>
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-left text-sm">
+                                <thead className="bg-slate-50 text-slate-600 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                    <tr>
+                                        <th className="py-3 px-4">Ticket</th>
+                                        <th className="py-3 px-4">Shopper QR</th>
+                                        <th className="py-3 px-4">Parent / Guardian</th>
+                                        <th className="py-3 px-4">Contact &amp; City</th>
+                                        <th className="py-3 px-4">Time Slot</th>
+                                        <th className="py-3 px-4">Children Details</th>
+                                        <th className="py-3 px-4 text-center">Cards</th>
+                                        <th className="py-3 px-4">Notes</th>
+                                        <th className="py-3 px-4">Status</th>
+                                        <th className="py-3 px-4 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filteredRegistrations.map((reg) => {
+                                        const isCheckedIn = reg.status === 'checked_in';
+                                        const children = reg.children || [];
 
-                                    return (
-                                        <tr
-                                            key={reg.id}
-                                            className={`hover:bg-slate-50/80 transition-colors ${isCheckedIn ? 'bg-emerald-50/30' : ''
-                                                }`}
-                                        >
-                                            {/* Ticket # */}
-                                            <td className="py-3.5 px-4 whitespace-nowrap">
-                                                <span className="font-mono font-black text-base text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
-                                                    #{reg.ticketNumber}
-                                                </span>
-                                            </td>
-
-                                            {/* Parent Name */}
-                                            <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
-                                                {reg.parentName}
-                                            </td>
-
-                                            {/* Contact & City */}
-                                            <td className="py-3.5 px-4 text-xs space-y-0.5 whitespace-nowrap">
-                                                <div className="flex items-center gap-1 text-slate-700">
-                                                    <Phone className="w-3 h-3 text-slate-400" />
-                                                    <span>{reg.phone}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1 text-slate-500">
-                                                    <MapPin className="w-3 h-3 text-slate-400" />
-                                                    <span>{reg.city}</span>
-                                                </div>
-                                            </td>
-
-                                            {/* Time Slot */}
-                                            <td className="py-3.5 px-4 whitespace-nowrap">
-                                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">
-                                                    <Clock className="w-3 h-3 text-slate-500" />
-                                                    {reg.timeSlot}
-                                                </span>
-                                            </td>
-
-                                            {/* Children breakdown */}
-                                            <td className="py-3.5 px-4 text-xs">
-                                                <div className="flex flex-wrap gap-1 max-w-xs">
-                                                    {children.map((child, cIdx) => (
-                                                        <span
-                                                            key={child.id || cIdx}
-                                                            className="inline-flex items-center gap-1 bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md font-medium text-[11px]"
-                                                            title={`${child.name} (Age ${child.age})${child.school ? ` - ${child.school}` : ''}`}
-                                                        >
-                                                            <span>{child.name}</span>
-                                                            <span className="text-purple-600 font-bold">({child.age}y)</span>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            </td>
-
-                                            {/* Cards */}
-                                            <td className="py-3.5 px-4 text-center whitespace-nowrap text-xs">
-                                                <div className="space-y-0.5">
-                                                    <span className="inline-block bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
-                                                        {reg.groceryCards} Grocery
+                                        return (
+                                            <tr
+                                                key={reg.id}
+                                                className={`hover:bg-slate-50/80 transition-colors ${isCheckedIn ? 'bg-emerald-50/30' : ''
+                                                    }`}
+                                            >
+                                                {/* Ticket # */}
+                                                <td className="py-3.5 px-4 whitespace-nowrap">
+                                                    <span className="font-mono font-black text-base text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                                                        #{reg.ticketNumber}
                                                     </span>
-                                                    {reg.teenCards > 0 && (
-                                                        <span className="inline-block bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded ml-1">
-                                                            {reg.teenCards} Teen
+                                                </td>
+
+                                                {/* Shopper QR */}
+                                                <td className="py-3.5 px-4 whitespace-nowrap">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShopperQRModalReg(reg)}
+                                                        className="inline-flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs font-bold transition-all shadow-2xs active:scale-95"
+                                                        title="Volunteer Shopper QR Code (Non-PII)"
+                                                    >
+                                                        <ShoppingBag className="w-3.5 h-3.5 text-emerald-700" />
+                                                        <span>Shopper QR</span>
+                                                    </button>
+                                                </td>
+
+                                                {/* Parent Name */}
+                                                <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
+                                                    {reg.parentName}
+                                                </td>
+
+                                                {/* Contact & City */}
+                                                <td className="py-3.5 px-4 text-xs space-y-0.5 whitespace-nowrap">
+                                                    <div className="flex items-center gap-1 text-slate-700">
+                                                        <Phone className="w-3.5 h-3.5 text-slate-400" />
+                                                        <span>{reg.phone}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1 text-slate-500">
+                                                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                                        <span>{reg.city}</span>
+                                                    </div>
+                                                </td>
+
+                                                {/* Time Slot */}
+                                                <td className="py-3.5 px-4 whitespace-nowrap">
+                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">
+                                                        <Clock className="w-3 h-3 text-slate-500" />
+                                                        {reg.timeSlot}
+                                                    </span>
+                                                </td>
+
+                                                {/* Children breakdown */}
+                                                <td className="py-3.5 px-4 text-xs">
+                                                    <div className="flex flex-wrap gap-1 max-w-xs">
+                                                        {children.map((child, cIdx) => (
+                                                            <span
+                                                                key={child.id || cIdx}
+                                                                className="inline-flex items-center gap-1 bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md font-medium text-[11px]"
+                                                                title={`${child.name} (Age ${child.age})${child.school ? ` - ${child.school}` : ''}`}
+                                                            >
+                                                                <span>{child.name}</span>
+                                                                <span className="text-purple-600 font-bold">({child.age}y)</span>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </td>
+
+                                                {/* Cards */}
+                                                <td className="py-3.5 px-4 text-center whitespace-nowrap text-xs">
+                                                    <div className="space-y-0.5">
+                                                        <span className="inline-block bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
+                                                            {reg.groceryCards} Grocery
+                                                        </span>
+                                                        {reg.teenCards > 0 && (
+                                                            <span className="inline-block bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded ml-1">
+                                                                {reg.teenCards} Teen
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </td>
+
+                                                {/* Notes */}
+                                                <td className="py-3.5 px-4 text-xs text-slate-600 max-w-xs truncate">
+                                                    {reg.notes || <span className="text-slate-300 italic">None</span>}
+                                                </td>
+
+                                                {/* Status */}
+                                                <td className="py-3.5 px-4 whitespace-nowrap">
+                                                    {isCheckedIn ? (
+                                                        <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200">
+                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                                            Checked In
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 font-semibold text-xs px-2.5 py-1 rounded-full">
+                                                            Registered
                                                         </span>
                                                     )}
-                                                </div>
-                                            </td>
+                                                </td>
 
-                                            {/* Notes */}
-                                            <td className="py-3.5 px-4 text-xs text-slate-600 max-w-xs truncate">
-                                                {reg.notes || <span className="text-slate-300 italic">None</span>}
-                                            </td>
-
-                                            {/* Status */}
-                                            <td className="py-3.5 px-4 whitespace-nowrap">
-                                                {isCheckedIn ? (
-                                                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200">
-                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                                                        Checked In
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 font-semibold text-xs px-2.5 py-1 rounded-full">
-                                                        Registered
-                                                    </span>
-                                                )}
-                                            </td>
-
-                                            {/* Actions */}
-                                            <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                                                {isCheckedIn ? (
-                                                    <div className="inline-flex items-center gap-1">
+                                                {/* Actions */}
+                                                <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                                                    {isCheckedIn ? (
+                                                        <div className="inline-flex items-center gap-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openCheckInModal(reg)}
+                                                                className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                                                title="Edit cards or notes"
+                                                            >
+                                                                <Edit3 className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleUndoCheckIn(reg)}
+                                                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                                                                title="Undo Check-In"
+                                                            >
+                                                                <RotateCcw className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    ) : (
                                                         <button
                                                             type="button"
                                                             onClick={() => openCheckInModal(reg)}
-                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
-                                                            title="Edit cards or notes"
+                                                            className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg shadow-sm transition-all active:scale-95"
                                                         >
-                                                            <Edit3 className="w-4 h-4" />
+                                                            <UserCheck className="w-3.5 h-3.5" />
+                                                            <span>Check In</span>
                                                         </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleUndoCheckIn(reg)}
-                                                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                                            title="Undo Check-In"
-                                                        >
-                                                            <RotateCcw className="w-4 h-4" />
-                                                        </button>
-                                                    </div>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Mobile Cards List */}
+                        <div className="block md:hidden divide-y divide-slate-100">
+                            {filteredRegistrations.map((reg) => {
+                                const isCheckedIn = reg.status === 'checked_in';
+                                const children = reg.children || [];
+
+                                return (
+                                    <div
+                                        key={reg.id}
+                                        data-testid={`mobile-reg-card-${reg.ticketNumber}`}
+                                        className={`p-4 space-y-3 transition-colors ${isCheckedIn ? 'bg-emerald-50/40' : 'bg-white'}`}
+                                    >
+                                        <div className="flex items-center justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-mono font-black text-lg text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                                                    #{reg.ticketNumber}
+                                                </span>
+                                                <span className="font-bold text-slate-900 text-sm">{reg.parentName}</span>
+                                            </div>
+                                            <div>
+                                                {isCheckedIn ? (
+                                                    <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 font-bold text-[11px] px-2.5 py-0.5 rounded-full border border-emerald-200">
+                                                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                                        Checked In
+                                                    </span>
                                                 ) : (
+                                                    <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-600 font-semibold text-[11px] px-2.5 py-0.5 rounded-full">
+                                                        Registered
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                                            <div className="flex items-center gap-1 text-slate-700">
+                                                <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                <a href={`tel:${reg.phone}`} className="font-medium hover:text-emerald-700 underline decoration-slate-300">
+                                                    {reg.phone}
+                                                </a>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-slate-700">
+                                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                <span className="truncate">{reg.city}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-slate-700 col-span-2">
+                                                <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                <span className="font-semibold">{reg.timeSlot}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-1">
+                                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                                                Children ({children.length})
+                                            </span>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {children.map((child, cIdx) => (
+                                                    <span
+                                                        key={child.id || cIdx}
+                                                        className="inline-flex items-center gap-1 bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md font-medium text-[11px]"
+                                                        title={`${child.name} (Age ${child.age})${child.school ? ` - ${child.school}` : ''}`}
+                                                    >
+                                                        <span>{child.name}</span>
+                                                        <span className="text-purple-600 font-bold">({child.age}y)</span>
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs pt-1 border-t border-slate-100">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[11px]">
+                                                    {reg.groceryCards} Grocery
+                                                </span>
+                                                {reg.teenCards > 0 && (
+                                                    <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[11px]">
+                                                        {reg.teenCards} Teen
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {reg.notes && (
+                                                <span className="text-[11px] text-slate-500 italic truncate max-w-[180px]">
+                                                    {reg.notes}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShopperQRModalReg(reg)}
+                                                className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 py-2.5 rounded-xl text-xs font-bold transition-all shadow-2xs active:scale-95"
+                                                title="View Volunteer Shopper QR Code (Non-PII)"
+                                            >
+                                                <ShoppingBag className="w-3.5 h-3.5 text-emerald-700" />
+                                                <span>Shopper QR</span>
+                                            </button>
+
+                                            {isCheckedIn ? (
+                                                <div className="flex items-center gap-1.5">
                                                     <button
                                                         type="button"
                                                         onClick={() => openCheckInModal(reg)}
-                                                        className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg shadow-sm transition-all active:scale-95"
+                                                        className="p-2.5 rounded-xl text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+                                                        title="Edit cards or notes"
                                                     >
-                                                        <UserCheck className="w-3.5 h-3.5" />
-                                                        <span>Check In</span>
+                                                        <Edit3 className="w-4 h-4" />
                                                     </button>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleUndoCheckIn(reg)}
+                                                        className="p-2.5 rounded-xl text-rose-600 border border-rose-200 hover:bg-rose-50 transition-colors"
+                                                        title="Undo Check-In"
+                                                    >
+                                                        <RotateCcw className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openCheckInModal(reg)}
+                                                    className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl shadow-sm transition-all active:scale-95"
+                                                >
+                                                    <UserCheck className="w-3.5 h-3.5" />
+                                                    <span>Check In</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
                 )}
             </div>
 
@@ -1111,6 +1263,13 @@ export function HolidayProgramSection() {
                 onClose={() => setIsScanModalOpen(false)}
                 onSelectRegistration={openCheckInModal}
                 onFastCheckIn={handleFastCheckIn}
+            />
+
+            {/* Volunteer Shopper QR Modal */}
+            <HolidayShopperQRModal
+                isOpen={Boolean(shopperQRModalReg)}
+                onClose={() => setShopperQRModalReg(null)}
+                registration={shopperQRModalReg}
             />
         </div>
     );

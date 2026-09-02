@@ -58,6 +58,7 @@ export interface HolidayRegistration {
     checkedInBy?: string;
     children?: HolidayChild[];
     ticketToken?: string;
+    shopperToken?: string;
     qrCodeDataUrl?: string;
     createdAt: string;
     updatedAt: string;

@@ -91,8 +91,8 @@ describe('HolidayProgramSection', () => {
 
         expect(screen.getByText('Staff Event Management Hub')).toBeDefined();
         expect(screen.getByText('Registered Families')).toBeDefined();
-        expect(screen.getByText('Carlos Ramirez')).toBeDefined();
-        expect(screen.getByText('Amy Tan')).toBeDefined();
+        expect(screen.getAllByText('Carlos Ramirez').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Amy Tan').length).toBeGreaterThan(0);
     });
 
     it('filters registrations by searching parent or ticket', () => {
@@ -101,8 +101,8 @@ describe('HolidayProgramSection', () => {
         const searchInput = screen.getByPlaceholderText(/Search by ticket #/i);
         fireEvent.change(searchInput, { target: { value: 'Carlos' } });
 
-        expect(screen.getByText('Carlos Ramirez')).toBeDefined();
-        expect(screen.queryByText('Amy Tan')).toBeNull();
+        expect(screen.getAllByText('Carlos Ramirez').length).toBeGreaterThan(0);
+        expect(screen.queryAllByText('Amy Tan').length).toBe(0);
     });
 
     it('opens check-in modal and completes check-in with notes', async () => {
@@ -111,15 +111,13 @@ describe('HolidayProgramSection', () => {
 
         render(<HolidayProgramSection />);
 
-        const checkInButton = screen.getByRole('button', { name: /^Check In$/i });
+        const checkInButton = screen.getAllByRole('button', { name: /^Check In$/i })[0];
         fireEvent.click(checkInButton);
 
         await waitFor(() => {
             expect(screen.getByText('Event Day Check-In')).toBeDefined();
             expect(screen.getByRole('heading', { name: /Ticket #1 – Carlos Ramirez/i })).toBeDefined();
         });
-
-
 
         const notesTextarea = screen.getByPlaceholderText(/Enter notes/i);
         fireEvent.change(notesTextarea, { target: { value: 'Handed grocery card #4421' } });
@@ -130,6 +128,24 @@ describe('HolidayProgramSection', () => {
         expect(checkInSpy).toHaveBeenCalledWith('reg-1', expect.objectContaining({
             notes: 'Handed grocery card #4421',
         }));
+    });
+
+    it('renders mobile cards and opens shopper QR modal', async () => {
+        render(<HolidayProgramSection />);
+
+        expect(screen.getByTestId('mobile-reg-card-1')).toBeDefined();
+        expect(screen.getByTestId('mobile-reg-card-2')).toBeDefined();
+
+        const shopperQrButtons = screen.getAllByRole('button', { name: /Shopper QR/i });
+        expect(shopperQrButtons.length).toBeGreaterThan(0);
+
+        fireEvent.click(shopperQrButtons[0]);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Volunteer Shopper QR/i)).toBeDefined();
+            expect(screen.getByText(/Ticket #1/i)).toBeDefined();
+            expect(screen.getByRole('button', { name: /Copy Link/i })).toBeDefined();
+        });
     });
 
     it('opens walk-in modal', async () => {

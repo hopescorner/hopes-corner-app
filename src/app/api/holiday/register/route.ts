@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid submission' }, { status: 400 });
         }
 
-        const validationError = holidayRegistrationValidationError(body);
+        const validationError = holidayRegistrationValidationError(body, { requireBirthdate: true });
         if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
 
         // Call transactional atomic RPC on server

@@ -5,6 +5,7 @@ import { HOLIDAY_EVENT_YEAR } from '@/lib/holiday/constants';
 import { requireHolidayStaff } from '@/lib/holiday/staffAuth';
 import { holidayRegistrationValidationError } from '@/lib/holiday/validation';
 import { generateHolidayTicketToken, generateTicketQRCodeDataUrl } from '@/lib/holiday/ticketToken';
+import { generateHolidayShopperToken } from '@/lib/holiday/shopperToken';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,10 +66,22 @@ export async function POST(req: NextRequest) {
 
         const qrCodeDataUrl = await generateTicketQRCodeDataUrl(ticketToken);
 
+        const shopperToken = generateHolidayShopperToken({
+            ticketNumber: data.ticketNumber,
+            timeSlot: data.timeSlot,
+            children: (data.children || []).map((c: any) => ({
+                id: c.id,
+                age: c.age,
+                ageGroup: c.ageGroup,
+                gender: c.gender,
+            })),
+        });
+
         return NextResponse.json({
             registration: {
                 ...data,
                 ticketToken,
+                shopperToken,
                 qrCodeDataUrl,
             },
         });
