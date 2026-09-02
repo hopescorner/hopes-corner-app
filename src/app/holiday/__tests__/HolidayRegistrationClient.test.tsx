@@ -65,6 +65,7 @@ describe('HolidayRegistrationClient', () => {
         expect(page.className).not.toContain('bg-slate-950');
         expect(screen.getByTestId('holiday-gift-icon')).toBeDefined();
         expect(screen.getByText(new RegExp(`${currentYear} HOLIDAY TOY DISTRIBUTION`, 'i'))).toBeDefined();
+        expect(screen.getByTestId('how-it-works-illustration')).toBeDefined();
         expect(screen.getByText(/How It Works/i)).toBeDefined();
         expect(screen.getByText(/^Register$/i)).toBeDefined();
         expect(screen.getByText(/Get Your Ticket/i)).toBeDefined();

@@ -459,6 +459,14 @@ export default function HolidayRegistrationClient() {
 
                 {/* Helpful Instructions & How It Works */}
                 <section aria-labelledby="instructions-heading" className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm space-y-4">
+                    <Image
+                        src="/toy-drive-explainer.png"
+                        alt={t.howItWorksImageAlt}
+                        width={2170}
+                        height={725}
+                        className="h-auto w-full rounded-xl"
+                        data-testid="how-it-works-illustration"
+                    />
                     <div className="flex items-center gap-2">
                         <span className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-100 text-emerald-800 text-xs font-bold">
                             <Info className="h-3.5 w-3.5" />

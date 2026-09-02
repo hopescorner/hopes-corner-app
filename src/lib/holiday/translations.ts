@@ -15,6 +15,7 @@ export interface HolidayTranslation {
     phonePlaceholder: string;
 
     howItWorksTitle: string;
+    howItWorksImageAlt: string;
     step1Title: string;
     step1Desc: string;
     step2Title: string;
@@ -111,6 +112,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         phonePlaceholder: "e.g. (650) 555-0123",
 
         howItWorksTitle: "How It Works",
+        howItWorksImageAlt: "Three steps: register, get your ticket, pick up gifts",
         step1Title: "Register",
         step1Desc: "Add your name, phone, and each child (0–18).",
         step2Title: "Get Your Ticket",
@@ -206,6 +208,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         phonePlaceholder: "ej. (650) 555-0123",
 
         howItWorksTitle: "Cómo Funciona",
+        howItWorksImageAlt: "Tres pasos: regístrese, reciba su boleto, recoja regalos",
         step1Title: "Regístrese",
         step1Desc: "Agregue su nombre, teléfono y cada niño (0–18).",
         step2Title: "Reciba Su Boleto",
@@ -301,6 +304,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         phonePlaceholder: "例：(650) 555-0123",
 
         howItWorksTitle: "活动流程",
+        howItWorksImageAlt: "三步流程：登记、领取凭证、领取礼物",
         step1Title: "登记",
         step1Desc: "填写姓名、电话和每位孩子（0–18岁）。",
         step2Title: "领取凭证",
