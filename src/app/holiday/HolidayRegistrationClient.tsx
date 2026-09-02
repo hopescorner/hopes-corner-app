@@ -149,7 +149,8 @@ export default function HolidayRegistrationClient() {
             const next = [...prev];
             const item = { ...next[index], [field]: value };
             if (field === 'birthdate' && value) {
-                item.age = calculateAge(value);
+                // Uncapped so over-age children are detected at submit time
+                item.age = calculateAge(value, new Date(), 120);
             }
             next[index] = item;
             return next;
@@ -188,8 +189,13 @@ export default function HolidayRegistrationClient() {
                 setErrorMessage(t.errors.childBirthdateRequired);
                 return;
             }
-            if (child.age < 0 || child.age > 18) {
+            if (child.age < 0) {
                 setErrorMessage(t.errors.childAgeRange);
+                return;
+            }
+            if (child.age >= 18) {
+                const name = child.name.trim() || 'This child';
+                setErrorMessage(t.errors.childOverAge.replace('{name}', name));
                 return;
             }
         }

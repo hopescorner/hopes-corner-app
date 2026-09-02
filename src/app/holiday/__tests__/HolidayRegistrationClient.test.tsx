@@ -173,7 +173,7 @@ describe('HolidayRegistrationClient', () => {
         const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
         expect(birthdateInput.required).toBe(true);
 
-        const ageInput = screen.getByLabelText(/Age \(0–18\)/i) as HTMLInputElement;
+        const ageInput = screen.getByLabelText(/Age \(0–17\)/i) as HTMLInputElement;
         expect(ageInput.readOnly).toBe(true);
         expect(ageInput.value).toBe('—');
 
@@ -181,6 +181,57 @@ describe('HolidayRegistrationClient', () => {
         fireEvent.change(birthdateInput, { target: { value: `${currentYear - 8}-01-01` } });
 
         expect(ageInput.value).toContain('8');
+    });
+
+    it('rejects an 18-year-old child with a named eligibility error', async () => {
+        render(<HolidayRegistrationClient />);
+
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i), {
+            target: { value: '650-555-1111' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Alexander Gonzalez/i), {
+            target: { value: 'Grown Kid' },
+        });
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        const currentYear = new Date().getFullYear();
+        fireEvent.change(birthdateInput, { target: { value: `${currentYear - 19}-01-01` } });
+
+        const submitBtn = screen.getByRole('button', { name: /Complete Registration & Get Ticket/i });
+        fireEvent.submit(submitBtn.closest('form')!);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Grown Kid is 18 or older and is not eligible/i)).toBeDefined();
+        });
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('shows the over-age error in Spanish when Spanish is selected', async () => {
+        render(<HolidayRegistrationClient />);
+
+        fireEvent.click(screen.getByRole('button', { name: 'Español' }));
+        fireEvent.change(screen.getByPlaceholderText(/ej\. María González/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/ej\. \(650\) 555-0123/i), {
+            target: { value: '650-555-1111' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/ej\. Alexander González/i), {
+            target: { value: 'Chico Grande' },
+        });
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        const currentYear = new Date().getFullYear();
+        fireEvent.change(birthdateInput, { target: { value: `${currentYear - 18}-06-15` } });
+
+        const submitBtn = screen.getByRole('button', { name: /Completar Registro/i });
+        fireEvent.submit(submitBtn.closest('form')!);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Chico Grande tiene 18 años o más y no es elegible/i)).toBeDefined();
+        });
+        expect(global.fetch).not.toHaveBeenCalled();
     });
 
     it('does not display gift card or grocery card badges for children or teens during registration', () => {

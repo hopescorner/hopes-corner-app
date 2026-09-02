@@ -73,6 +73,15 @@ describe('Holiday translations', () => {
         });
     });
 
+    it('provides a per-child over-age error with a name placeholder in every language', () => {
+        languages.forEach((lang) => {
+            const message = HOLIDAY_TRANSLATIONS[lang].errors.childOverAge;
+            expect(message).toBeTypeOf('string');
+            expect(message).toContain('{name}');
+            expect(message.length).toBeGreaterThan(0);
+        });
+    });
+
     it('dynamically includes the current year in programTitle across all languages', () => {
         const currentYear = String(new Date().getFullYear());
         languages.forEach((lang) => {

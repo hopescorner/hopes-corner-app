@@ -19,7 +19,7 @@ export type HolidayAgeGroup =
     | 'teen_13'
     | 'teen_14'
     | 'teen_15'
-    | 'teen_16_18';
+    | 'teen_16_17';
 
 export type HolidayRegistrationStatus =
     | 'registered'

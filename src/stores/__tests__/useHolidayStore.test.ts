@@ -66,7 +66,7 @@ const mockRegistrations: HolidayRegistration[] = [
         teenCards: 2,
         children: [
             { id: 'c4', name: 'Jake', age: 15, ageGroup: 'teen_15' },
-            { id: 'c5', name: 'Mia', age: 17, ageGroup: 'teen_16_18' },
+            { id: 'c5', name: 'Mia', age: 17, ageGroup: 'teen_16_17' },
         ],
         createdAt: '2026-11-01T10:10:00Z',
         updatedAt: '2026-11-01T10:10:00Z',

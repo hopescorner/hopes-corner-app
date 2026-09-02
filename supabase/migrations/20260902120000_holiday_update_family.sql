@@ -71,7 +71,7 @@ begin
 
   for v_child in select * from jsonb_array_elements(p_children) loop
     v_child_age := (v_child->>'age')::integer;
-    if v_child_age >= 14 and v_child_age <= 18 then
+    if v_child_age >= 14 and v_child_age <= 17 then
       v_teen_cards := v_teen_cards + 1;
     end if;
   end loop;
@@ -101,8 +101,8 @@ begin
     if v_child_name is null or v_child_name = '' then
       raise exception 'Child name is required' using errcode = '22023';
     end if;
-    if v_child_age is null or v_child_age < 0 or v_child_age > 18 then
-      raise exception 'Child age must be between 0 and 18' using errcode = '22023';
+    if v_child_age is null or v_child_age < 0 or v_child_age >= 18 then
+      raise exception 'Child age must be under 18' using errcode = '22023';
     end if;
 
     if v_child_age <= 1 then v_child_group := 'infant';
@@ -111,7 +111,7 @@ begin
     elsif v_child_age = 13 then v_child_group := 'teen_13';
     elsif v_child_age = 14 then v_child_group := 'teen_14';
     elsif v_child_age = 15 then v_child_group := 'teen_15';
-    else v_child_group := 'teen_16_18';
+    else v_child_group := 'teen_16_17';
     end if;
 
     insert into public.holiday_children (

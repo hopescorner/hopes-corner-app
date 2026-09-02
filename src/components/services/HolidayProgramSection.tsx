@@ -367,7 +367,7 @@ export function HolidayProgramSection() {
             '# of Teen (13)',
             '# of Teen (14)',
             '# of Teen (15)',
-            '# of Teen (16-18)',
+            '# of Teen (16-17)',
             'Total Children',
             'Grocery Card',
             'Teen 14+ Cards',
@@ -407,7 +407,7 @@ export function HolidayProgramSection() {
                     case 'teen_15':
                         t15++;
                         break;
-                    case 'teen_16_18':
+                    case 'teen_16_17':
                         t16_18++;
                         break;
                 }
@@ -540,7 +540,7 @@ export function HolidayProgramSection() {
                         {metrics.totalChildrenCount}
                     </div>
                     <span className="text-xs text-purple-600 font-semibold">
-                        {metrics.teen14PlusCount} Teens (14–18)
+                        {metrics.teen14PlusCount} Teens (14–17)
                     </span>
                 </div>
 
@@ -594,7 +594,7 @@ export function HolidayProgramSection() {
                             <span className="font-bold text-xs text-slate-900">{metrics.teen15Count}</span>
                         </div>
                         <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100">
-                            <span className="text-[10px] text-slate-500 block">Teen 16-18</span>
+                            <span className="text-[10px] text-slate-500 block">Teen 16-17</span>
                             <span className="font-bold text-xs text-slate-900">{metrics.teen16To18Count}</span>
                         </div>
                     </div>
@@ -1129,7 +1129,7 @@ export function HolidayProgramSection() {
                                             className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-center font-bold text-base text-slate-900 focus:ring-2 focus:ring-emerald-500"
                                         />
                                     </div>
-                                    <span className="text-[10px] text-slate-500">1 per teen (ages 14-18)</span>
+                                    <span className="text-[10px] text-slate-500">1 per teen (ages 14-17)</span>
                                 </div>
                             </div>
 
@@ -1330,7 +1330,7 @@ export function HolidayProgramSection() {
                                             type="number"
                                             placeholder="Age"
                                             min={0}
-                                            max={18}
+                                            max={17}
                                             required
                                             value={c.age}
                                             onChange={(e) => {
@@ -1522,7 +1522,7 @@ export function HolidayProgramSection() {
                                             type="number"
                                             placeholder="Age"
                                             min={0}
-                                            max={18}
+                                            max={17}
                                             required
                                             value={c.age}
                                             onChange={(e) => {

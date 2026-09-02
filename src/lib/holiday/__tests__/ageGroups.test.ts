@@ -29,9 +29,13 @@ describe('Holiday ageGroups utilities', () => {
             expect(calculateAge('2012-08-30', refDate)).toBe(14);
         });
 
-        it('clamps age between 0 and 18', () => {
+        it('clamps age between 0 and 17', () => {
             expect(calculateAge('2050-01-01')).toBe(0);
-            expect(calculateAge('1990-01-01')).toBe(18);
+            expect(calculateAge('1990-01-01')).toBe(17);
+        });
+
+        it('supports an explicit cap for over-age detection', () => {
+            expect(calculateAge('1990-01-01', new Date(), 120)).toBeGreaterThanOrEqual(18);
         });
 
     });
@@ -66,23 +70,23 @@ describe('Holiday ageGroups utilities', () => {
             expect(getHolidayAgeGroup(15)).toBe('teen_15');
         });
 
-        it('assigns 16 through 18 to teen_16_18', () => {
-            expect(getHolidayAgeGroup(16)).toBe('teen_16_18');
-            expect(getHolidayAgeGroup(17)).toBe('teen_16_18');
-            expect(getHolidayAgeGroup(18)).toBe('teen_16_18');
+        it('assigns 16 and 17 to teen_16_17', () => {
+            expect(getHolidayAgeGroup(16)).toBe('teen_16_17');
+            expect(getHolidayAgeGroup(17)).toBe('teen_16_17');
+            expect(getHolidayAgeGroup(18)).toBe('teen_16_17');
         });
     });
 
     describe('isTeen14Plus', () => {
-        it('returns true for ages 14 through 18', () => {
+        it('returns true for ages 14 through 17', () => {
             expect(isTeen14Plus(14)).toBe(true);
             expect(isTeen14Plus(15)).toBe(true);
             expect(isTeen14Plus(16)).toBe(true);
             expect(isTeen14Plus(17)).toBe(true);
-            expect(isTeen14Plus(18)).toBe(true);
+            expect(isTeen14Plus(18)).toBe(false);
         });
 
-        it('returns false for ages under 14 or above 18', () => {
+        it('returns false for ages under 14 or 18 and above', () => {
             expect(isTeen14Plus(0)).toBe(false);
             expect(isTeen14Plus(13)).toBe(false);
             expect(isTeen14Plus(19)).toBe(false);
@@ -99,7 +103,7 @@ describe('Holiday ageGroups utilities', () => {
             expect(calculateRecommendedCards(children)).toEqual({ groceryCards: 1, teenCards: 0 });
         });
 
-        it('allocates 1 grocery card and counts children aged 14-18 for teen cards', () => {
+        it('allocates 1 grocery card and counts children aged 14-17 for teen cards', () => {
             const children = [
                 { age: 3 },
                 { age: 14 },
@@ -118,7 +122,7 @@ describe('Holiday ageGroups utilities', () => {
             expect(formatAgeGroupLabel('teen_13')).toBe('Teen (13)');
             expect(formatAgeGroupLabel('teen_14')).toBe('Teen (14)');
             expect(formatAgeGroupLabel('teen_15')).toBe('Teen (15)');
-            expect(formatAgeGroupLabel('teen_16_18')).toBe('Teen (16-18)');
+            expect(formatAgeGroupLabel('teen_16_17')).toBe('Teen (16-17)');
         });
     });
 

@@ -107,7 +107,7 @@ export function HolidayReport() {
             { group: 'Teen 13', count: metrics.teen13Count, fill: '#6366F1' },
             { group: 'Teen 14', count: metrics.teen14Count, fill: '#8B5CF6' },
             { group: 'Teen 15', count: metrics.teen15Count, fill: '#A855F7' },
-            { group: 'Teens 16-18', count: metrics.teen16To18Count, fill: '#EC4899' },
+            { group: 'Teens 16-17', count: metrics.teen16To18Count, fill: '#EC4899' },
         ];
     }, [metrics]);
 
@@ -181,7 +181,7 @@ export function HolidayReport() {
             'Teen 13',
             'Teen 14',
             'Teen 15',
-            'Teens 16-18',
+            'Teens 16-17',
             'Total Children',
             'Grocery Cards',
             'Teen Gift Cards',
@@ -209,7 +209,7 @@ export function HolidayReport() {
                     case 'teen_13': t13++; break;
                     case 'teen_14': t14++; break;
                     case 'teen_15': t15++; break;
-                    case 'teen_16_18': t16_18++; break;
+                    case 'teen_16_17': t16_18++; break;
                 }
             }
 
@@ -305,13 +305,13 @@ export function HolidayReport() {
 
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                     <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                        Total Children (0-18)
+                        Total Children (0-17)
                     </span>
                     <div className="text-2xl font-black text-purple-900 mt-1">
                         {metrics.totalChildrenCount}
                     </div>
                     <span className="text-xs text-purple-600 font-semibold">
-                        {metrics.teen14PlusCount} Teens (14–18)
+                        {metrics.teen14PlusCount} Teens (14–17)
                     </span>
                 </div>
 
@@ -332,7 +332,7 @@ export function HolidayReport() {
                     <div className="text-2xl font-black text-amber-900 mt-1">
                         {metrics.teenCardsCount}
                     </div>
-                    <span className="text-xs text-amber-700 font-semibold">For Teens Ages 14–18</span>
+                    <span className="text-xs text-amber-700 font-semibold">For Teens Ages 14–17</span>
                 </div>
 
                 <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
