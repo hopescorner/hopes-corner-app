@@ -205,8 +205,9 @@ export function HolidayProgramSection() {
             toast.error('Please enter parent name');
             return;
         }
-        if (!walkInPhone.trim()) {
-            toast.error('Please enter phone number');
+        const phoneDigits = walkInPhone.replace(/\D/g, '');
+        if (!phoneDigits || phoneDigits.length !== 10) {
+            toast.error('Please enter a valid 10-digit phone number');
             return;
         }
 
@@ -1105,9 +1106,21 @@ export function HolidayProgramSection() {
                                     <input
                                         id={walkinPhoneId}
                                         type="tel"
+                                        inputMode="numeric"
+                                        maxLength={14}
                                         required
                                         value={walkInPhone}
-                                        onChange={(e) => setWalkInPhone(e.target.value)}
+                                        onChange={(e) => {
+                                            const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            if (digits.length <= 3) {
+                                                setWalkInPhone(digits);
+                                            } else if (digits.length <= 6) {
+                                                setWalkInPhone(`(${digits.slice(0, 3)}) ${digits.slice(3)}`);
+                                            } else {
+                                                setWalkInPhone(`(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`);
+                                            }
+                                        }}
+                                        placeholder="e.g. (650) 555-0123"
                                         className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900"
                                     />
                                 </div>

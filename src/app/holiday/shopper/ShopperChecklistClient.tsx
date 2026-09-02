@@ -10,6 +10,7 @@ import {
     Sparkles,
     ShoppingBag,
     Check,
+    CreditCard,
 } from 'lucide-react';
 import { HolidayShopperPayload } from '@/lib/holiday/shopperToken';
 import { formatAgeGroupLabel, isTeen14Plus } from '@/lib/holiday/ageGroups';
@@ -165,10 +166,12 @@ export default function ShopperChecklistClient({ data }: ShopperChecklistClientP
                                     key={child.id || index}
                                     type="button"
                                     onClick={() => toggleChild(child.id)}
-                                    aria-label={`Child ${index + 1}, Age ${child.age}, ${formatAgeGroupLabel(child.ageGroup)}. Status: ${isChecked ? 'shopped' : 'not shopped'}`}
+                                    aria-label={`Child ${index + 1}, Age ${child.age}, ${isTeen ? 'Teen 14+ Gift Card' : formatAgeGroupLabel(child.ageGroup)}. Status: ${isChecked ? 'shopped' : 'not shopped'}`}
                                     className={`w-full text-left rounded-2xl border p-4 transition-all flex items-start gap-3.5 shadow-2xs select-none ${
                                         isChecked
                                             ? 'border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50'
+                                            : isTeen
+                                            ? 'border-amber-200 bg-amber-50/25 hover:border-amber-300 hover:bg-amber-50/50'
                                             : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
                                     }`}
                                 >
@@ -186,9 +189,17 @@ export default function ShopperChecklistClient({ data }: ShopperChecklistClientP
 
                                     <div className="flex-1 space-y-1">
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className={`text-sm font-bold ${isChecked ? 'text-slate-600 line-through' : 'text-slate-950'}`}>
-                                                Child {index + 1}
-                                            </span>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className={`text-sm font-bold ${isChecked ? 'text-slate-600 line-through' : 'text-slate-950'}`}>
+                                                    Child {index + 1}
+                                                </span>
+                                                {isTeen && (
+                                                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 border border-amber-300">
+                                                        <CreditCard className="h-3 w-3 text-amber-700" />
+                                                        <span>Teen 14+ Gift Card</span>
+                                                    </span>
+                                                )}
+                                            </div>
                                             <span className="font-mono text-xs font-black text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded-md">
                                                 Age {child.age}
                                             </span>
@@ -203,10 +214,13 @@ export default function ShopperChecklistClient({ data }: ShopperChecklistClientP
                                                     {child.gender}
                                                 </span>
                                             )}
-                                            {isTeen && (
-                                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900 border border-amber-200">
-                                                    <Gift className="h-3 w-3 text-amber-700" />
-                                                    <span>Teen Gift Card (14–18)</span>
+                                            {isTeen ? (
+                                                <span className="text-xs font-medium text-amber-800">
+                                                    (Opt for Teen 14+ Gift Card — no toy gift)
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-500">
+                                                    (Toy gift selection)
                                                 </span>
                                             )}
                                         </div>

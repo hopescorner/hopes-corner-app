@@ -68,6 +68,17 @@ export default function HolidayRegistrationClient() {
         ]);
     };
 
+    const handlePhoneChange = (val: string) => {
+        const digits = val.replace(/\D/g, '').slice(0, 10);
+        if (digits.length <= 3) {
+            setPhone(digits);
+        } else if (digits.length <= 6) {
+            setPhone(`(${digits.slice(0, 3)}) ${digits.slice(3)}`);
+        } else {
+            setPhone(`(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`);
+        }
+    };
+
     const handleRemoveChild = (index: number) => {
         if (children.length <= 1) return;
         setChildren((prev) => prev.filter((_, i) => i !== index));
@@ -94,7 +105,8 @@ export default function HolidayRegistrationClient() {
             setErrorMessage(t.errors.parentNameRequired);
             return;
         }
-        if (!phone.trim()) {
+        const phoneDigits = phone.replace(/\D/g, '');
+        if (!phoneDigits || phoneDigits.length !== 10) {
             setErrorMessage(t.errors.phoneRequired);
             return;
         }
@@ -473,9 +485,11 @@ export default function HolidayRegistrationClient() {
                                 <input
                                     id={phoneId}
                                     type="tel"
+                                    inputMode="numeric"
+                                    maxLength={14}
                                     required
                                     value={phone}
-                                    onChange={(e) => setPhone(e.target.value)}
+                                    onChange={(e) => handlePhoneChange(e.target.value)}
                                     placeholder={t.phonePlaceholder}
                                     className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
                                 />

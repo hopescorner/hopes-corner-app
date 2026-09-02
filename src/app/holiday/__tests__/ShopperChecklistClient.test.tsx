@@ -40,7 +40,8 @@ describe('ShopperChecklistClient', () => {
         expect(screen.getByText('Child (5-12)')).toBeDefined();
         expect(screen.getByText('Teen (16-18)')).toBeDefined();
 
-        expect(screen.getByText(/Teen Gift Card \(14–18\)/i)).toBeDefined();
+        expect(screen.getByText('Teen 14+ Gift Card')).toBeDefined();
+        expect(screen.getByText(/Opt for Teen 14\+ Gift Card/i)).toBeDefined();
 
         expect(screen.queryByText(/Carlos/i)).toBeNull();
         expect(screen.queryByText(/Ramirez/i)).toBeNull();

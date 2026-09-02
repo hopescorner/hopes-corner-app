@@ -31,6 +31,8 @@ export function holidayRegistrationValidationError(input: unknown, options?: { r
     if (body.parentName.length > MAX_PARENT_NAME_LENGTH) return 'Parent/Guardian name is too long';
 
     if (typeof body.phone !== 'string' || !body.phone.trim()) return 'Phone number is required';
+    const phoneDigits = body.phone.replace(/\D/g, '');
+    if (phoneDigits.length !== 10) return 'Phone number must be exactly 10 digits';
     if (body.phone.length > MAX_PHONE_LENGTH) return 'Phone number is too long';
 
     if (typeof body.city !== 'string' || !body.city.trim()) return 'City is required';

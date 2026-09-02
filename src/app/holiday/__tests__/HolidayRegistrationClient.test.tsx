@@ -211,4 +211,36 @@ describe('HolidayRegistrationClient', () => {
         const requestBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
         expect(requestBody.website).toBe('https://spam.example');
     });
+
+    it('limits phone number to 10 digits and formats standard US display', () => {
+        render(<HolidayRegistrationClient />);
+
+        const phoneInput = screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i) as HTMLInputElement;
+
+        // Type 12 digits — should be capped at 10 digits
+        fireEvent.change(phoneInput, { target: { value: '650555123499' } });
+        expect(phoneInput.value).toBe('(650) 555-1234');
+    });
+
+    it('shows error when phone number has fewer than 10 digits', async () => {
+        render(<HolidayRegistrationClient />);
+
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i), {
+            target: { value: '650-555' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Alexander Gonzalez/i), {
+            target: { value: 'Child 1' },
+        });
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        fireEvent.change(birthdateInput, { target: { value: '2015-06-01' } });
+
+        fireEvent.click(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText(/Please enter a valid phone number\./i)).toBeDefined();
+        });
+    });
 });
