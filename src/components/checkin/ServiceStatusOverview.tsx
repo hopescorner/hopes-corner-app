@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { ShowerHead, WashingMachine } from 'lucide-react';
@@ -97,7 +97,11 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
 
     const allShowerSlots = useMemo(() => generateShowerSlots(), []);
     const allLaundrySlots = useMemo(() => generateLaundrySlots(), []);
-    const { isSlotBlocked, blockedSlots } = useBlockedSlotsStore();
+    const { isSlotBlocked, blockedSlots, fetchBlockedSlots } = useBlockedSlotsStore();
+
+    useEffect(() => {
+        fetchBlockedSlots();
+    }, [fetchBlockedSlots]);
 
     // Count blocked shower slots for today
     const blockedShowerSlotsCount = useMemo(() => {

@@ -75,6 +75,7 @@ vi.mock('@/stores/useBlockedSlotsStore', () => ({
     useBlockedSlotsStore: vi.fn(() => ({
         blockedSlots: [],
         isSlotBlocked: vi.fn(() => false),
+        fetchBlockedSlots: vi.fn(),
     })),
 }));
 
@@ -307,16 +308,29 @@ describe('ServiceStatusOverview — blocked slots', () => {
         mockLaundryRecords.length = 0;
     });
 
+    it('calls fetchBlockedSlots on mount', () => {
+        const fetchBlockedSlots = vi.fn();
+        vi.mocked(useBlockedSlotsStore).mockReturnValue({
+            blockedSlots: [],
+            isSlotBlocked: vi.fn(() => false),
+            fetchBlockedSlots,
+        } as any);
+
+        render(<ServiceStatusOverview />);
+        expect(fetchBlockedSlots).toHaveBeenCalled();
+    });
+
     it('reduces shower capacity when a shower slot is blocked', () => {
         // Mock 1 blocked shower slot for today → capacity goes from 12 to 10
         vi.mocked(useBlockedSlotsStore).mockReturnValue({
             blockedSlots: [
-                { serviceType: 'shower', slotLabel: '08:00', date: '2026-01-22' },
+                { serviceType: 'shower', slotTime: '08:00', date: '2026-01-22' },
             ],
             isSlotBlocked: vi.fn((type: string, slot: string, date: string) =>
                 type === 'shower' && slot === '08:00' && date === '2026-01-22'
             ),
-        });
+            fetchBlockedSlots: vi.fn(),
+        } as any);
 
         render(<ServiceStatusOverview />);
         // 6 slots × 2 = 12, minus 1 blocked × 2 = 10 available
@@ -326,12 +340,13 @@ describe('ServiceStatusOverview — blocked slots', () => {
     it('reduces laundry capacity when a laundry slot is blocked', () => {
         vi.mocked(useBlockedSlotsStore).mockReturnValue({
             blockedSlots: [
-                { serviceType: 'laundry', slotLabel: '07:30 - 08:30', date: '2026-01-22' },
+                { serviceType: 'laundry', slotTime: '07:30 - 08:30', date: '2026-01-22' },
             ],
             isSlotBlocked: vi.fn((type: string, slot: string, date: string) =>
                 type === 'laundry' && slot === '07:30 - 08:30' && date === '2026-01-22'
             ),
-        });
+            fetchBlockedSlots: vi.fn(),
+        } as any);
 
         render(<ServiceStatusOverview />);
         // maxOnsiteLaundrySlots=5 minus 1 blocked = 4 available
@@ -341,12 +356,13 @@ describe('ServiceStatusOverview — blocked slots', () => {
     it('skips blocked slots when finding the next available shower slot', () => {
         vi.mocked(useBlockedSlotsStore).mockReturnValue({
             blockedSlots: [
-                { serviceType: 'shower', slotLabel: '07:30', date: '2026-01-22' },
+                { serviceType: 'shower', slotTime: '07:30', date: '2026-01-22' },
             ],
             isSlotBlocked: vi.fn((type: string, slot: string, date: string) =>
                 type === 'shower' && slot === '07:30' && date === '2026-01-22'
             ),
-        });
+            fetchBlockedSlots: vi.fn(),
+        } as any);
 
         render(<ServiceStatusOverview />);
         // First unblocked slot is 08:00
@@ -356,12 +372,13 @@ describe('ServiceStatusOverview — blocked slots', () => {
     it('skips blocked slots when finding the next available laundry slot', () => {
         vi.mocked(useBlockedSlotsStore).mockReturnValue({
             blockedSlots: [
-                { serviceType: 'laundry', slotLabel: '07:30 - 08:30', date: '2026-01-22' },
+                { serviceType: 'laundry', slotTime: '07:30 - 08:30', date: '2026-01-22' },
             ],
             isSlotBlocked: vi.fn((type: string, slot: string, date: string) =>
                 type === 'laundry' && slot === '07:30 - 08:30' && date === '2026-01-22'
             ),
-        });
+            fetchBlockedSlots: vi.fn(),
+        } as any);
 
         render(<ServiceStatusOverview />);
         // First unblocked slot is the second one

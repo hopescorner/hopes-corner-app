@@ -31,6 +31,7 @@ vi.mock('@/stores/useBlockedSlotsStore', () => ({
     useBlockedSlotsStore: vi.fn(() => ({
         blockedSlots: [],
         isSlotBlocked: vi.fn(() => false),
+        fetchBlockedSlots: vi.fn(),
     })),
 }));
 

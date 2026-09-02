@@ -617,6 +617,7 @@ export function useRealtimeSync() {
         ], 'operations', (status) => {
             if (status === 'SUBSCRIBED') {
                 debouncedWork('serviceReconcile', servicesLoadFromSupabase);
+                debouncedWork('blockedSlots', blockedSlotsFetch);
             }
         })];
 

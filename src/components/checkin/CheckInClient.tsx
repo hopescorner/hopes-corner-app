@@ -19,6 +19,7 @@ import { LiveConnectionPill } from '@/components/checkin/LiveConnectionPill';
 import { RecentCheckinsBar } from '@/components/checkin/RecentCheckinsBar';
 import { useModalStore } from '@/stores/useModalStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
+import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useTodayStatusMaps } from '@/stores/selectors/todayStatusSelectors';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
@@ -109,6 +110,7 @@ export default function CheckInClient({
     const ensureMealsLoaded = useMealsStore((s) => s.ensureLoaded);
     const addMealRecord = useMealsStore((s) => s.addMealRecord);
     const ensureServicesLoaded = useServicesStore((s) => s.ensureLoaded);
+    const ensureBlockedSlotsLoaded = useBlockedSlotsStore((s) => s.ensureLoaded);
     const loadReminders = useRemindersStore((s) => s.loadFromSupabase);
     const { ensureLoaded: ensureDailyNotesLoaded, subscribeToRealtime: subscribeDailyNotes } = useDailyNotesStore(
         useShallow((s) => ({ ensureLoaded: s.ensureLoaded, subscribeToRealtime: s.subscribeToRealtime }))
@@ -178,10 +180,11 @@ export default function CheckInClient({
             loadGuestProxiesFromSupabase(),
             ensureMealsLoaded(),
             ensureServicesLoaded(),
+            ensureBlockedSlotsLoaded(),
             loadReminders(),
             ensureDailyNotesLoaded()
         ]);
-    }, [v2Enabled, initialSnapshot, applySnapshot, ensureGuestsLoaded, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase, ensureMealsLoaded, ensureServicesLoaded, loadReminders, ensureDailyNotesLoaded]);
+    }, [v2Enabled, initialSnapshot, applySnapshot, ensureGuestsLoaded, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase, ensureMealsLoaded, ensureServicesLoaded, ensureBlockedSlotsLoaded, loadReminders, ensureDailyNotesLoaded]);
 
     // Initial data load
     useEffect(() => {

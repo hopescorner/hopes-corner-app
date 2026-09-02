@@ -17,6 +17,7 @@ interface BlockedSlotsState {
     initialized: boolean;
 
     fetchBlockedSlots: () => Promise<void>;
+    ensureLoaded: () => Promise<void>;
     blockSlot: (serviceType: 'shower' | 'laundry', slotTime: string, date: string) => Promise<boolean>;
     unblockSlot: (serviceType: 'shower' | 'laundry', slotTime: string, date: string) => Promise<boolean>;
     isSlotBlocked: (serviceType: 'shower' | 'laundry', slotTime: string, date: string) => boolean;
@@ -26,6 +27,11 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
     blockedSlots: [],
     loading: false,
     initialized: false,
+
+    ensureLoaded: async () => {
+        if (get().initialized) return;
+        await get().fetchBlockedSlots();
+    },
 
     fetchBlockedSlots: async () => {
         const supabase = createClient();
@@ -158,11 +164,13 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
 
     isSlotBlocked: (serviceType, slotTime, date) => {
         const slots = get().blockedSlots;
+        const cleanSlot = slotTime?.trim();
+        const cleanDate = date?.trim();
         return slots.some(
             (s) =>
                 s.serviceType === serviceType &&
-                s.slotTime === slotTime &&
-                s.date === date
+                s.slotTime?.trim() === cleanSlot &&
+                s.date?.trim() === cleanDate
         );
     },
 }));
