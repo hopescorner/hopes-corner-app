@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.1] - 2026-09-01
+
+### Fixed
+
+- Shower and laundry service status overview cards now immediately fetch blocked slots on initial mount and realtime sync, correctly displaying the next available open slot without needing to open the booking dialog first.
+
 ## [0.11.0] - 2026-09-01
 
 ### Added

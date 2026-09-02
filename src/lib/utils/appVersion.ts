@@ -20,6 +20,17 @@ export interface ChangelogEntry {
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
     {
+        version: '0.11.1',
+        date: 'September 1, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Blocked Slot Immediate Availability',
+                description: 'Service status cards for showers and laundry now immediately load blocked slot definitions on mount and skip blocked times on initial render.',
+            },
+        ],
+    },
+    {
         version: '0.11.0',
         date: 'September 1, 2026',
         highlights: [
