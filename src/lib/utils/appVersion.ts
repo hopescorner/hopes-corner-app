@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.11.2';
+export const APP_VERSION = '0.11.3';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.11.3',
+        date: 'September 2, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'TypeScript Production Build Type Safety',
+                description: 'Resolved strict TypeScript type errors in data export, realtime subscription handlers, and store maps to ensure smooth production builds.',
+            },
+        ],
+    },
     {
         version: '0.11.2',
         date: 'September 2, 2026',

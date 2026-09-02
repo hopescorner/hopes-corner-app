@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.11.3] - 2026-09-02
+
+### Fixed
+
+- Resolved strict TypeScript type checking errors in data export, realtime subscription handlers, and store data mapping to ensure reliable production builds.
+
 ## [0.11.2] - 2026-09-02
 
 ### Fixed
