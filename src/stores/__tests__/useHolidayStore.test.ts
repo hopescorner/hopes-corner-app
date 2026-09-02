@@ -264,5 +264,65 @@ describe('useHolidayStore & Selectors', () => {
             expect(result?.ticketNumber).toBe(50);
             expect(useHolidayStore.getState().registrations.some((r) => r.id === 'walk-in-id-1')).toBe(true);
         });
+
+        it('updates a family registration via PATCH and replaces it in state', async () => {
+            const updatedReg = {
+                ...mockRegistrations[0],
+                parentName: 'Updated Parent',
+                children: [
+                    { id: 'c1', name: 'Kid 1', age: 8, ageGroup: 'child' },
+                    { id: 'c2', name: 'Kid 2', age: 15, ageGroup: 'teen_15' },
+                ],
+                teenCards: 1,
+                updatedAt: '2026-09-02T00:00:00Z',
+            };
+            global.fetch = vi.fn().mockResolvedValueOnce({
+                ok: true,
+                json: async () => ({ registration: updatedReg }),
+            } as any);
+
+            const result = await useHolidayStore.getState().updateFamilyRegistration('reg-1', {
+                parentName: 'Updated Parent',
+                phone: '650-555-1111',
+                city: 'Mountain View',
+                housingStatus: 'house_apartment',
+                incomeRange: '0_40k',
+                language: 'en',
+                children: [
+                    { name: 'Kid 1', age: 8 },
+                    { name: 'Kid 2', age: 15 },
+                ],
+            });
+
+            expect(global.fetch).toHaveBeenCalledWith(
+                '/api/holiday/staff/registrations/reg-1',
+                expect.objectContaining({ method: 'PATCH' })
+            );
+            expect(result?.parentName).toBe('Updated Parent');
+            const inState = useHolidayStore.getState().registrations.find((r) => r.id === 'reg-1');
+            expect(inState?.parentName).toBe('Updated Parent');
+            expect(inState?.children).toHaveLength(2);
+            expect(inState?.teenCards).toBe(1);
+        });
+
+        it('returns null when the family update fails', async () => {
+            global.fetch = vi.fn().mockResolvedValueOnce({
+                ok: false,
+                statusText: 'Conflict',
+                json: async () => ({ error: 'This family already checked in and can no longer be edited.' }),
+            } as any);
+
+            const result = await useHolidayStore.getState().updateFamilyRegistration('reg-1', {
+                parentName: 'Updated Parent',
+                phone: '650-555-1111',
+                city: 'Mountain View',
+                housingStatus: 'house_apartment',
+                incomeRange: '0_40k',
+                language: 'en',
+                children: [{ name: 'Kid 1', age: 8 }],
+            });
+
+            expect(result).toBeNull();
+        });
     });
 });

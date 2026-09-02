@@ -62,6 +62,11 @@ export function HolidayProgramSection() {
     const checkinGroceryCardsId = useId();
     const checkinTeenCardsId = useId();
     const checkinNotesId = useId();
+    const editParentNameId = useId();
+    const editPhoneId = useId();
+    const editCityId = useId();
+    const editHousingId = useId();
+    const editIncomeId = useId();
 
     const { data: session } = useSession();
     const staffName = session?.user?.name || session?.user?.email || 'Staff';
@@ -81,6 +86,7 @@ export function HolidayProgramSection() {
         checkInRegistration,
         undoCheckIn,
         addWalkInRegistration,
+        updateFamilyRegistration,
     } = useHolidayStore();
 
     useEffect(() => {
@@ -235,6 +241,85 @@ export function HolidayProgramSection() {
             setWalkInChildren([{ name: '', age: 0, school: '' }]);
         } else {
             toast.error('Failed to add walk-in registration');
+        }
+    };
+
+    // Edit-registration form state (prefilled when the modal opens)
+    const [editModalReg, setEditModalReg] = useState<HolidayRegistration | null>(null);
+    const [editParentName, setEditParentName] = useState('');
+    const [editPhone, setEditPhone] = useState('');
+    const [editCity, setEditCity] = useState('Mountain View');
+    const [editHousing, setEditHousing] = useState<HolidayHousingStatus>('house_apartment');
+    const [editIncome, setEditIncome] = useState<HolidayIncomeRange>('0_40k');
+    const [editChildren, setEditChildren] = useState<
+        Array<{ name: string; age: number; birthdate: string; school: string }>
+    >([{ name: '', age: 0, birthdate: '', school: '' }]);
+
+    const openEditModal = (reg: HolidayRegistration) => {
+        if (reg.status !== 'registered') {
+            toast.error('Only registrations waiting for check-in can be edited');
+            return;
+        }
+        setEditModalReg(reg);
+        setEditParentName(reg.parentName);
+        setEditPhone(reg.phone);
+        setEditCity(reg.city);
+        setEditHousing(reg.housingStatus);
+        setEditIncome(reg.incomeRange);
+        setEditChildren(
+            (reg.children || []).map((c) => ({
+                name: c.name,
+                age: c.age,
+                birthdate: c.birthdate || '',
+                school: c.school || '',
+            }))
+        );
+    };
+
+    const handleAddEditChild = () => {
+        setEditChildren((prev) => [...prev, { name: '', age: 0, birthdate: '', school: '' }]);
+    };
+
+    const handleRemoveEditChild = (idx: number) => {
+        if (editChildren.length <= 1) return;
+        setEditChildren((prev) => prev.filter((_, i) => i !== idx));
+    };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editModalReg) return;
+        if (!editParentName.trim()) {
+            toast.error('Please enter parent name');
+            return;
+        }
+        const phoneDigits = editPhone.replace(/\D/g, '');
+        if (!phoneDigits || phoneDigits.length !== 10) {
+            toast.error('Please enter a valid 10-digit phone number');
+            return;
+        }
+
+        const input: HolidayRegistrationInput = {
+            parentName: editParentName.trim(),
+            phone: editPhone.trim(),
+            city: editCity,
+            housingStatus: editHousing,
+            incomeRange: editIncome,
+            timeSlot: editModalReg.timeSlot,
+            language: editModalReg.language,
+            children: editChildren.map((c) => ({
+                name: c.name.trim() || 'Child',
+                birthdate: c.birthdate || undefined,
+                age: c.age,
+                school: c.school.trim() || undefined,
+            })),
+        };
+
+        const res = await updateFamilyRegistration(editModalReg.id, input);
+        if (res) {
+            toast.success(`Updated Ticket #${res.ticketNumber} (${res.parentName})`);
+            setEditModalReg(null);
+        } else {
+            toast.error('Failed to update registration');
         }
     };
 
@@ -791,14 +876,24 @@ export function HolidayProgramSection() {
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => openCheckInModal(reg)}
-                                                            className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg shadow-sm transition-all active:scale-95"
-                                                        >
-                                                            <UserCheck className="w-3.5 h-3.5" />
-                                                            <span>Check In</span>
-                                                        </button>
+                                                        <div className="inline-flex items-center gap-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openEditModal(reg)}
+                                                                className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                                                title="Edit registration (add or remove children)"
+                                                            >
+                                                                <Edit3 className="w-4 h-4" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => openCheckInModal(reg)}
+                                                                className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-3.5 py-1.5 rounded-lg shadow-sm transition-all active:scale-95"
+                                                            >
+                                                                <UserCheck className="w-3.5 h-3.5" />
+                                                                <span>Check In</span>
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </td>
                                             </tr>
@@ -925,14 +1020,24 @@ export function HolidayProgramSection() {
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => openCheckInModal(reg)}
-                                                    className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl shadow-sm transition-all active:scale-95"
-                                                >
-                                                    <UserCheck className="w-3.5 h-3.5" />
-                                                    <span>Check In</span>
-                                                </button>
+                                                <div className="flex flex-1 items-center gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openEditModal(reg)}
+                                                        className="p-2.5 rounded-xl text-slate-600 border border-slate-200 hover:bg-slate-50 transition-colors"
+                                                        title="Edit registration (add or remove children)"
+                                                    >
+                                                        <Edit3 className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => openCheckInModal(reg)}
+                                                        className="flex-1 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl shadow-sm transition-all active:scale-95"
+                                                    >
+                                                        <UserCheck className="w-3.5 h-3.5" />
+                                                        <span>Check In</span>
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     </div>
@@ -1264,6 +1369,216 @@ export function HolidayProgramSection() {
                                     className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-md"
                                 >
                                     Save Walk-In
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Registration Modal */}
+            {editModalReg && (
+                <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in duration-150">
+                        <div className="bg-emerald-900 text-white p-6 flex items-center justify-between">
+                            <div>
+                                <div className="text-xs font-bold uppercase tracking-wider text-emerald-200">
+                                    Edit Registration
+                                </div>
+                                <h2 className="text-xl font-black mt-0.5">
+                                    Ticket #{editModalReg.ticketNumber} – {editModalReg.timeSlot}
+                                </h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setEditModalReg(null)}
+                                className="text-emerald-200 hover:text-white p-1 rounded-lg"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleEditSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label htmlFor={editParentNameId} className="block text-xs font-bold uppercase text-slate-600">
+                                        Parent Name *
+                                    </label>
+                                    <input
+                                        id={editParentNameId}
+                                        type="text"
+                                        required
+                                        value={editParentName}
+                                        onChange={(e) => setEditParentName(e.target.value)}
+                                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900"
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label htmlFor={editPhoneId} className="block text-xs font-bold uppercase text-slate-600">
+                                        Phone *
+                                    </label>
+                                    <input
+                                        id={editPhoneId}
+                                        type="tel"
+                                        inputMode="numeric"
+                                        maxLength={14}
+                                        required
+                                        value={editPhone}
+                                        onChange={(e) => {
+                                            const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                            if (digits.length <= 3) {
+                                                setEditPhone(digits);
+                                            } else if (digits.length <= 6) {
+                                                setEditPhone(`(${digits.slice(0, 3)}) ${digits.slice(3)}`);
+                                            } else {
+                                                setEditPhone(`(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`);
+                                            }
+                                        }}
+                                        placeholder="e.g. (650) 555-0123"
+                                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <label htmlFor={editCityId} className="block text-xs font-bold uppercase text-slate-600">City</label>
+                                    <select
+                                        id={editCityId}
+                                        value={HOLIDAY_CITIES.includes(editCity as (typeof HOLIDAY_CITIES)[number]) ? editCity : 'Other'}
+                                        onChange={(e) => setEditCity(e.target.value)}
+                                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900"
+                                    >
+                                        {HOLIDAY_CITIES.map((c) => (
+                                            <option key={c} value={c}>
+                                                {c}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label htmlFor={editHousingId} className="block text-xs font-bold uppercase text-slate-600">Housing</label>
+                                    <select
+                                        id={editHousingId}
+                                        value={editHousing}
+                                        onChange={(e) => setEditHousing(e.target.value as HolidayHousingStatus)}
+                                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900"
+                                    >
+                                        <option value="house_apartment">House / Apartment</option>
+                                        <option value="vehicle_rv_camper">Vehicle / RV / Camper</option>
+                                        <option value="temp_shelter_motel">Temp Shelter / Motel</option>
+                                        <option value="outside">Outside / Unhoused</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-3">
+                                <div className="space-y-1">
+                                    <label htmlFor={editIncomeId} className="block text-xs font-bold uppercase text-slate-600">Income</label>
+                                    <select
+                                        id={editIncomeId}
+                                        value={editIncome}
+                                        onChange={(e) => setEditIncome(e.target.value as HolidayIncomeRange)}
+                                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900"
+                                    >
+                                        <option value="0_40k">$0 - $40,000</option>
+                                        <option value="41_65k">$41,000 - $65,000</option>
+                                        <option value="66_90k">$66,000 - $90,000</option>
+                                        <option value="over_90k">Over $90,000</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Children */}
+                            <div className="space-y-2 pt-2 border-t border-slate-100">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold uppercase text-slate-700">Children</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddEditChild}
+                                        className="text-xs font-bold text-emerald-700 hover:text-emerald-800"
+                                    >
+                                        + Add Child
+                                    </button>
+                                </div>
+                                {editChildren.map((c, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Child Name"
+                                            required
+                                            value={c.name}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setEditChildren((prev) => {
+                                                    const n = [...prev];
+                                                    n[i].name = val;
+                                                    return n;
+                                                });
+                                            }}
+                                            className="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Age"
+                                            min={0}
+                                            max={18}
+                                            required
+                                            value={c.age}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value, 10) || 0;
+                                                setEditChildren((prev) => {
+                                                    const n = [...prev];
+                                                    n[i].age = val;
+                                                    return n;
+                                                });
+                                            }}
+                                            className="w-16 border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-center text-slate-900"
+                                        />
+                                        <input
+                                            type="date"
+                                            title="Birthdate"
+                                            value={c.birthdate}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setEditChildren((prev) => {
+                                                    const n = [...prev];
+                                                    n[i].birthdate = val;
+                                                    return n;
+                                                });
+                                            }}
+                                            className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-slate-900"
+                                        />
+                                        {editChildren.length > 1 && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleRemoveEditChild(i)}
+                                                className="text-slate-400 hover:text-rose-600 p-1"
+                                                title="Remove child"
+                                            >
+                                                <X className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                <p className="text-[11px] text-slate-500">
+                                    Ticket #{editModalReg.ticketNumber} and the arrival time stay the same. Gift cards update automatically.
+                                </p>
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditModalReg(null)}
+                                    className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-md"
+                                >
+                                    Save Changes
                                 </button>
                             </div>
                         </form>

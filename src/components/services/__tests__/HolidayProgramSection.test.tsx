@@ -159,6 +159,39 @@ describe('HolidayProgramSection', () => {
         });
     });
 
+    it('shows edit buttons only for registrations waiting for check-in', () => {
+        render(<HolidayProgramSection />);
+
+        // reg-1 is registered (desktop table + mobile card), reg-2 is checked in
+        const editButtons = screen.getAllByTitle(/Edit registration/i);
+        expect(editButtons).toHaveLength(2);
+    });
+
+    it('opens edit modal prefilled and saves family changes', async () => {
+        const updateSpy = vi.fn().mockResolvedValue(mockRegistrations[0]);
+        useHolidayStore.setState({ updateFamilyRegistration: updateSpy });
+
+        render(<HolidayProgramSection />);
+
+        fireEvent.click(screen.getAllByTitle(/Edit registration/i)[0]);
+
+        await waitFor(() => {
+            expect(screen.getByText('Edit Registration')).toBeDefined();
+        });
+
+        const nameInput = screen.getByDisplayValue('Carlos Ramirez');
+        fireEvent.change(nameInput, { target: { value: 'Carlos R. Updated' } });
+
+        fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+        await waitFor(() => {
+            expect(updateSpy).toHaveBeenCalledWith('reg-1', expect.objectContaining({
+                parentName: 'Carlos R. Updated',
+                timeSlot: '09:00 AM - 09:20 AM',
+            }));
+        });
+    });
+
     it('opens reset modal and confirms resetting ticket counter to #1', async () => {
         const resetSpy = vi.fn().mockResolvedValue({ success: true, deletedRegistrations: 2, nextTicketNumber: 1 });
         useHolidayStore.setState({ resetTicketCounter: resetSpy });

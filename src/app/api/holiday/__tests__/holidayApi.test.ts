@@ -460,6 +460,98 @@ describe('Holiday API Routes', () => {
             });
         });
 
+        describe('PATCH /api/holiday/staff/registrations/[id]', () => {
+            const validBody = {
+                parentName: 'Jane Doe',
+                phone: '6505551234',
+                city: 'Mountain View',
+                housingStatus: 'house_apartment',
+                incomeRange: '0_40k',
+                language: 'en',
+                children: [{ name: 'Child A', age: 7 }],
+            };
+
+            it('updates parent info and children, keeping ticket and slot', async () => {
+                mockRpc.mockResolvedValueOnce({
+                    data: {
+                        id: 'reg-1',
+                        ticketNumber: 5,
+                        eventYear: 2026,
+                        parentName: 'Jane Doe',
+                        phone: '6505551234',
+                        city: 'Mountain View',
+                        housingStatus: 'house_apartment',
+                        incomeRange: '0_40k',
+                        timeSlot: '09:00 AM - 09:20 AM',
+                        language: 'en',
+                        status: 'registered',
+                        groceryCards: 1,
+                        teenCards: 0,
+                        notes: null,
+                        children: [{ id: 'c1', age: 7, ageGroup: 'child', gender: null }],
+                        createdAt: '2026-09-01T00:00:00Z',
+                        updatedAt: '2026-09-02T00:00:00Z',
+                    },
+                    error: null,
+                });
+
+                const { PATCH } = await import('../staff/registrations/[id]/route');
+                const req = new NextRequest('http://localhost:3000/api/holiday/staff/registrations/reg-1', {
+                    method: 'PATCH',
+                    body: JSON.stringify(validBody),
+                });
+
+                const res = await PATCH(req, { params: Promise.resolve({ id: 'reg-1' }) });
+                expect(res.status).toBe(200);
+                expect(mockRpc).toHaveBeenCalledWith('update_holiday_family', expect.objectContaining({
+                    p_registration_id: 'reg-1',
+                    p_parent_name: 'Jane Doe',
+                }));
+                const json = await res.json();
+                expect(json.registration.ticketNumber).toBe(5);
+                expect(json.registration.timeSlot).toBe('09:00 AM - 09:20 AM');
+                expect(json.registration.shopperToken).toBeDefined();
+            });
+
+            it('rejects invalid payloads', async () => {
+                const { PATCH } = await import('../staff/registrations/[id]/route');
+                const req = new NextRequest('http://localhost:3000/api/holiday/staff/registrations/reg-1', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ ...validBody, children: [] }),
+                });
+
+                const res = await PATCH(req, { params: Promise.resolve({ id: 'reg-1' }) });
+                expect(res.status).toBe(400);
+                expect(mockRpc).not.toHaveBeenCalledWith('update_holiday_family', expect.anything());
+            });
+
+            it('returns 404 when the registration does not exist', async () => {
+                mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'REGISTRATION_NOT_FOUND' } });
+
+                const { PATCH } = await import('../staff/registrations/[id]/route');
+                const req = new NextRequest('http://localhost:3000/api/holiday/staff/registrations/reg-1', {
+                    method: 'PATCH',
+                    body: JSON.stringify(validBody),
+                });
+
+                const res = await PATCH(req, { params: Promise.resolve({ id: 'reg-1' }) });
+                expect(res.status).toBe(404);
+            });
+
+            it('returns 409 when the family already checked in', async () => {
+                mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'ALREADY_CHECKED_IN' } });
+
+                const { PATCH } = await import('../staff/registrations/[id]/route');
+                const req = new NextRequest('http://localhost:3000/api/holiday/staff/registrations/reg-1', {
+                    method: 'PATCH',
+                    body: JSON.stringify(validBody),
+                });
+
+                const res = await PATCH(req, { params: Promise.resolve({ id: 'reg-1' }) });
+                expect(res.status).toBe(409);
+            });
+        });
+
         it.each([
             ['registrations', async () => {
                 const { GET } = await import('../staff/registrations/route');
@@ -497,6 +589,19 @@ describe('Holiday API Routes', () => {
                 const { DELETE } = await import('../staff/registrations/[id]/route');
                 return DELETE(
                     new NextRequest('http://localhost/api/holiday/staff/registrations/reg-1', { method: 'DELETE' }),
+                    { params: Promise.resolve({ id: 'reg-1' }) }
+                );
+            }],
+            ['update', async () => {
+                const { PATCH } = await import('../staff/registrations/[id]/route');
+                return PATCH(
+                    new NextRequest('http://localhost/api/holiday/staff/registrations/reg-1', {
+                        method: 'PATCH',
+                        body: JSON.stringify({
+                            parentName: 'Parent', phone: '6505551234', city: 'Mountain View',
+                            children: [{ name: 'Child', age: 7 }],
+                        }),
+                    }),
                     { params: Promise.resolve({ id: 'reg-1' }) }
                 );
             }],

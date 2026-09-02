@@ -26,6 +26,7 @@ interface HolidayStoreState {
     ) => Promise<boolean>;
     undoCheckIn: (id: string) => Promise<boolean>;
     updateRegistration: (id: string, updates: Partial<HolidayRegistration>) => Promise<boolean>;
+    updateFamilyRegistration: (id: string, input: HolidayRegistrationInput) => Promise<HolidayRegistration | null>;
     deleteRegistration: (id: string) => Promise<boolean>;
     addWalkInRegistration: (input: HolidayRegistrationInput) => Promise<HolidayRegistration | null>;
     resetTicketCounter: (options?: {
@@ -173,6 +174,41 @@ export const useHolidayStore = create<HolidayStoreState>()(
                     console.error('[useHolidayStore] Exception updating registration:', error);
                     await get().loadFromSupabase();
                     return false;
+                }
+            },
+
+            updateFamilyRegistration: async (id, input) => {
+                try {
+                    const res = await fetch(`/api/holiday/staff/registrations/${id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(input),
+                    });
+
+                    if (!res.ok) {
+                        console.error('[useHolidayStore] Error updating family registration:', res.statusText);
+                        const json = await res.json().catch(() => null);
+                        if (json?.error) {
+                            console.error('[useHolidayStore] Update failed:', json.error);
+                        }
+                        return null;
+                    }
+
+                    const json = await res.json();
+                    const updated = json.registration as HolidayRegistration;
+                    if (!updated) return null;
+
+                    set((state) => {
+                        const idx = state.registrations.findIndex((r) => r.id === id);
+                        if (idx >= 0) {
+                            state.registrations[idx] = updated;
+                        }
+                    });
+
+                    return updated;
+                } catch (error) {
+                    console.error('[useHolidayStore] Exception updating family registration:', error);
+                    return null;
                 }
             },
 
