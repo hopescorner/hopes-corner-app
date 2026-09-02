@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.11.3';
+export const APP_VERSION = '0.12.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,37 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.12.0',
+        date: 'September 2, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Staff Registration Editing',
+                description: 'Staff can now fix a family registration before check-in: edit parent info and add, edit, or remove children (e.g. a forgotten kid) while keeping the same ticket number and arrival time. Gift card counts recalculate automatically.',
+            },
+            {
+                type: 'feature',
+                title: 'Registration Explainer Illustration',
+                description: 'The public holiday registration page now shows a 3-step visual guide (register, get ticket, pick up gifts) above the instructions.',
+            },
+            {
+                type: 'improvement',
+                title: 'Simpler Registration Instructions',
+                description: 'Registration guidance rewritten in short, plain language across English, Spanish, and Mandarin.',
+            },
+            {
+                type: 'feature',
+                title: 'Ticket Auto-Download and Sharing',
+                description: 'Tickets automatically save as an image after registration, with native save-to-photos, PDF download, and print actions.',
+            },
+            {
+                type: 'improvement',
+                title: 'Framework and Security Updates',
+                description: 'Upgraded to Next.js 16.3.4 and React 19.2.8, including critical remote-code-execution security fixes.',
+            },
+        ],
+    },
     {
         version: '0.11.3',
         date: 'September 2, 2026',

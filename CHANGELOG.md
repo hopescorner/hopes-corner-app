@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.12.0] - 2026-09-02
+
+### Added
+
+- Staff can now edit a holiday family registration before check-in: update parent info and add, edit, or remove children (e.g. a forgotten kid) while keeping the same ticket number and arrival time. Gift card counts recalculate automatically; editing locks once checked in.
+- Public holiday registration page now shows a 3-step explainer illustration (register, get ticket, pick up gifts) above the instructions.
+- Tickets automatically download as an image after registration, with native save-to-photos, PDF download, and print actions.
+
+### Improved
+
+- Registration instructions rewritten in short, plain language across English, Spanish, and Mandarin, with duplicate step numbers removed.
+- Upgraded to Next.js 16.3.4 and React 19.2.8, including critical remote-code-execution security fixes.
+
 ## [0.11.3] - 2026-09-02
 
 ### Fixed
