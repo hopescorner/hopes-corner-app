@@ -216,11 +216,6 @@ export default function ShopperChecklistClient({ data }: ShopperChecklistClientP
                         })}
                     </div>
                 </div>
-
-                <div className="rounded-xl border border-slate-200 bg-slate-100/70 p-3.5 text-center text-xs text-slate-500 space-y-1">
-                    <p className="font-medium text-slate-600">Confidential Volunteer Shopping Checklist</p>
-                    <p className="text-[11px] text-slate-400">Personal information is protected. Check off gifts as you select them.</p>
-                </div>
             </div>
         </div>
     );
