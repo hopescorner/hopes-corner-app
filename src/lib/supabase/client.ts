@@ -20,10 +20,24 @@ const instrumentedFetch: typeof fetch = async (input, init) => {
     return fetch(input, init);
 };
 
+let client: ReturnType<typeof createBrowserClient> | null = null;
+
 export function createClient() {
-    return createBrowserClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
-        { global: { fetch: instrumentedFetch } }
-    );
+    if (typeof window === 'undefined') {
+        return createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
+            { global: { fetch: instrumentedFetch } }
+        );
+    }
+
+    if (!client) {
+        client = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
+            { global: { fetch: instrumentedFetch } }
+        );
+    }
+    return client;
 }
+

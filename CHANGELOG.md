@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.2] - 2026-09-02
+
+### Fixed
+
+- Fixed next available shower and laundry slot quick-book buttons on guest cards to dynamically advance to the next open time slot when initial slots (e.g. 07:30 / 7:30 AM) are filled.
+- Resolved browser LockManager token contention by implementing a singleton browser client for Supabase.
+
 ## [0.11.1] - 2026-09-01
 
 ### Fixed

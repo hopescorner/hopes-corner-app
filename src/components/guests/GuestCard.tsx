@@ -35,7 +35,7 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { getGuestInitials, getGuestAvatarColor } from '@/lib/utils/guestAvatar';
-import { findNextAvailableShowerSlot, findNextAvailableLaundrySlot } from '@/lib/utils/nextAvailableSlot';
+import { findNextAvailableShowerSlot, findNextAvailableLaundrySlot, type NextAvailableShowerSlot, type NextAvailableLaundrySlot } from '@/lib/utils/nextAvailableSlot';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
@@ -88,6 +88,9 @@ interface GuestCardProps {
     recentGuestsMap?: RecentGuestsMap;
     /** Precomputed map of guestId → most recent service date (YYYY-MM-DD) across all service types. */
     lastVisitDateMap?: LastVisitDateMap;
+    // Precomputed next available shower and laundry slots
+    nextAvailableShowerSlot?: NextAvailableShowerSlot | null;
+    nextAvailableLaundrySlot?: NextAvailableLaundrySlot | null;
     // Disable layout animations for better performance in large lists
     disableLayoutAnimation?: boolean;
 
@@ -174,6 +177,8 @@ function PureGuestCard({
     actionStatusMap,
     recentGuestsMap,
     lastVisitDateMap,
+    nextAvailableShowerSlot: propNextAvailableShowerSlot,
+    nextAvailableLaundrySlot: propNextAvailableLaundrySlot,
     disableLayoutAnimation = false,
     warningsCount,
     linkedGuestsCount,
@@ -223,13 +228,23 @@ function PureGuestCard({
 
     const blockedSlotFn = useMemo(() => isSlotBlocked || (() => false), [isSlotBlocked]);
 
-    const nextAvailableShowerSlot = useMemo(() => {
+    const computedNextAvailableShowerSlot = useMemo(() => {
+        if (propNextAvailableShowerSlot !== undefined) return null;
         return findNextAvailableShowerSlot(showerRecords, blockedSlotFn, today);
-    }, [showerRecords, blockedSlotFn, today]);
+    }, [propNextAvailableShowerSlot, showerRecords, blockedSlotFn, today]);
 
-    const nextAvailableLaundrySlot = useMemo(() => {
+    const nextAvailableShowerSlot = propNextAvailableShowerSlot !== undefined
+        ? propNextAvailableShowerSlot
+        : computedNextAvailableShowerSlot;
+
+    const computedNextAvailableLaundrySlot = useMemo(() => {
+        if (propNextAvailableLaundrySlot !== undefined) return null;
         return findNextAvailableLaundrySlot(laundryRecords, blockedSlotFn, today);
-    }, [laundryRecords, blockedSlotFn, today]);
+    }, [propNextAvailableLaundrySlot, laundryRecords, blockedSlotFn, today]);
+
+    const nextAvailableLaundrySlot = propNextAvailableLaundrySlot !== undefined
+        ? propNextAvailableLaundrySlot
+        : computedNextAvailableLaundrySlot;
 
     // Always compute local status (useMemo must be called unconditionally)
     // Then use precomputed map if provided
@@ -1383,22 +1398,34 @@ function PureGuestCard({
 }
 
 function GuestCardImpl(props: GuestCardProps) {
-    const { mealStatusMap, serviceStatusMap, actionStatusMap, recentGuestsMap, guest } = props;
+    const {
+        mealStatusMap,
+        serviceStatusMap,
+        actionStatusMap,
+        recentGuestsMap,
+        lastVisitDateMap,
+        nextAvailableShowerSlot,
+        nextAvailableLaundrySlot,
+        guest
+    } = props;
 
     // Also fetch records when lastVisitDateMap is not provided so the fallback
     // last-visit computation in PureGuestCard has data to work with.
-    const needsLastVisitRecords = !props.lastVisitDateMap;
+    const needsLastVisitRecords = !lastVisitDateMap;
 
     const needsMealRecords = !mealStatusMap || !recentGuestsMap;
     const mealRecords = useMealsStore((s) => (needsMealRecords || needsLastVisitRecords ? s.mealRecords : EMPTY_ARRAY));
     const extraMealRecords = useMealsStore((s) => (!mealStatusMap || needsLastVisitRecords ? s.extraMealRecords : EMPTY_ARRAY));
 
-    const needsServiceRecords = !serviceStatusMap;
-    const showerRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? s.showerRecords : EMPTY_ARRAY));
-    const laundryRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? s.laundryRecords : EMPTY_ARRAY));
-    const bicycleRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? (s.bicycleRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
-    const haircutRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? (s.haircutRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
-    const holidayRecords = useServicesStore((s) => (needsServiceRecords || needsLastVisitRecords ? (s.holidayRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
+    const needsShowerRecords = !serviceStatusMap || needsLastVisitRecords || nextAvailableShowerSlot === undefined;
+    const needsLaundryRecords = !serviceStatusMap || needsLastVisitRecords || nextAvailableLaundrySlot === undefined;
+    const needsOtherServiceRecords = !serviceStatusMap || needsLastVisitRecords;
+
+    const showerRecords = useServicesStore((s) => (needsShowerRecords ? s.showerRecords : EMPTY_ARRAY));
+    const laundryRecords = useServicesStore((s) => (needsLaundryRecords ? s.laundryRecords : EMPTY_ARRAY));
+    const bicycleRecords = useServicesStore((s) => (needsOtherServiceRecords ? (s.bicycleRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
+    const haircutRecords = useServicesStore((s) => (needsOtherServiceRecords ? (s.haircutRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
+    const holidayRecords = useServicesStore((s) => (needsOtherServiceRecords ? (s.holidayRecords || EMPTY_ARRAY) : EMPTY_ARRAY));
 
     const { addMealRecord, addExtraMealRecord } = useMealsStore(
         useShallow((s) => ({ addMealRecord: s.addMealRecord, addExtraMealRecord: s.addExtraMealRecord }))

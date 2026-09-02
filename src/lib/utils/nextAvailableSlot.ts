@@ -19,17 +19,29 @@ export function findNextAvailableShowerSlot(
     targetDate: string
 ): NextAvailableShowerSlot | null {
     const slots = generateShowerSlots();
+    const slotCounts = new Map<string, number>();
+
+    for (const r of showerRecords || []) {
+        if (!r) continue;
+        const matchesDate = r.dateKey
+            ? r.dateKey === targetDate
+            : r.scheduledFor
+                ? r.scheduledFor === targetDate
+                : r.date
+                    ? pacificDateStringFrom(r.date) === targetDate
+                    : true;
+        if (!matchesDate) continue;
+        if (!SHOWER_SLOT_OCCUPYING_STATUSES.has(r.status)) continue;
+        const slot = r.time || r.slotTime || r.scheduledTime;
+        if (slot) {
+            slotCounts.set(slot, (slotCounts.get(slot) || 0) + 1);
+        }
+    }
 
     for (const slotTime of slots) {
         if (isSlotBlocked('shower', slotTime, targetDate)) continue;
 
-        const count = showerRecords.filter(
-            (r) =>
-                (r.time === slotTime || r.slotTime === slotTime) &&
-                (r.date ? pacificDateStringFrom(r.date) === targetDate : true) &&
-                SHOWER_SLOT_OCCUPYING_STATUSES.has(r.status)
-        ).length;
-
+        const count = slotCounts.get(slotTime) || 0;
         if (count < MAX_GUESTS_PER_SHOWER_SLOT) {
             return {
                 slotTime,
@@ -48,19 +60,31 @@ export function findNextAvailableLaundrySlot(
     targetDate: string
 ): NextAvailableLaundrySlot | null {
     const slots = generateLaundrySlots();
+    const bookedSlots = new Set<string>();
+
+    for (const r of laundryRecords || []) {
+        if (!r) continue;
+        const matchesDate = r.dateKey
+            ? r.dateKey === targetDate
+            : r.scheduledFor
+                ? r.scheduledFor === targetDate
+                : r.date
+                    ? pacificDateStringFrom(r.date) === targetDate
+                    : true;
+        if (!matchesDate) continue;
+        const isOnsite = r.laundryType === 'onsite' || r.type === 'onsite' || r.washType === 'onsite' || (!r.laundryType && !r.type && !r.washType);
+        if (!isOnsite) continue;
+        if (!LAUNDRY_SLOT_OCCUPYING_STATUSES.has(r.status)) continue;
+        const slot = r.time || r.slotTime || r.slotLabel || r.slot_label;
+        if (slot) {
+            bookedSlots.add(slot);
+        }
+    }
 
     for (const slotLabel of slots) {
         if (isSlotBlocked('laundry', slotLabel, targetDate)) continue;
 
-        const isBooked = laundryRecords.some(
-            (r) =>
-                (r.time === slotLabel || r.slotTime === slotLabel) &&
-                (r.laundryType === 'onsite' || r.type === 'onsite') &&
-                (r.date ? pacificDateStringFrom(r.date) === targetDate : true) &&
-                LAUNDRY_SLOT_OCCUPYING_STATUSES.has(r.status)
-        );
-
-        if (!isBooked) {
+        if (!bookedSlots.has(slotLabel)) {
             return {
                 slotLabel,
                 label: formatSlotLabel(slotLabel),

@@ -11,8 +11,17 @@ import { useMemo } from 'react';
 import { useMealsStore, MealRecord } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
+import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
+import {
+    findNextAvailableShowerSlot,
+    findNextAvailableLaundrySlot,
+    type NextAvailableShowerSlot,
+    type NextAvailableLaundrySlot
+} from '@/lib/utils/nextAvailableSlot';
+
+export type { NextAvailableShowerSlot, NextAvailableLaundrySlot };
 
 export interface TodayMealStatus {
     hasMeal: boolean;
@@ -323,8 +332,31 @@ export function useLastVisitDateMap(): LastVisitDateMap {
 }
 
 /**
- * Combined hook that returns all precomputed status maps.
- * Most efficient when you need all three maps.
+ * Hook that returns the next available shower and laundry slots.
+ * Single O(N) evaluation at the list level.
+ */
+export function useNextAvailableSlots(): {
+    nextAvailableShowerSlot: NextAvailableShowerSlot | null;
+    nextAvailableLaundrySlot: NextAvailableLaundrySlot | null;
+} {
+    const showerRecords = useServicesStore((s) => s.showerRecords);
+    const laundryRecords = useServicesStore((s) => s.laundryRecords);
+    const isSlotBlocked = useBlockedSlotsStore((s) => s.isSlotBlocked);
+
+    return useMemo(() => {
+        const today = todayPacificDateString();
+        const nextShower = findNextAvailableShowerSlot(showerRecords, isSlotBlocked, today);
+        const nextLaundry = findNextAvailableLaundrySlot(laundryRecords, isSlotBlocked, today);
+        return {
+            nextAvailableShowerSlot: nextShower,
+            nextAvailableLaundrySlot: nextLaundry,
+        };
+    }, [showerRecords, laundryRecords, isSlotBlocked]);
+}
+
+/**
+ * Combined hook that returns all precomputed status maps and next available slots.
+ * Most efficient when you need all status lookups at list level.
  */
 export function useTodayStatusMaps() {
     const mealStatus = useTodayMealStatusMap();
@@ -332,8 +364,17 @@ export function useTodayStatusMaps() {
     const actionStatus = useTodayActionStatusMap();
     const recentGuests = useRecentGuestsMap();
     const lastVisitDates = useLastVisitDateMap();
+    const { nextAvailableShowerSlot, nextAvailableLaundrySlot } = useNextAvailableSlots();
 
-    return { mealStatus, serviceStatus, actionStatus, recentGuests, lastVisitDates };
+    return {
+        mealStatus,
+        serviceStatus,
+        actionStatus,
+        recentGuests,
+        lastVisitDates,
+        nextAvailableShowerSlot,
+        nextAvailableLaundrySlot,
+    };
 }
 
 /**

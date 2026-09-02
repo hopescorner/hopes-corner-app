@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.11.1';
+export const APP_VERSION = '0.11.2';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.11.2',
+        date: 'September 2, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Next Available Slot Progression',
+                description: 'Guest card quick-book shower and laundry buttons now dynamically advance to the next available slot when earlier slots (e.g. 07:30 / 7:30 AM) are booked.',
+            },
+            {
+                type: 'fix',
+                title: 'Supabase Browser Lock Contention',
+                description: 'Implemented a singleton browser client to eliminate Navigator LockManager lock contention and unhandled promise rejections.',
+            },
+        ],
+    },
     {
         version: '0.11.1',
         date: 'September 1, 2026',

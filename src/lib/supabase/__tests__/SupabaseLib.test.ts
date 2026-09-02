@@ -34,8 +34,10 @@ import { updateSession } from '../middleware';
 
 describe('Supabase Lib', () => {
     it('creates a browser client correctly', () => {
-        const client = createBrowserClient();
-        expect(client).toEqual({ type: 'browser-client' });
+        const client1 = createBrowserClient();
+        const client2 = createBrowserClient();
+        expect(client1).toEqual({ type: 'browser-client' });
+        expect(client1).toBe(client2);
     });
 
     it('creates a server client correctly', async () => {

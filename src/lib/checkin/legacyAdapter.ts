@@ -77,7 +77,7 @@ export function snapshotToLegacyState(snapshot: CheckInSnapshot) {
             } as MealRecord);
         }
         if (status.shower) showerRecords.push(serviceRecord(guestId, status.shower) as unknown as ServicesState['showerRecords'][number]);
-        if (status.laundry) laundryRecords.push(serviceRecord(guestId, status.laundry) as unknown as ServicesState['laundryRecords'][number]);
+        if (status.laundry) laundryRecords.push({ ...serviceRecord(guestId, status.laundry), laundryType: 'onsite', washType: 'onsite' } as unknown as ServicesState['laundryRecords'][number]);
         if (status.bicycle) bicycleRecords.push(serviceRecord(guestId, status.bicycle) as unknown as ServicesState['bicycleRecords'][number]);
         if (status.haircut) haircutRecords.push({ ...serviceRecord(guestId, status.haircut), serviceDate: snapshot.serviceDate } as unknown as ServicesState['haircutRecords'][number]);
         if (status.holiday) holidayRecords.push(serviceRecord(guestId, status.holiday) as unknown as ServicesState['holidayRecords'][number]);

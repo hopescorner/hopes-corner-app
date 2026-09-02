@@ -138,7 +138,15 @@ export default function CheckInClient({
     }, []);
 
     // Precomputed status maps for efficient per-guest lookups
-    const { mealStatus: legacyMealStatus, serviceStatus, actionStatus, recentGuests: legacyRecentGuests, lastVisitDates: legacyLastVisitDates } = useTodayStatusMaps();
+    const {
+        mealStatus: legacyMealStatus,
+        serviceStatus,
+        actionStatus,
+        recentGuests: legacyRecentGuests,
+        lastVisitDates: legacyLastVisitDates,
+        nextAvailableShowerSlot,
+        nextAvailableLaundrySlot,
+    } = useTodayStatusMaps();
     const mealStatus = useMemo(() => snapshotReady
         ? snapshotToMealStatusMap(snapshotTodayByGuest, snapshotServiceDate)
         : legacyMealStatus,
@@ -908,6 +916,8 @@ export default function CheckInClient({
                                                     actionStatusMap={actionStatus}
                                                     recentGuestsMap={recentGuests}
                                                     lastVisitDateMap={lastVisitDates}
+                                                    nextAvailableShowerSlot={nextAvailableShowerSlot}
+                                                    nextAvailableLaundrySlot={nextAvailableLaundrySlot}
                                                     warningsCount={warningsCountMap.get(guest.id) || 0}
                                                     linkedGuestsCount={linkedGuestsCountMap.get(guest.id) || 0}
                                                     activeRemindersCount={activeRemindersCountMap.get(guest.id) || 0}
@@ -940,6 +950,8 @@ export default function CheckInClient({
                                                     actionStatusMap={actionStatus}
                                                     recentGuestsMap={recentGuests}
                                                     lastVisitDateMap={lastVisitDates}
+                                                    nextAvailableShowerSlot={nextAvailableShowerSlot}
+                                                    nextAvailableLaundrySlot={nextAvailableLaundrySlot}
                                                     warningsCount={warningsCountMap.get(guest.id) || 0}
                                                     linkedGuestsCount={linkedGuestsCountMap.get(guest.id) || 0}
                                                     activeRemindersCount={activeRemindersCountMap.get(guest.id) || 0}

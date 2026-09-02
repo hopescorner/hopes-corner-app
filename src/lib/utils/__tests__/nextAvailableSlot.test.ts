@@ -91,5 +91,19 @@ describe('nextAvailableSlot', () => {
             const result = findNextAvailableLaundrySlot(records, isSlotBlocked, today);
             expect(result?.slotLabel).toBe(laundrySlots[0]);
         });
+
+        it('handles DB row properties (time, laundryType, dateKey)', () => {
+            const records = [{
+                id: 'laundry-db',
+                guestId: 'guest-1',
+                dateKey: today,
+                laundryType: 'onsite',
+                time: laundrySlots[0],
+                status: 'waiting',
+            }];
+
+            const result = findNextAvailableLaundrySlot(records, isSlotBlocked, today);
+            expect(result?.slotLabel).toBe(laundrySlots[1]);
+        });
     });
 });

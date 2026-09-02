@@ -3,6 +3,7 @@ export {
     useTodayServiceStatusMap,
     useTodayActionStatusMap,
     useTodayStatusMaps,
+    useNextAvailableSlots,
     defaultMealStatus,
     defaultServiceStatus,
     defaultActionStatus,
@@ -12,4 +13,6 @@ export {
     type TodayMealStatus,
     type TodayServiceStatus,
     type TodayGuestActions,
+    type NextAvailableShowerSlot,
+    type NextAvailableLaundrySlot,
 } from './todayStatusSelectors';

@@ -1058,4 +1058,45 @@ describe('GuestCard Component', () => {
             expect(badge?.getAttribute('title')).toContain(today);
         });
     });
+
+    describe('Next Available Slot Buttons', () => {
+        it('displays precomputed nextAvailableShowerSlot (08:00) and nextAvailableLaundrySlot (8:00 AM)', () => {
+            render(
+                <GuestCard
+                    guest={baseGuest}
+                    nextAvailableShowerSlot={{ slotTime: '08:00', label: '8:00 AM', count: 0 }}
+                    nextAvailableLaundrySlot={{ slotLabel: '08:00 - 09:00', label: '8:00 AM - 9:00 AM' }}
+                />
+            );
+            expect(screen.getByText('08:00')).toBeDefined();
+            expect(screen.getByText('8:00 AM')).toBeDefined();
+        });
+
+        it('displays Waitlist when nextAvailableShowerSlot is null', () => {
+            render(
+                <GuestCard
+                    guest={baseGuest}
+                    nextAvailableShowerSlot={null}
+                    nextAvailableLaundrySlot={{ slotLabel: '08:00 - 09:00', label: '8:00 AM - 9:00 AM' }}
+                />
+            );
+            expect(screen.getByText('Waitlist')).toBeDefined();
+        });
+
+        it('shows next slot when next available slot is passed with serviceStatusMap', () => {
+            const serviceStatusMap = new Map();
+            const lastVisitDateMap = new Map();
+            render(
+                <GuestCard
+                    guest={baseGuest}
+                    serviceStatusMap={serviceStatusMap}
+                    lastVisitDateMap={lastVisitDateMap}
+                    nextAvailableShowerSlot={{ slotTime: '08:30', label: '8:30 AM', count: 1 }}
+                    nextAvailableLaundrySlot={{ slotLabel: '08:30 - 09:45', label: '8:30 AM - 9:45 AM' }}
+                />
+            );
+            expect(screen.getByText('08:30')).toBeDefined();
+            expect(screen.getByText('8:30 AM')).toBeDefined();
+        });
+    });
 });
