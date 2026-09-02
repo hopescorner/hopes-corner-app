@@ -9,6 +9,7 @@
  */
 import React, { useEffect, useLayoutEffect } from 'react';
 import { TodayStats } from '@/components/checkin/TodayStats';
+import { ServiceStatusOverview } from '@/components/checkin/ServiceStatusOverview';
 import { BanManagementModal } from '@/components/modals/BanManagementModal';
 import { GuestEditModal } from '@/components/modals/GuestEditModal';
 import { GuestCreateModal } from '@/components/guests/GuestCreateModal';
@@ -780,4 +781,50 @@ export function LaundrySectionStory({
       <div data-testid="last-laundry-add">{lastAddPayload}</div>
     </>
   );
+}
+
+// ---------------------------------------------------------------------------
+// ServiceStatusOverview wrapper
+// ---------------------------------------------------------------------------
+
+interface ServiceStatusOverviewStoryProps {
+  showerRecords?: any[];
+  laundryRecords?: any[];
+  blockedSlots?: Array<{
+    id?: string;
+    serviceType: 'shower' | 'laundry';
+    slotTime: string;
+    date: string;
+  }>;
+}
+
+export function ServiceStatusOverviewStory({
+  showerRecords = [],
+  laundryRecords = [],
+  blockedSlots = [],
+}: ServiceStatusOverviewStoryProps) {
+  useEffect(() => {
+    useServicesStore.setState({
+      showerRecords: showerRecords as any,
+      laundryRecords: laundryRecords as any,
+    });
+    useBlockedSlotsStore.setState({
+      blockedSlots: blockedSlots.map((s, i) => ({
+        id: s.id || `slot-${i}`,
+        serviceType: s.serviceType,
+        slotTime: s.slotTime,
+        date: s.date,
+      })),
+      initialized: true,
+      fetchBlockedSlots: async () => {},
+    });
+    useSettingsStore.setState((state) => ({
+      targets: {
+        ...state.targets,
+        maxOnsiteLaundrySlots: 5,
+      },
+    }));
+  }, [showerRecords, laundryRecords, blockedSlots]);
+
+  return <ServiceStatusOverview />;
 }

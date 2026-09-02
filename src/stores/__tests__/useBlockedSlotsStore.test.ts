@@ -109,6 +109,18 @@ describe('useBlockedSlotsStore', () => {
             expect(isSlotBlocked('shower', '08:00', '2025-01-06')).toBe(true);
             expect(isSlotBlocked('shower', '09:00', '2025-01-06')).toBe(false);
         });
+
+        it('handles whitespace in slot times and dates gracefully', () => {
+            useBlockedSlotsStore.setState({
+                blockedSlots: [
+                    { id: '1', serviceType: 'laundry', slotTime: ' 07:30 - 08:30 ', date: ' 2025-01-06 ' },
+                ],
+            });
+
+            const { isSlotBlocked } = useBlockedSlotsStore.getState();
+            expect(isSlotBlocked('laundry', '07:30 - 08:30', '2025-01-06')).toBe(true);
+            expect(isSlotBlocked('laundry', ' 07:30 - 08:30 ', ' 2025-01-06 ')).toBe(true);
+        });
     });
 
     describe('blockSlot', () => {
@@ -329,6 +341,33 @@ describe('useBlockedSlotsStore', () => {
             await fetchBlockedSlots();
 
             expect(useBlockedSlotsStore.getState().loading).toBe(false);
+        });
+    });
+
+    describe('ensureLoaded', () => {
+        it('fetches blocked slots when not yet initialized', async () => {
+            mockOrder.mockResolvedValueOnce({
+                data: [{ id: 'slot-1', service_type: 'shower', slot_time: '08:00', date: '2025-01-06' }],
+                error: null,
+            });
+
+            const { ensureLoaded } = useBlockedSlotsStore.getState();
+            await ensureLoaded();
+
+            expect(useBlockedSlotsStore.getState().initialized).toBe(true);
+            expect(useBlockedSlotsStore.getState().blockedSlots.length).toBe(1);
+        });
+
+        it('does not re-fetch when already initialized', async () => {
+            useBlockedSlotsStore.setState({
+                initialized: true,
+                blockedSlots: [{ id: 'slot-1', serviceType: 'shower', slotTime: '08:00', date: '2025-01-06' }],
+            });
+
+            const { ensureLoaded } = useBlockedSlotsStore.getState();
+            await ensureLoaded();
+
+            expect(mockOrder).not.toHaveBeenCalled();
         });
     });
 });
