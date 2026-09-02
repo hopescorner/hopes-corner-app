@@ -65,11 +65,11 @@ describe('HolidayRegistrationClient', () => {
         expect(page.className).not.toContain('bg-slate-950');
         expect(screen.getByTestId('holiday-gift-icon')).toBeDefined();
         expect(screen.getByText(new RegExp(`${currentYear} HOLIDAY TOY DISTRIBUTION`, 'i'))).toBeDefined();
-        expect(screen.getByText(/How Registration & Event Day Works/i)).toBeDefined();
-        expect(screen.getByText(/1\. Register Your Family/i)).toBeDefined();
-        expect(screen.getByText(/2\. Receive Arrival Ticket/i)).toBeDefined();
-        expect(screen.getByText(/3\. Shop with a Volunteer/i)).toBeDefined();
-        expect(screen.getByText(/Helpful Registration Instructions & Guidelines/i)).toBeDefined();
+        expect(screen.getByText(/How It Works/i)).toBeDefined();
+        expect(screen.getByText(/^Register$/i)).toBeDefined();
+        expect(screen.getByText(/Get Your Ticket/i)).toBeDefined();
+        expect(screen.getByText(/Pick Up Gifts/i)).toBeDefined();
+        expect(screen.getByText(/Good to Know/i)).toBeDefined();
         expect(screen.getByText(/Parent \/ Guardian Information/i)).toBeDefined();
         expect(screen.getByText(/Automatic Arrival Window/i)).toBeDefined();
         expect(screen.getByText(/Complete Registration & Get Ticket/i)).toBeDefined();
@@ -82,8 +82,8 @@ describe('HolidayRegistrationClient', () => {
         const esBtn = screen.getByRole('button', { name: 'Español' });
         fireEvent.click(esBtn);
         expect(screen.getByText(/DISTRIBUCIÓN DE JUGUETES NAVIDEÑOS/i)).toBeDefined();
-        expect(screen.getByText(/Cómo Funciona el Registro y el Día del Evento/i)).toBeDefined();
-        expect(screen.getByText(/1\. Inscriba a su Familia/i)).toBeDefined();
+        expect(screen.getByText(/Cómo Funciona/i)).toBeDefined();
+        expect(screen.getByText(/^Regístrese$/i)).toBeDefined();
         expect(screen.getByText(/Información del Padre \/ Tutor/i)).toBeDefined();
         expect(screen.getByText(/Horario de Llegada Automático/i)).toBeDefined();
 
@@ -91,8 +91,8 @@ describe('HolidayRegistrationClient', () => {
         const zhBtn = screen.getByRole('button', { name: /中文/i });
         fireEvent.click(zhBtn);
         expect(screen.getByText(/年度节日玩具分发活动/i)).toBeDefined();
-        expect(screen.getByText(/活动登记与参与流程说明/i)).toBeDefined();
-        expect(screen.getByText(/1\. 填写家庭信息/i)).toBeDefined();
+        expect(screen.getByText(/活动流程/i)).toBeDefined();
+        expect(screen.getByText(/^登记$/i)).toBeDefined();
         expect(screen.getByText(/家长 \/ 监护人信息/i)).toBeDefined();
         expect(screen.getByText(/自动分配到场时间段/i)).toBeDefined();
     });
