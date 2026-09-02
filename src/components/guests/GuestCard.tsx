@@ -27,10 +27,16 @@ import {
     RotateCcw,
     Bell,
     Clock,
-    History
+    History,
+    Sparkles,
+    Users,
+    ListPlus
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { getGuestInitials, getGuestAvatarColor } from '@/lib/utils/guestAvatar';
+import { findNextAvailableShowerSlot, findNextAvailableLaundrySlot } from '@/lib/utils/nextAvailableSlot';
+import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
@@ -103,10 +109,14 @@ type PureGuestCardProps = GuestCardProps & {
     haircutRecords: any[];
     holidayRecords: any[];
 
-    addMealRecord: (guestId: string, count?: number) => Promise<any>;
+    addMealRecord: (guestId: string, count?: number, pickedUpByGuestId?: string | null, serviceDate?: string) => Promise<any>;
     addExtraMealRecord: (guestId: string, count?: number) => Promise<any>;
+    addShowerRecord?: (guestId: string, slotTime: string) => Promise<any>;
+    addShowerWaitlist?: (guestId: string) => Promise<any>;
+    addLaundryRecord?: (guestId: string, type: 'onsite' | 'offsite', slotTime?: string, bagNumber?: string) => Promise<any>;
     addHaircutRecord: (guestId: string, options?: { serviceDate?: string; slotTime?: string; stylistName?: string }) => Promise<any>;
     addHolidayRecord: (guestId: string) => Promise<any>;
+    isSlotBlocked?: (serviceType: 'shower' | 'laundry', slot: string, date: string) => boolean;
 
     setShowerPickerGuest: (guest: any) => void;
     setLaundryPickerGuest: (guest: any) => void;
@@ -178,8 +188,12 @@ function PureGuestCard({
     holidayRecords,
     addMealRecord,
     addExtraMealRecord,
+    addShowerRecord,
+    addShowerWaitlist,
+    addLaundryRecord,
     addHaircutRecord,
     addHolidayRecord,
+    isSlotBlocked,
     setShowerPickerGuest,
     setLaundryPickerGuest,
     setBicyclePickerGuest,
@@ -206,6 +220,16 @@ function PureGuestCard({
     const displayName = getGuestDisplayName(guest);
     const fullName = getGuestFullName(guest);
     const showFullName = Boolean(fullName) && normalizeGuestName(displayName) !== normalizeGuestName(fullName);
+
+    const blockedSlotFn = useMemo(() => isSlotBlocked || (() => false), [isSlotBlocked]);
+
+    const nextAvailableShowerSlot = useMemo(() => {
+        return findNextAvailableShowerSlot(showerRecords, blockedSlotFn, today);
+    }, [showerRecords, blockedSlotFn, today]);
+
+    const nextAvailableLaundrySlot = useMemo(() => {
+        return findNextAvailableLaundrySlot(laundryRecords, blockedSlotFn, today);
+    }, [laundryRecords, blockedSlotFn, today]);
 
     // Always compute local status (useMemo must be called unconditionally)
     // Then use precomputed map if provided
@@ -349,6 +373,105 @@ function PureGuestCard({
         }
     };
 
+    const handleQuickShower = async (e?: React.MouseEvent | React.KeyboardEvent) => {
+        e?.stopPropagation();
+        if (todayShower || isPending || isBannedFromShower) return;
+
+        if (nextAvailableShowerSlot && addShowerRecord) {
+            setIsPending(true);
+            try {
+                const record = await addShowerRecord(guest.id, nextAvailableShowerSlot.slotTime);
+                if (record && record.id) {
+                    addAction('SHOWER_BOOKED', { recordId: record.id, guestId: guest.id });
+                    toast.success(`Shower booked for ${nextAvailableShowerSlot.label}`);
+                }
+            } catch (error: any) {
+                toast.error(error.message || 'Failed to book shower');
+            } finally {
+                setIsPending(false);
+            }
+        } else if (addShowerWaitlist) {
+            setIsPending(true);
+            try {
+                const record = await addShowerWaitlist(guest.id);
+                if (record && record.id) {
+                    addAction('SHOWER_BOOKED', { recordId: record.id, guestId: guest.id });
+                    toast.success(`Added ${displayName} to shower waitlist`);
+                }
+            } catch (error: any) {
+                toast.error(error.message || 'Failed to join waitlist');
+            } finally {
+                setIsPending(false);
+            }
+        } else {
+            setShowerPickerGuest(guest);
+        }
+    };
+
+    const handleQuickLaundry = async (e?: React.MouseEvent | React.KeyboardEvent) => {
+        e?.stopPropagation();
+        if (todayLaundry || isPending || isBannedFromLaundry) return;
+
+        if (nextAvailableLaundrySlot && addLaundryRecord) {
+            setIsPending(true);
+            try {
+                const record = await addLaundryRecord(guest.id, 'onsite', nextAvailableLaundrySlot.slotLabel, '');
+                if (record && record.id) {
+                    addAction('LAUNDRY_BOOKED', { recordId: record.id, guestId: guest.id });
+                    toast.success(`On-site laundry booked for ${nextAvailableLaundrySlot.label}`);
+                }
+            } catch (error: any) {
+                toast.error(error.message || 'Failed to book laundry');
+            } finally {
+                setIsPending(false);
+            }
+        } else {
+            setLaundryPickerGuest(guest);
+        }
+    };
+
+    const handleCheckInAll = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (todayMeal || isPending || isBannedFromMeals) return;
+
+        setIsPending(true);
+        try {
+            const primaryRecord = await addMealRecord(guest.id, 1);
+            if (primaryRecord?.id) {
+                addAction('MEAL_ADDED', { recordId: primaryRecord.id, guestId: guest.id });
+            }
+
+            const { getLinkedGuests } = useGuestsStore.getState();
+            const linkedList = getLinkedGuests(guest.id);
+            let proxySuccessCount = 0;
+
+            for (const proxy of linkedList) {
+                const status = mealStatusMap?.get(proxy.id);
+                if (!status?.hasMeal) {
+                    try {
+                        const proxyRecord = await addMealRecord(proxy.id, 1, guest.id);
+                        if (proxyRecord?.id) {
+                            addAction('MEAL_ADDED', { recordId: proxyRecord.id, guestId: proxy.id, count: 1 });
+                            proxySuccessCount++;
+                        }
+                    } catch {
+                        // Continue to next buddy if one fails
+                    }
+                }
+            }
+
+            if (proxySuccessCount > 0) {
+                toast.success(`Checked in ${displayName} + ${proxySuccessCount} linked buddy${proxySuccessCount > 1 ? 'ies' : ''}`);
+            } else {
+                toast.success(`1 meal logged for ${displayName}`);
+            }
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to check in');
+        } finally {
+            setIsPending(false);
+        }
+    };
+
     const handleExtraMealAdd = async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (isPending || isBannedFromMeals || hasReachedMealLimit || hasReachedExtraMealLimit) return;
@@ -467,7 +590,7 @@ function PureGuestCard({
         if (todayBicycle) servicesParts.push('bicycle');
         const servicesSummary = servicesParts.join(' + ');
 
-        toast.success(`${servicesSummary} ✓`);
+        toast.success(`${servicesSummary} completed`);
         if (onClearSearch) onClearSearch();
     };
 
@@ -489,13 +612,21 @@ function PureGuestCard({
             >
                 {/* Left: Avatar & Info */}
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={cn(
-                        'flex items-center justify-center rounded-xl border shrink-0 transition-transform group-hover:scale-105',
-                        compact ? 'w-10 h-10' : 'w-12 h-12',
-                        isBanned ? 'bg-red-50 border-red-100 text-red-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'
-                    )}>
-                        <User size={compact ? 20 : 24} />
-                    </div>
+                    {(() => {
+                        const avatarColor = getGuestAvatarColor(guest?.id || displayName);
+                        const initials = getGuestInitials(guest);
+                        return (
+                            <div className={cn(
+                                'flex items-center justify-center rounded-xl border shrink-0 transition-transform group-hover:scale-105 font-black select-none',
+                                compact ? 'w-10 h-10 text-xs' : 'w-12 h-12 text-sm',
+                                isBanned
+                                    ? 'bg-red-50 border-red-200 text-red-600'
+                                    : cn(avatarColor.bg, avatarColor.border, avatarColor.text)
+                            )}>
+                                {isBanned ? <Ban size={compact ? 18 : 22} /> : initials}
+                            </div>
+                        );
+                    })()}
 
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-2 flex-wrap">
@@ -522,7 +653,8 @@ function PureGuestCard({
                                     const isNewGuest = guest.createdAt && pacificDateStringFrom(guest.createdAt) === today;
                                     return isNewGuest ? (
                                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold animate-pulse">
-                                            ✨ NEW
+                                            <Sparkles size={10} />
+                                            NEW
                                         </span>
                                     ) : null;
                                 })()}
@@ -690,7 +822,7 @@ function PureGuestCard({
 
                     {/* Meal Buttons - hidden on mobile */}
                     {!isBannedFromMeals && !compact && (
-                        <div className="hidden md:flex">
+                        <div className="hidden md:flex items-center gap-1">
                             {!todayMeal ? (
                                 <div className="flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
                                     {[1, 2].map((count) => (
@@ -704,6 +836,17 @@ function PureGuestCard({
                                             <span>{count}</span>
                                         </button>
                                     ))}
+                                    {linkedBadgeCount > 0 && (
+                                        <button
+                                            onClick={handleCheckInAll}
+                                            disabled={isPending}
+                                            className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                            title={`Check in ${displayName} + ${linkedBadgeCount} linked buddy/buddies`}
+                                        >
+                                            {isPending ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />}
+                                            <span>All ({1 + linkedBadgeCount})</span>
+                                        </button>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
@@ -794,10 +937,17 @@ function PureGuestCard({
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); setShowerPickerGuest(guest); }}
-                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-sky-600 font-bold text-sm hover:border-sky-300 hover:bg-sky-50 transition-all active:scale-95 touch-manipulation"
+                                        onClick={handleQuickShower}
+                                        disabled={isPending}
+                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-sky-600 font-bold text-sm hover:border-sky-300 hover:bg-sky-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                        title={nextAvailableShowerSlot ? `Quick book shower @ ${nextAvailableShowerSlot.label}` : 'Join shower waitlist'}
                                     >
                                         <ShowerHead size={16} />
+                                        {nextAvailableShowerSlot ? (
+                                            <span className="text-[11px] ml-1 font-bold text-sky-700">{nextAvailableShowerSlot.slotTime}</span>
+                                        ) : (
+                                            <span className="text-[10px] ml-1 font-bold text-amber-600">Waitlist</span>
+                                        )}
                                     </button>
                                 )
                             )}
@@ -819,10 +969,15 @@ function PureGuestCard({
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); setLaundryPickerGuest(guest); }}
-                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-indigo-600 font-bold text-sm hover:border-indigo-300 hover:bg-indigo-50 transition-all active:scale-95 touch-manipulation"
+                                        onClick={handleQuickLaundry}
+                                        disabled={isPending}
+                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-indigo-600 font-bold text-sm hover:border-indigo-300 hover:bg-indigo-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                        title={nextAvailableLaundrySlot ? `Quick book on-site laundry @ ${nextAvailableLaundrySlot.label}` : 'Book laundry'}
                                     >
                                         <WashingMachine size={16} />
+                                        {nextAvailableLaundrySlot && (
+                                            <span className="text-[10px] ml-1 font-bold text-indigo-700">{nextAvailableLaundrySlot.label.split(' - ')[0]}</span>
+                                        )}
                                     </button>
                                 )
                             )}
@@ -864,11 +1019,19 @@ function PureGuestCard({
 
                             {/* Services Grid */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setShowerPickerGuest(guest); }}
-                                    disabled={isBannedFromShower || !!todayShower}
+                                <div
+                                    role="button"
+                                    tabIndex={isBannedFromShower || !!todayShower ? -1 : 0}
+                                    onClick={handleQuickShower}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            handleQuickShower();
+                                        }
+                                    }}
+                                    aria-disabled={isBannedFromShower || !!todayShower}
                                     className={cn(
-                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation",
+                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation cursor-pointer select-none",
                                         todayShower
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                             : isBannedFromShower
@@ -891,15 +1054,37 @@ function PureGuestCard({
                                             )}
                                         </>
                                     ) : (
-                                        <ShowerHead size={20} className={isBannedFromShower ? "text-gray-400 mb-1.5" : "text-sky-500 mb-1.5"} />
+                                        <>
+                                            <ShowerHead size={20} className={isBannedFromShower ? "text-gray-400 mb-1.5" : "text-sky-500 mb-1.5"} />
+                                            {!isBannedFromShower && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); setShowerPickerGuest(guest); }}
+                                                    className="absolute top-1.5 right-1.5 p-1.5 text-gray-400 hover:text-sky-600 rounded-md hover:bg-sky-50 transition-colors"
+                                                    title="Choose specific shower time"
+                                                >
+                                                    <Clock size={14} />
+                                                </button>
+                                            )}
+                                        </>
                                     )}
-                                    <span className="text-xs font-bold">{todayShower ? 'Shower ✓' : 'Shower'}</span>
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setLaundryPickerGuest(guest); }}
-                                    disabled={isBannedFromLaundry || !!todayLaundry}
+                                    <span className="text-xs font-bold">
+                                        {todayShower ? 'Shower Done' : nextAvailableShowerSlot ? `Shower (${nextAvailableShowerSlot.slotTime})` : 'Join Waitlist'}
+                                    </span>
+                                </div>
+                                <div
+                                    role="button"
+                                    tabIndex={isBannedFromLaundry || !!todayLaundry ? -1 : 0}
+                                    onClick={handleQuickLaundry}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            handleQuickLaundry();
+                                        }
+                                    }}
+                                    aria-disabled={isBannedFromLaundry || !!todayLaundry}
                                     className={cn(
-                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation",
+                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation cursor-pointer select-none",
                                         todayLaundry
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
                                             : isBannedFromLaundry
@@ -922,10 +1107,24 @@ function PureGuestCard({
                                             )}
                                         </>
                                     ) : (
-                                        <WashingMachine size={20} className={isBannedFromLaundry ? "text-gray-400 mb-1.5" : "text-indigo-500 mb-1.5"} />
+                                        <>
+                                            <WashingMachine size={20} className={isBannedFromLaundry ? "text-gray-400 mb-1.5" : "text-indigo-500 mb-1.5"} />
+                                            {!isBannedFromLaundry && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); setLaundryPickerGuest(guest); }}
+                                                    className="absolute top-1.5 right-1.5 p-1.5 text-gray-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 transition-colors"
+                                                    title="Choose laundry options"
+                                                >
+                                                    <Clock size={14} />
+                                                </button>
+                                            )}
+                                        </>
                                     )}
-                                    <span className="text-xs font-bold">{todayLaundry ? 'Laundry ✓' : 'Laundry'}</span>
-                                </button>
+                                    <span className="text-xs font-bold">
+                                        {todayLaundry ? 'Laundry Done' : nextAvailableLaundrySlot ? `Laundry (${nextAvailableLaundrySlot.label.split(' - ')[0]})` : 'Laundry'}
+                                    </span>
+                                </div>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setBicyclePickerGuest(guest); }}
                                     disabled={isBannedFromBicycle || !!todayBicycle}
@@ -955,7 +1154,7 @@ function PureGuestCard({
                                     ) : (
                                         <Bike size={20} className={isBannedFromBicycle ? "text-gray-400 mb-1.5" : "text-amber-500 mb-1.5"} />
                                     )}
-                                    <span className="text-xs font-bold text-gray-700">{todayBicycle ? 'Bicycle ✓' : 'Bicycle'}</span>
+                                    <span className="text-xs font-bold text-gray-700">{todayBicycle ? 'Bicycle Done' : 'Bicycle'}</span>
                                 </button>
                             </div>
 
@@ -1217,8 +1416,12 @@ function GuestCardImpl(props: GuestCardProps) {
             idempotencyKey,
         });
     }, [optimisticMeal, replaceMealCounts, acknowledgeMealRecord]);
-    const effectiveAddMealRecord = useCallback((guestId: string, count = 1) => (
-        snapshotReady ? executeSnapshotMeal(guestId, count, false) : addMealRecord(guestId, count)
+    const effectiveAddMealRecord = useCallback((guestId: string, count = 1, pickedUpByGuestId?: string | null, serviceDate?: string) => (
+        snapshotReady
+            ? executeSnapshotMeal(guestId, count, false)
+            : pickedUpByGuestId !== undefined
+                ? addMealRecord(guestId, count, pickedUpByGuestId, serviceDate)
+                : addMealRecord(guestId, count)
     ), [snapshotReady, executeSnapshotMeal, addMealRecord]);
     const effectiveAddExtraMealRecord = useCallback((guestId: string, count = 1) => (
         snapshotReady ? executeSnapshotMeal(guestId, count, true) : addExtraMealRecord(guestId, count)
@@ -1272,9 +1475,16 @@ function GuestCardImpl(props: GuestCardProps) {
         setContextPromise(pending);
         return pending;
     }, [snapshotReady, guestContext, contextPromise, guest.id]);
-    const { addHaircutRecord, addHolidayRecord } = useServicesStore(
-        useShallow((s) => ({ addHaircutRecord: s.addHaircutRecord, addHolidayRecord: s.addHolidayRecord }))
+    const { addShowerRecord, addShowerWaitlist, addLaundryRecord, addHaircutRecord, addHolidayRecord } = useServicesStore(
+        useShallow((s) => ({
+            addShowerRecord: s.addShowerRecord,
+            addShowerWaitlist: s.addShowerWaitlist,
+            addLaundryRecord: s.addLaundryRecord,
+            addHaircutRecord: s.addHaircutRecord,
+            addHolidayRecord: s.addHolidayRecord,
+        }))
     );
+    const isSlotBlocked = useBlockedSlotsStore((s) => s.isSlotBlocked);
     const { setShowerPickerGuest, setLaundryPickerGuest, setBicyclePickerGuest } = useModalStore(
         useShallow((s) => ({
             setShowerPickerGuest: s.setShowerPickerGuest,
@@ -1338,8 +1548,12 @@ function GuestCardImpl(props: GuestCardProps) {
             holidayRecords={holidayRecords}
             addMealRecord={effectiveAddMealRecord}
             addExtraMealRecord={effectiveAddExtraMealRecord}
+            addShowerRecord={addShowerRecord}
+            addShowerWaitlist={addShowerWaitlist}
+            addLaundryRecord={addLaundryRecord}
             addHaircutRecord={addHaircutRecord}
             addHolidayRecord={addHolidayRecord}
+            isSlotBlocked={isSlotBlocked}
             setShowerPickerGuest={setShowerPickerGuest}
             setLaundryPickerGuest={setLaundryPickerGuest}
             setBicyclePickerGuest={setBicyclePickerGuest}

@@ -178,12 +178,12 @@ describe('GuestCard Component', () => {
             expect(screen.getByText('Johnny')).toBeDefined();
             expect(screen.getByText('Full name: John Doe')).toBeDefined();
 
-            rerender(<GuestCard guest={{ ...baseGuest, preferredName: 'JD' }} />);
-            expect(screen.getByText('JD')).toBeDefined();
+            rerender(<GuestCard guest={{ ...baseGuest, preferredName: 'Jack' }} />);
+            expect(screen.getByText('Jack')).toBeDefined();
             expect(screen.getByText('Full name: John Doe')).toBeDefined();
 
-            rerender(<GuestCard guest={{ ...baseGuest, preferredName: 'JD', name: 'Johnathan Doe' }} />);
-            expect(screen.getByText('JD')).toBeDefined();
+            rerender(<GuestCard guest={{ ...baseGuest, preferredName: 'Jack', name: 'Johnathan Doe' }} />);
+            expect(screen.getByText('Jack')).toBeDefined();
             expect(screen.getByText('Full name: Johnathan Doe')).toBeDefined();
         });
 
@@ -464,19 +464,19 @@ describe('GuestCard Component', () => {
         it('shows NEW badge for guests created today', () => {
             const newGuest = { ...baseGuest, createdAt: new Date().toISOString() };
             render(<GuestCard guest={newGuest} />);
-            expect(screen.getByText('✨ NEW')).toBeDefined();
+            expect(screen.getByText('NEW')).toBeDefined();
         });
 
         it('does not show NEW badge for old guests', () => {
             const oldGuest = { ...baseGuest, createdAt: '2020-01-01' };
             render(<GuestCard guest={oldGuest} />);
-            expect(screen.queryByText('✨ NEW')).toBeNull();
+            expect(screen.queryByText('NEW')).toBeNull();
         });
 
         it('handles guest without createdAt', () => {
             const guest = { ...baseGuest, createdAt: undefined };
             render(<GuestCard guest={guest} />);
-            expect(screen.queryByText('✨ NEW')).toBeNull();
+            expect(screen.queryByText('NEW')).toBeNull();
         });
     });
 

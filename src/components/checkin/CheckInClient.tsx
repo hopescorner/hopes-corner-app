@@ -15,6 +15,10 @@ import { KeyboardShortcutsBar } from '@/components/checkin/KeyboardShortcutsBar'
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import { TodayStats } from '@/components/checkin/TodayStats';
 import { DailyNotesSection } from '@/components/checkin/DailyNotesSection';
+import { LiveConnectionPill } from '@/components/checkin/LiveConnectionPill';
+import { RecentCheckinsBar } from '@/components/checkin/RecentCheckinsBar';
+import { useModalStore } from '@/stores/useModalStore';
+import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { useTodayStatusMaps } from '@/stores/selectors/todayStatusSelectors';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
@@ -103,11 +107,33 @@ export default function CheckInClient({
         }))
     );
     const ensureMealsLoaded = useMealsStore((s) => s.ensureLoaded);
+    const addMealRecord = useMealsStore((s) => s.addMealRecord);
     const ensureServicesLoaded = useServicesStore((s) => s.ensureLoaded);
     const loadReminders = useRemindersStore((s) => s.loadFromSupabase);
     const { ensureLoaded: ensureDailyNotesLoaded, subscribeToRealtime: subscribeDailyNotes } = useDailyNotesStore(
         useShallow((s) => ({ ensureLoaded: s.ensureLoaded, subscribeToRealtime: s.subscribeToRealtime }))
     );
+    const { setShowerPickerGuest, setLaundryPickerGuest, setBicyclePickerGuest } = useModalStore(
+        useShallow((s) => ({
+            setShowerPickerGuest: s.setShowerPickerGuest,
+            setLaundryPickerGuest: s.setLaundryPickerGuest,
+            setBicyclePickerGuest: s.setBicyclePickerGuest,
+        }))
+    );
+    const { addAction, undoAction, getActionsForGuestToday } = useActionHistoryStore(
+        useShallow((s) => ({
+            addAction: s.addAction,
+            undoAction: s.undoAction,
+            getActionsForGuestToday: s.getActionsForGuestToday,
+        }))
+    );
+
+    const handleSelectRecentGuest = useCallback((recentGuest: Guest) => {
+        const query = recentGuest.preferredName || recentGuest.name || `${recentGuest.firstName || ''} ${recentGuest.lastName || ''}`.trim();
+        setSearchQuery(query);
+        setSelectedIndex(0);
+        searchInputRef.current?.focus();
+    }, []);
 
     // Precomputed status maps for efficient per-guest lookups
     const { mealStatus: legacyMealStatus, serviceStatus, actionStatus, recentGuests: legacyRecentGuests, lastVisitDates: legacyLastVisitDates } = useTodayStatusMaps();
@@ -490,6 +516,80 @@ export default function CheckInClient({
                     return;
                 }
 
+                // 1 or 2 - log meals for selected guest
+                if ((e.key === '1' || e.key === '2') && selectedIndex >= 0 && sortedGuests[selectedIndex]) {
+                    e.preventDefault();
+                    const guest = sortedGuests[selectedIndex];
+                    const count = parseInt(e.key, 10);
+                    const guestStatus = mealStatus?.get(guest.id);
+                    if (guestStatus?.hasMeal) {
+                        toast.error(`${guest.preferredName || guest.firstName} already has a meal today`);
+                    } else {
+                        void addMealRecord(guest.id, count).then((record: any) => {
+                            if (record) {
+                                addAction('MEAL_ADDED', { recordId: record.id, guestId: guest.id });
+                                toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${guest.preferredName || guest.firstName}`);
+                            }
+                        }).catch((err: any) => {
+                            toast.error(err?.message || 'Failed to log meals');
+                        });
+                    }
+                    return;
+                }
+
+                // S - shower picker for selected guest
+                if (e.key.toLowerCase() === 's' && selectedIndex >= 0 && sortedGuests[selectedIndex]) {
+                    e.preventDefault();
+                    const guest = sortedGuests[selectedIndex];
+                    setShowerPickerGuest(guest);
+                    return;
+                }
+
+                // L - laundry picker for selected guest
+                if (e.key.toLowerCase() === 'l' && selectedIndex >= 0 && sortedGuests[selectedIndex]) {
+                    e.preventDefault();
+                    const guest = sortedGuests[selectedIndex];
+                    setLaundryPickerGuest(guest);
+                    return;
+                }
+
+                // B - bicycle picker for selected guest
+                if (e.key.toLowerCase() === 'b' && selectedIndex >= 0 && sortedGuests[selectedIndex]) {
+                    e.preventDefault();
+                    const guest = sortedGuests[selectedIndex];
+                    setBicyclePickerGuest(guest);
+                    return;
+                }
+
+                // H - history for selected guest
+                if (e.key.toLowerCase() === 'h' && selectedIndex >= 0 && sortedGuests[selectedIndex]) {
+                    e.preventDefault();
+                    const guest = sortedGuests[selectedIndex];
+                    const cardEl = guestCardRefs.current[guest.id];
+                    if (cardEl) {
+                        const historyBtn = cardEl.querySelector('button[title*="history" i]') as HTMLButtonElement | null;
+                        historyBtn?.click();
+                    }
+                    return;
+                }
+
+                // U or Z - undo last action for selected guest
+                if ((e.key.toLowerCase() === 'u' || e.key.toLowerCase() === 'z') && selectedIndex >= 0 && sortedGuests[selectedIndex]) {
+                    e.preventDefault();
+                    const guest = sortedGuests[selectedIndex];
+                    const actions = getActionsForGuestToday(guest.id);
+                    const latestAction = actions[0];
+                    if (latestAction) {
+                        void undoAction(latestAction.id).then((success: boolean) => {
+                            if (success) toast.success('Action undone');
+                            else toast.error('Failed to undo action');
+                        });
+                    } else {
+                        toast.error('No recent actions to undo for this guest');
+                    }
+                    return;
+                }
+
                 // Enter - expand first card or current selection
                 if (e.key === 'Enter' && selectedIndex < 0 && sortedGuests.length > 0) {
                     e.preventDefault();
@@ -519,7 +619,7 @@ export default function CheckInClient({
 
         document.addEventListener('keydown', handleKeyDown);
         return () => document.removeEventListener('keydown', handleKeyDown);
-    }, [showCreateModal, sortedGuests, selectedIndex, handleClearSearch, handleShowCreateForm]);
+    }, [showCreateModal, sortedGuests, selectedIndex, handleClearSearch, handleShowCreateForm, mealStatus, addMealRecord, addAction, undoAction, getActionsForGuestToday, setShowerPickerGuest, setLaundryPickerGuest, setBicyclePickerGuest]);
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 pb-20">
@@ -537,6 +637,7 @@ export default function CheckInClient({
                 </div>
                 <div className="flex flex-col items-end gap-2">
                     <div className="flex items-center gap-2">
+                        <LiveConnectionPill />
                         <MealServiceTimer />
                     </div>
                     <TodayStats />
@@ -624,6 +725,12 @@ export default function CheckInClient({
                     </span>
                 </div>
             </div>
+
+            {/* Recent Check-ins Quick-Bar */}
+            <RecentCheckinsBar
+                guests={guests}
+                onSelectGuest={handleSelectRecentGuest}
+            />
 
             {/* Results Section */}
             <div
@@ -852,6 +959,7 @@ export default function CheckInClient({
                         initialName={searchQuery}
                         defaultLocation={defaultLocation}
                         onCreated={handleGuestCreated}
+                        onSelectExisting={handleSelectRecentGuest}
                     />
             )}
 

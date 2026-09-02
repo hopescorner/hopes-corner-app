@@ -61,7 +61,7 @@ vi.mock('next-auth/react', () => ({
 describe('Check-in Component Rendering', () => {
     it('KeyboardShortcutsBar renders correctly', () => {
         render(<KeyboardShortcutsBar />);
-        expect(screen.getByText(/Focus search/i)).toBeDefined();
+        expect(screen.getByText(/Search/i)).toBeDefined();
     });
 
     it('MealServiceTimer renders correctly', () => {

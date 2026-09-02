@@ -41,6 +41,9 @@ export const formatTimeElapsed = (dateString: string | null | undefined | Date) 
     }
 };
 export const pacificDateStringFrom = (dateLike: Date | string | number = new Date()) => {
+    if (typeof dateLike === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateLike)) {
+        return dateLike;
+    }
     const d = new Date(dateLike);
     const fmt = new Intl.DateTimeFormat("en-CA", {
         timeZone: "America/Los_Angeles",

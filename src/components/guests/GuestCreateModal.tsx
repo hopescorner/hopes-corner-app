@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
-import { X, UserPlus, Loader2, Home, MapPin, User, Users, Info, AlertCircle } from 'lucide-react';
+import { X, UserPlus, Loader2, Home, MapPin, User, Users, Info, AlertCircle, UserCheck } from 'lucide-react';
 import { useGuestsStore, type Guest } from '@/stores/useGuestsStore';
 import { HOUSING_STATUSES, AGE_GROUPS, GENDERS } from '@/lib/constants/constants';
 import toast from 'react-hot-toast';
@@ -14,6 +14,7 @@ interface GuestCreateModalProps {
     initialName?: string;
     defaultLocation?: string;
     onCreated?: (guest: Guest) => void | Promise<void>;
+    onSelectExisting?: (guest: Guest) => void;
 }
 
 const BAY_AREA_CITIES = [
@@ -22,9 +23,10 @@ const BAY_AREA_CITIES = [
     'San Jose', 'Santa Clara', 'Saratoga', 'Sunnyvale', 'Outside Santa Clara County'
 ];
 
-export function GuestCreateModal({ onClose, initialName = '', defaultLocation = '', onCreated }: GuestCreateModalProps) {
+export function GuestCreateModal({ onClose, initialName = '', defaultLocation = '', onCreated, onSelectExisting }: GuestCreateModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [duplicateWarning, setDuplicateWarning] = useState('');
+    const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
     const prefersReducedMotion = useReducedMotion();
 
     const { guests, guestFamilies, addGuest } = useGuestsStore();
@@ -57,17 +59,20 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
         const { firstName, lastName } = formData;
         if (!firstName || !lastName || firstName.length < 2 || lastName.length < 2) {
             setDuplicateWarning('');
+            setDuplicateMatches([]);
             return;
         }
 
         const timer = setTimeout(() => {
             const duplicates = findPotentialDuplicates(firstName, lastName, guests);
             if (duplicates.length > 0) {
+                setDuplicateMatches(duplicates);
                 const topMatch = duplicates[0];
                 const matchName = `${topMatch.guest.firstName} ${topMatch.guest.lastName}`;
                 const preferred = topMatch.guest.preferredName ? ` "${topMatch.guest.preferredName}"` : "";
                 setDuplicateWarning(`Possible duplicate: ${matchName}${preferred} (${topMatch.reason})`);
             } else {
+                setDuplicateMatches([]);
                 setDuplicateWarning('');
             }
         }, 500);
@@ -150,10 +155,39 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
                                 <User size={14} /> Name Information
                             </h3>
 
-                            {duplicateWarning && (
-                                <div className="flex items-center gap-2 p-3 text-sm text-amber-800 bg-amber-50 rounded-xl border border-amber-200">
-                                    <AlertCircle size={18} className="flex-shrink-0" />
-                                    <span>{duplicateWarning}</span>
+                            {duplicateMatches.length > 0 && (
+                                <div className="space-y-2 p-3.5 bg-amber-50 rounded-2xl border border-amber-200">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-amber-900 uppercase tracking-wider">
+                                        <AlertCircle size={15} className="text-amber-600 shrink-0" />
+                                        <span>Possible Existing Profile Found</span>
+                                    </div>
+                                    {duplicateMatches.slice(0, 2).map((match) => {
+                                        const matchGuest = match.guest;
+                                        const matchName = `${matchGuest.firstName} ${matchGuest.lastName}`;
+                                        const matchPreferred = matchGuest.preferredName ? ` "${matchGuest.preferredName}"` : '';
+                                        return (
+                                            <div key={matchGuest.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-white rounded-xl border border-amber-100 shadow-xs">
+                                                <div>
+                                                    <p className="font-bold text-gray-900 text-sm">{matchName}{matchPreferred}</p>
+                                                    <p className="text-xs text-gray-500 font-medium">
+                                                        {matchGuest.housingStatus || 'Unhoused'} · {matchGuest.location || 'Unknown location'} · {match.reason}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        onSelectExisting?.(matchGuest);
+                                                        toast.success(`Selected existing guest: ${matchName}`);
+                                                        onClose();
+                                                    }}
+                                                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-all active:scale-95 shrink-0 touch-manipulation"
+                                                >
+                                                    <UserCheck size={14} />
+                                                    <span>Check In Instead</span>
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             )}
 

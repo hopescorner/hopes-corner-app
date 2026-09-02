@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.10.0';
+export const APP_VERSION = '0.11.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,32 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.11.0',
+        date: 'September 1, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Volunteer Check-in Ergonomics & Hotkeys',
+                description: 'Added 1 and 2 hotkeys for quick meal logging, S/L/B service shortcuts, and a Recent Check-ins bar displaying the last 5 served guests for instant review, undo, or service additions.',
+            },
+            {
+                type: 'feature',
+                title: '1-Click Next Available Slot & Instant Waitlist',
+                description: 'Volunteers can book the earliest open shower or laundry slot in a single click, or instantly register on the shower waitlist when slots are full.',
+            },
+            {
+                type: 'improvement',
+                title: 'Deterministic Color-Coded Avatar Initials',
+                description: 'Clean initials with accessible, deterministic color palettes replace generic user icons on all guest cards with zero emojis.',
+            },
+            {
+                type: 'feature',
+                title: 'Live Duplicate Quick-Select & Live Connection Indicator',
+                description: 'One-click switch to existing profile during guest registration, and a real-time sync indicator in the header.',
+            },
+        ],
+    },
     {
         version: '0.10.0',
         date: 'August 31, 2026',

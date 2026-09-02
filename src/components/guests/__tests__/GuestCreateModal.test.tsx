@@ -4,6 +4,20 @@ import React from 'react';
 import { GuestCreateModal } from '../GuestCreateModal';
 
 // Mock dependencies
+vi.mock('@/hooks/useReducedMotion', () => ({
+    useReducedMotion: () => false,
+}));
+
+vi.mock('framer-motion', () => ({
+    motion: {
+        div: ({ children, className, onClick }: any) => (
+            <div className={className} onClick={onClick}>
+                {children}
+            </div>
+        ),
+    },
+}));
+
 vi.mock('next-auth/react', () => ({
     useSession: vi.fn(() => ({
         data: { user: { role: 'admin' } },
@@ -12,14 +26,19 @@ vi.mock('next-auth/react', () => ({
 }));
 
 const mockAddGuest = vi.fn();
+const mockGuestsList = [
+    { id: 'g1', firstName: 'John', lastName: 'Doe', preferredName: 'Johnny' },
+    { id: 'g2', firstName: 'Jane', lastName: 'Smith', preferredName: '' },
+];
+const mockGuestFamiliesList: any[] = [];
+const mockStoreState = {
+    guests: mockGuestsList,
+    guestFamilies: mockGuestFamiliesList,
+    addGuest: mockAddGuest,
+};
+
 vi.mock('@/stores/useGuestsStore', () => ({
-    useGuestsStore: vi.fn(() => ({
-        guests: [
-            { id: 'g1', firstName: 'John', lastName: 'Doe', preferredName: 'Johnny' },
-            { id: 'g2', firstName: 'Jane', lastName: 'Smith', preferredName: '' },
-        ],
-        addGuest: mockAddGuest,
-    })),
+    useGuestsStore: vi.fn(() => mockStoreState),
 }));
 
 vi.mock('@/lib/constants/constants', () => ({
@@ -233,8 +252,9 @@ describe('GuestCreateModal Component', () => {
             fireEvent.change(screen.getByPlaceholderText('e.g. Smith'), { target: { value: 'User' } });
             fireEvent.click(screen.getByText('Create Guest'));
 
-            // Wait for async operation to complete
-            await new Promise(r => setTimeout(r, 100));
+            await waitFor(() => {
+                expect(mockAddGuest).toHaveBeenCalled();
+            });
 
             // onClose should not have been called
             expect(mockOnClose).not.toHaveBeenCalled();
@@ -242,15 +262,7 @@ describe('GuestCreateModal Component', () => {
     });
 
     describe('Duplicate Detection', () => {
-        beforeEach(() => {
-            vi.useFakeTimers();
-        });
-
-        afterEach(() => {
-            vi.useRealTimers();
-        });
-
-        it('calls findPotentialDuplicates when names are long enough', () => {
+        it('calls findPotentialDuplicates when names are long enough', async () => {
             const mockFindDuplicates = findPotentialDuplicates as ReturnType<typeof vi.fn>;
             mockFindDuplicates.mockReturnValue([]);
 
@@ -259,36 +271,67 @@ describe('GuestCreateModal Component', () => {
             fireEvent.change(screen.getByPlaceholderText('e.g. John'), { target: { value: 'John' } });
             fireEvent.change(screen.getByPlaceholderText('e.g. Smith'), { target: { value: 'Doe' } });
 
-            // Advance debounce timer
-            vi.advanceTimersByTime(600);
-
-            expect(mockFindDuplicates).toHaveBeenCalled();
+            await waitFor(() => {
+                expect(mockFindDuplicates).toHaveBeenCalled();
+            }, { timeout: 1500 });
         });
 
-        it('does not check duplicates for short first name', () => {
+        it('does not check duplicates for short first name', async () => {
             const mockFindDuplicates = findPotentialDuplicates as ReturnType<typeof vi.fn>;
             render(<GuestCreateModal onClose={mockOnClose} />);
 
             fireEvent.change(screen.getByPlaceholderText('e.g. John'), { target: { value: 'J' } });
             fireEvent.change(screen.getByPlaceholderText('e.g. Smith'), { target: { value: 'Doe' } });
 
-            vi.advanceTimersByTime(600);
+            await new Promise(r => setTimeout(r, 600));
 
             // Should not be called because first name is too short
             expect(mockFindDuplicates).not.toHaveBeenCalled();
         });
 
-        it('does not check duplicates for short last name', () => {
+        it('does not check duplicates for short last name', async () => {
             const mockFindDuplicates = findPotentialDuplicates as ReturnType<typeof vi.fn>;
             render(<GuestCreateModal onClose={mockOnClose} />);
 
             fireEvent.change(screen.getByPlaceholderText('e.g. John'), { target: { value: 'John' } });
             fireEvent.change(screen.getByPlaceholderText('e.g. Smith'), { target: { value: 'D' } });
 
-            vi.advanceTimersByTime(600);
+            await new Promise(r => setTimeout(r, 600));
 
             // Should not be called because last name is too short
             expect(mockFindDuplicates).not.toHaveBeenCalled();
+        });
+
+        it('renders Check In Instead button when duplicate matches exist and calls onSelectExisting', async () => {
+            const mockFindDuplicates = findPotentialDuplicates as ReturnType<typeof vi.fn>;
+            const duplicateGuest = {
+                id: 'dup-1',
+                firstName: 'John',
+                lastName: 'Doe',
+                preferredName: 'Johnny',
+                housingStatus: 'Unhoused',
+                location: 'Mountain View',
+            };
+            mockFindDuplicates.mockReturnValue([
+                { guest: duplicateGuest, reason: 'Exact name match', confidence: 'high' }
+            ]);
+
+            const mockOnSelectExisting = vi.fn();
+            render(<GuestCreateModal onClose={mockOnClose} onSelectExisting={mockOnSelectExisting} />);
+
+            fireEvent.change(screen.getByPlaceholderText('e.g. John'), { target: { value: 'John' } });
+            fireEvent.change(screen.getByPlaceholderText('e.g. Smith'), { target: { value: 'Doe' } });
+
+            await waitFor(() => {
+                expect(screen.getByText('Possible Existing Profile Found')).toBeDefined();
+            }, { timeout: 1500 });
+
+            const checkInBtn = screen.getByText('Check In Instead');
+            expect(checkInBtn).toBeDefined();
+
+            fireEvent.click(checkInBtn);
+            expect(mockOnSelectExisting).toHaveBeenCalledWith(duplicateGuest);
+            expect(mockOnClose).toHaveBeenCalled();
         });
     });
 

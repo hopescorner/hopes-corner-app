@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.11.0] - 2026-09-01
+
+### Added
+
+- Added Volunteer Check-in Ergonomics: keyboard hotkeys (`1` and `2` for meals, `S` for shower, `L` for laundry, `B` for bicycle, `H` for history, and `U` for undo).
+- Added Recent Check-ins Quick-Bar displaying the 5 most recently served guests with deterministic avatar initials, action tags, and 1-tap select for quick adjustments.
+- Added 1-Click "Assign Next Available Slot" for shower and onsite laundry directly on guest cards.
+- Added 1-Click Instant Shower Waitlist when scheduled slots are full.
+- Added 1-Tap "Check In All (Self + Buddies)" for primary guests with linked proxy companions.
+- Added Live Duplicate Quick-Select in Guest Creation with "Check In Existing Instead" action to avoid duplicate profile registrations.
+- Added Live Connection Pill in the Check-In header showing live database sync and offline status.
+
+### Improved
+
+- Replaced generic user icons with deterministic color-coded initials for clean, accessible guest identification across all cards and bars with zero emojis.
+
 ## [0.10.0] - 2026-08-31
 
 ### Added
