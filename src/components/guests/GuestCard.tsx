@@ -430,15 +430,15 @@ function PureGuestCard({
         }
     };
 
-    const handleCheckInAll = async (e: React.MouseEvent) => {
+    const handleCheckInAll = async (e: React.MouseEvent, count: number = 1) => {
         e.stopPropagation();
         if (todayMeal || isPending || isBannedFromMeals) return;
 
         setIsPending(true);
         try {
-            const primaryRecord = await addMealRecord(guest.id, 1);
+            const primaryRecord = await addMealRecord(guest.id, count);
             if (primaryRecord?.id) {
-                addAction('MEAL_ADDED', { recordId: primaryRecord.id, guestId: guest.id });
+                addAction('MEAL_ADDED', { recordId: primaryRecord.id, guestId: guest.id, count });
             }
 
             const { getLinkedGuests } = useGuestsStore.getState();
@@ -449,9 +449,9 @@ function PureGuestCard({
                 const status = mealStatusMap?.get(proxy.id);
                 if (!status?.hasMeal) {
                     try {
-                        const proxyRecord = await addMealRecord(proxy.id, 1, guest.id);
+                        const proxyRecord = await addMealRecord(proxy.id, count, guest.id);
                         if (proxyRecord?.id) {
-                            addAction('MEAL_ADDED', { recordId: proxyRecord.id, guestId: proxy.id, count: 1 });
+                            addAction('MEAL_ADDED', { recordId: proxyRecord.id, guestId: proxy.id, count });
                             proxySuccessCount++;
                         }
                     } catch {
@@ -461,9 +461,9 @@ function PureGuestCard({
             }
 
             if (proxySuccessCount > 0) {
-                toast.success(`Checked in ${displayName} + ${proxySuccessCount} linked buddy${proxySuccessCount > 1 ? 'ies' : ''}`);
+                toast.success(`Checked in ${displayName} + ${proxySuccessCount} linked buddy${proxySuccessCount > 1 ? 'ies' : ''} (${count} meal${count > 1 ? 's' : ''} each)`);
             } else {
-                toast.success(`1 meal logged for ${displayName}`);
+                toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${displayName}`);
             }
         } catch (error: any) {
             toast.error(error.message || 'Failed to check in');
@@ -837,15 +837,20 @@ function PureGuestCard({
                                         </button>
                                     ))}
                                     {linkedBadgeCount > 0 && (
-                                        <button
-                                            onClick={handleCheckInAll}
-                                            disabled={isPending}
-                                            className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                            title={`Check in ${displayName} + ${linkedBadgeCount} linked buddy/buddies`}
-                                        >
-                                            {isPending ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />}
-                                            <span>All ({1 + linkedBadgeCount})</span>
-                                        </button>
+                                        <div className="flex items-center gap-1 pl-1 ml-0.5 border-l border-gray-200">
+                                            {[1, 2].map((count) => (
+                                                <button
+                                                    key={count}
+                                                    onClick={(e) => handleCheckInAll(e, count)}
+                                                    disabled={isPending}
+                                                    className="flex items-center justify-center gap-1 h-11 min-h-[44px] px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                                    title={`Check in ${displayName} + ${linkedBadgeCount} linked buddy/buddies (${count} meal${count > 1 ? 's' : ''} each)`}
+                                                >
+                                                    {isPending ? <Loader2 size={12} className="animate-spin" /> : <Users size={12} />}
+                                                    <span>All ×{count}</span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
                             ) : (
