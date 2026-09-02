@@ -259,6 +259,16 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
     return () => clearTimeout(timer);
   }, [graceMs]);
 
+  // Lock body scroll while the game is open — on mobile a swipe starting on
+  // the backdrop would otherwise scroll the check-in page behind the modal.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
   // Backdrop dismiss — only after grace period
   const safeClose = useCallback(() => {
     if (canDismiss) onClose();
@@ -448,6 +458,9 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      // Capture the pointer so a release outside the canvas still shoots
+      // (common with touch drags that slide off the canvas edge).
+      e.currentTarget.setPointerCapture?.(e.pointerId);
       const p = canvasPos(e);
       if (!p || phaseRef.current !== 'aim') return;
       aimRef.current = {
@@ -484,15 +497,30 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Crisp rendering on high-DPI screens
+    // Crisp rendering on high-DPI screens (display size is controlled by CSS
+    // so the canvas scales down on narrow phones; input mapping uses the
+    // bounding rect, so it stays correct at any scale)
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    if (dpr !== 1) {
-      canvas.width = WIDTH * dpr;
-      canvas.height = HEIGHT * dpr;
-      canvas.style.width = `${WIDTH}px`;
-      canvas.style.height = `${HEIGHT}px`;
-      ctx.scale(dpr, dpr);
-    }
+    canvas.width = WIDTH * dpr;
+    canvas.height = HEIGHT * dpr;
+    ctx.scale(dpr, dpr);
+
+    // Static gradients, hoisted out of the frame loop (allocating several
+    // gradients per frame is a known drain on mobile GPUs)
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 170);
+    skyGrad.addColorStop(0, '#020617');
+    skyGrad.addColorStop(1, '#172554');
+    const boardGrad = ctx.createLinearGradient(0, 146, 0, 170);
+    boardGrad.addColorStop(0, '#065f46');
+    boardGrad.addColorStop(0.5, '#047857');
+    boardGrad.addColorStop(1, '#064e3b');
+    const pitchGrad = ctx.createLinearGradient(0, 170, 0, HEIGHT);
+    pitchGrad.addColorStop(0, '#16a34a');
+    pitchGrad.addColorStop(0.35, '#15803d');
+    pitchGrad.addColorStop(1, '#14532d');
+    const vigGrad = ctx.createRadialGradient(WIDTH / 2, HEIGHT / 2, HEIGHT * 0.35, WIDTH / 2, HEIGHT / 2, HEIGHT * 0.75);
+    vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vigGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
 
     // Static crowd (generated once per mount) — two tiers with per-fan bob phase
     const crowd: Array<{ x: number; y: number; c: string; phase: number }> = [];
@@ -773,10 +801,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       }
 
       // Night sky
-      const sky = ctx.createLinearGradient(0, 0, 0, 170);
-      sky.addColorStop(0, '#020617');
-      sky.addColorStop(1, '#172554');
-      ctx.fillStyle = sky;
+      ctx.fillStyle = skyGrad;
       ctx.fillRect(-8, -8, WIDTH + 16, 180);
 
       // Stars
@@ -851,11 +876,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.globalAlpha = 1;
 
       // LED ad boards
-      const board = ctx.createLinearGradient(0, 146, 0, 170);
-      board.addColorStop(0, '#065f46');
-      board.addColorStop(0.5, '#047857');
-      board.addColorStop(1, '#064e3b');
-      ctx.fillStyle = board;
+      ctx.fillStyle = boardGrad;
       ctx.fillRect(0, 146, WIDTH, 24);
       ctx.fillStyle = 'rgba(255,255,255,0.08)';
       ctx.fillRect(0, 146, WIDTH, 3);
@@ -868,11 +889,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.shadowBlur = 0;
 
       // Pitch
-      const pitch = ctx.createLinearGradient(0, 170, 0, HEIGHT);
-      pitch.addColorStop(0, '#16a34a');
-      pitch.addColorStop(0.35, '#15803d');
-      pitch.addColorStop(1, '#14532d');
-      ctx.fillStyle = pitch;
+      ctx.fillStyle = pitchGrad;
       ctx.fillRect(-8, 170, WIDTH + 16, HEIGHT - 162);
 
       // Perspective mow stripes (converge toward the goal line)
@@ -1129,10 +1146,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       }
 
       // Vignette
-      const vig = ctx.createRadialGradient(WIDTH / 2, HEIGHT / 2, HEIGHT * 0.35, WIDTH / 2, HEIGHT / 2, HEIGHT * 0.75);
-      vig.addColorStop(0, 'rgba(0,0,0,0)');
-      vig.addColorStop(1, 'rgba(0,0,0,0.35)');
-      ctx.fillStyle = vig;
+      ctx.fillStyle = vigGrad;
       ctx.fillRect(-8, -8, WIDTH + 16, HEIGHT + 16);
 
       // Result banner (pops in)
@@ -1244,7 +1258,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto p-2 select-none"
       data-testid="penalty-overlay"
     >
       {/* Backdrop */}
@@ -1259,7 +1273,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
       {/* Game container */}
       <motion.div
-        className="relative z-30 rounded-2xl shadow-2xl overflow-hidden bg-slate-900 border border-slate-700"
+        className="relative z-30 w-full max-w-[360px] my-auto rounded-2xl shadow-2xl overflow-hidden bg-slate-900 border border-slate-700"
+        onContextMenu={(e) => e.preventDefault()}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
@@ -1270,7 +1285,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
           <span className="text-xs font-bold tracking-widest text-emerald-400 uppercase">Penalty Kick</span>
           <button
             onClick={onClose}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-600/80 hover:bg-red-500 active:bg-red-400 text-white text-xs font-semibold transition-colors"
+            className="flex items-center gap-1.5 px-4 min-h-[44px] rounded-lg bg-red-600/80 hover:bg-red-500 active:bg-red-400 text-white text-xs font-semibold transition-colors touch-manipulation"
             aria-label="Close penalty game"
             data-testid="penalty-close"
           >
@@ -1284,7 +1299,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
           ref={canvasRef}
           width={WIDTH}
           height={HEIGHT}
-          className="block touch-none"
+          className="block touch-none w-full h-auto"
           data-testid="penalty-canvas"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
@@ -1299,7 +1314,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
           <button
             type="button"
             onClick={quickShot}
-            className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400 text-white text-sm font-black tracking-widest uppercase transition-colors"
+            className="w-full py-2.5 min-h-[48px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400 text-white text-sm font-black tracking-widest uppercase transition-colors touch-manipulation"
             data-testid="penalty-kick"
           >
             Kick
