@@ -61,12 +61,12 @@ export function subscribeToTables(
             table: option.table,
         };
         if (option.filter) config.filter = option.filter;
-        channel = channel.on('postgres_changes', config as any, (payload) => {
+        channel = channel.on('postgres_changes', config as any, (payload: RealtimePostgresChangesPayload<any>) => {
             if (realtimeDebugEnabled) console.log(`[Realtime] ${option.table} change:`, payload.eventType);
             dispatchPayload(option, payload);
         });
     }
-    channel = channel.subscribe((status) => {
+    channel = channel.subscribe((status: string) => {
         if (realtimeDebugEnabled) console.log(`[Realtime] ${scope} subscription status:`, status);
         onStatus?.(status);
     });
@@ -113,7 +113,7 @@ export function subscribeToTable(options: SubscriptionOptions): () => void {
             
             dispatchPayload(options, payload);
         })
-        .subscribe((status) => {
+        .subscribe((status: string) => {
             if (realtimeDebugEnabled) {
                 console.log(`[Realtime] ${table} subscription status:`, status);
             }

@@ -263,7 +263,7 @@ export function DataExportSection() {
                     };
 
                     exportToCSV(
-                        (supplyData || []).map(r => ({
+                        (supplyData || []).map((r: { distributed_at: string; guest_id: string; item_key: string }) => ({
                             Date: new Date(r.distributed_at).toLocaleDateString(),
                             'Guest ID': r.guest_id,
                             Item: ITEM_LABELS[r.item_key] || r.item_key.replace(/_/g, ' '),

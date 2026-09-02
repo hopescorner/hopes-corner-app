@@ -46,7 +46,7 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
 
             if (data) {
                 set({
-                    blockedSlots: data.map((item) => ({
+                    blockedSlots: ((data as any[]) || []).map((item: any) => ({
                         id: item.id,
                         serviceType: item.service_type,
                         slotTime: item.slot_time,

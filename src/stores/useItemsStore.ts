@@ -49,7 +49,7 @@ export const useItemsStore = create<ItemsState>()(
                     if (error) throw error;
 
                     // Map snake_case to camelCase
-                    const mappedItems = (data || []).map(item => ({
+                    const mappedItems = ((data as any[]) || []).map((item: any) => ({
                         id: item.id,
                         guestId: item.guest_id,
                         itemKey: item.item_key,
