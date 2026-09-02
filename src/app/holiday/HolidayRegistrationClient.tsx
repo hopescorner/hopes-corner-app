@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
     Clock,
@@ -13,6 +13,8 @@ import {
     Globe,
     Gift,
     Info,
+    Download,
+    FileText,
 } from 'lucide-react';
 import {
     HolidayLanguage,
@@ -24,6 +26,7 @@ import {
 import { HOLIDAY_TRANSLATIONS } from '@/lib/holiday/translations';
 import { HOLIDAY_CITIES } from '@/lib/holiday/constants';
 import { calculateAge, getHolidayAgeGroup, formatAgeGroupLabel } from '@/lib/holiday/ageGroups';
+import { downloadTicketImage, downloadTicketPdf } from '@/lib/holiday/ticketImage';
 
 interface ChildFormState {
     id: string;
@@ -59,6 +62,63 @@ export default function HolidayRegistrationClient() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [confirmedRegistration, setConfirmedRegistration] = useState<HolidayRegistration | null>(null);
+    const [isSavingImage, setIsSavingImage] = useState(false);
+    const [isSavingPdf, setIsSavingPdf] = useState(false);
+
+    useEffect(() => {
+        if (!confirmedRegistration) return;
+        void downloadTicketImage(
+            {
+                ticketNumber: confirmedRegistration.ticketNumber,
+                timeSlot: confirmedRegistration.timeSlot,
+                parentName: confirmedRegistration.parentName,
+                phone: confirmedRegistration.phone,
+                city: confirmedRegistration.city,
+                qrCodeDataUrl: confirmedRegistration.qrCodeDataUrl,
+                childrenCount: confirmedRegistration.children?.length || 0,
+            },
+            { auto: true }
+        );
+    }, [confirmedRegistration]);
+
+    const handleDownloadImage = async () => {
+        if (!confirmedRegistration || isSavingImage) return;
+        setIsSavingImage(true);
+        try {
+            await downloadTicketImage(
+                {
+                    ticketNumber: confirmedRegistration.ticketNumber,
+                    timeSlot: confirmedRegistration.timeSlot,
+                    parentName: confirmedRegistration.parentName,
+                    phone: confirmedRegistration.phone,
+                    city: confirmedRegistration.city,
+                    qrCodeDataUrl: confirmedRegistration.qrCodeDataUrl,
+                    childrenCount: confirmedRegistration.children?.length || 0,
+                },
+                { auto: false }
+            );
+        } finally {
+            setIsSavingImage(false);
+        }
+    };
+
+    const handleDownloadPdf = async () => {
+        if (!confirmedRegistration || isSavingPdf) return;
+        setIsSavingPdf(true);
+        try {
+            await downloadTicketPdf({
+                ticketNumber: confirmedRegistration.ticketNumber,
+                timeSlot: confirmedRegistration.timeSlot,
+                parentName: confirmedRegistration.parentName,
+                phone: confirmedRegistration.phone,
+                city: confirmedRegistration.city,
+                qrCodeDataUrl: confirmedRegistration.qrCodeDataUrl,
+                childrenCount: confirmedRegistration.children?.length || 0,
+            });
+        } finally {
+            setIsSavingPdf(false);
+        }
+    };
 
 
     const handleAddChild = () => {
@@ -302,22 +362,44 @@ export default function HolidayRegistrationClient() {
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-3 pt-1 sm:flex-row">
-                                <button
-                                    type="button"
-                                    onClick={() => window.print()}
-                                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
-                                >
-                                    <Printer className="h-5 w-5" />
-                                    <span>{t.printTicketButton}</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleReset}
-                                    className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2"
-                                >
-                                    {t.registerAnotherButton}
-                                </button>
+                            <div className="space-y-3 pt-1">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadImage}
+                                        disabled={isSavingImage}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-800 active:scale-95 disabled:opacity-50"
+                                    >
+                                        <Download className="h-4 w-4" />
+                                        <span>{isSavingImage ? 'Saving...' : t.downloadImageButton}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadPdf}
+                                        disabled={isSavingPdf}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-700 bg-emerald-50 px-5 py-3.5 text-sm font-bold text-emerald-900 transition-all hover:bg-emerald-100 active:scale-95 disabled:opacity-50"
+                                    >
+                                        <FileText className="h-4 w-4" />
+                                        <span>{isSavingPdf ? 'Generating...' : t.downloadPdfButton}</span>
+                                    </button>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => window.print()}
+                                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                                    >
+                                        <Printer className="h-4 w-4" />
+                                        <span>{t.printTicketButton}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleReset}
+                                        className="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                                    >
+                                        {t.registerAnotherButton}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

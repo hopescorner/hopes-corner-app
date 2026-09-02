@@ -3,6 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import React from 'react';
 import HolidayRegistrationClient from '../HolidayRegistrationClient';
 
+vi.mock('@/lib/holiday/ticketImage', () => ({
+    downloadTicketImage: vi.fn().mockResolvedValue(true),
+    downloadTicketPdf: vi.fn().mockResolvedValue(true),
+}));
+
 global.fetch = vi.fn();
 
 describe('HolidayRegistrationClient', () => {
@@ -128,7 +133,9 @@ describe('HolidayRegistrationClient', () => {
             expect(screen.getByText('#88')).toBeDefined();
             expect(screen.getByText('09:00 AM - 09:20 AM')).toBeDefined();
             expect(screen.getByText(/Registration Confirmed!/i)).toBeDefined();
-            expect(screen.getByText(/Print \/ Save Ticket/i)).toBeDefined();
+            expect(screen.getByRole('button', { name: /Save \/ Download Image/i })).toBeDefined();
+            expect(screen.getByRole('button', { name: /Download PDF/i })).toBeDefined();
+            expect(screen.getByRole('button', { name: /Print Ticket/i })).toBeDefined();
             expect(screen.queryByText(/Eligible Items Summary/i)).toBeNull();
             expect(screen.queryByText(/Family Grocery Card/i)).toBeNull();
             expect(screen.getByText(/Please arrive 10 minutes before your assigned time slot and bring your ticket confirmation on your phone\./i)).toBeDefined();
@@ -241,6 +248,53 @@ describe('HolidayRegistrationClient', () => {
 
         await waitFor(() => {
             expect(screen.getByText(/Please enter a valid phone number\./i)).toBeDefined();
+        });
+    });
+
+    it('supports saving ticket as image and downloading as PDF', async () => {
+        const { downloadTicketImage, downloadTicketPdf } = await import('@/lib/holiday/ticketImage');
+        render(<HolidayRegistrationClient />);
+
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i), {
+            target: { value: '650-555-1111' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Alexander Gonzalez/i), {
+            target: { value: 'Child 1' },
+        });
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        fireEvent.change(birthdateInput, { target: { value: '2015-06-01' } });
+
+        fireEvent.click(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText('#88')).toBeDefined();
+        });
+
+        expect(downloadTicketImage).toHaveBeenCalledWith(
+            expect.objectContaining({ ticketNumber: 88 }),
+            { auto: true }
+        );
+
+        const saveImgBtn = screen.getByRole('button', { name: /Save \/ Download Image/i });
+        fireEvent.click(saveImgBtn);
+
+        await waitFor(() => {
+            expect(downloadTicketImage).toHaveBeenCalledWith(
+                expect.objectContaining({ ticketNumber: 88 }),
+                { auto: false }
+            );
+        });
+
+        const downloadPdfBtn = screen.getByRole('button', { name: /Download PDF/i });
+        fireEvent.click(downloadPdfBtn);
+
+        await waitFor(() => {
+            expect(downloadTicketPdf).toHaveBeenCalledWith(
+                expect.objectContaining({ ticketNumber: 88 })
+            );
         });
     });
 });

@@ -77,6 +77,8 @@ export interface HolidayTranslation {
     teenCardEntitlement: string;
     importantNotesTitle: string;
     importantNotesText: string;
+    downloadImageButton: string;
+    downloadPdfButton: string;
     printTicketButton: string;
     registerAnotherButton: string;
 
@@ -171,7 +173,9 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         teenCardEntitlement: "Teen Gift Card(s) (Ages 14–18)",
         importantNotesTitle: "Important Event Day Instructions",
         importantNotesText: "Please arrive 10 minutes before your assigned time slot and bring your ticket confirmation on your phone.",
-        printTicketButton: "Print / Save Ticket",
+        downloadImageButton: "Save / Download Image",
+        downloadPdfButton: "Download PDF",
+        printTicketButton: "Print Ticket",
         registerAnotherButton: "Register Another Family",
 
         errors: {
@@ -264,7 +268,9 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         teenCardEntitlement: "Tarjeta(s) de Regalo para Adolescentes (14–18 años)",
         importantNotesTitle: "Instrucciones Importantes para el Evento",
         importantNotesText: "Por favor llegue 10 minutos antes de su horario asignado y traiga la confirmación de su boleto en su teléfono.",
-        printTicketButton: "Imprimir / Guardar Boleto",
+        downloadImageButton: "Guardar / Descargar Imagen",
+        downloadPdfButton: "Descargar PDF",
+        printTicketButton: "Imprimir Boleto",
         registerAnotherButton: "Registrar Otra Familia",
 
         errors: {
@@ -357,7 +363,9 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         teenCardEntitlement: "青少年礼品卡（14–18岁）",
         importantNotesTitle: "活动当天重要须知",
         importantNotesText: "请在您被分配的时间段前 10 分钟到达，并出示手机上的凭证确认页面。",
-        printTicketButton: "打印 / 保存凭证",
+        downloadImageButton: "保存 / 下载图片",
+        downloadPdfButton: "下载 PDF",
+        printTicketButton: "打印门票",
         registerAnotherButton: "登记另一个家庭",
 
         errors: {

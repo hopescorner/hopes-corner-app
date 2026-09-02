@@ -43,6 +43,8 @@ describe('Holiday translations', () => {
             'confirmationTitle',
             'ticketNumberLabel',
             'yourTimeSlot',
+            'downloadImageButton',
+            'downloadPdfButton',
             'printTicketButton',
         ] as const;
 
