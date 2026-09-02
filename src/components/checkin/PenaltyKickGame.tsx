@@ -215,7 +215,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
   const goalsRef = useRef(0);
   const kicksRef = useRef(0);
   const streakRef = useRef(0);
-  const levelRef = useRef(1);
+  const levelRef = useRef(MAX_LEVEL); // keeper starts at max difficulty
   const powerRef = useRef<{ charging: boolean; value: number; dir: 1 | -1 }>({
     charging: false,
     value: 0.3,
