@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.13.0] - 2026-09-02
+
+### Added
+
+- Replaced the hidden pinball mini-game on the check-in page with a penalty shootout Easter egg: aim and shoot past a diving computer goalkeeper and see how many goals can be scored before it is dismissed. Scores are never persisted.
+
 ## [0.12.0] - 2026-09-02
 
 ### Added

@@ -32,8 +32,8 @@ import { hydrateLegacyStoresFromSnapshot, snapshotToMealStatusMap } from '@/lib/
 import type { CheckInSnapshot } from '@/types/checkin';
 import type { PotentialDuplicatePair } from '@/lib/utils/duplicateDetection';
 
-const PinballGame = dynamic(
-  () => import('@/components/checkin/PinballGame').then((m) => m.PinballGame),
+const PenaltyKickGame = dynamic(
+  () => import('@/components/checkin/PenaltyKickGame').then((m) => m.PenaltyKickGame),
   { ssr: false },
 );
 const GuestCreateModal = dynamic(
@@ -77,8 +77,8 @@ export default function CheckInClient({
     const listContainerRef = useRef<HTMLDivElement>(null);
     const firstSearchMarkRef = useRef(false);
     const firstCreateModalMarkRef = useRef(false);
-    const [showPinball, setShowPinball] = useState(false);
-    const handleSecretTap = useSecretTap(() => setShowPinball(true));
+    const [showPenaltyGame, setShowPenaltyGame] = useState(false);
+    const handleSecretTap = useSecretTap(() => setShowPenaltyGame(true));
 
     const markPerf = useCallback((name: string) => {
         if (typeof performance === 'undefined') return;
@@ -987,9 +987,9 @@ export default function CheckInClient({
                 />
             )}
 
-            {/* Hidden pinball Easter egg */}
-            {showPinball && (
-                    <PinballGame onClose={() => setShowPinball(false)} />
+            {/* Hidden penalty-kick Easter egg */}
+            {showPenaltyGame && (
+                    <PenaltyKickGame onClose={() => setShowPenaltyGame(false)} />
             )}
         </div>
     );

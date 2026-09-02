@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.12.0';
+export const APP_VERSION = '0.13.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.13.0',
+        date: 'September 2, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Penalty Kick Easter Egg',
+                description: 'Replaced the hidden pinball mini-game on the check-in page with a penalty shootout: aim and shoot past a diving computer goalkeeper, track goals until dismissed. Scores are never saved.',
+            },
+        ],
+    },
     {
         version: '0.12.0',
         date: 'September 2, 2026',
