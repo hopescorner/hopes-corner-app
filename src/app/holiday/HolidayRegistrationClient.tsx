@@ -23,7 +23,7 @@ import {
 } from '@/types/holiday';
 import { HOLIDAY_TRANSLATIONS } from '@/lib/holiday/translations';
 import { HOLIDAY_CITIES } from '@/lib/holiday/constants';
-import { calculateAge, getHolidayAgeGroup, formatAgeGroupLabel, isTeen14Plus } from '@/lib/holiday/ageGroups';
+import { calculateAge, getHolidayAgeGroup, formatAgeGroupLabel } from '@/lib/holiday/ageGroups';
 
 interface ChildFormState {
     id: string;
@@ -577,7 +577,6 @@ export default function HolidayRegistrationClient() {
                         <div className="space-y-4">
                             {children.map((child, index) => {
                                 const ageGroup = getHolidayAgeGroup(child.age);
-                                const isTeen = isTeen14Plus(child.age);
                                 return (
                                     <div
                                         key={child.id}
@@ -596,12 +595,6 @@ export default function HolidayRegistrationClient() {
                                                 <span className="rounded-md bg-white px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-200">
                                                     {formatAgeGroupLabel(ageGroup)}
                                                 </span>
-                                                {isTeen && (
-                                                    <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-900">
-                                                        <Gift className="h-3 w-3 text-amber-700" />
-                                                        <span>Gift Card</span>
-                                                    </span>
-                                                )}
                                                 {children.length > 1 && (
                                                     <button
                                                         type="button"

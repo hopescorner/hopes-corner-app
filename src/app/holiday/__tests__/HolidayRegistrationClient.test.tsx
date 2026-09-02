@@ -175,6 +175,18 @@ describe('HolidayRegistrationClient', () => {
         expect(ageInput.value).toContain('8');
     });
 
+    it('does not display gift card or grocery card badges for children or teens during registration', () => {
+        render(<HolidayRegistrationClient />);
+
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        const currentYear = new Date().getFullYear();
+        // Set teen age (16 years old)
+        fireEvent.change(birthdateInput, { target: { value: `${currentYear - 16}-01-01` } });
+
+        expect(screen.queryByText(/Gift Card/i)).toBeNull();
+        expect(screen.queryByText(/Grocery Card/i)).toBeNull();
+    });
+
     it('sends the hidden website field so automated form fillers are rejected server-side', async () => {
         const { container } = render(<HolidayRegistrationClient />);
         const websiteInput = container.querySelector<HTMLInputElement>('input[name="website"]');
