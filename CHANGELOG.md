@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.14.0] - 2026-09-03
+
+### Added
+
+- The hidden penalty shootout is now a real challenge: the goalkeeper starts at full skill and learns your favorite corners, and the game fits phone screens and runs more smoothly.
+- The Need Help guide now teaches the current keyboard shortcuts and one-click shower and laundry booking. It also shows how to undo mistakes and avoid duplicate profiles.
+
+### Improved
+
+- The holiday toy program is now only for children under 18. Registration and check-in enforce this rule.
+
 ## [0.13.0] - 2026-09-02
 
 ### Added

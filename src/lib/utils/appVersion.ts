@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.13.0';
+export const APP_VERSION = '0.14.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.14.0',
+        date: 'September 3, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Smarter Penalty Kick Challenge',
+                description: 'The hidden penalty shootout is now a real challenge. The goalkeeper starts at full skill and learns your favorite corners. The game also fits phone screens and runs more smoothly.',
+            },
+            {
+                type: 'feature',
+                title: 'Up-to-Date Help Tour',
+                description: 'The Need Help guide now teaches the current shortcuts and one-click shower and laundry booking. It also shows how to undo mistakes and avoid duplicate profiles.',
+            },
+            {
+                type: 'improvement',
+                title: 'Holiday Program Age Rule',
+                description: 'The holiday toy program is now only for children under 18. Registration and check-in enforce this rule.',
+            },
+        ],
+    },
     {
         version: '0.13.0',
         date: 'September 2, 2026',
