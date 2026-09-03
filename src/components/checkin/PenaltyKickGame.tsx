@@ -95,6 +95,13 @@ const SWEET_LO = 0.55;
 const SWEET_HI = 0.88;
 const OVERHIT = 0.93;
 
+// Keeper learning (adaptive difficulty): he remembers your recent threatening
+// shots, finds the goal-mouth column you favor, and starts camping it.
+const MEMORY_WINDOW = 16; // recent shots the keeper remembers
+const LEARN_ZONES = 4; // vertical columns across the goal mouth
+const HOT_ZONE_MIN = 3; // repeat shots in one column before he starts camping it
+const MEMORY_KEY = 'pk-keeper-memory-v1';
+
 // --- Helpers ---
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
@@ -114,16 +121,16 @@ function easeOutBack(t: number) {
   return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
 }
 
-/** Difficulty curve: level 1 (t=0) .. level 10 (t=1). */
+/** Difficulty curve: level 1 (t=0) .. level 10 (t=1). Top end is deliberately brutal. */
 function levelParams(level: number): LevelParams {
   const t = clamp(level - 1, 0, MAX_LEVEL - 1) / (MAX_LEVEL - 1);
   return {
-    readProb: 0.52 + t * 0.34, // 0.52 → 0.86
-    noise: 30 - t * 20, // 30 → 10 px
-    reactDelay: Math.round(6 - t * 4), // 6 → 2 frames
-    diveFrames: Math.round(18 - t * 6), // 18 → 12 frames
-    reach: 84 + t * 12, // 84 → 96 px
-    saveR: 22 + t * 6, // 22 → 28 px
+    readProb: 0.55 + t * 0.38, // 0.55 → 0.93
+    noise: 30 - t * 24, // 30 → 6 px
+    reactDelay: Math.round(6 - t * 5), // 6 → 1 frame
+    diveFrames: Math.round(18 - t * 8), // 18 → 10 frames
+    reach: 84 + t * 16, // 84 → 100 px
+    saveR: 22 + t * 10, // 22 → 32 px
     sway: 3 + t * 6, // idle sway grows (distraction)
     wobble: clamp(level - 1, 0, 9) * 0.7, // 0 → ~6.3 px aim sway
     chargeRate: 0.02 + t * 0.012, // meter oscillates faster at high level
@@ -133,30 +140,115 @@ function levelParams(level: number): LevelParams {
 interface DivePlan {
   diveDir: -1 | 0 | 1;
   diveTarget: number;
+  /** True when the keeper camped a learned hot zone instead of reading this shot. */
+  anticipated: boolean;
+}
+
+interface ShotMemory {
+  x: number;
+  y: number;
+}
+
+export interface HeatTarget {
+  x: number;
+  y: number;
+  shots: number; // shots seen in the hot column
+  p: number; // probability the keeper camps it on any given kick
+}
+
+/** Which goal-mouth column (0..LEARN_ZONES-1) a shot at x falls in. */
+export function zoneIndexForShot(x: number): number {
+  const mouthWidth = POST_RIGHT - POST_LEFT;
+  return clamp(Math.floor(((x - POST_LEFT) / mouthWidth) * LEARN_ZONES), 0, LEARN_ZONES - 1);
+}
+
+/** Center of a goal-mouth column (what the keeper camps). */
+export function zoneCenterForIndex(index: number): { x: number; y: number } {
+  const mouthWidth = POST_RIGHT - POST_LEFT;
+  return {
+    x: POST_LEFT + (mouthWidth * (clamp(index, 0, LEARN_ZONES - 1) + 0.5)) / LEARN_ZONES,
+    y: (BAR_Y + LINE_Y) / 2,
+  };
+}
+
+/**
+ * Find the shooter's favorite column. Returns null until there is enough
+ * evidence (a repeated pattern, not scattered shots), so varied shooters
+ * don't get punished — repeat shooters do.
+ */
+export function hottestZone(shots: ShotMemory[]): HeatTarget | null {
+  if (shots.length < HOT_ZONE_MIN + 1) return null;
+  const counts = new Array<number>(LEARN_ZONES).fill(0);
+  for (const s of shots) counts[zoneIndexForShot(s.x)] += 1;
+  let best = 0;
+  for (let i = 1; i < counts.length; i++) {
+    if (counts[i] > counts[best]) best = i;
+  }
+  if (counts[best] < HOT_ZONE_MIN) return null;
+  const center = zoneCenterForIndex(best);
+  return {
+    ...center,
+    shots: counts[best],
+    p: Math.min(0.3 + 0.08 * (counts[best] - HOT_ZONE_MIN), 0.65),
+  };
+}
+
+/** Load the keeper's cross-session memory of your placement (best-effort). */
+function loadKeeperMemory(): ShotMemory[] {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return [];
+    const raw = window.localStorage.getItem(MEMORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (s): s is ShotMemory =>
+          typeof s === 'object' &&
+          s !== null &&
+          typeof (s as ShotMemory).x === 'number' &&
+          typeof (s as ShotMemory).y === 'number'
+      )
+      .slice(-MEMORY_WINDOW);
+  } catch {
+    return [];
+  }
 }
 
 /**
  * Computer goalkeeper. When he "reads" the shot he dives where the ball is
  * actually going (± noise); otherwise he guesses a side or stays home.
+ * On top of that he studies you: when your recent shots keep going to the
+ * same column (heat), he skips the read and camps that column — so a pet
+ * corner stops working until you vary your placement.
  * Timing is honest: saves are checked against where his gloves actually are
- * when the ball arrives, so a powerful shot into the corner beats him even
- * when he reads it — especially at low levels where his dive is slow.
+ * when the ball arrives, so a powerful shot into a cold corner still beats
+ * him even when he reads it.
  */
-function planDive(shotX: number, params: LevelParams): DivePlan {
+export function planDive(shotX: number, params: LevelParams, heat: HeatTarget | null): DivePlan {
+  if (heat && Math.random() < heat.p) {
+    const diveTarget = clamp(
+      heat.x + (Math.random() * 2 - 1) * 8,
+      GOAL_CENTER_X - params.reach,
+      GOAL_CENTER_X + params.reach
+    );
+    const dir = diveTarget < GOAL_CENTER_X - 8 ? -1 : diveTarget > GOAL_CENTER_X + 8 ? 1 : 0;
+    return { diveDir: dir, diveTarget, anticipated: true };
+  }
   const roll = Math.random();
   if (roll < params.readProb) {
     const read = shotX + (Math.random() * 2 - 1) * params.noise;
     const diveTarget = clamp(read, GOAL_CENTER_X - params.reach, GOAL_CENTER_X + params.reach);
     const dir = diveTarget < GOAL_CENTER_X - 8 ? -1 : diveTarget > GOAL_CENTER_X + 8 ? 1 : 0;
-    return { diveDir: dir, diveTarget };
+    return { diveDir: dir, diveTarget, anticipated: false };
   }
   if (roll < params.readProb + (1 - params.readProb) * 0.6) {
     // Guesses a side (wrong one, since he didn't read it)
     const shotSide: -1 | 1 = shotX < GOAL_CENTER_X ? -1 : 1;
     const wrong = Math.random() < 0.75 ? (-shotSide as -1 | 1) : shotSide;
-    return { diveDir: wrong, diveTarget: GOAL_CENTER_X + wrong * params.reach * 0.9 };
+    return { diveDir: wrong, diveTarget: GOAL_CENTER_X + wrong * params.reach * 0.9, anticipated: false };
   }
-  return { diveDir: 0, diveTarget: GOAL_CENTER_X + (Math.random() * 2 - 1) * 10 };
+  return { diveDir: 0, diveTarget: GOAL_CENTER_X + (Math.random() * 2 - 1) * 10, anticipated: false };
 }
 
 function classifyShot(x: number, y: number): Outcome {
@@ -216,6 +308,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
   const kicksRef = useRef(0);
   const streakRef = useRef(0);
   const levelRef = useRef(MAX_LEVEL); // keeper starts at max difficulty
+  const memoryRef = useRef<Array<ShotMemory>>(loadKeeperMemory());
+  const anticipatedRef = useRef(false);
   const powerRef = useRef<{ charging: boolean; value: number; dir: 1 | -1 }>({
     charging: false,
     value: 0.3,
@@ -302,6 +396,17 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
     };
   }, []);
 
+  /** The keeper studies every shot that threatens the goal (on target or woodwork). */
+  const recordShot = useCallback((x: number, y: number) => {
+    const mem = [...memoryRef.current, { x, y }].slice(-MEMORY_WINDOW);
+    memoryRef.current = mem;
+    try {
+      window.localStorage.setItem(MEMORY_KEY, JSON.stringify(mem));
+    } catch {
+      // Private mode etc. — memory just won't persist across sessions.
+    }
+  }, []);
+
   const shoot = useCallback(
     (power: number) => {
       if (phaseRef.current !== 'aim') return;
@@ -321,7 +426,10 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ty = clamp(ty, 30, SPOT_Y - 30);
 
       let outcome = classifyShot(tx, ty);
-      const plan = planDive(tx, params);
+      if (outcome !== 'miss') recordShot(tx, ty);
+      const heat = hottestZone(memoryRef.current);
+      const plan = planDive(tx, params, heat);
+      anticipatedRef.current = plan.anticipated;
       const duration = Math.round(26 - power * 17); // 25 (weak) → 9 (full power)
 
       // Honest save check: where are the gloves when the ball arrives?
@@ -382,7 +490,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       trailRef.current = [];
       phaseRef.current = 'flying';
     },
-    [effAim, spawnBurst]
+    [effAim, spawnBurst, recordShot]
   );
 
   const startCharge = useCallback(() => {
@@ -666,6 +774,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       const keeper = keeperRef.current;
       const particles = particlesRef.current;
       const params = levelParams(levelRef.current);
+      // Has the keeper figured out your favorite spot? (tell, shown in the HUD)
+      const heatNow = hottestZone(memoryRef.current);
 
       // --- Power meter oscillation ---
       const pw = powerRef.current;
@@ -1170,7 +1280,9 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
               ? `${streakRef.current} in a row — unstoppable!`
               : 'What a finish!'
             : outcome === 'saved'
-              ? 'The keeper read it…'
+              ? anticipatedRef.current
+                ? 'He knew you were going there…'
+                : 'The keeper read it…'
               : outcome === 'post'
                 ? 'Inches away!'
                 : 'That one stays row Z.';
@@ -1238,8 +1350,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.fillText(`GOALS ${goalsRef.current}`, 22, HEIGHT - 17);
       ctx.fillStyle = '#e2e8f0';
       ctx.fillText(`KICKS ${kicksRef.current}`, 118, HEIGHT - 17);
-      ctx.fillStyle = '#f472b6';
-      ctx.fillText(`LV ${levelRef.current}`, 208, HEIGHT - 17);
+      ctx.fillStyle = heatNow ? '#fbbf24' : '#f472b6';
+      ctx.fillText(heatNow ? `LV ${levelRef.current} MARKED` : `LV ${levelRef.current}`, 208, HEIGHT - 17);
       ctx.textAlign = 'right';
       ctx.fillStyle = streakRef.current >= 3 ? '#fbbf24' : '#94a3b8';
       ctx.fillText(

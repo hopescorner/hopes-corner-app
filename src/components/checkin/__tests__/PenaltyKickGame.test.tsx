@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { PenaltyKickGame } from '../PenaltyKickGame';
+import { PenaltyKickGame, planDive, zoneIndexForShot, zoneCenterForIndex, hottestZone } from '../PenaltyKickGame';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -81,5 +81,57 @@ describe('PenaltyKickGame', () => {
     render(<PenaltyKickGame onClose={onClose} graceMs={0} />);
     fireEvent.click(screen.getByTestId('penalty-kick'));
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('keeper learning (adaptive difficulty)', () => {
+  const params = {
+    readProb: 1,
+    noise: 0,
+    reactDelay: 1,
+    diveFrames: 10,
+    reach: 100,
+    saveR: 32,
+    sway: 9,
+    wobble: 6.3,
+    chargeRate: 0.032,
+  };
+
+  it('maps shots to goal-mouth columns', () => {
+    expect(zoneIndexForShot(70)).toBe(0); // at the left post
+    expect(zoneIndexForShot(290)).toBe(3); // at the right post
+    expect(zoneIndexForShot(180)).toBe(2); // dead center falls in column 2
+  });
+
+  it('returns null until a repeated pattern emerges', () => {
+    expect(hottestZone([])).toBeNull();
+    expect(hottestZone([{ x: 100, y: 210 }])).toBeNull();
+    // Scattered shots across columns: no hot zone
+    const scattered = [80, 140, 200, 260, 100].map((x) => ({ x, y: 210 }));
+    expect(hottestZone(scattered)).toBeNull();
+  });
+
+  it('flags the repeatedly targeted column with growing probability', () => {
+    const repeated = Array.from({ length: 5 }, () => ({ x: 250, y: 200 }));
+    const heat = hottestZone(repeated);
+    expect(heat).not.toBeNull();
+    expect(heat!.shots).toBe(5);
+    expect(heat!.p).toBeGreaterThanOrEqual(0.3);
+    expect(heat!.x).toBeCloseTo(zoneCenterForIndex(3).x, 5);
+  });
+
+  it('camps the hot column when anticipating (p = 1)', () => {
+    const heat = hottestZone(Array.from({ length: 6 }, () => ({ x: 250, y: 200 })))!;
+    const plan = planDive(100, params, { ...heat, p: 1 });
+    expect(plan.anticipated).toBe(true);
+    // Dive target camps the hot column (col 3 center ≈ 262), not the shot at x=100
+    expect(plan.diveTarget).toBeGreaterThan(200);
+  });
+
+  it('reads the shot honestly when there is nothing to anticipate (p = 0)', () => {
+    const plan = planDive(200, params, { x: 262.5, y: 210, shots: 5, p: 0 });
+    expect(plan.anticipated).toBe(false);
+    // readProb 1 + zero noise: dives exactly where the ball goes
+    expect(plan.diveTarget).toBe(200);
   });
 });
