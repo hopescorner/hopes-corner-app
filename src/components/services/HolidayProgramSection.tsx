@@ -456,65 +456,76 @@ export function HolidayProgramSection() {
     return (
         <div className="space-y-6">
             {/* Top Hub Banner */}
-            <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-2xl p-4 sm:p-6 text-white shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <div className="inline-flex items-center gap-2 bg-pink-500/20 text-pink-300 border border-pink-400/30 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">
-                        <Gift className="w-3.5 h-3.5" />
-                        <span>Holiday Toy &amp; Gift Distribution Program</span>
+            <div className="relative overflow-hidden bg-emerald-950 rounded-2xl border border-emerald-800/40 shadow-sm">
+                <div
+                    className="absolute inset-0 bg-gradient-to-br from-emerald-900/50 via-emerald-950/0 to-slate-900/60 pointer-events-none"
+                    aria-hidden="true"
+                />
+                <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-5 px-5 sm:px-7 py-6">
+                    <div className="max-w-xl space-y-1.5">
+                        <div className="flex items-center gap-2 text-emerald-300/80">
+                            <Gift className="w-3.5 h-3.5" />
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">
+                                Holiday Toy &amp; Gift Distribution Program
+                            </span>
+                        </div>
+                        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-white">
+                            Staff Event Management Hub
+                        </h1>
+                        <p className="text-sm text-emerald-100/60 leading-relaxed">
+                            Manage parent check-ins, distribute grocery &amp; teen gift cards, and track toy inventory.
+                        </p>
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Staff Event Management Hub</h1>
-                    <p className="text-emerald-200 text-xs sm:text-sm">
-                        Manage parent check-ins, distribute grocery &amp; teen gift cards, and track toy inventory.
-                    </p>
-                </div>
 
-                <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setIsScanModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-2 bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs sm:text-sm font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
-                        title="Scan guest ticket QR code with camera or barcode scanner"
-                    >
-                        <QrCode className="w-4 h-4" />
-                        <span>Scan Ticket QR</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsWalkInModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-bold px-3 sm:px-4 py-2.5 rounded-xl transition-all shadow-md active:scale-95"
-                    >
-                        <Plus className="w-4 h-4" />
-                        <span>Add Walk-In</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleExportCSV}
-                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2.5 rounded-xl transition-all"
-                        title="Download distribution spreadsheet matching reporting format"
-                    >
-                        <Download className="w-4 h-4" />
-                        <span>Export CSV</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsShareModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl transition-all"
-                        title="Share public sign-up link & QR code"
-                    >
-                        <Share2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">Public Link</span>
-                        <span className="sm:hidden">Share</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setIsResetModalOpen(true)}
-                        className="inline-flex items-center justify-center gap-1.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/30 text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl transition-all"
-                        title="Reset all test registrations and restart ticket sequence at #1"
-                    >
-                        <RotateCcw className="w-4 h-4" />
-                        <span className="hidden sm:inline">Reset Test Data & Ticket #1</span>
-                        <span className="sm:hidden">Reset Test Data</span>
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                        <button
+                            type="button"
+                            onClick={() => setIsScanModalOpen(true)}
+                            className="inline-flex items-center justify-center gap-2 bg-white hover:bg-emerald-50 text-emerald-950 text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+                            title="Scan guest ticket QR code with camera or barcode scanner"
+                        >
+                            <QrCode className="w-4 h-4" />
+                            <span>Scan Ticket QR</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setIsWalkInModalOpen(true)}
+                            className="inline-flex items-center justify-center gap-2 bg-emerald-400/15 hover:bg-emerald-400/25 text-emerald-100 border border-emerald-300/20 text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+                        >
+                            <Plus className="w-4 h-4" />
+                            <span>Add Walk-In</span>
+                        </button>
+                        <div className="hidden sm:block w-px h-6 bg-white/10 mx-1" aria-hidden="true" />
+                        <button
+                            type="button"
+                            onClick={handleExportCSV}
+                            className="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-emerald-100/80 hover:text-white border border-white/10 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+                            title="Download distribution spreadsheet matching reporting format"
+                        >
+                            <Download className="w-4 h-4" />
+                            <span>Export CSV</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setIsShareModalOpen(true)}
+                            className="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 text-emerald-100/80 hover:text-white border border-white/10 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors"
+                            title="Share public sign-up link & QR code"
+                        >
+                            <Share2 className="w-4 h-4" />
+                            <span className="hidden sm:inline">Public Link</span>
+                            <span className="sm:hidden">Share</span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setIsResetModalOpen(true)}
+                            className="inline-flex items-center justify-center gap-1.5 hover:bg-rose-500/10 text-rose-300/70 hover:text-rose-200 text-sm font-medium px-3 py-2.5 rounded-lg transition-colors"
+                            title="Reset all test registrations and restart ticket sequence at #1"
+                        >
+                            <RotateCcw className="w-4 h-4" />
+                            <span className="hidden sm:inline">Reset Test Data &amp; Ticket #1</span>
+                            <span className="sm:hidden">Reset Test Data</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
