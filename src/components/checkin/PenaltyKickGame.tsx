@@ -4,28 +4,29 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
-// --- Types ---
 type Phase = 'aim' | 'flying' | 'result';
 type Outcome = 'goal' | 'saved' | 'post' | 'miss';
 
 interface Keeper {
-  x: number; // current x (goal-line plane)
-  diveTarget: number; // dive destination x
+  x: number;
+  diveTarget: number;
   diveDir: -1 | 0 | 1;
-  progress: number; // 0..1 dive animation progress
-  delay: number; // frames before the dive starts (reaction time)
-  diveFrames: number; // frames to fully extend
+  progress: number;
+  delay: number;
+  diveFrames: number;
+  saveAnim: number;
 }
 
 interface Flight {
-  t: number; // frames elapsed
+  t: number;
   duration: number;
   fromX: number;
   fromY: number;
   toX: number;
   toY: number;
   outcome: Outcome;
-  spin: number; // visual ball rotation speed
+  spin: number;
+  curve: number;
 }
 
 interface LooseBall {
@@ -43,66 +44,69 @@ interface Particle {
   vy: number;
   color: string;
   life: number;
+  maxLife: number;
   size: number;
   gravity: number;
+  rot?: number;
+  vRot?: number;
+  shape?: 'circle' | 'square' | 'spark';
 }
 
-interface LevelParams {
-  readProb: number; // chance the keeper reads the shot side/placement
-  noise: number; // px error in the keeper's read of the target
-  reactDelay: number; // frames before he starts moving
-  diveFrames: number; // frames to fully extend
-  reach: number; // max px he can cover from center
-  saveR: number; // glove save radius
-  sway: number; // idle sway amplitude (distraction)
-  wobble: number; // aim reticle sway amplitude (nerves)
-  chargeRate: number; // power meter oscillation speed
+interface NetRipple {
+  x: number;
+  y: number;
+  life: number;
+  maxLife: number;
+  amp: number;
 }
 
-// --- Constants ---
+export interface LevelParams {
+  readProb: number;
+  noise: number;
+  reactDelay: number;
+  diveFrames: number;
+  reach: number;
+  saveR: number;
+  sway: number;
+  wobble: number;
+  chargeRate: number;
+}
+
 const WIDTH = 360;
 const HEIGHT = 540;
 
-// Goal geometry (behind-the-ball view)
 const POST_LEFT = 70;
 const POST_RIGHT = 290;
 const BAR_Y = 170;
 const LINE_Y = 250;
 const GOAL_CENTER_X = (POST_LEFT + POST_RIGHT) / 2;
-const NET_DEPTH = 20; // visual depth of the net behind the frame
+const NET_DEPTH = 24;
 
-// Penalty spot + ball
 const SPOT_X = GOAL_CENTER_X;
 const SPOT_Y = 440;
 const BALL_R = 11;
 
-// Aim limits (deliberately larger than the goal so shots can miss)
 const AIM_MIN_X = 30;
 const AIM_MAX_X = WIDTH - 30;
 const AIM_MIN_Y = 90;
 const AIM_MAX_Y = 330;
 
-// Keeper + shot tuning
-const GLOVE_OFFSET = 6;
+const GLOVE_OFFSET = 8;
 const POST_MARGIN = 12;
-const RESULT_FRAMES = 78;
+const RESULT_FRAMES = 82;
 const MAX_LEVEL = 10;
 const GOALS_PER_LEVEL = 2;
 
-// Power meter
 const POWER_MIN = 0.15;
-const SWEET_LO = 0.55;
-const SWEET_HI = 0.88;
-const OVERHIT = 0.93;
+const SWEET_LO = 0.58;
+const SWEET_HI = 0.84;
+const OVERHIT = 0.91;
 
-// Keeper learning (adaptive difficulty): he remembers your recent threatening
-// shots, finds the goal-mouth column you favor, and starts camping it.
-const MEMORY_WINDOW = 16; // recent shots the keeper remembers
-const LEARN_ZONES = 4; // vertical columns across the goal mouth
-const HOT_ZONE_MIN = 3; // repeat shots in one column before he starts camping it
-const MEMORY_KEY = 'pk-keeper-memory-v1';
+const MEMORY_WINDOW = 20;
+const LEARN_ZONES = 4;
+const HOT_ZONE_MIN = 3;
+const MEMORY_KEY = 'pk-keeper-memory-v2';
 
-// --- Helpers ---
 function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v));
 }
@@ -121,61 +125,72 @@ function easeOutBack(t: number) {
   return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
 }
 
-/** Difficulty curve: level 1 (t=0) .. level 10 (t=1). Top end is deliberately brutal. */
-function levelParams(level: number): LevelParams {
+export function levelParams(level: number, streak = 0): LevelParams {
   const t = clamp(level - 1, 0, MAX_LEVEL - 1) / (MAX_LEVEL - 1);
-  return {
-    readProb: 0.55 + t * 0.38, // 0.55 → 0.93
-    noise: 30 - t * 24, // 30 → 6 px
-    reactDelay: Math.round(6 - t * 5), // 6 → 1 frame
-    diveFrames: Math.round(18 - t * 8), // 18 → 10 frames
-    reach: 84 + t * 16, // 84 → 100 px
-    saveR: 22 + t * 10, // 22 → 32 px
-    sway: 3 + t * 6, // idle sway grows (distraction)
-    wobble: clamp(level - 1, 0, 9) * 0.7, // 0 → ~6.3 px aim sway
-    chargeRate: 0.02 + t * 0.012, // meter oscillates faster at high level
+  const base: LevelParams = {
+    readProb: 0.65 + t * 0.3,
+    noise: 24 - t * 20,
+    reactDelay: Math.max(0, Math.round(5 - t * 4)),
+    diveFrames: Math.round(16 - t * 7),
+    reach: 90 + t * 18,
+    saveR: 24 + t * 10,
+    sway: 4 + t * 6,
+    wobble: clamp(level - 1, 0, 9) * 0.75,
+    chargeRate: 0.022 + t * 0.013,
   };
+
+  if (streak >= 1) {
+    base.readProb = 0.98;
+    base.noise = 2;
+    base.reactDelay = 0;
+    base.diveFrames = 7;
+    base.reach = 122;
+    base.saveR = 38;
+    base.wobble = Math.max(base.wobble, 6.5) + streak * 1.5;
+    base.chargeRate = 0.038 + streak * 0.005;
+  }
+
+  return base;
 }
 
-interface DivePlan {
+export interface DivePlan {
   diveDir: -1 | 0 | 1;
   diveTarget: number;
-  /** True when the keeper camped a learned hot zone instead of reading this shot. */
   anticipated: boolean;
 }
 
-interface ShotMemory {
+export interface ShotMemory {
   x: number;
   y: number;
+  outcome?: Outcome;
+  postGoal?: boolean;
 }
 
 export interface HeatTarget {
   x: number;
   y: number;
-  shots: number; // shots seen in the hot column
-  p: number; // probability the keeper camps it on any given kick
+  shots: number;
+  p: number;
 }
 
-/** Which goal-mouth column (0..LEARN_ZONES-1) a shot at x falls in. */
-export function zoneIndexForShot(x: number): number {
+export function zoneIndexForShot(x: number, y?: number): number {
   const mouthWidth = POST_RIGHT - POST_LEFT;
-  return clamp(Math.floor(((x - POST_LEFT) / mouthWidth) * LEARN_ZONES), 0, LEARN_ZONES - 1);
+  const col = clamp(Math.floor(((x - POST_LEFT) / mouthWidth) * LEARN_ZONES), 0, LEARN_ZONES - 1);
+  if (y === undefined) return col;
+  const row = y < (BAR_Y + LINE_Y) / 2 ? 0 : 1;
+  return row * LEARN_ZONES + col;
 }
 
-/** Center of a goal-mouth column (what the keeper camps). */
 export function zoneCenterForIndex(index: number): { x: number; y: number } {
   const mouthWidth = POST_RIGHT - POST_LEFT;
+  const col = index % LEARN_ZONES;
+  const isTop = index < LEARN_ZONES;
   return {
-    x: POST_LEFT + (mouthWidth * (clamp(index, 0, LEARN_ZONES - 1) + 0.5)) / LEARN_ZONES,
-    y: (BAR_Y + LINE_Y) / 2,
+    x: POST_LEFT + (mouthWidth * (clamp(col, 0, LEARN_ZONES - 1) + 0.5)) / LEARN_ZONES,
+    y: isTop ? BAR_Y + (LINE_Y - BAR_Y) * 0.35 : BAR_Y + (LINE_Y - BAR_Y) * 0.75,
   };
 }
 
-/**
- * Find the shooter's favorite column. Returns null until there is enough
- * evidence (a repeated pattern, not scattered shots), so varied shooters
- * don't get punished — repeat shooters do.
- */
 export function hottestZone(shots: ShotMemory[]): HeatTarget | null {
   if (shots.length < HOT_ZONE_MIN + 1) return null;
   const counts = new Array<number>(LEARN_ZONES).fill(0);
@@ -189,11 +204,10 @@ export function hottestZone(shots: ShotMemory[]): HeatTarget | null {
   return {
     ...center,
     shots: counts[best],
-    p: Math.min(0.3 + 0.08 * (counts[best] - HOT_ZONE_MIN), 0.65),
+    p: Math.min(0.4 + 0.1 * (counts[best] - HOT_ZONE_MIN), 0.85),
   };
 }
 
-/** Load the keeper's cross-session memory of your placement (best-effort). */
 function loadKeeperMemory(): ShotMemory[] {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return [];
@@ -215,26 +229,48 @@ function loadKeeperMemory(): ShotMemory[] {
   }
 }
 
-/**
- * Computer goalkeeper. When he "reads" the shot he dives where the ball is
- * actually going (± noise); otherwise he guesses a side or stays home.
- * On top of that he studies you: when your recent shots keep going to the
- * same column (heat), he skips the read and camps that column — so a pet
- * corner stops working until you vary your placement.
- * Timing is honest: saves are checked against where his gloves actually are
- * when the ball arrives, so a powerful shot into a cold corner still beats
- * him even when he reads it.
- */
-export function planDive(shotX: number, params: LevelParams, heat: HeatTarget | null): DivePlan {
+export interface DiveOptions {
+  streak?: number;
+  lastGoalSide?: -1 | 0 | 1;
+  postGoalSwitchRatio?: number;
+}
+
+export function planDive(
+  shotX: number,
+  params: LevelParams,
+  heat: HeatTarget | null,
+  options?: DiveOptions
+): DivePlan {
+  const streak = options?.streak ?? 0;
+  const lastGoalSide = options?.lastGoalSide;
+  const switchRatio = options?.postGoalSwitchRatio ?? 0.75;
+
+  if (streak >= 1) {
+    const anticipatedTargetSide: -1 | 1 =
+      lastGoalSide === 1
+        ? switchRatio >= 0.5 ? -1 : 1
+        : lastGoalSide === -1
+          ? switchRatio >= 0.5 ? 1 : -1
+          : shotX < GOAL_CENTER_X ? -1 : 1;
+
+    const diveTarget = clamp(
+      GOAL_CENTER_X + anticipatedTargetSide * params.reach * 0.96,
+      GOAL_CENTER_X - params.reach,
+      GOAL_CENTER_X + params.reach
+    );
+    return { diveDir: anticipatedTargetSide, diveTarget, anticipated: true };
+  }
+
   if (heat && Math.random() < heat.p) {
     const diveTarget = clamp(
-      heat.x + (Math.random() * 2 - 1) * 8,
+      heat.x + (Math.random() * 2 - 1) * 6,
       GOAL_CENTER_X - params.reach,
       GOAL_CENTER_X + params.reach
     );
     const dir = diveTarget < GOAL_CENTER_X - 8 ? -1 : diveTarget > GOAL_CENTER_X + 8 ? 1 : 0;
     return { diveDir: dir, diveTarget, anticipated: true };
   }
+
   const roll = Math.random();
   if (roll < params.readProb) {
     const read = shotX + (Math.random() * 2 - 1) * params.noise;
@@ -242,13 +278,14 @@ export function planDive(shotX: number, params: LevelParams, heat: HeatTarget | 
     const dir = diveTarget < GOAL_CENTER_X - 8 ? -1 : diveTarget > GOAL_CENTER_X + 8 ? 1 : 0;
     return { diveDir: dir, diveTarget, anticipated: false };
   }
-  if (roll < params.readProb + (1 - params.readProb) * 0.6) {
-    // Guesses a side (wrong one, since he didn't read it)
+
+  if (roll < params.readProb + (1 - params.readProb) * 0.7) {
     const shotSide: -1 | 1 = shotX < GOAL_CENTER_X ? -1 : 1;
-    const wrong = Math.random() < 0.75 ? (-shotSide as -1 | 1) : shotSide;
+    const wrong = Math.random() < 0.8 ? (-shotSide as -1 | 1) : shotSide;
     return { diveDir: wrong, diveTarget: GOAL_CENTER_X + wrong * params.reach * 0.9, anticipated: false };
   }
-  return { diveDir: 0, diveTarget: GOAL_CENTER_X + (Math.random() * 2 - 1) * 10, anticipated: false };
+
+  return { diveDir: 0, diveTarget: GOAL_CENTER_X + (Math.random() * 2 - 1) * 8, anticipated: false };
 }
 
 function classifyShot(x: number, y: number): Outcome {
@@ -266,24 +303,21 @@ function classifyShot(x: number, y: number): Outcome {
   return 'miss';
 }
 
-/** Keeper glove position at a given frame of the dive (easeInOutQuad). */
 function gloveAt(
   frame: number,
   plan: DivePlan,
   params: LevelParams
 ): { x: number; y: number } {
-  const p = clamp((frame - params.reactDelay) / params.diveFrames, 0, 1);
+  const p = clamp((frame - params.reactDelay) / Math.max(params.diveFrames, 1), 0, 1);
   const k = easeInOutQuad(p);
   return {
     x: GOAL_CENTER_X + (plan.diveTarget - GOAL_CENTER_X) * k + plan.diveDir * GLOVE_OFFSET * k,
-    y: 208 - 18 * k,
+    y: 208 - 24 * k,
   };
 }
 
-// --- Component ---
 interface PenaltyKickGameProps {
   onClose: () => void;
-  /** Backdrop dismiss grace period in ms (prevents accidental close from trigger taps). 0 = instant. */
   graceMs?: number;
 }
 
@@ -299,17 +333,22 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
     diveDir: 0,
     progress: 1,
     delay: 0,
-    diveFrames: 18,
+    diveFrames: 14,
+    saveAnim: 0,
   });
   const flightRef = useRef<Flight | null>(null);
   const looseBallRef = useRef<LooseBall | null>(null);
-  const resultRef = useRef<{ outcome: Outcome; t: number; toY: number } | null>(null);
+  const resultRef = useRef<{ outcome: Outcome; t: number; toX: number; toY: number } | null>(null);
   const goalsRef = useRef(0);
   const kicksRef = useRef(0);
   const streakRef = useRef(0);
-  const levelRef = useRef(MAX_LEVEL); // keeper starts at max difficulty
+  const [streakCount, setStreakCount] = useState(0);
+  const levelRef = useRef(MAX_LEVEL);
   const memoryRef = useRef<Array<ShotMemory>>(loadKeeperMemory());
   const anticipatedRef = useRef(false);
+  const lastGoalSideRef = useRef<-1 | 0 | 1>(0);
+  const postGoalHistoryRef = useRef<{ switches: number; repeats: number }>({ switches: 0, repeats: 0 });
+
   const powerRef = useRef<{ charging: boolean; value: number; dir: 1 | -1 }>({
     charging: false,
     value: 0.3,
@@ -317,44 +356,53 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
   });
   const spaceHeldRef = useRef(false);
   const particlesRef = useRef<Particle[]>([]);
-  const trailRef = useRef<Array<{ x: number; y: number; r: number }>>([]);
+  const netRipplesRef = useRef<NetRipple[]>([]);
+  const trailRef = useRef<Array<{ x: number; y: number; r: number; alpha: number }>>([]);
   const levelFlashRef = useRef<{ t: number; level: number } | null>(null);
   const shakeRef = useRef(0);
-  const rippleRef = useRef(0);
   const cheerRef = useRef(0);
   const frameWobbleRef = useRef(0);
   const [canDismiss, setCanDismiss] = useState(graceMs <= 0);
   const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
   const spawnBurst = useCallback(
-    (x: number, y: number, colors: string[], count: number, speed: number, gravity = 0.12) => {
+    (
+      x: number,
+      y: number,
+      colors: string[],
+      count: number,
+      speed: number,
+      gravity = 0.12,
+      shape: 'circle' | 'square' | 'spark' = 'circle'
+    ) => {
       for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const s = speed * (0.4 + Math.random() * 0.9);
+        const s = speed * (0.3 + Math.random() * 0.9);
         particlesRef.current.push({
           x,
           y,
           vx: Math.cos(angle) * s,
-          vy: Math.sin(angle) * s - 1.2,
+          vy: Math.sin(angle) * s - (shape === 'spark' ? 0.5 : 1.5),
           color: colors[i % colors.length],
           life: 1.0,
-          size: 2 + Math.random() * 3,
+          maxLife: 1.0,
+          size: shape === 'spark' ? 1.5 + Math.random() * 2 : 2.5 + Math.random() * 3.5,
           gravity,
+          rot: Math.random() * Math.PI * 2,
+          vRot: (Math.random() - 0.5) * 0.2,
+          shape,
         });
       }
     },
     []
   );
 
-  // After graceMs, allow backdrop dismiss (prevents momentum taps from the trigger)
   useEffect(() => {
     if (graceMs <= 0) return;
     const timer = setTimeout(() => setCanDismiss(true), graceMs);
     return () => clearTimeout(timer);
   }, [graceMs]);
 
-  // Lock body scroll while the game is open — on mobile a swipe starting on
-  // the backdrop would otherwise scroll the check-in page behind the modal.
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -363,12 +411,10 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
     };
   }, []);
 
-  // Backdrop dismiss — only after grace period
   const safeClose = useCallback(() => {
     if (canDismiss) onClose();
   }, [canDismiss, onClose]);
 
-  // Escape to close
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -381,29 +427,33 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  /** Aim point including the level-based "nerves" sway at the current frame. */
   const effAim = useCallback(() => {
     const aim = aimRef.current;
-    const { wobble } = levelParams(levelRef.current);
+    const { wobble } = levelParams(levelRef.current, streakRef.current);
     const f = frameRef.current;
+    const streakPressure = streakRef.current >= 1 ? Math.sin(f * 0.18) * 2.8 : 0;
     return {
       x: clamp(
-        aim.x + Math.sin(f * 0.09) * wobble + Math.sin(f * 0.023) * wobble * 0.6,
+        aim.x + Math.sin(f * 0.08) * wobble + Math.sin(f * 0.024) * wobble * 0.5 + streakPressure,
         AIM_MIN_X,
         AIM_MAX_X
       ),
-      y: clamp(aim.y + Math.cos(f * 0.075) * wobble * 0.8, AIM_MIN_Y, AIM_MAX_Y),
+      y: clamp(
+        aim.y + Math.cos(f * 0.07) * wobble * 0.7 + (streakRef.current >= 1 ? Math.cos(f * 0.14) * 2 : 0),
+        AIM_MIN_Y,
+        AIM_MAX_Y
+      ),
     };
   }, []);
 
-  /** The keeper studies every shot that threatens the goal (on target or woodwork). */
-  const recordShot = useCallback((x: number, y: number) => {
-    const mem = [...memoryRef.current, { x, y }].slice(-MEMORY_WINDOW);
+  const recordShot = useCallback((x: number, y: number, outcome: Outcome) => {
+    const postGoal = streakRef.current >= 1;
+    const mem = [...memoryRef.current, { x, y, outcome, postGoal }].slice(-MEMORY_WINDOW);
     memoryRef.current = mem;
     try {
       window.localStorage.setItem(MEMORY_KEY, JSON.stringify(mem));
     } catch {
-      // Private mode etc. — memory just won't persist across sessions.
+      // Memory fails gracefully in private mode
     }
   }, []);
 
@@ -413,29 +463,43 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       powerRef.current.charging = false;
       spaceHeldRef.current = false;
 
-      const params = levelParams(levelRef.current);
+      const currentStreak = streakRef.current;
+      const params = levelParams(levelRef.current, currentStreak);
       const target = effAim();
 
-      // Power-driven inaccuracy: sweet zone is tight, overhitting balloons it
-      let spread = 2 + power * power * 16;
-      if (power > OVERHIT) spread += (power - OVERHIT) * 170;
+      spawnBurst(SPOT_X, SPOT_Y + 12, ['#ffffff', '#e2e8f0', '#cbd5e1'], 16, 2.2, 0.05, 'spark');
+
+      let spread = 2 + power * power * 18;
+      if (currentStreak >= 1) spread += 6;
+      if (power > OVERHIT) spread += (power - OVERHIT) * 200;
+
       let tx = target.x + (Math.random() + Math.random() - 1) * spread;
       let ty = target.y + (Math.random() + Math.random() - 1) * spread;
-      if (power > OVERHIT) ty -= Math.random() * (power - OVERHIT) * 260;
+      if (power > OVERHIT) ty -= Math.random() * (power - OVERHIT) * 280;
       tx = clamp(tx, 6, WIDTH - 6);
-      ty = clamp(ty, 30, SPOT_Y - 30);
+      ty = clamp(ty, 25, SPOT_Y - 30);
 
       let outcome = classifyShot(tx, ty);
-      if (outcome !== 'miss') recordShot(tx, ty);
-      const heat = hottestZone(memoryRef.current);
-      const plan = planDive(tx, params, heat);
-      anticipatedRef.current = plan.anticipated;
-      const duration = Math.round(26 - power * 17); // 25 (weak) → 9 (full power)
+      recordShot(tx, ty, outcome);
 
-      // Honest save check: where are the gloves when the ball arrives?
+      const heat = hottestZone(memoryRef.current);
+      const switches = postGoalHistoryRef.current.switches;
+      const repeats = postGoalHistoryRef.current.repeats;
+      const switchRatio = switches + repeats > 0 ? switches / (switches + repeats) : 0.75;
+
+      const plan = planDive(tx, params, heat, {
+        streak: currentStreak,
+        lastGoalSide: lastGoalSideRef.current,
+        postGoalSwitchRatio: switchRatio,
+      });
+
+      anticipatedRef.current = plan.anticipated;
+      const duration = Math.max(9, Math.round(25 - power * 16));
+
       if (outcome === 'goal') {
         const glove = gloveAt(duration, plan, params);
-        if (Math.hypot(tx - glove.x, ty - glove.y) < params.saveR) {
+        const distToGlove = Math.hypot(tx - glove.x, ty - glove.y);
+        if (distToGlove < params.saveR) {
           outcome = 'saved';
         }
       }
@@ -447,17 +511,41 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         progress: 0,
         delay: params.reactDelay,
         diveFrames: params.diveFrames,
+        saveAnim: 0,
       };
 
       kicksRef.current += 1;
+      const shotSide: -1 | 1 = tx < GOAL_CENTER_X ? -1 : 1;
+
       if (outcome === 'goal') {
+        if (currentStreak >= 1) {
+          if (shotSide === lastGoalSideRef.current) {
+            postGoalHistoryRef.current.repeats += 1;
+          } else {
+            postGoalHistoryRef.current.switches += 1;
+          }
+        }
+        lastGoalSideRef.current = shotSide;
         goalsRef.current += 1;
         streakRef.current += 1;
-        spawnBurst(tx, BAR_Y + 40, ['#22c55e', '#ffffff', '#fbbf24', '#38bdf8'], 46, 4);
-        rippleRef.current = 44;
-        cheerRef.current = 110;
-        shakeRef.current = Math.max(shakeRef.current, 6);
-        // Level up every GOALS_PER_LEVEL goals
+        setStreakCount(streakRef.current);
+
+        netRipplesRef.current.push({
+          x: tx,
+          y: ty,
+          life: 0,
+          maxLife: 48,
+          amp: 1.0,
+        });
+
+        const goalColors =
+          streakRef.current >= 2
+            ? ['#fbbf24', '#f59e0b', '#ec4899', '#38bdf8', '#ffffff', '#22c55e']
+            : ['#22c55e', '#ffffff', '#38bdf8', '#fbbf24'];
+        spawnBurst(tx, BAR_Y + 36, goalColors, streakRef.current >= 2 ? 65 : 45, 4.8, 0.1, 'square');
+        cheerRef.current = 130;
+        shakeRef.current = streakRef.current >= 2 ? 14 : 8;
+
         const newLevel = Math.min(MAX_LEVEL, 1 + Math.floor(goalsRef.current / GOALS_PER_LEVEL));
         if (newLevel > levelRef.current) {
           levelRef.current = newLevel;
@@ -465,15 +553,18 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         }
       } else {
         streakRef.current = 0;
+        setStreakCount(0);
         if (outcome === 'saved') {
+          keeperRef.current.saveAnim = 30;
           const glove = gloveAt(duration, plan, params);
-          spawnBurst(glove.x, glove.y, ['#38bdf8', '#e0f2fe', '#ffffff'], 22, 3, 0.08);
+          spawnBurst(glove.x, glove.y, ['#38bdf8', '#93c5fd', '#ffffff', '#67e8f9'], 28, 3.8, 0.08, 'spark');
+          shakeRef.current = 6;
         } else if (outcome === 'post') {
-          spawnBurst(tx, ty, ['#fbbf24', '#f97316', '#ffffff'], 24, 3.5, 0.1);
-          frameWobbleRef.current = 34;
-          shakeRef.current = Math.max(shakeRef.current, 8);
+          spawnBurst(tx, ty, ['#fbbf24', '#f59e0b', '#ffffff', '#ea580c'], 30, 4.2, 0.09, 'spark');
+          frameWobbleRef.current = 40;
+          shakeRef.current = 11;
         } else {
-          spawnBurst(tx, ty, ['#cbd5e1'], 10, 2, 0.08);
+          spawnBurst(tx, ty, ['#94a3b8', '#cbd5e1'], 12, 2.2, 0.08);
         }
       }
 
@@ -485,7 +576,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         toX: tx,
         toY: ty,
         outcome,
-        spin: (tx >= SPOT_X ? 1 : -1) * (0.15 + power * 0.25),
+        spin: (tx >= SPOT_X ? 1 : -1) * (0.2 + power * 0.35),
+        curve: (tx - SPOT_X) * 0.08,
       };
       trailRef.current = [];
       phaseRef.current = 'flying';
@@ -504,17 +596,15 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
     shoot(powerRef.current.value);
   }, [shoot]);
 
-  /** Fixed-power shot for the Kick button / Enter key (sweet-zone power). */
   const quickShot = useCallback(() => {
     if (phaseRef.current !== 'aim' || powerRef.current.charging) return;
-    shoot(0.62);
+    shoot(streakRef.current >= 1 ? 0.72 : 0.65);
   }, [shoot]);
 
-  // Keyboard: arrows/WASD aim, hold Space to charge + release to shoot, Enter = quick shot
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       const aim = aimRef.current;
-      const step = e.shiftKey ? 24 : 10;
+      const step = e.shiftKey ? 26 : 12;
       if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
         aim.x = clamp(aim.x - step, AIM_MIN_X, AIM_MAX_X);
         e.preventDefault();
@@ -566,8 +656,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      // Capture the pointer so a release outside the canvas still shoots
-      // (common with touch drags that slide off the canvas edge).
       e.currentTarget.setPointerCapture?.(e.pointerId);
       const p = canvasPos(e);
       if (!p || phaseRef.current !== 'aim') return;
@@ -582,7 +670,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      // Hover/drag aiming (touch only fires while pressed; desktop fires on hover)
       if (phaseRef.current !== 'aim') return;
       const p = canvasPos(e);
       if (!p) return;
@@ -598,172 +685,198 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
     releaseCharge();
   }, [releaseCharge]);
 
-  // --- Main game loop ---
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Crisp rendering on high-DPI screens (display size is controlled by CSS
-    // so the canvas scales down on narrow phones; input mapping uses the
-    // bounding rect, so it stays correct at any scale)
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = WIDTH * dpr;
     canvas.height = HEIGHT * dpr;
     ctx.scale(dpr, dpr);
 
-    // Static gradients, hoisted out of the frame loop (allocating several
-    // gradients per frame is a known drain on mobile GPUs)
-    const skyGrad = ctx.createLinearGradient(0, 0, 0, 170);
-    skyGrad.addColorStop(0, '#020617');
-    skyGrad.addColorStop(1, '#172554');
-    const boardGrad = ctx.createLinearGradient(0, 146, 0, 170);
-    boardGrad.addColorStop(0, '#065f46');
-    boardGrad.addColorStop(0.5, '#047857');
-    boardGrad.addColorStop(1, '#064e3b');
-    const pitchGrad = ctx.createLinearGradient(0, 170, 0, HEIGHT);
-    pitchGrad.addColorStop(0, '#16a34a');
-    pitchGrad.addColorStop(0.35, '#15803d');
-    pitchGrad.addColorStop(1, '#14532d');
-    const vigGrad = ctx.createRadialGradient(WIDTH / 2, HEIGHT / 2, HEIGHT * 0.35, WIDTH / 2, HEIGHT / 2, HEIGHT * 0.75);
-    vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
-    vigGrad.addColorStop(1, 'rgba(0,0,0,0.35)');
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 175);
+    skyGrad.addColorStop(0, '#030712');
+    skyGrad.addColorStop(0.5, '#0b132b');
+    skyGrad.addColorStop(1, '#1e1b4b');
 
-    // Static crowd (generated once per mount) — two tiers with per-fan bob phase
-    const crowd: Array<{ x: number; y: number; c: string; phase: number }> = [];
-    const crowdColors = ['#f87171', '#fbbf24', '#60a5fa', '#f472b6', '#e2e8f0', '#34d399'];
-    for (let tier = 0; tier < 2; tier++) {
-      const baseY = tier === 0 ? 66 : 106;
-      const rows = tier === 0 ? 3 : 4;
-      for (let i = 0; i < 150; i++) {
+    const boardGrad = ctx.createLinearGradient(0, 144, 0, 170);
+    boardGrad.addColorStop(0, '#042f2e');
+    boardGrad.addColorStop(0.5, '#0d9488');
+    boardGrad.addColorStop(1, '#115e59');
+
+    const pitchGrad = ctx.createLinearGradient(0, 170, 0, HEIGHT);
+    pitchGrad.addColorStop(0, '#15803d');
+    pitchGrad.addColorStop(0.4, '#166534');
+    pitchGrad.addColorStop(1, '#14532d');
+
+    const vigGrad = ctx.createRadialGradient(WIDTH / 2, HEIGHT / 2, HEIGHT * 0.35, WIDTH / 2, HEIGHT / 2, HEIGHT * 0.78);
+    vigGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    vigGrad.addColorStop(1, 'rgba(3,7,18,0.55)');
+
+    const crowd: Array<{ x: number; y: number; c: string; phase: number; row: number }> = [];
+    const crowdColors = ['#ef4444', '#f59e0b', '#38bdf8', '#ec4899', '#f8fafc', '#10b981', '#a855f7'];
+    for (let tier = 0; tier < 3; tier++) {
+      const baseY = 68 + tier * 24;
+      for (let i = 0; i < 90; i++) {
         crowd.push({
-          x: 6 + Math.random() * (WIDTH - 12),
-          y: baseY + Math.random() * rows * 9,
-          c: crowdColors[(i + tier * 3) % crowdColors.length],
+          x: 4 + Math.random() * (WIDTH - 8),
+          y: baseY + Math.random() * 20,
+          c: crowdColors[(i + tier * 4) % crowdColors.length],
           phase: Math.random() * Math.PI * 2,
+          row: tier,
         });
       }
     }
 
-    // Stadium skyline silhouette (generated once)
-    const skyline: Array<{ x: number; w: number; h: number }> = [];
-    for (let x = 0; x < WIDTH; ) {
-      const w = 18 + Math.random() * 30;
-      skyline.push({ x, w, h: 14 + Math.random() * 26 });
-      x += w + 4;
-    }
+    const cameraFlashes: Array<{ x: number; y: number; life: number }> = [];
 
-    const drawKeeper = (kx: number, diveDir: -1 | 0 | 1, progress: number) => {
-      const ky = LINE_Y;
-      const e = easeInOutQuad(progress);
-      const lean = diveDir * e * 16;
-      const lift = Math.sin(e * Math.PI) * 10; // arcs upward mid-dive
-      ctx.save();
-
-      // Ground shadow (stays on the line)
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(kx - diveDir * e * 6, ky + 5, 16 + e * 10, 4, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.translate(kx, ky - lift);
-      ctx.rotate(diveDir * e * 0.85);
-
-      // Legs + boots
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 7;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(0, -22);
-      ctx.lineTo(-7 - lean * 0.4, 0);
-      ctx.moveTo(0, -22);
-      ctx.lineTo(7 - lean * 0.4, 0);
-      ctx.stroke();
-      ctx.fillStyle = '#f8fafc';
-      ctx.beginPath();
-      ctx.arc(-7 - lean * 0.4, 0, 3.5, 0, Math.PI * 2);
-      ctx.arc(7 - lean * 0.4, 0, 3.5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Torso (keeper jersey)
-      ctx.fillStyle = '#f59e0b';
-      ctx.strokeStyle = '#92400e';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(-9, -52, 18, 32, 6);
-      ctx.fill();
-      ctx.stroke();
-
-      // Arms + gloves: spread wide, extending toward the dive side
-      const spread = 14 + e * 18;
-      const reachL = diveDir === 1 ? 6 : spread;
-      const reachR = diveDir === -1 ? 6 : spread;
-      const gloveLX = -6 - reachL - lean * 0.5;
-      const gloveRX = 6 + reachR - lean * 0.5;
-      const gloveY = -52 - e * 10;
-      ctx.strokeStyle = '#f59e0b';
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.moveTo(-6, -46);
-      ctx.lineTo(gloveLX, gloveY);
-      ctx.moveTo(6, -46);
-      ctx.lineTo(gloveRX, gloveY);
-      ctx.stroke();
-      ctx.fillStyle = '#f8fafc';
-      ctx.strokeStyle = '#94a3b8';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(gloveLX, gloveY, 5.5, 0, Math.PI * 2);
-      ctx.arc(gloveRX, gloveY, 5.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Head
-      ctx.fillStyle = '#fcd9b8';
-      ctx.beginPath();
-      ctx.arc(lean * 0.3, -60, 8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.arc(lean * 0.3, -68, 8, Math.PI, 0);
-      ctx.fill();
-
-      ctx.restore();
-    };
-
-    const drawBall = (x: number, y: number, r: number, rot: number) => {
-      // Ground shadow (fades/shrinks as the ball recedes)
-      const shadowT = clamp(r / BALL_R, 0.5, 1);
-      ctx.fillStyle = `rgba(0,0,0,${0.25 * shadowT})`;
-      ctx.beginPath();
-      ctx.ellipse(x, y + r + 3, r * 0.9, r * 0.3, 0, 0, Math.PI * 2);
-      ctx.fill();
-
+    const drawSoccerBall = (x: number, y: number, r: number, rot: number) => {
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(rot);
-      // Ball body
-      const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
+
+      const g = ctx.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r);
       g.addColorStop(0, '#ffffff');
-      g.addColorStop(1, '#cbd5e1');
+      g.addColorStop(0.75, '#e2e8f0');
+      g.addColorStop(1, '#94a3b8');
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.fill();
+
+      ctx.rotate(rot);
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      const pr = r * 0.32;
+      ctx.arc(0, 0, pr, 0, Math.PI * 2);
+      ctx.fill();
+
       ctx.strokeStyle = '#475569';
       ctx.lineWidth = 1;
-      ctx.stroke();
-      // Patches
-      ctx.fillStyle = '#1e293b';
-      const pr = r * 0.22;
-      ctx.beginPath();
-      ctx.arc(0, 0, pr, 0, Math.PI * 2);
       for (let i = 0; i < 5; i++) {
         const a = (i / 5) * Math.PI * 2;
-        ctx.arc(Math.cos(a) * r * 0.55, Math.sin(a) * r * 0.55, pr * 0.8, 0, Math.PI * 2);
+        const px = Math.cos(a) * r * 0.68;
+        const py = Math.sin(a) * r * 0.68;
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(px, py, pr * 0.72, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * pr, Math.sin(a) * pr);
+        ctx.lineTo(px, py);
+        ctx.stroke();
       }
+
+      ctx.strokeStyle = '#64748b';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.restore();
+    };
+
+    const drawKeeper = (kx: number, diveDir: -1 | 0 | 1, progress: number) => {
+      const ky = LINE_Y;
+      const e = easeInOutQuad(progress);
+      const lift = Math.sin(e * Math.PI) * 16;
+      const isLockdown = streakRef.current >= 1;
+
+      ctx.save();
+
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(kx - diveDir * e * 12, ky + 4, 18 + e * 16, 5, 0, 0, Math.PI * 2);
       ctx.fill();
+
+      ctx.translate(kx, ky - lift);
+      ctx.rotate(diveDir * e * 0.95);
+
+      const kitColor = isLockdown ? '#a3e635' : '#fbbf24';
+      const kitTrim = isLockdown ? '#4d7c0f' : '#b45309';
+
+      ctx.strokeStyle = '#020617';
+      ctx.lineWidth = 7;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      const legSpread = 8 + e * 12;
+      ctx.moveTo(-4, -26);
+      ctx.lineTo(-legSpread, 0);
+      ctx.moveTo(4, -26);
+      ctx.lineTo(legSpread, 0);
+      ctx.stroke();
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.beginPath();
+      ctx.arc(-legSpread, 0, 4, 0, Math.PI * 2);
+      ctx.arc(legSpread, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.roundRect(-10, -32, 20, 12, 3);
+      ctx.fill();
+
+      ctx.fillStyle = kitColor;
+      ctx.strokeStyle = kitTrim;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(-11, -58, 22, 30, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = kitTrim;
+      ctx.fillRect(-11, -44, 22, 4);
+
+      const extend = 16 + e * 24;
+      const reachL = diveDir === 1 ? 8 : extend;
+      const reachR = diveDir === -1 ? 8 : extend;
+      const gloveLX = -8 - reachL;
+      const gloveRX = 8 + reachR;
+      const gloveY = -54 - e * 14;
+
+      ctx.strokeStyle = kitColor;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(-7, -50);
+      ctx.lineTo(gloveLX, gloveY);
+      ctx.moveTo(7, -50);
+      ctx.lineTo(gloveRX, gloveY);
+      ctx.stroke();
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.strokeStyle = '#0284c7';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(gloveLX, gloveY, 6.5, 0, Math.PI * 2);
+      ctx.arc(gloveRX, gloveY, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#fcd9b8';
+      ctx.beginPath();
+      ctx.arc(0, -66, 8.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = isLockdown ? '#ef4444' : '#0f172a';
+      ctx.beginPath();
+      ctx.arc(0, -73, 8.5, Math.PI, 0);
+      ctx.fill();
+
+      if (isLockdown && phaseRef.current === 'aim') {
+        ctx.fillStyle = '#ef4444';
+        ctx.shadowColor = '#ef4444';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(-2, -66, 1.5, 0, Math.PI * 2);
+        ctx.arc(2, -66, 1.5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
       ctx.restore();
     };
 
@@ -773,11 +886,11 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       const phase = phaseRef.current;
       const keeper = keeperRef.current;
       const particles = particlesRef.current;
-      const params = levelParams(levelRef.current);
-      // Has the keeper figured out your favorite spot? (tell, shown in the HUD)
+      const netRipples = netRipplesRef.current;
+      const currentStreak = streakRef.current;
+      const params = levelParams(levelRef.current, currentStreak);
       const heatNow = hottestZone(memoryRef.current);
 
-      // --- Power meter oscillation ---
       const pw = powerRef.current;
       if (pw.charging && phase === 'aim') {
         pw.value += pw.dir * params.chargeRate;
@@ -790,7 +903,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         }
       }
 
-      // --- Update ---
       let ballX = SPOT_X;
       let ballY = SPOT_Y;
       let ballScale = 1;
@@ -801,19 +913,26 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         const f = flightRef.current;
         f.t += 1;
         const t = clamp(f.t / f.duration, 0, 1);
-        const e = t * t * (3 - 2 * t); // smoothstep
+        const e = easeOutCubic(t);
         ballX = f.fromX + (f.toX - f.fromX) * e;
         ballY = f.fromY + (f.toY - f.fromY) * e;
-        ballScale = 1 - t * 0.4;
+        ballScale = 1 - t * 0.42;
         ballRot = f.spin * f.t;
-        trailRef.current.push({ x: ballX, y: ballY, r: BALL_R * ballScale });
-        if (trailRef.current.length > 7) trailRef.current.shift();
+
+        trailRef.current.push({
+          x: ballX,
+          y: ballY,
+          r: BALL_R * ballScale,
+          alpha: currentStreak >= 1 ? 0.7 : 0.4,
+        });
+        if (trailRef.current.length > 9) trailRef.current.shift();
+
         if (f.t >= f.duration) {
           phaseRef.current = 'result';
-          resultRef.current = { outcome: f.outcome, t: 0, toY: f.toY };
+          resultRef.current = { outcome: f.outcome, t: 0, toX: f.toX, toY: f.toY };
           flightRef.current = null;
           trailRef.current = [];
-          // Loose-ball physics per outcome
+
           if (f.outcome === 'goal') {
             ballVisible = false;
             looseBallRef.current = null;
@@ -822,26 +941,25 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
             looseBallRef.current = {
               x: f.toX,
               y: f.toY,
-              vx: reboundDir * (1.5 + Math.random() * 2) * -1,
-              vy: 1.5 + Math.random() * 1.5,
-              scale: 0.6,
+              vx: reboundDir * (2 + Math.random() * 2.5) * -1,
+              vy: 2 + Math.random() * 2,
+              scale: 0.58,
             };
           } else if (f.outcome === 'saved') {
             looseBallRef.current = {
               x: f.toX,
               y: f.toY,
-              vx: -keeper.diveDir * (1 + Math.random() * 1.5) || (Math.random() - 0.5) * 2,
-              vy: 2,
-              scale: 0.6,
+              vx: -keeper.diveDir * (1.8 + Math.random() * 2) || (Math.random() - 0.5) * 3,
+              vy: 2.5,
+              scale: 0.58,
             };
           } else {
-            // Miss: carries through, then drops
             looseBallRef.current = {
               x: f.toX,
               y: f.toY,
-              vx: clamp((f.toX - f.fromX) / f.duration, -3, 3) * 0.5,
-              vy: f.toY < BAR_Y ? -1.5 : 0,
-              scale: 0.6,
+              vx: clamp((f.toX - f.fromX) / f.duration, -3.5, 3.5) * 0.5,
+              vy: f.toY < BAR_Y ? -2 : 0.5,
+              scale: 0.58,
             };
           }
         }
@@ -854,19 +972,19 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
           const lb = looseBallRef.current;
           lb.x += lb.vx;
           lb.y += lb.vy;
-          lb.vy += 0.22;
+          lb.vy += 0.24;
           lb.vx *= 0.985;
-          // Bounce toward the camera, then settle
-          if (lb.y > SPOT_Y - 10 && lb.vy > 0) {
-            lb.y = SPOT_Y - 10;
+          if (lb.y > SPOT_Y - 8 && lb.vy > 0) {
+            lb.y = SPOT_Y - 8;
             lb.vy *= -0.45;
             lb.vx *= 0.7;
           }
           ballX = lb.x;
           ballY = lb.y;
           ballScale = lb.scale;
-          ballRot = lb.x * 0.05;
+          ballRot = lb.x * 0.06;
         }
+
         if (r.t >= RESULT_FRAMES) {
           resultRef.current = null;
           looseBallRef.current = null;
@@ -878,136 +996,143 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
             progress: 1,
             delay: 0,
             diveFrames: params.diveFrames,
+            saveAnim: 0,
           };
           ballVisible = true;
         }
       }
 
-      // Keeper dive animation (delayed reaction, then ease in-out)
       if (phase === 'flying' || phase === 'result') {
         if (keeper.delay > 0) {
           keeper.delay -= 1;
         } else if (keeper.progress < 1) {
-          keeper.progress = clamp(keeper.progress + 1 / keeper.diveFrames, 0, 1);
+          keeper.progress = clamp(keeper.progress + 1 / Math.max(keeper.diveFrames, 1), 0, 1);
           const e = easeInOutQuad(keeper.progress);
           keeper.x = GOAL_CENTER_X + (keeper.diveTarget - GOAL_CENTER_X) * e;
         }
       } else {
-        // Idle sway while aiming — grows with level to distract
-        keeper.x = GOAL_CENTER_X + Math.sin(frame * 0.045) * params.sway;
+        const swayAmp = currentStreak >= 1 ? params.sway * 1.5 : params.sway;
+        keeper.x = GOAL_CENTER_X + Math.sin(frame * 0.055) * swayAmp;
       }
 
-      // FX timers
       if (shakeRef.current > 0) shakeRef.current -= 1;
-      if (rippleRef.current > 0) rippleRef.current -= 1;
       if (cheerRef.current > 0) cheerRef.current -= 1;
       if (frameWobbleRef.current > 0) frameWobbleRef.current -= 1;
 
-      // ===================== DRAW =====================
+      if (Math.random() < 0.08) {
+        cameraFlashes.push({
+          x: 10 + Math.random() * (WIDTH - 20),
+          y: 70 + Math.random() * 60,
+          life: 4,
+        });
+      }
+
       ctx.save();
       if (shakeRef.current > 0) {
-        const s = (shakeRef.current / 10) * 3;
+        const s = (shakeRef.current / 12) * 4;
         ctx.translate((Math.random() - 0.5) * s * 2, (Math.random() - 0.5) * s * 2);
       }
 
-      // Night sky
       ctx.fillStyle = skyGrad;
-      ctx.fillRect(-8, -8, WIDTH + 16, 180);
+      ctx.fillRect(-8, -8, WIDTH + 16, 185);
 
-      // Stars
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      for (let i = 0; i < 24; i++) {
-        const sx = (i * 97.3) % WIDTH;
-        const sy = (i * 41.7) % 48;
-        const tw = 0.4 + 0.6 * Math.abs(Math.sin(frame * 0.02 + i));
-        ctx.globalAlpha = tw * 0.7;
-        ctx.fillRect(sx, sy, 1.4, 1.4);
-      }
-      ctx.globalAlpha = 1;
-
-      // Skyline silhouette
-      ctx.fillStyle = '#0b1226';
-      for (const b of skyline) {
-        ctx.fillRect(b.x, 58 - b.h, b.w, b.h);
-      }
-
-      // Stadium roof over upper tier
-      ctx.fillStyle = '#111c33';
-      ctx.fillRect(0, 56, WIDTH, 10);
-      ctx.fillStyle = '#0d1730';
-      ctx.fillRect(0, 64, WIDTH, 3);
-
-      // Floodlight pylons + glow + animated light cones
       for (const side of [0, 1] as const) {
-        const px = side === 0 ? 40 : WIDTH - 40;
-        ctx.fillStyle = '#334155';
-        ctx.fillRect(px - 2, 10, 4, 48);
-        // Lamp head
-        ctx.fillStyle = '#f8fafc';
+        const px = side === 0 ? 32 : WIDTH - 32;
+
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(px - 3, 8, 6, 54);
+
+        ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.roundRect(px - 16, 6, 32, 10, 3);
+        ctx.roundRect(px - 18, 4, 36, 14, 3);
         ctx.fill();
-        // Lamp bulbs
-        ctx.fillStyle = '#fef08a';
-        for (let i = 0; i < 4; i++) {
-          ctx.fillRect(px - 13 + i * 7.5, 8, 4, 6);
+
+        for (let b = 0; b < 4; b++) {
+          ctx.fillStyle = '#fef08a';
+          ctx.beginPath();
+          ctx.arc(px - 12 + b * 8, 11, 2.5, 0, Math.PI * 2);
+          ctx.fill();
         }
-        // Glow
-        const glow = ctx.createRadialGradient(px, 12, 2, px, 12, 40);
-        glow.addColorStop(0, 'rgba(254,240,138,0.5)');
+
+        const glow = ctx.createRadialGradient(px, 11, 2, px, 11, 55);
+        glow.addColorStop(0, 'rgba(254,240,138,0.55)');
         glow.addColorStop(1, 'rgba(254,240,138,0)');
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(px, 12, 40, 0, Math.PI * 2);
+        ctx.arc(px, 11, 55, 0, Math.PI * 2);
         ctx.fill();
-        // Light cone
-        const flicker = 0.05 + 0.015 * Math.sin(frame * 0.03 + side * 2);
-        ctx.fillStyle = `rgba(255,255,220,${flicker})`;
+
+        const beam = ctx.createLinearGradient(px, 14, side === 0 ? 110 : WIDTH - 110, 175);
+        beam.addColorStop(0, 'rgba(254,240,138,0.18)');
+        beam.addColorStop(1, 'rgba(254,240,138,0)');
+        ctx.fillStyle = beam;
         ctx.beginPath();
-        ctx.moveTo(px - 14, 16);
-        ctx.lineTo(side === 0 ? -10 : WIDTH + 10, 170);
-        ctx.lineTo(side === 0 ? 130 : WIDTH - 130, 170);
-        ctx.lineTo(px + 14, 16);
+        ctx.moveTo(px - 16, 14);
+        ctx.lineTo(side === 0 ? -20 : WIDTH + 20, 175);
+        ctx.lineTo(side === 0 ? 150 : WIDTH - 150, 175);
+        ctx.lineTo(px + 16, 14);
         ctx.fill();
       }
 
-      // Crowd (two tiers, animated bob; big bounce while cheering)
-      ctx.fillStyle = '#16213c';
-      ctx.fillRect(0, 66, WIDTH, 34);
-      ctx.fillStyle = '#1a2a4a';
-      ctx.fillRect(0, 100, WIDTH, 46);
-      const cheerAmp = cheerRef.current > 0 ? 2.2 : 0.7;
+      ctx.fillStyle = '#0b1329';
+      ctx.fillRect(0, 62, WIDTH, 8);
+      ctx.strokeStyle = '#1e293b';
+      ctx.lineWidth = 1.5;
+      for (let tx = 0; tx < WIDTH; tx += 28) {
+        ctx.beginPath();
+        ctx.moveTo(tx, 62);
+        ctx.lineTo(tx + 14, 70);
+        ctx.lineTo(tx + 28, 62);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = '#0a1024';
+      ctx.fillRect(0, 70, WIDTH, 74);
+
+      const cheerActive = cheerRef.current > 0;
       for (const fan of crowd) {
-        const bob = Math.abs(Math.sin(frame * 0.06 + fan.phase)) * cheerAmp;
+        const bob = Math.abs(Math.sin(frame * 0.08 + fan.phase)) * (cheerActive ? 3.5 : 0.8);
         ctx.fillStyle = fan.c;
-        ctx.globalAlpha = cheerRef.current > 0 ? 0.85 + 0.15 * Math.sin(frame * 0.2 + fan.phase) : 0.9;
-        ctx.fillRect(fan.x, fan.y - bob, 3, 4);
+        ctx.globalAlpha = cheerActive ? 0.95 : 0.85;
+        ctx.fillRect(fan.x, fan.y - bob, 3.2, 4.2);
       }
       ctx.globalAlpha = 1;
 
-      // LED ad boards
+      for (let fIdx = cameraFlashes.length - 1; fIdx >= 0; fIdx--) {
+        const flash = cameraFlashes[fIdx];
+        ctx.fillStyle = `rgba(255,255,255,${flash.life / 4})`;
+        ctx.beginPath();
+        ctx.arc(flash.x, flash.y, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+        flash.life -= 1;
+        if (flash.life <= 0) cameraFlashes.splice(fIdx, 1);
+      }
+
       ctx.fillStyle = boardGrad;
-      ctx.fillRect(0, 146, WIDTH, 24);
-      ctx.fillStyle = 'rgba(255,255,255,0.08)';
-      ctx.fillRect(0, 146, WIDTH, 3);
-      ctx.fillStyle = '#ecfdf5';
-      ctx.font = 'bold 11px system-ui, sans-serif';
+      ctx.fillRect(0, 144, WIDTH, 26);
+      ctx.fillStyle = '#042f2e';
+      ctx.fillRect(0, 144, WIDTH, 2);
+
+      const adText =
+        currentStreak >= 1
+          ? '★ LOCKDOWN MODE ACTIVE ★ KEEPER ON FULL ALERT ★'
+          : "HOPE'S CORNER FC  ★  PENALTY SHOOTOUT";
+      ctx.fillStyle = currentStreak >= 1 ? '#ef4444' : '#a7f3d0';
+      ctx.font = 'bold 10.5px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.shadowColor = '#34d399';
-      ctx.shadowBlur = 6;
-      ctx.fillText("HOPE'S CORNER FC  ★  PENALTY SHOOTOUT", WIDTH / 2, 162);
+      ctx.shadowColor = currentStreak >= 1 ? '#ef4444' : '#10b981';
+      ctx.shadowBlur = 7;
+      ctx.fillText(adText, WIDTH / 2, 161);
       ctx.shadowBlur = 0;
 
-      // Pitch
       ctx.fillStyle = pitchGrad;
       ctx.fillRect(-8, 170, WIDTH + 16, HEIGHT - 162);
 
-      // Perspective mow stripes (converge toward the goal line)
-      ctx.fillStyle = 'rgba(255,255,255,0.05)';
-      for (let i = 0; i < 4; i++) {
-        const yTop = 190 + i * 82;
-        const yBot = yTop + 41;
-        const insetTop = 8 + i * 3;
+      for (let i = 0; i < 5; i++) {
+        const yTop = 180 + i * 72;
+        const yBot = yTop + 36;
+        const insetTop = 10 + i * 4;
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.06)';
         ctx.beginPath();
         ctx.moveTo(insetTop, yTop);
         ctx.lineTo(WIDTH - insetTop, yTop);
@@ -1017,98 +1142,111 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         ctx.fill();
       }
 
-      // Penalty box lines (perspective)
       ctx.strokeStyle = 'rgba(255,255,255,0.85)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(60, 300);
-      ctx.lineTo(40, 430);
-      ctx.moveTo(300, 300);
-      ctx.lineTo(320, 430);
-      ctx.moveTo(40, 430);
-      ctx.lineTo(320, 430);
-      ctx.stroke();
-      // Six-yard box
-      ctx.beginPath();
-      ctx.moveTo(120, 262);
-      ctx.lineTo(112, 330);
-      ctx.moveTo(240, 262);
-      ctx.lineTo(248, 330);
-      ctx.moveTo(112, 330);
-      ctx.lineTo(248, 330);
-      ctx.stroke();
-      // Penalty arc
-      ctx.beginPath();
-      ctx.arc(SPOT_X, 432, 52, Math.PI * 1.18, Math.PI * 1.82);
+      ctx.moveTo(50, 290);
+      ctx.lineTo(30, 430);
+      ctx.moveTo(310, 290);
+      ctx.lineTo(330, 430);
+      ctx.moveTo(30, 430);
+      ctx.lineTo(330, 430);
       ctx.stroke();
 
-      // Goal: back/side nets (depth), then frame
-      const wob = frameWobbleRef.current > 0 ? Math.sin(frame * 0.9) * (frameWobbleRef.current / 34) * 3 : 0;
+      ctx.beginPath();
+      ctx.moveTo(115, 256);
+      ctx.lineTo(105, 320);
+      ctx.moveTo(245, 256);
+      ctx.lineTo(255, 320);
+      ctx.moveTo(105, 320);
+      ctx.lineTo(255, 320);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(SPOT_X, 430, 50, Math.PI * 1.18, Math.PI * 1.82);
+      ctx.stroke();
+
+      const wob =
+        frameWobbleRef.current > 0
+          ? Math.sin(frame * 0.95) * (frameWobbleRef.current / 40) * 4
+          : 0;
       ctx.save();
       ctx.translate(wob, 0);
 
-      // Side net panels
-      ctx.fillStyle = 'rgba(226,232,240,0.10)';
+      ctx.fillStyle = 'rgba(241,245,249,0.12)';
       ctx.beginPath();
       ctx.moveTo(POST_LEFT, BAR_Y);
-      ctx.lineTo(POST_LEFT + 14, BAR_Y - NET_DEPTH);
-      ctx.lineTo(POST_LEFT + 14, LINE_Y - NET_DEPTH);
+      ctx.lineTo(POST_LEFT + 16, BAR_Y - NET_DEPTH);
+      ctx.lineTo(POST_LEFT + 16, LINE_Y - NET_DEPTH);
       ctx.lineTo(POST_LEFT, LINE_Y);
       ctx.closePath();
       ctx.fill();
+
       ctx.beginPath();
       ctx.moveTo(POST_RIGHT, BAR_Y);
-      ctx.lineTo(POST_RIGHT - 14, BAR_Y - NET_DEPTH);
-      ctx.lineTo(POST_RIGHT - 14, LINE_Y - NET_DEPTH);
+      ctx.lineTo(POST_RIGHT - 16, BAR_Y - NET_DEPTH);
+      ctx.lineTo(POST_RIGHT - 16, LINE_Y - NET_DEPTH);
       ctx.lineTo(POST_RIGHT, LINE_Y);
       ctx.closePath();
       ctx.fill();
-      // Back net panel
-      ctx.fillStyle = 'rgba(226,232,240,0.13)';
-      ctx.fillRect(POST_LEFT + 14, BAR_Y - NET_DEPTH, POST_RIGHT - POST_LEFT - 28, LINE_Y - BAR_Y);
-      // Back net mesh
-      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+
+      ctx.fillStyle = 'rgba(241,245,249,0.14)';
+      ctx.fillRect(POST_LEFT + 16, BAR_Y - NET_DEPTH, POST_RIGHT - POST_LEFT - 32, LINE_Y - BAR_Y);
+
+      for (let rIdx = netRipples.length - 1; rIdx >= 0; rIdx--) {
+        netRipples[rIdx].life += 1;
+        if (netRipples[rIdx].life >= netRipples[rIdx].maxLife) {
+          netRipples.splice(rIdx, 1);
+        }
+      }
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
       ctx.lineWidth = 1;
-      for (let nx = POST_LEFT + 14; nx <= POST_RIGHT - 14; nx += 11) {
+      for (let nx = POST_LEFT + 16; nx <= POST_RIGHT - 16; nx += 10) {
         ctx.beginPath();
         ctx.moveTo(nx, BAR_Y - NET_DEPTH);
         ctx.lineTo(nx, LINE_Y - NET_DEPTH);
         ctx.stroke();
       }
-      for (let ny = BAR_Y - NET_DEPTH; ny <= LINE_Y - NET_DEPTH; ny += 9) {
+      for (let ny = BAR_Y - NET_DEPTH; ny <= LINE_Y - NET_DEPTH; ny += 8) {
         ctx.beginPath();
-        ctx.moveTo(POST_LEFT + 14, ny);
-        ctx.lineTo(POST_RIGHT - 14, ny);
+        ctx.moveTo(POST_LEFT + 16, ny);
+        ctx.lineTo(POST_RIGHT - 16, ny);
         ctx.stroke();
       }
-      // Front net mesh (ripples on goal)
-      const rippleAmp = (rippleRef.current / 44) * 5;
-      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-      for (let nx = POST_LEFT; nx <= POST_RIGHT; nx += 12) {
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.36)';
+      for (let nx = POST_LEFT; nx <= POST_RIGHT; nx += 11) {
         ctx.beginPath();
         ctx.moveTo(nx, BAR_Y);
-        for (let ny = BAR_Y; ny <= LINE_Y; ny += 8) {
-          const dx = rippleAmp > 0.1 ? Math.sin(ny * 0.35 + frame * 0.5 + nx * 0.1) * rippleAmp * ((ny - BAR_Y) / (LINE_Y - BAR_Y)) : 0;
-          ctx.lineTo(nx + dx, ny);
+        for (let ny = BAR_Y; ny <= LINE_Y; ny += 7) {
+          let waveOffset = 0;
+          for (const rip of netRipples) {
+            const dist = Math.hypot(nx - rip.x, ny - rip.y);
+            const waveProgress = rip.life / rip.maxLife;
+            waveOffset +=
+              Math.sin(dist * 0.18 - waveProgress * 6) * (1 - waveProgress) * rip.amp * 6;
+          }
+          ctx.lineTo(nx + waveOffset, ny);
         }
         ctx.stroke();
       }
-      for (let ny = BAR_Y; ny <= LINE_Y; ny += 10) {
+      for (let ny = BAR_Y; ny <= LINE_Y; ny += 9) {
         ctx.beginPath();
         ctx.moveTo(POST_LEFT, ny);
         ctx.lineTo(POST_RIGHT, ny);
         ctx.stroke();
       }
-      // Frame with glow
+
       const postGrad = ctx.createLinearGradient(POST_LEFT, BAR_Y, POST_RIGHT, BAR_Y);
-      postGrad.addColorStop(0, '#e2e8f0');
+      postGrad.addColorStop(0, '#cbd5e1');
       postGrad.addColorStop(0.5, '#ffffff');
-      postGrad.addColorStop(1, '#e2e8f0');
+      postGrad.addColorStop(1, '#cbd5e1');
       ctx.strokeStyle = postGrad;
-      ctx.lineWidth = 5;
+      ctx.lineWidth = 6;
       ctx.lineCap = 'round';
       ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 10;
+      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.moveTo(POST_LEFT, LINE_Y + 4);
       ctx.lineTo(POST_LEFT, BAR_Y);
@@ -1118,87 +1256,86 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.shadowBlur = 0;
       ctx.restore();
 
-      // Keeper
       drawKeeper(keeper.x, keeper.diveDir, phase === 'aim' ? 0 : keeper.progress);
 
-      // Penalty spot
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.ellipse(SPOT_X, SPOT_Y + BALL_R + 4, 8, 3, 0, 0, Math.PI * 2);
+      ctx.ellipse(SPOT_X, SPOT_Y + BALL_R + 3, 7, 3, 0, 0, Math.PI * 2);
       ctx.fill();
 
-      // Aim guide + crosshair (aim phase only)
       if (phase === 'aim') {
         const aim = effAim();
-        // Guide line
-        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+
+        ctx.strokeStyle = currentStreak >= 1 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.4)';
         ctx.lineWidth = 1.5;
-        ctx.setLineDash([5, 5]);
+        ctx.setLineDash([4, 4]);
         ctx.beginPath();
         ctx.moveTo(SPOT_X, SPOT_Y);
         ctx.lineTo(aim.x, aim.y);
         ctx.stroke();
         ctx.setLineDash([]);
-        // Crosshair colored by current power zone while charging
+
         const power = pw.charging ? pw.value : 0;
+        const sweetLo = currentStreak >= 1 ? 0.62 : SWEET_LO;
+        const sweetHi = currentStreak >= 1 ? 0.8 : SWEET_HI;
         const chColor = !pw.charging
           ? '#fbbf24'
           : power > OVERHIT
             ? '#ef4444'
-            : power >= SWEET_LO && power <= SWEET_HI
+            : power >= sweetLo && power <= sweetHi
               ? '#22c55e'
               : '#fbbf24';
+
         ctx.strokeStyle = chColor;
         ctx.lineWidth = 2;
         ctx.shadowColor = chColor;
-        ctx.shadowBlur = 8;
-        const cr = pw.charging ? 10 + Math.sin(frame * 0.3) * 2 : 10;
+        ctx.shadowBlur = 10;
+        const cr = pw.charging ? 11 + Math.sin(frame * 0.35) * 2 : 11;
         ctx.beginPath();
         ctx.arc(aim.x, aim.y, cr, 0, Math.PI * 2);
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(aim.x - 15, aim.y);
-        ctx.lineTo(aim.x + 15, aim.y);
-        ctx.moveTo(aim.x, aim.y - 15);
-        ctx.lineTo(aim.x, aim.y + 15);
+        ctx.moveTo(aim.x - 16, aim.y);
+        ctx.lineTo(aim.x + 16, aim.y);
+        ctx.moveTo(aim.x, aim.y - 16);
+        ctx.lineTo(aim.x, aim.y + 16);
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Power meter (right edge)
-        const mx = WIDTH - 28;
-        const my = 356;
-        const mh = 120;
+        const mx = WIDTH - 26;
+        const my = 350;
+        const mh = 126;
         const mw = 14;
-        ctx.fillStyle = 'rgba(2,6,23,0.75)';
+        ctx.fillStyle = 'rgba(2,6,23,0.85)';
         ctx.beginPath();
-        ctx.roundRect(mx - 8, my - 24, mw + 16, mh + 34, 8);
+        ctx.roundRect(mx - 8, my - 26, mw + 16, mh + 36, 8);
         ctx.fill();
-        // Zone track
+
         const zoneY = (v: number) => my + mh - v * mh;
-        // Low zone (gray)
-        ctx.fillStyle = 'rgba(148,163,184,0.35)';
-        ctx.fillRect(mx, zoneY(SWEET_LO), mw, SWEET_LO * mh);
-        // Sweet zone (green)
-        ctx.fillStyle = 'rgba(34,197,94,0.55)';
-        ctx.fillRect(mx, zoneY(SWEET_HI), mw, (SWEET_HI - SWEET_LO) * mh);
-        // Amber zones
-        ctx.fillStyle = 'rgba(251,191,36,0.45)';
-        ctx.fillRect(mx, zoneY(OVERHIT), mw, (OVERHIT - SWEET_HI) * mh);
-        // Overhit zone (red)
-        ctx.fillStyle = 'rgba(239,68,68,0.55)';
+
+        ctx.fillStyle = 'rgba(148,163,184,0.3)';
+        ctx.fillRect(mx, zoneY(sweetLo), mw, sweetLo * mh);
+
+        ctx.fillStyle = 'rgba(34,197,94,0.6)';
+        ctx.fillRect(mx, zoneY(sweetHi), mw, (sweetHi - sweetLo) * mh);
+
+        ctx.fillStyle = 'rgba(251,191,36,0.5)';
+        ctx.fillRect(mx, zoneY(OVERHIT), mw, (OVERHIT - sweetHi) * mh);
+
+        ctx.fillStyle = 'rgba(239,68,68,0.6)';
         ctx.fillRect(mx, zoneY(1), mw, (1 - OVERHIT) * mh);
-        // Fill to current power
+
         if (pw.charging) {
           const fillH = pw.value * mh;
           const fg = ctx.createLinearGradient(0, my + mh, 0, my);
           fg.addColorStop(0, '#22c55e');
-          fg.addColorStop(0.8, '#fbbf24');
+          fg.addColorStop(0.75, '#fbbf24');
           fg.addColorStop(1, '#ef4444');
           ctx.fillStyle = fg;
-          ctx.globalAlpha = 0.9;
+          ctx.globalAlpha = 0.95;
           ctx.fillRect(mx, my + mh - fillH, mw, fillH);
           ctx.globalAlpha = 1;
-          // Marker line
+
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 2;
           ctx.beginPath();
@@ -1206,36 +1343,47 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
           ctx.lineTo(mx + mw + 4, my + mh - fillH);
           ctx.stroke();
         }
-        // Track border
-        ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
         ctx.lineWidth = 1;
         ctx.strokeRect(mx, my, mw, mh);
-        ctx.fillStyle = '#cbd5e1';
+        ctx.fillStyle = currentStreak >= 1 ? '#f87171' : '#cbd5e1';
         ctx.font = 'bold 9px system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('PWR', mx + mw / 2, my - 10);
+        ctx.fillText('POWER', mx + mw / 2, my - 10);
       }
 
-      // Ball trail (flight only)
       if (phase === 'flying') {
         const trail = trailRef.current;
-        for (let i = 0; i < trail.length - 1; i++) {
+        for (let i = 0; i < trail.length; i++) {
           const tp = trail[i];
-          ctx.globalAlpha = (i / trail.length) * 0.25;
-          ctx.fillStyle = '#e2e8f0';
+          const trColor = currentStreak >= 1 ? 'rgba(244,63,94,' : 'rgba(226,232,240,';
+          ctx.fillStyle = `${trColor}${(i / trail.length) * tp.alpha})`;
           ctx.beginPath();
-          ctx.arc(tp.x, tp.y, tp.r * 0.8, 0, Math.PI * 2);
+          ctx.arc(tp.x, tp.y, tp.r * 0.85, 0, Math.PI * 2);
           ctx.fill();
         }
-        ctx.globalAlpha = 1;
       }
 
-      // Ball
       if (ballVisible) {
-        drawBall(ballX, ballY, BALL_R * ballScale, ballRot);
+        const heightAboveGround = Math.max(0, LINE_Y - ballY);
+        const shadowScale = clamp(1 - heightAboveGround / 280, 0.35, 1);
+        ctx.fillStyle = `rgba(0,0,0,${0.3 * shadowScale})`;
+        ctx.beginPath();
+        ctx.ellipse(
+          ballX,
+          ballY + BALL_R * ballScale + 3 + (1 - shadowScale) * 10,
+          BALL_R * ballScale * shadowScale * 1.1,
+          BALL_R * ballScale * shadowScale * 0.35,
+          0,
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        drawSoccerBall(ballX, ballY, BALL_R * ballScale, ballRot);
       }
 
-      // Particles
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
         p.x += p.vx;
@@ -1243,32 +1391,43 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         p.vy += p.gravity;
         p.vx *= 0.98;
         p.life -= 0.02;
+        if (p.vRot) p.rot = (p.rot || 0) + p.vRot;
         if (p.life <= 0) {
           particles.splice(i, 1);
           continue;
         }
         ctx.globalAlpha = Math.max(p.life, 0);
         ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-        ctx.fill();
+
+        if (p.shape === 'square') {
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          if (p.rot) ctx.rotate(p.rot);
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.globalAlpha = 1;
       }
 
-      // Vignette
       ctx.fillStyle = vigGrad;
       ctx.fillRect(-8, -8, WIDTH + 16, HEIGHT + 16);
 
-      // Result banner (pops in)
       if (phase === 'result' && resultRef.current) {
         const outcome = resultRef.current.outcome;
         const t = clamp(resultRef.current.t / 12, 0, 1);
         const pop = easeOutBack(t);
+        const isConsecutiveGoal = outcome === 'goal' && streakRef.current >= 2;
         const text =
           outcome === 'goal'
-            ? 'GOAL!'
+            ? isConsecutiveGoal
+              ? 'STREAK GOAL!'
+              : 'GOAL!'
             : outcome === 'saved'
-              ? 'SAVED!'
+              ? 'DENIED!'
               : outcome === 'post'
                 ? 'OFF THE POST!'
                 : resultRef.current.toY < BAR_Y
@@ -1276,91 +1435,103 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
                   : 'WIDE!';
         const sub =
           outcome === 'goal'
-            ? streakRef.current >= 3
-              ? `${streakRef.current} in a row — unstoppable!`
-              : 'What a finish!'
+            ? isConsecutiveGoal
+              ? 'UNREAL! 2 IN A ROW!'
+              : 'What a strike!'
             : outcome === 'saved'
               ? anticipatedRef.current
-                ? 'He knew you were going there…'
-                : 'The keeper read it…'
+                ? 'He anticipated your shot!'
+                : 'Superhuman fingertip save!'
               : outcome === 'post'
                 ? 'Inches away!'
-                : 'That one stays row Z.';
-        const color = outcome === 'goal' ? '#22c55e' : outcome === 'saved' ? '#38bdf8' : '#fbbf24';
+                : 'Ballooned into the crowd.';
+
+        const color =
+          outcome === 'goal' ? '#22c55e' : outcome === 'saved' ? '#38bdf8' : '#fbbf24';
+
         ctx.save();
-        ctx.translate(WIDTH / 2, 362);
+        ctx.translate(WIDTH / 2, 355);
         ctx.scale(pop, pop);
-        ctx.fillStyle = 'rgba(2,6,23,0.78)';
+        ctx.fillStyle = 'rgba(2,6,23,0.88)';
         ctx.beginPath();
-        ctx.roundRect(-130, -34, 260, 68, 14);
+        ctx.roundRect(-135, -36, 270, 72, 14);
         ctx.fill();
         ctx.strokeStyle = color;
         ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.6;
+        ctx.globalAlpha = 0.7;
         ctx.stroke();
         ctx.globalAlpha = 1;
         ctx.fillStyle = color;
         ctx.shadowColor = color;
         ctx.shadowBlur = 14;
-        ctx.font = '900 32px system-ui, sans-serif';
+        ctx.font = '900 30px system-ui, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(text, 0, 4);
         ctx.shadowBlur = 0;
-        ctx.fillStyle = '#e2e8f0';
+        ctx.fillStyle = '#f1f5f9';
         ctx.font = '600 12px system-ui, sans-serif';
         ctx.fillText(sub, 0, 24);
         ctx.restore();
       }
 
-      // Level-up flash (top center)
       if (levelFlashRef.current) {
         const lf = levelFlashRef.current;
         lf.t += 1;
-        const alpha = lf.t < 70 ? 1 : clamp(1 - (lf.t - 70) / 20, 0, 1);
+        const alpha = lf.t < 65 ? 1 : clamp(1 - (lf.t - 65) / 20, 0, 1);
         const pop = easeOutBack(clamp(lf.t / 10, 0, 1));
         ctx.save();
         ctx.globalAlpha = alpha;
-        ctx.translate(WIDTH / 2, 210);
+        ctx.translate(WIDTH / 2, 205);
         ctx.scale(pop, pop);
-        ctx.fillStyle = 'rgba(2,6,23,0.8)';
+        ctx.fillStyle = 'rgba(2,6,23,0.85)';
         ctx.beginPath();
-        ctx.roundRect(-110, -18, 220, 36, 10);
+        ctx.roundRect(-115, -18, 230, 36, 10);
         ctx.fill();
         ctx.fillStyle = '#f472b6';
         ctx.shadowColor = '#f472b6';
         ctx.shadowBlur = 10;
-        ctx.font = '900 16px system-ui, sans-serif';
+        ctx.font = '900 15px system-ui, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText(`LEVEL ${lf.level} — KEEPER GETS SHARPER`, 0, 6);
+        ctx.fillText(`LEVEL ${lf.level} — KEEPER SPEED UP`, 0, 6);
         ctx.restore();
-        if (lf.t >= 92) levelFlashRef.current = null;
+        if (lf.t >= 88) levelFlashRef.current = null;
       }
 
-      // Score HUD (bottom)
-      ctx.fillStyle = 'rgba(2,6,23,0.85)';
+      ctx.fillStyle = 'rgba(2,6,23,0.88)';
       ctx.beginPath();
-      ctx.roundRect(10, HEIGHT - 36, WIDTH - 20, 28, 8);
+      ctx.roundRect(10, HEIGHT - 38, WIDTH - 20, 30, 8);
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+      ctx.strokeStyle = currentStreak >= 1 ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.15)';
       ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.font = 'bold 13px "Courier New", Courier, monospace';
+
+      ctx.font = 'bold 12px "Courier New", Courier, monospace';
       ctx.textAlign = 'left';
       ctx.fillStyle = '#4ade80';
-      ctx.fillText(`GOALS ${goalsRef.current}`, 22, HEIGHT - 17);
+      ctx.fillText(`GOALS ${goalsRef.current}`, 20, HEIGHT - 18);
       ctx.fillStyle = '#e2e8f0';
-      ctx.fillText(`KICKS ${kicksRef.current}`, 118, HEIGHT - 17);
-      ctx.fillStyle = heatNow ? '#fbbf24' : '#f472b6';
-      ctx.fillText(heatNow ? `LV ${levelRef.current} MARKED` : `LV ${levelRef.current}`, 208, HEIGHT - 17);
+      ctx.fillText(`KICKS ${kicksRef.current}`, 102, HEIGHT - 18);
+
+      if (currentStreak >= 1) {
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText(`LOCKDOWN`, 182, HEIGHT - 18);
+      } else if (heatNow) {
+        ctx.fillStyle = '#fbbf24';
+        ctx.fillText(`ADAPTING`, 182, HEIGHT - 18);
+      } else {
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText(`LV ${levelRef.current}`, 182, HEIGHT - 18);
+      }
+
       ctx.textAlign = 'right';
-      ctx.fillStyle = streakRef.current >= 3 ? '#fbbf24' : '#94a3b8';
+      ctx.fillStyle = currentStreak >= 1 ? '#ef4444' : '#94a3b8';
       ctx.fillText(
-        streakRef.current > 0 ? `STREAK x${streakRef.current}` : 'STREAK –',
-        WIDTH - 22,
-        HEIGHT - 17
+        currentStreak > 0 ? `STREAK x${currentStreak}` : 'STREAK 0',
+        WIDTH - 20,
+        HEIGHT - 18
       );
 
-      ctx.restore(); // screen shake
+      ctx.restore();
       animFrameRef.current = requestAnimationFrame(loop);
     };
 
@@ -1373,9 +1544,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto p-2 select-none"
       data-testid="penalty-overlay"
     >
-      {/* Backdrop */}
       <motion.div
-        className="absolute inset-0 bg-black/80"
+        className="absolute inset-0 bg-black/85"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -1383,18 +1553,23 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         data-testid="penalty-backdrop"
       />
 
-      {/* Game container */}
       <motion.div
-        className="relative z-30 w-full max-w-[360px] my-auto rounded-2xl shadow-2xl overflow-hidden bg-slate-900 border border-slate-700"
+        className="relative z-30 w-full max-w-[360px] my-auto rounded-2xl shadow-2xl overflow-hidden bg-slate-950 border border-slate-700"
         onContextMenu={(e) => e.preventDefault()}
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.9 }}
         transition={{ duration: 0.2 }}
       >
-        {/* Close bar — large touch target for quick dismiss */}
-        <div className="flex items-center justify-between px-3 py-2 bg-slate-800/80">
-          <span className="text-xs font-bold tracking-widest text-emerald-400 uppercase">Penalty Kick</span>
+        <div className="flex items-center justify-between px-3 py-2 bg-slate-900/90 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black tracking-widest text-emerald-400 uppercase">Penalty Kick</span>
+            {streakCount >= 1 && (
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600/80 text-white animate-pulse">
+                LOCKDOWN
+              </span>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="flex items-center gap-1.5 px-4 min-h-[44px] rounded-lg bg-red-600/80 hover:bg-red-500 active:bg-red-400 text-white text-xs font-semibold transition-colors touch-manipulation"
@@ -1406,7 +1581,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
           </button>
         </div>
 
-        {/* Canvas */}
         <canvas
           ref={canvasRef}
           width={WIDTH}
@@ -1421,21 +1595,24 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
           }}
         />
 
-        {/* Kick button + hint */}
-        <div className="px-3 py-2 bg-slate-800/60 space-y-1.5">
+        <div className="px-3 py-2.5 bg-slate-900/80 border-t border-slate-800 space-y-1.5">
           <button
             type="button"
             onClick={quickShot}
-            className="w-full py-2.5 min-h-[48px] rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400 text-white text-sm font-black tracking-widest uppercase transition-colors touch-manipulation"
+            className={`w-full py-2.5 min-h-[48px] rounded-xl text-white text-sm font-black tracking-widest uppercase transition-all touch-manipulation ${
+              streakCount >= 1
+                ? 'bg-rose-600 hover:bg-rose-500 active:bg-rose-400 shadow-lg shadow-rose-600/30'
+                : 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400'
+            }`}
             data-testid="penalty-kick"
           >
-            Kick
+            {streakCount >= 1 ? 'Strike 2! (Lockdown)' : 'Kick'}
           </button>
           <div className="text-center">
-            <span className="text-[10px] text-slate-500">
+            <span className="text-[10px] text-slate-400">
               {isTouchDevice
-                ? 'Hold & drag to aim, release to shoot — green zone is the sweet spot'
-                : 'Move to aim · hold click or Space to charge, release to shoot · ESC to close'}
+                ? 'Hold & drag to aim, release to shoot · Green zone = sweet spot'
+                : 'Aim with mouse/arrows · Hold Space/click to charge, release to shoot · Green = sweet spot'}
             </span>
           </div>
         </div>

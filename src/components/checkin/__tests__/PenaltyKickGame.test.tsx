@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { PenaltyKickGame, planDive, zoneIndexForShot, zoneCenterForIndex, hottestZone } from '../PenaltyKickGame';
+import { PenaltyKickGame, planDive, zoneIndexForShot, zoneCenterForIndex, hottestZone, levelParams } from '../PenaltyKickGame';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -131,7 +131,46 @@ describe('keeper learning (adaptive difficulty)', () => {
   it('reads the shot honestly when there is nothing to anticipate (p = 0)', () => {
     const plan = planDive(200, params, { x: 262.5, y: 210, shots: 5, p: 0 });
     expect(plan.anticipated).toBe(false);
-    // readProb 1 + zero noise: dives exactly where the ball goes
     expect(plan.diveTarget).toBe(200);
   });
+
+  it('maps 2D shots across rows and columns', () => {
+    expect(zoneIndexForShot(80, 180)).toBe(0);
+    expect(zoneIndexForShot(280, 180)).toBe(3);
+    expect(zoneIndexForShot(80, 240)).toBe(4);
+    expect(zoneIndexForShot(280, 240)).toBe(7);
+  });
+
+  it('scales keeper parameters to lockdown mode on streak >= 1', () => {
+    const normal = levelParams(5, 0);
+    const lockdown = levelParams(5, 1);
+    expect(lockdown.readProb).toBeGreaterThan(normal.readProb);
+    expect(lockdown.reach).toBeGreaterThan(normal.reach);
+    expect(lockdown.saveR).toBeGreaterThan(normal.saveR);
+    expect(lockdown.reactDelay).toBe(0);
+    expect(lockdown.diveFrames).toBeLessThan(normal.diveFrames);
+  });
+
+  it('anticipates side switch after scoring on streak >= 1', () => {
+    const plan = planDive(100, params, null, {
+      streak: 1,
+      lastGoalSide: 1,
+      postGoalSwitchRatio: 0.8,
+    });
+    expect(plan.anticipated).toBe(true);
+    expect(plan.diveDir).toBe(-1);
+    expect(plan.diveTarget).toBeLessThan(180);
+  });
+
+  it('anticipates side repeat when user history favors repeating', () => {
+    const plan = planDive(260, params, null, {
+      streak: 1,
+      lastGoalSide: 1,
+      postGoalSwitchRatio: 0.2,
+    });
+    expect(plan.anticipated).toBe(true);
+    expect(plan.diveDir).toBe(1);
+    expect(plan.diveTarget).toBeGreaterThan(180);
+  });
 });
+
