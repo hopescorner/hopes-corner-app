@@ -98,9 +98,9 @@ const MAX_LEVEL = 10;
 const GOALS_PER_LEVEL = 2;
 
 const POWER_MIN = 0.15;
-const SWEET_LO = 0.58;
-const SWEET_HI = 0.84;
-const OVERHIT = 0.91;
+const SWEET_LO = 0.72;
+const SWEET_HI = 0.78;
+const OVERHIT = 0.83;
 
 const MEMORY_WINDOW = 20;
 const LEARN_ZONES = 4;
@@ -483,13 +483,26 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
       spawnBurst(SPOT_X, SPOT_Y + 12, ['#ffffff', '#e2e8f0', '#cbd5e1'], 16, 2.2, 0.05, 'spark');
 
-      let spread = 2 + power * power * 18;
-      if (currentStreak >= 1) spread += 6;
-      if (power > OVERHIT) spread += (power - OVERHIT) * 200;
+      const sweetLo = currentStreak >= 1 ? 0.74 : SWEET_LO;
+      const sweetHi = currentStreak >= 1 ? 0.78 : SWEET_HI;
+      const isSweet = power >= sweetLo && power <= sweetHi;
+
+      let spread = 2;
+      if (isSweet) {
+        spread = 2.5 + (currentStreak >= 1 ? 2.5 : 0);
+      } else if (power < sweetLo) {
+        spread = 6 + (1 - power / sweetLo) * 16;
+      } else if (power > OVERHIT) {
+        spread = 16 + (power - OVERHIT) * 240;
+      } else {
+        spread = 6 + (power - sweetHi) * 40;
+      }
 
       let tx = target.x + (Math.random() + Math.random() - 1) * spread;
       let ty = target.y + (Math.random() + Math.random() - 1) * spread;
-      if (power > OVERHIT) ty -= Math.random() * (power - OVERHIT) * 280;
+      if (power > OVERHIT) {
+        ty -= (power - OVERHIT) * 340 + Math.random() * 40;
+      }
       tx = clamp(tx, 6, WIDTH - 6);
       ty = clamp(ty, 25, SPOT_Y - 30);
 
@@ -523,14 +536,16 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       });
 
       anticipatedRef.current = plan.anticipated;
-      const duration = Math.max(9, Math.round(25 - power * 16));
+      const duration = isSweet
+        ? Math.max(9, Math.round(22 - power * 15))
+        : Math.max(13, Math.round(27 - power * 16));
 
       if (outcome === 'goal') {
         const glove = gloveAt(duration, plan, params);
         const distToGlove = Math.hypot(tx - glove.x, ty - glove.y);
         const shotSide = tx < GOAL_CENTER_X ? -1 : 1;
         const isDiveToShotSide = plan.diveDir === shotSide;
-        if (distToGlove < params.saveR || (currentStreak >= 1 && isDiveToShotSide && power < 0.82)) {
+        if (distToGlove < params.saveR || (isDiveToShotSide && !isSweet) || (currentStreak >= 1 && isDiveToShotSide && power < 0.82)) {
           outcome = 'saved';
         }
       }
@@ -629,7 +644,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
   const quickShot = useCallback(() => {
     if (phaseRef.current !== 'aim' || powerRef.current.charging) return;
-    shoot(streakRef.current >= 1 ? 0.72 : 0.65);
+    shoot(0.52);
   }, [shoot]);
 
   useEffect(() => {
@@ -1315,15 +1330,17 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         ctx.setLineDash([]);
 
         const power = pw.charging ? pw.value : 0;
-        const sweetLo = currentStreak >= 1 ? 0.62 : SWEET_LO;
-        const sweetHi = currentStreak >= 1 ? 0.8 : SWEET_HI;
+        const sweetLo = currentStreak >= 1 ? 0.74 : SWEET_LO;
+        const sweetHi = currentStreak >= 1 ? 0.78 : SWEET_HI;
         const chColor = !pw.charging
           ? '#fbbf24'
           : power > OVERHIT
             ? '#ef4444'
             : power >= sweetLo && power <= sweetHi
               ? '#22c55e'
-              : '#fbbf24';
+              : power > sweetHi
+                ? '#f59e0b'
+                : '#94a3b8';
 
         ctx.strokeStyle = chColor;
         ctx.lineWidth = 2;
@@ -1355,13 +1372,13 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         ctx.fillStyle = 'rgba(148,163,184,0.3)';
         ctx.fillRect(mx, zoneY(sweetLo), mw, sweetLo * mh);
 
-        ctx.fillStyle = 'rgba(34,197,94,0.6)';
+        ctx.fillStyle = 'rgba(34,197,94,0.85)';
         ctx.fillRect(mx, zoneY(sweetHi), mw, (sweetHi - sweetLo) * mh);
 
-        ctx.fillStyle = 'rgba(251,191,36,0.5)';
+        ctx.fillStyle = 'rgba(251,191,36,0.6)';
         ctx.fillRect(mx, zoneY(OVERHIT), mw, (OVERHIT - sweetHi) * mh);
 
-        ctx.fillStyle = 'rgba(239,68,68,0.6)';
+        ctx.fillStyle = 'rgba(239,68,68,0.7)';
         ctx.fillRect(mx, zoneY(1), mw, (1 - OVERHIT) * mh);
 
         if (pw.charging) {
