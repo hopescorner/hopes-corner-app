@@ -307,8 +307,8 @@ export default function DashboardPage() {
     return (
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
             {/* Page Header */}
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
-                <div>
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 min-w-0">
+                <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-3">
                         <div className="p-2 bg-indigo-100 rounded-lg text-indigo-600">
                             <BarChart3 size={20} />
@@ -322,7 +322,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Desktop Tab Switcher */}
-                <div className="hidden lg:flex items-center gap-3">
+                <div className="hidden lg:flex flex-wrap items-center gap-3 max-w-full min-w-0">
                     <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2">
                         <label htmlFor="report-preload-year" className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                             Report Year
@@ -338,7 +338,7 @@ export default function DashboardPage() {
                             ))}
                         </select>
                     </div>
-                    <div className="flex p-1.5 bg-gray-100 rounded-2xl gap-1">
+                    <div className="flex flex-wrap p-1.5 bg-gray-100 rounded-2xl gap-1 min-w-0">
                     {DASHBOARD_TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
@@ -350,7 +350,7 @@ export default function DashboardPage() {
                                 onFocus={() => preloadReportIntent(tab.id)}
                                 onMouseEnter={() => preloadReportIntent(tab.id)}
                                 className={cn(
-                                    "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black transition-all",
+                                    "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black whitespace-nowrap transition-all",
                                     isActive
                                         ? "bg-white shadow-xl shadow-gray-200/50 scale-105"
                                         : "text-gray-400 hover:text-gray-600 hover:bg-white/50"
