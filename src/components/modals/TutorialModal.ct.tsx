@@ -14,14 +14,14 @@ test.describe('TutorialModal', () => {
       <TutorialModal isOpen={true} onClose={() => {}} />
     );
     await expect(component.getByText("Welcome to Hope's Corner!")).toBeVisible();
-    await expect(component.getByText('Step 1 of 8')).toBeVisible();
+    await expect(component.getByText('Step 1 of 9')).toBeVisible();
   });
 
-  test('has 8 progress dots', async ({ mount }) => {
+  test('has 9 progress dots', async ({ mount }) => {
     const component = await mount(
       <TutorialModal isOpen={true} onClose={() => {}} />
     );
-    for (let i = 1; i <= 8; i++) {
+    for (let i = 1; i <= 9; i++) {
       await expect(component.getByLabel(`Go to step ${i}`)).toBeVisible();
     }
   });
@@ -39,7 +39,7 @@ test.describe('TutorialModal', () => {
       <TutorialModal isOpen={true} onClose={() => {}} />
     );
     await component.getByRole('button', { name: /Next/i }).click();
-    await expect(component.getByText('Step 2 of 8')).toBeVisible();
+    await expect(component.getByText('Step 2 of 9')).toBeVisible();
     await expect(component.getByText('Search for a Guest')).toBeVisible();
   });
 
@@ -48,22 +48,22 @@ test.describe('TutorialModal', () => {
       <TutorialModal isOpen={true} onClose={() => {}} />
     );
     await component.getByRole('button', { name: /Next/i }).click();
-    await expect(component.getByText('Step 2 of 8')).toBeVisible();
+    await expect(component.getByText('Step 2 of 9')).toBeVisible();
 
     await component.getByRole('button', { name: /Back/i }).click();
-    await expect(component.getByText('Step 1 of 8')).toBeVisible();
+    await expect(component.getByText('Step 1 of 9')).toBeVisible();
   });
 
   test('clicking a progress dot navigates to that step', async ({ mount }) => {
     const component = await mount(
       <TutorialModal isOpen={true} onClose={() => {}} />
     );
-    await component.getByLabel('Go to step 5').click();
-    await expect(component.getByText('Step 5 of 8')).toBeVisible();
+    await component.getByLabel('Go to step 6').click();
+    await expect(component.getByText('Step 6 of 9')).toBeVisible();
     await expect(component.getByText('Link Guests Together')).toBeVisible();
   });
 
-  test('navigating through all 8 steps shows correct titles', async ({ mount }) => {
+  test('navigating through all 9 steps shows correct titles', async ({ mount }) => {
     const component = await mount(
       <TutorialModal isOpen={true} onClose={() => {}} />
     );
@@ -71,10 +71,11 @@ test.describe('TutorialModal', () => {
     const stepTitles = [
       "Welcome to Hope's Corner!",
       'Search for a Guest',
-      'Quick Add Meals',
+      'Log Meals Fast',
+      'Book Showers & Laundry in One Click',
       'Add a New Guest',
       'Link Guests Together',
-      'Ban Guests (Administrators)',
+      'Ban Guests When Needed',
       'Keyboard Shortcuts',
       "You're Ready!",
     ];
@@ -84,7 +85,7 @@ test.describe('TutorialModal', () => {
         await component.getByLabel(`Go to step ${i + 1}`).click();
       }
       await expect(component.getByRole('heading', { name: stepTitles[i] })).toBeVisible();
-      await expect(component.getByText(`Step ${i + 1} of 8`)).toBeVisible();
+      await expect(component.getByText(`Step ${i + 1} of 9`)).toBeVisible();
     }
   });
 
@@ -93,7 +94,7 @@ test.describe('TutorialModal', () => {
       <TutorialModal isOpen={true} onClose={() => {}} />
     );
     // Jump to last step
-    await component.getByLabel('Go to step 8').click();
+    await component.getByLabel('Go to step 9').click();
     await expect(component.getByRole('button', { name: /Get Started/i })).toBeVisible();
     // "Next" button should not be visible
     await expect(component.getByRole('button', { name: /^Next$/i })).not.toBeVisible();
@@ -107,7 +108,7 @@ test.describe('TutorialModal', () => {
         onClose={() => { closeCalled = true; }}
       />
     );
-    await component.getByLabel('Go to step 8').click();
+    await component.getByLabel('Go to step 9').click();
     await component.getByRole('button', { name: /Get Started/i }).click();
     expect(closeCalled).toBe(true);
   });
@@ -141,13 +142,18 @@ test.describe('TutorialModal', () => {
       <TutorialModal isOpen={true} onClose={() => {}} />
     );
 
-    // Step 3 - Quick Add Meals
+    // Step 3 - Log Meals Fast
     await component.getByLabel('Go to step 3').click();
     await expect(component.getByText(/Click the/)).toBeVisible();
     await expect(component.getByText(/Only one meal entry/)).toBeVisible();
 
-    // Step 7 - Keyboard Shortcuts
-    await component.getByLabel('Go to step 7').click();
+    // Step 4 - Book Showers & Laundry in One Click
+    await component.getByLabel('Go to step 4').click();
+    await expect(component.getByText(/next open time slot/)).toBeVisible();
+    await expect(component.getByText(/waitlist/)).toBeVisible();
+
+    // Step 8 - Keyboard Shortcuts
+    await component.getByLabel('Go to step 8').click();
     await expect(component.getByText(/Speed up your workflow/)).toBeVisible();
   });
 });

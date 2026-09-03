@@ -61,14 +61,14 @@ describe('TutorialModal', () => {
         render(<TutorialModal isOpen={true} onClose={mockOnClose} />);
 
         // Click Next until last step
-        // We have 8 steps.
+        // We have 9 steps.
         // Step 1 -> Click Next -> Step 2
         // ...
         // Better way: check for "Get Started" button?
         // It only appears on last step.
 
         // Just loop clicks
-        const steps = 8; // Based on array
+        const steps = 9; // Based on array
         for (let i = 0; i < steps - 1; i++) {
             fireEvent.click(screen.getByText('Next'));
         }
@@ -88,6 +88,6 @@ describe('TutorialModal', () => {
         const dots = screen.getAllByLabelText(/Go to step/);
         fireEvent.click(dots[2]);
 
-        expect(screen.getByText('Quick Add Meals')).toBeDefined();
+        expect(screen.getByText('Log Meals Fast')).toBeDefined();
     });
 });

@@ -12,6 +12,9 @@ import {
     CheckCircle2,
     FileText,
     Clock,
+    ShowerHead,
+    Keyboard,
+    Undo2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -57,31 +60,35 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
                             <span>Type any part of their name - first, last, or preferred name</span>
                         </li>
                         <li className="flex items-start gap-2">
+                            <Keyboard size={16} className="mt-0.5 flex-shrink-0 text-gray-500" />
+                            <span>Press <strong>Ctrl+K</strong> (or <strong>⌘K</strong> on Mac) to jump to search from anywhere</span>
+                        </li>
+                        <li className="flex items-start gap-2">
                             <Lightbulb size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
                             <span>If you misspell a name, we&apos;ll suggest similar matches!</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
-                            <span>We&apos;ll find existing guests in the system</span>
+                            <span>The Recent Check-ins bar shows guests you just served for quick follow-up</span>
                         </li>
                     </ul>
                 </div>
             ),
         },
         {
-            title: "Quick Add Meals",
+            title: "Log Meals Fast",
             icon: Utensils,
             iconColor: "text-green-500",
             bgColor: "bg-green-50",
             content: (
                 <div className="space-y-3">
                     <p>
-                        After searching for a guest, quickly log meal services.
+                        After finding a guest, log their meal in seconds.
                     </p>
                     <ul className="text-sm space-y-2 text-gray-700">
                         <li className="flex items-start gap-2">
                             <Utensils size={16} className="mt-0.5 flex-shrink-0 text-green-600" />
-                            <span>Click the <strong>1</strong> or <strong>2</strong> button to log meals</span>
+                            <span>Click the meal buttons on the card, or press <strong>1</strong> or <strong>2</strong> on your keyboard</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
@@ -90,6 +97,37 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
                         <li className="flex items-start gap-2">
                             <Clock size={16} className="mt-0.5 flex-shrink-0 text-blue-500" />
                             <span>Guests with recent meals show a green &quot;RECENT&quot; badge</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <Undo2 size={16} className="mt-0.5 flex-shrink-0 text-gray-500" />
+                            <span>Made a mistake? Hit the undo button on the card or press <strong>U</strong></span>
+                        </li>
+                    </ul>
+                </div>
+            ),
+        },
+        {
+            title: "Book Showers & Laundry in One Click",
+            icon: ShowerHead,
+            iconColor: "text-sky-500",
+            bgColor: "bg-sky-50",
+            content: (
+                <div className="space-y-3">
+                    <p>
+                        Each guest card books services for today - no separate page needed.
+                    </p>
+                    <ul className="text-sm space-y-2 text-gray-700">
+                        <li className="flex items-start gap-2">
+                            <ShowerHead size={16} className="mt-0.5 flex-shrink-0 text-sky-600" />
+                            <span>Tap the shower or laundry button to grab the next open time slot</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <Clock size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
+                            <span>When showers are full, the same button joins the waitlist instead</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <Keyboard size={16} className="mt-0.5 flex-shrink-0 text-gray-500" />
+                            <span>Shortcuts: <strong>S</strong> for shower, <strong>L</strong> for laundry, <strong>B</strong> for bike repair</span>
                         </li>
                     </ul>
                 </div>
@@ -108,7 +146,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
                     <ul className="text-sm space-y-2 text-gray-700">
                         <li className="flex items-start gap-2">
                             <UserPlus size={16} className="mt-0.5 flex-shrink-0 text-purple-600" />
-                            <span>Click &quot;Add Guest&quot; to create a new entry</span>
+                            <span>Click <strong>&quot;New Guest&quot;</strong> to create a new entry</span>
                         </li>
                         <li className="flex items-start gap-2">
                             <FileText size={16} className="mt-0.5 flex-shrink-0 text-amber-500" />
@@ -116,7 +154,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
                         </li>
                         <li className="flex items-start gap-2">
                             <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
-                            <span>They&apos;ll be checked in once you save them</span>
+                            <span>Already registered? Choose <strong>&quot;Check In Existing Instead&quot;</strong> to avoid a duplicate</span>
                         </li>
                     </ul>
                 </div>
@@ -130,7 +168,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
             content: (
                 <div className="space-y-3">
                     <p>
-                        Link guests who are related or share information.
+                        Link guests who pick up meals for each other.
                     </p>
                     <ul className="text-sm space-y-2 text-gray-700">
                         <li className="flex items-start gap-2">
@@ -150,7 +188,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
             ),
         },
         {
-            title: "Ban Guests (Administrators)",
+            title: "Ban Guests When Needed",
             icon: Ban,
             iconColor: "text-red-500",
             bgColor: "bg-red-50",
@@ -178,7 +216,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
         },
         {
             title: "Keyboard Shortcuts",
-            icon: Lightbulb,
+            icon: Keyboard,
             iconColor: "text-amber-500",
             bgColor: "bg-amber-50",
             content: (
@@ -186,18 +224,50 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
                     <p>
                         Speed up your workflow with keyboard shortcuts:
                     </p>
-                    <div className="bg-gray-100 rounded-lg p-3 text-sm space-y-2">
-                        <div className="flex justify-between">
-                            <span>Open keyboard shortcuts help</span>
-                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">?</kbd>
+                    <div className="bg-gray-100 rounded-lg p-3 text-sm grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                        <div className="flex justify-between gap-2">
+                            <span>Jump to search</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">Ctrl+K</kbd>
                         </div>
-                        <div className="flex justify-between">
-                            <span>Close any modal</span>
-                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono">Esc</kbd>
+                        <div className="flex justify-between gap-2">
+                            <span>Move between guests</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">↑↓</kbd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <span>Expand guest card</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">Enter</kbd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <span>Log 1 or 2 meals</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">1 / 2</kbd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <span>Shower booking</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">S</kbd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <span>Laundry booking</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">L</kbd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <span>Bike repair</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">B</kbd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <span>Guest history</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">H</kbd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <span>Undo last action</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">U</kbd>
+                        </div>
+                        <div className="flex justify-between gap-2">
+                            <span>Clear search</span>
+                            <kbd className="px-2 py-1 bg-white border rounded text-xs font-mono whitespace-nowrap">Esc</kbd>
                         </div>
                     </div>
                     <p className="text-xs text-gray-500">
-                        Press <kbd className="px-1.5 py-0.5 bg-gray-100 border rounded text-xs font-mono">?</kbd> anytime to see all available shortcuts.
+                        Most shortcuts work when you are not typing in the search box.
                     </p>
                 </div>
             ),
@@ -215,11 +285,11 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
                     <div className="bg-emerald-100 rounded-lg p-3 text-sm text-emerald-900">
                         <strong>Quick summary:</strong>
                         <ul className="mt-2 space-y-1">
-                            <li>• Search for guests by name</li>
-                            <li>• Quick add meals with 1 or 2 buttons</li>
-                            <li>• Link related guests together</li>
-                            <li>• Ban guests when needed (admin)</li>
-                            <li>• View and update guest info</li>
+                            <li>• Search for guests by name (Ctrl+K)</li>
+                            <li>• Log meals fast with 1 or 2</li>
+                            <li>• Book showers and laundry in one click</li>
+                            <li>• Add new guests, link buddies together</li>
+                            <li>• Undo mistakes with U</li>
                         </ul>
                     </div>
                     <p className="text-sm text-gray-600 text-center pt-2">
@@ -301,7 +371,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
                         </div>
 
                         {/* Content */}
-                        <div className="px-6 py-5 text-gray-700 min-h-[200px]">
+                        <div className="px-6 py-5 text-gray-700 min-h-[200px] max-h-[60vh] overflow-y-auto">
                             <AnimatePresence mode="wait">
                                 <motion.div
                                     key={currentStep}
