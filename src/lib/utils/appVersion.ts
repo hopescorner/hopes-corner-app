@@ -105,8 +105,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         highlights: [
             {
                 type: 'feature',
-                title: 'Keyboard Shortcuts and Recent Check-Ins',
-                description: 'New keyboard shortcuts speed up check-in. Press 1 or 2 to log meals. Press S, L, or B to book showers, laundry, or bicycle repair. A new Recent Check-ins bar shows the last 5 guests for quick review or undo.',
+                title: 'Hotkeys and Recent Check-Ins',
+                description: 'New hotkeys speed up check-in. Press 1 or 2 to log meals. Press S, L, or B to book showers, laundry, or bicycle repair. A new Recent Check-ins bar shows the last 5 guests for quick review or undo.',
             },
             {
                 type: 'feature',
