@@ -140,23 +140,17 @@ export function levelParams(level: number, streak = 0): LevelParams {
   };
 
   if (streak >= 1) {
-    base.readProb = 0.98;
-    base.noise = 2;
+    base.readProb = 0.99;
+    base.noise = 0;
     base.reactDelay = 0;
-    base.diveFrames = 7;
-    base.reach = 122;
-    base.saveR = 38;
-    base.wobble = Math.max(base.wobble, 6.5) + streak * 1.5;
-    base.chargeRate = 0.038 + streak * 0.005;
+    base.diveFrames = 6;
+    base.reach = 125;
+    base.saveR = 48;
+    base.wobble = Math.max(base.wobble, 7.5) + streak * 1.5;
+    base.chargeRate = 0.04 + streak * 0.006;
   }
 
   return base;
-}
-
-export interface DivePlan {
-  diveDir: -1 | 0 | 1;
-  diveTarget: number;
-  anticipated: boolean;
 }
 
 export interface ShotMemory {
@@ -233,6 +227,14 @@ export interface DiveOptions {
   streak?: number;
   lastGoalSide?: -1 | 0 | 1;
   postGoalSwitchRatio?: number;
+  shotY?: number;
+}
+
+export interface DivePlan {
+  diveDir: -1 | 0 | 1;
+  diveTarget: number;
+  diveTargetY?: number;
+  anticipated: boolean;
 }
 
 export function planDive(
@@ -253,12 +255,23 @@ export function planDive(
           ? switchRatio >= 0.5 ? 1 : -1
           : shotX < GOAL_CENTER_X ? -1 : 1;
 
-    const diveTarget = clamp(
-      GOAL_CENTER_X + anticipatedTargetSide * params.reach * 0.96,
-      GOAL_CENTER_X - params.reach,
-      GOAL_CENTER_X + params.reach
-    );
-    return { diveDir: anticipatedTargetSide, diveTarget, anticipated: true };
+    const shotSide: -1 | 1 = shotX < GOAL_CENTER_X ? -1 : 1;
+    const isMatchingSide = shotSide === anticipatedTargetSide;
+
+    const diveTarget = isMatchingSide
+      ? clamp(shotX, GOAL_CENTER_X - params.reach, GOAL_CENTER_X + params.reach)
+      : clamp(
+          GOAL_CENTER_X + anticipatedTargetSide * params.reach * 0.96,
+          GOAL_CENTER_X - params.reach,
+          GOAL_CENTER_X + params.reach
+        );
+
+    return {
+      diveDir: anticipatedTargetSide,
+      diveTarget,
+      diveTargetY: isMatchingSide ? (options?.shotY ?? 200) : 200,
+      anticipated: true,
+    };
   }
 
   if (heat && Math.random() < heat.p) {
@@ -268,7 +281,7 @@ export function planDive(
       GOAL_CENTER_X + params.reach
     );
     const dir = diveTarget < GOAL_CENTER_X - 8 ? -1 : diveTarget > GOAL_CENTER_X + 8 ? 1 : 0;
-    return { diveDir: dir, diveTarget, anticipated: true };
+    return { diveDir: dir, diveTarget, diveTargetY: options?.shotY ?? heat.y, anticipated: true };
   }
 
   const roll = Math.random();
@@ -276,16 +289,16 @@ export function planDive(
     const read = shotX + (Math.random() * 2 - 1) * params.noise;
     const diveTarget = clamp(read, GOAL_CENTER_X - params.reach, GOAL_CENTER_X + params.reach);
     const dir = diveTarget < GOAL_CENTER_X - 8 ? -1 : diveTarget > GOAL_CENTER_X + 8 ? 1 : 0;
-    return { diveDir: dir, diveTarget, anticipated: false };
+    return { diveDir: dir, diveTarget, diveTargetY: options?.shotY ?? 200, anticipated: false };
   }
 
   if (roll < params.readProb + (1 - params.readProb) * 0.7) {
     const shotSide: -1 | 1 = shotX < GOAL_CENTER_X ? -1 : 1;
     const wrong = Math.random() < 0.8 ? (-shotSide as -1 | 1) : shotSide;
-    return { diveDir: wrong, diveTarget: GOAL_CENTER_X + wrong * params.reach * 0.9, anticipated: false };
+    return { diveDir: wrong, diveTarget: GOAL_CENTER_X + wrong * params.reach * 0.9, diveTargetY: 200, anticipated: false };
   }
 
-  return { diveDir: 0, diveTarget: GOAL_CENTER_X + (Math.random() * 2 - 1) * 8, anticipated: false };
+  return { diveDir: 0, diveTarget: GOAL_CENTER_X + (Math.random() * 2 - 1) * 8, diveTargetY: 200, anticipated: false };
 }
 
 function classifyShot(x: number, y: number): Outcome {
@@ -310,9 +323,10 @@ function gloveAt(
 ): { x: number; y: number } {
   const p = clamp((frame - params.reactDelay) / Math.max(params.diveFrames, 1), 0, 1);
   const k = easeInOutQuad(p);
+  const targetY = plan.diveTargetY ?? 208;
   return {
     x: GOAL_CENTER_X + (plan.diveTarget - GOAL_CENTER_X) * k + plan.diveDir * GLOVE_OFFSET * k,
-    y: 208 - 24 * k,
+    y: 208 + (targetY - 208) * k,
   };
 }
 
@@ -485,12 +499,27 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       const heat = hottestZone(memoryRef.current);
       const switches = postGoalHistoryRef.current.switches;
       const repeats = postGoalHistoryRef.current.repeats;
-      const switchRatio = switches + repeats > 0 ? switches / (switches + repeats) : 0.75;
+
+      const mem = memoryRef.current;
+      let leftCount = 0;
+      let rightCount = 0;
+      for (const s of mem) {
+        if (s.x < GOAL_CENTER_X - 10) leftCount++;
+        else if (s.x > GOAL_CENTER_X + 10) rightCount++;
+      }
+
+      let switchRatio = switches + repeats > 0 ? switches / (switches + repeats) : 0.5;
+      if (lastGoalSideRef.current === 1) {
+        switchRatio = rightCount > leftCount ? 0.15 : 0.85;
+      } else if (lastGoalSideRef.current === -1) {
+        switchRatio = leftCount > rightCount ? 0.15 : 0.85;
+      }
 
       const plan = planDive(tx, params, heat, {
         streak: currentStreak,
         lastGoalSide: lastGoalSideRef.current,
         postGoalSwitchRatio: switchRatio,
+        shotY: ty,
       });
 
       anticipatedRef.current = plan.anticipated;
@@ -499,7 +528,9 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       if (outcome === 'goal') {
         const glove = gloveAt(duration, plan, params);
         const distToGlove = Math.hypot(tx - glove.x, ty - glove.y);
-        if (distToGlove < params.saveR) {
+        const shotSide = tx < GOAL_CENTER_X ? -1 : 1;
+        const isDiveToShotSide = plan.diveDir === shotSide;
+        if (distToGlove < params.saveR || (currentStreak >= 1 && isDiveToShotSide && power < 0.82)) {
           outcome = 'saved';
         }
       }
@@ -1011,8 +1042,16 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
           keeper.x = GOAL_CENTER_X + (keeper.diveTarget - GOAL_CENTER_X) * e;
         }
       } else {
+        const mem = memoryRef.current;
+        let leftCount = 0;
+        let rightCount = 0;
+        for (const s of mem) {
+          if (s.x < GOAL_CENTER_X - 10) leftCount++;
+          else if (s.x > GOAL_CENTER_X + 10) rightCount++;
+        }
+        const userBias = rightCount > leftCount + 1 ? 1 : leftCount > rightCount + 1 ? -1 : 0;
         const swayAmp = currentStreak >= 1 ? params.sway * 1.5 : params.sway;
-        keeper.x = GOAL_CENTER_X + Math.sin(frame * 0.055) * swayAmp;
+        keeper.x = GOAL_CENTER_X + Math.sin(frame * 0.055) * swayAmp + userBias * 8;
       }
 
       if (shakeRef.current > 0) shakeRef.current -= 1;
@@ -1606,7 +1645,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
             }`}
             data-testid="penalty-kick"
           >
-            {streakCount >= 1 ? 'Strike 2! (Lockdown)' : 'Kick'}
+            Kick
           </button>
           <div className="text-center">
             <span className="text-[10px] text-slate-400">
