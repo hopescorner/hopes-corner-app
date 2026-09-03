@@ -267,8 +267,8 @@ export default function ServicesPage() {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
             <RealtimeSyncProvider />
             {/* Page Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                <div>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 min-w-0">
+                <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                         <div className="p-2 bg-emerald-100 rounded-lg text-emerald-600">
                             <ClipboardList size={20} />
@@ -282,7 +282,7 @@ export default function ServicesPage() {
                 </div>
 
                 {/* Desktop Tab Switcher */}
-                <div className="hidden lg:flex p-1.5 bg-gray-100 rounded-2xl gap-1">
+                <div className="hidden lg:flex flex-wrap p-1.5 bg-gray-100 rounded-2xl gap-1 max-w-full min-w-0">
                     {TABS.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
@@ -293,7 +293,7 @@ export default function ServicesPage() {
                                 onMouseEnter={() => void loadTabData(tab.id)}
                                 onFocus={() => void loadTabData(tab.id)}
                                 className={cn(
-                                    "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black transition-all",
+                                    "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black whitespace-nowrap transition-all",
                                     isActive
                                         ? "bg-white shadow-xl shadow-gray-200/50 scale-105"
                                         : "text-gray-400 hover:text-gray-600 hover:bg-white/50"
