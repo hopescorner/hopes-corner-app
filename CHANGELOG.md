@@ -4,55 +4,55 @@
 
 ### Added
 
-- Replaced the hidden pinball mini-game on the check-in page with a penalty shootout Easter egg: aim and shoot past a diving computer goalkeeper and see how many goals can be scored before it is dismissed. Scores are never persisted.
+- The check-in page now hides a penalty shootout game: aim and shoot past the diving goalkeeper and count your goals before you close it. Scores are never saved.
 
 ## [0.12.0] - 2026-09-02
 
 ### Added
 
-- Staff can now edit a holiday family registration before check-in: update parent info and add, edit, or remove children (e.g. a forgotten kid) while keeping the same ticket number and arrival time. Gift card counts recalculate automatically; editing locks once checked in.
-- Public holiday registration page now shows a 3-step explainer illustration (register, get ticket, pick up gifts) above the instructions.
-- Tickets automatically download as an image after registration, with native save-to-photos, PDF download, and print actions.
+- Staff can now fix a holiday family registration before check-in: edit parent details, or add, change, or remove children, while keeping the same ticket number and arrival time. Gift card counts update by themselves; editing locks once checked in.
+- Public holiday registration page now shows a 3-step picture guide (register, get ticket, pick up gifts) at the top of the page.
+- Tickets now save to your device as a picture right after registration, with save-to-photos, PDF download, and print actions.
 
 ### Improved
 
-- Registration instructions rewritten in short, plain language across English, Spanish, and Mandarin, with duplicate step numbers removed.
-- Upgraded to Next.js 16.3.4 and React 19.2.8, including critical remote-code-execution security fixes.
+- Registration instructions are now shorter and plainer in English, Spanish, and Mandarin, with duplicate step numbers removed.
+- Behind-the-scenes updates keep the app fast and safe, including fixes for serious security problems.
 
 ## [0.11.3] - 2026-09-02
 
 ### Fixed
 
-- Resolved strict TypeScript type checking errors in data export, realtime subscription handlers, and store data mapping to ensure reliable production builds.
+- Fixed hidden errors in data export and live updates. These fixes keep the app stable. You will not see any change on screen.
 
 ## [0.11.2] - 2026-09-02
 
 ### Fixed
 
-- Fixed next available shower and laundry slot quick-book buttons on guest cards to dynamically advance to the next open time slot when initial slots (e.g. 07:30 / 7:30 AM) are filled.
-- Resolved browser LockManager token contention by implementing a singleton browser client for Supabase.
+- Fixed shower and laundry quick-book buttons on guest cards to skip full time slots. They always offer the next open time.
+- Fixed a hidden problem that sometimes froze the app or showed errors. The app now runs more smoothly.
 
 ## [0.11.1] - 2026-09-01
 
 ### Fixed
 
-- Shower and laundry service status overview cards now immediately fetch blocked slots on initial mount and realtime sync, correctly displaying the next available open slot without needing to open the booking dialog first.
+- Shower and laundry status cards now show the correct next open time right away. They skip times that staff blocked off, without needing to open the booking dialog first.
 
 ## [0.11.0] - 2026-09-01
 
 ### Added
 
-- Added Volunteer Check-in Ergonomics: keyboard hotkeys (`1` and `2` for meals, `S` for shower, `L` for laundry, `B` for bicycle, `H` for history, and `U` for undo).
-- Added Recent Check-ins Quick-Bar displaying the 5 most recently served guests with deterministic avatar initials, action tags, and 1-tap select for quick adjustments.
-- Added 1-Click "Assign Next Available Slot" for shower and onsite laundry directly on guest cards.
-- Added 1-Click Instant Shower Waitlist when scheduled slots are full.
-- Added 1-Tap "Check In All (Self + Buddies)" for primary guests with linked proxy companions.
-- Added Live Duplicate Quick-Select in Guest Creation with "Check In Existing Instead" action to avoid duplicate profile registrations.
-- Added Live Connection Pill in the Check-In header showing live database sync and offline status.
+- Added keyboard shortcuts for check-in (`1` and `2` for meals, `S` for shower, `L` for laundry, `B` for bicycle, `H` for history, and `U` for undo).
+- Added Recent Check-ins Quick-Bar showing the 5 most recently served guests for quick review, undo, or service additions.
+- Added 1-click booking of the next open shower or laundry slot directly on guest cards.
+- Added 1-click shower waitlist when scheduled slots are full.
+- Added 1-tap "Check In All (Self + Buddies)" for primary guests with linked proxy companions.
+- Added duplicate check in guest creation with a "Check In Existing Instead" action to avoid duplicate profiles.
+- Added a sync indicator in the check-in header showing live database sync and offline status.
 
 ### Improved
 
-- Replaced generic user icons with deterministic color-coded initials for clean, accessible guest identification across all cards and bars with zero emojis.
+- Replaced plain user icons with colored initials. Each guest keeps the same color, so regulars are easy to spot.
 
 ## [0.10.0] - 2026-08-31
 

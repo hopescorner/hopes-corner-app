@@ -25,8 +25,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         highlights: [
             {
                 type: 'feature',
-                title: 'Penalty Kick Easter Egg',
-                description: 'Replaced the hidden pinball mini-game on the check-in page with a penalty shootout: aim and shoot past a diving computer goalkeeper, track goals until dismissed. Scores are never saved.',
+                title: 'Penalty Kick Mini-Game',
+                description: 'The check-in page hides a penalty shootout game. Aim and shoot past the diving goalkeeper and count your goals. Scores are not saved. It is only for fun.',
             },
         ],
     },
@@ -37,27 +37,27 @@ export const CHANGELOG: ChangelogEntry[] = [
             {
                 type: 'feature',
                 title: 'Staff Registration Editing',
-                description: 'Staff can now fix a family registration before check-in: edit parent info and add, edit, or remove children (e.g. a forgotten kid) while keeping the same ticket number and arrival time. Gift card counts recalculate automatically.',
+                description: 'You can now fix a family registration before check-in. Edit parent details, or add, change, or remove children. The ticket number and arrival time stay the same. Gift card counts update by themselves.',
             },
             {
                 type: 'feature',
                 title: 'Registration Explainer Illustration',
-                description: 'The public holiday registration page now shows a 3-step visual guide (register, get ticket, pick up gifts) above the instructions.',
+                description: 'The public holiday sign-up page now shows a 3-step picture guide at the top: register, get a ticket, pick up gifts.',
             },
             {
                 type: 'improvement',
                 title: 'Simpler Registration Instructions',
-                description: 'Registration guidance rewritten in short, plain language across English, Spanish, and Mandarin.',
+                description: 'Sign-up instructions are now shorter and plainer in English, Spanish, and Mandarin.',
             },
             {
                 type: 'feature',
-                title: 'Ticket Auto-Download and Sharing',
-                description: 'Tickets automatically save as an image after registration, with native save-to-photos, PDF download, and print actions.',
+                title: 'Save and Share Tickets',
+                description: 'Tickets now save to your device as a picture right after sign-up. You can also save them to photos, download a PDF, or print.',
             },
             {
                 type: 'improvement',
-                title: 'Framework and Security Updates',
-                description: 'Upgraded to Next.js 16.3.4 and React 19.2.8, including critical remote-code-execution security fixes.',
+                title: 'Security and Reliability Updates',
+                description: 'Behind-the-scenes updates keep the app fast and safe. This round includes fixes for serious security problems.',
             },
         ],
     },
@@ -67,8 +67,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         highlights: [
             {
                 type: 'fix',
-                title: 'TypeScript Production Build Type Safety',
-                description: 'Resolved strict TypeScript type errors in data export, realtime subscription handlers, and store maps to ensure smooth production builds.',
+                title: 'Behind-the-Scenes Reliability Fixes',
+                description: 'Fixed hidden errors in data export and live updates. These fixes keep the app stable. You will not see any change on screen.',
             },
         ],
     },
@@ -78,13 +78,13 @@ export const CHANGELOG: ChangelogEntry[] = [
         highlights: [
             {
                 type: 'fix',
-                title: 'Next Available Slot Progression',
-                description: 'Guest card quick-book shower and laundry buttons now dynamically advance to the next available slot when earlier slots (e.g. 07:30 / 7:30 AM) are booked.',
+                title: 'Quick-Book Finds the Next Open Slot',
+                description: 'The quick-book buttons for showers and laundry now skip full time slots. They always offer the next open time.',
             },
             {
                 type: 'fix',
-                title: 'Supabase Browser Lock Contention',
-                description: 'Implemented a singleton browser client to eliminate Navigator LockManager lock contention and unhandled promise rejections.',
+                title: 'Smoother Running App',
+                description: 'Fixed a hidden problem that sometimes froze the app or showed errors. The app now runs more smoothly.',
             },
         ],
     },
@@ -94,8 +94,8 @@ export const CHANGELOG: ChangelogEntry[] = [
         highlights: [
             {
                 type: 'fix',
-                title: 'Blocked Slot Immediate Availability',
-                description: 'Service status cards for showers and laundry now immediately load blocked slot definitions on mount and skip blocked times on initial render.',
+                title: 'Correct Next-Open Times at a Glance',
+                description: 'The shower and laundry status cards now show the correct next open time right away. They skip times that staff blocked off. You no longer need to open the booking window to see this.',
             },
         ],
     },
@@ -105,23 +105,23 @@ export const CHANGELOG: ChangelogEntry[] = [
         highlights: [
             {
                 type: 'feature',
-                title: 'Volunteer Check-in Ergonomics & Hotkeys',
-                description: 'Added 1 and 2 hotkeys for quick meal logging, S/L/B service shortcuts, and a Recent Check-ins bar displaying the last 5 served guests for instant review, undo, or service additions.',
+                title: 'Keyboard Shortcuts and Recent Check-Ins',
+                description: 'New keyboard shortcuts speed up check-in. Press 1 or 2 to log meals. Press S, L, or B to book showers, laundry, or bicycle repair. A new Recent Check-ins bar shows the last 5 guests for quick review or undo.',
             },
             {
                 type: 'feature',
-                title: '1-Click Next Available Slot & Instant Waitlist',
-                description: 'Volunteers can book the earliest open shower or laundry slot in a single click, or instantly register on the shower waitlist when slots are full.',
+                title: 'One-Click Booking and Waitlist',
+                description: 'Book the next open shower or laundry slot with one click. If showers are full, join the waitlist with one click.',
             },
             {
                 type: 'improvement',
-                title: 'Deterministic Color-Coded Avatar Initials',
-                description: 'Clean initials with accessible, deterministic color palettes replace generic user icons on all guest cards with zero emojis.',
+                title: 'Colored Initials on Guest Cards',
+                description: 'Guest cards now show colored initials instead of plain icons. Each guest keeps the same color, so regulars are easy to spot.',
             },
             {
                 type: 'feature',
-                title: 'Live Duplicate Quick-Select & Live Connection Indicator',
-                description: 'One-click switch to existing profile during guest registration, and a real-time sync indicator in the header.',
+                title: 'Duplicate Check and Sync Indicator',
+                description: 'If the name matches an existing profile, you can switch to it with one click. A new indicator in the header shows whether live sync is on.',
             },
         ],
     },
