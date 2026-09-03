@@ -22,7 +22,7 @@ test.describe('WhatsNewModal', () => {
     const component = await mount(
       <WhatsNewModal isOpen={true} onClose={() => {}} />
     );
-    await expect(component.getByText('Current')).toBeVisible();
+    await expect(component.getByText('Current', { exact: true })).toBeVisible();
   });
 
   test('renders changelog entries', async ({ mount }) => {
