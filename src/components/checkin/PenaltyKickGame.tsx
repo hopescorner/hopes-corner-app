@@ -356,7 +356,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
   const goalsRef = useRef(0);
   const kicksRef = useRef(0);
   const streakRef = useRef(0);
-  const [streakCount, setStreakCount] = useState(0);
   const levelRef = useRef(MAX_LEVEL);
   const memoryRef = useRef<Array<ShotMemory>>(loadKeeperMemory());
   const anticipatedRef = useRef(false);
@@ -529,9 +528,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       }
 
       const plan = planDive(tx, params, heat, {
-        streak: currentStreak,
-        lastGoalSide: lastGoalSideRef.current,
-        postGoalSwitchRatio: switchRatio,
         shotY: ty,
       });
 
@@ -574,7 +570,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         lastGoalSideRef.current = shotSide;
         goalsRef.current += 1;
         streakRef.current += 1;
-        setStreakCount(streakRef.current);
 
         netRipplesRef.current.push({
           x: tx,
@@ -599,7 +594,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         }
       } else {
         streakRef.current = 0;
-        setStreakCount(0);
         if (outcome === 'saved') {
           keeperRef.current.saveAnim = 30;
           const glove = gloveAt(duration, plan, params);
@@ -841,8 +835,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.translate(kx, ky - lift);
       ctx.rotate(diveDir * e * 0.95);
 
-      const kitColor = isLockdown ? '#a3e635' : '#fbbf24';
-      const kitTrim = isLockdown ? '#4d7c0f' : '#b45309';
+      const kitColor = '#fbbf24';
+      const kitTrim = '#b45309';
 
       ctx.strokeStyle = '#020617';
       ctx.lineWidth = 7;
@@ -907,21 +901,10 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.arc(0, -66, 8.5, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = isLockdown ? '#ef4444' : '#0f172a';
+      ctx.fillStyle = '#0f172a';
       ctx.beginPath();
       ctx.arc(0, -73, 8.5, Math.PI, 0);
       ctx.fill();
-
-      if (isLockdown && phaseRef.current === 'aim') {
-        ctx.fillStyle = '#ef4444';
-        ctx.shadowColor = '#ef4444';
-        ctx.shadowBlur = 6;
-        ctx.beginPath();
-        ctx.arc(-2, -66, 1.5, 0, Math.PI * 2);
-        ctx.arc(2, -66, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      }
 
       ctx.restore();
     };
@@ -1167,14 +1150,11 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.fillStyle = '#042f2e';
       ctx.fillRect(0, 144, WIDTH, 2);
 
-      const adText =
-        currentStreak >= 1
-          ? '★ LOCKDOWN MODE ACTIVE ★ KEEPER ON FULL ALERT ★'
-          : "HOPE'S CORNER FC  ★  PENALTY SHOOTOUT";
-      ctx.fillStyle = currentStreak >= 1 ? '#ef4444' : '#a7f3d0';
+      const adText = "HOPE'S CORNER FC  ★  PENALTY SHOOTOUT";
+      ctx.fillStyle = '#a7f3d0';
       ctx.font = 'bold 10.5px system-ui, sans-serif';
       ctx.textAlign = 'center';
-      ctx.shadowColor = currentStreak >= 1 ? '#ef4444' : '#10b981';
+      ctx.shadowColor = '#10b981';
       ctx.shadowBlur = 7;
       ctx.fillText(adText, WIDTH / 2, 161);
       ctx.shadowBlur = 0;
@@ -1568,10 +1548,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.fillStyle = '#e2e8f0';
       ctx.fillText(`KICKS ${kicksRef.current}`, 102, HEIGHT - 18);
 
-      if (currentStreak >= 1) {
-        ctx.fillStyle = '#ef4444';
-        ctx.fillText(`LOCKDOWN`, 182, HEIGHT - 18);
-      } else if (heatNow) {
+      if (heatNow) {
         ctx.fillStyle = '#fbbf24';
         ctx.fillText(`ADAPTING`, 182, HEIGHT - 18);
       } else {
@@ -1580,7 +1557,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       }
 
       ctx.textAlign = 'right';
-      ctx.fillStyle = currentStreak >= 1 ? '#ef4444' : '#94a3b8';
+      ctx.fillStyle = currentStreak >= 2 ? '#fbbf24' : '#94a3b8';
       ctx.fillText(
         currentStreak > 0 ? `STREAK x${currentStreak}` : 'STREAK 0',
         WIDTH - 20,
@@ -1618,14 +1595,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         transition={{ duration: 0.2 }}
       >
         <div className="flex items-center justify-between px-3 py-2 bg-slate-900/90 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-black tracking-widest text-emerald-400 uppercase">Penalty Kick</span>
-            {streakCount >= 1 && (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-600/80 text-white animate-pulse">
-                LOCKDOWN
-              </span>
-            )}
-          </div>
+          <span className="text-xs font-black tracking-widest text-emerald-400 uppercase">Penalty Kick</span>
           <button
             onClick={onClose}
             className="flex items-center gap-1.5 px-4 min-h-[44px] rounded-lg bg-red-600/80 hover:bg-red-500 active:bg-red-400 text-white text-xs font-semibold transition-colors touch-manipulation"
@@ -1655,11 +1625,7 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
           <button
             type="button"
             onClick={quickShot}
-            className={`w-full py-2.5 min-h-[48px] rounded-xl text-white text-sm font-black tracking-widest uppercase transition-all touch-manipulation ${
-              streakCount >= 1
-                ? 'bg-rose-600 hover:bg-rose-500 active:bg-rose-400 shadow-lg shadow-rose-600/30'
-                : 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400'
-            }`}
+            className="w-full py-2.5 min-h-[48px] rounded-xl text-white text-sm font-black tracking-widest uppercase transition-all touch-manipulation bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-400"
             data-testid="penalty-kick"
           >
             Kick
