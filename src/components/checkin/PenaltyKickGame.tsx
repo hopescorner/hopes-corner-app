@@ -856,8 +856,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.translate(kx, ky - lift);
       ctx.rotate(diveDir * e * 0.95);
 
-      const kitColor = '#fbbf24';
-      const kitTrim = '#b45309';
+      const kitColor = '#059669';
+      const kitTrim = '#064e3b';
 
       ctx.strokeStyle = '#020617';
       ctx.lineWidth = 7;
@@ -891,6 +891,12 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
       ctx.fillStyle = kitTrim;
       ctx.fillRect(-11, -44, 22, 4);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('HC', 0, -34);
 
       const extend = 16 + e * 24;
       const reachL = diveDir === 1 ? 8 : extend;
