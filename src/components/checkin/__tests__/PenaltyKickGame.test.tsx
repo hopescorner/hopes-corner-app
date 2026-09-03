@@ -120,12 +120,31 @@ describe('keeper learning (adaptive difficulty)', () => {
     expect(heat!.x).toBeCloseTo(zoneCenterForIndex(3).x, 5);
   });
 
+  it('ignores saved and missed shots when building heat', () => {
+    const savedShots = Array.from({ length: 6 }, () => ({ x: 250, y: 200, outcome: 'saved' as const }));
+    expect(hottestZone(savedShots)).toBeNull();
+    const mixed = [
+      ...Array.from({ length: 3 }, () => ({ x: 250, y: 200, outcome: 'goal' as const })),
+      ...Array.from({ length: 6 }, () => ({ x: 100, y: 200, outcome: 'saved' as const })),
+    ];
+    const heat = hottestZone(mixed)!;
+    expect(heat).not.toBeNull();
+    expect(heat.shots).toBe(3);
+    expect(heat.x).toBeCloseTo(zoneCenterForIndex(3).x, 5);
+  });
+
   it('camps the hot column when anticipating (p = 1)', () => {
     const heat = hottestZone(Array.from({ length: 6 }, () => ({ x: 250, y: 200 })))!;
-    const plan = planDive(100, params, { ...heat, p: 1 });
+    const plan = planDive(250, params, { ...heat, p: 1 });
     expect(plan.anticipated).toBe(true);
-    // Dive target camps the hot column (col 3 center ≈ 262), not the shot at x=100
     expect(plan.diveTarget).toBeGreaterThan(200);
+  });
+
+  it('falls back to an honest read when the shot goes away from the hot column', () => {
+    const heat = hottestZone(Array.from({ length: 6 }, () => ({ x: 250, y: 200 })))!;
+    const plan = planDive(100, params, { ...heat, p: 1 });
+    expect(plan.anticipated).toBe(false);
+    expect(plan.diveTarget).toBe(100);
   });
 
   it('reads the shot honestly when there is nothing to anticipate (p = 0)', () => {
@@ -152,25 +171,71 @@ describe('keeper learning (adaptive difficulty)', () => {
   });
 
   it('anticipates side switch after scoring on streak >= 1', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
     const plan = planDive(100, params, null, {
       streak: 1,
       lastGoalSide: 1,
       postGoalSwitchRatio: 0.8,
     });
+    randomSpy.mockRestore();
     expect(plan.anticipated).toBe(true);
     expect(plan.diveDir).toBe(-1);
     expect(plan.diveTarget).toBeLessThan(180);
   });
 
   it('anticipates side repeat when user history favors repeating', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.99);
     const plan = planDive(260, params, null, {
       streak: 1,
       lastGoalSide: 1,
       postGoalSwitchRatio: 0.2,
     });
+    randomSpy.mockRestore();
     expect(plan.anticipated).toBe(true);
     expect(plan.diveDir).toBe(1);
     expect(plan.diveTarget).toBeGreaterThan(180);
+  });
+
+  it('reads the shot when the lockdown roll fires during a streak', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1);
+    const plan = planDive(100, params, null, {
+      streak: 3,
+      lastGoalSide: 1,
+      postGoalSwitchRatio: 0.8,
+    });
+    randomSpy.mockRestore();
+    expect(plan.anticipated).toBe(false);
+    expect(plan.diveTarget).toBe(100);
+    expect(plan.diveDir).toBe(-1);
+  });
+
+  it('reads the shot directly when a streak exists but no last goal side is known', () => {
+    const plan = planDive(240, params, null, { streak: 2 });
+    expect(plan.anticipated).toBe(false);
+    expect(plan.diveTarget).toBe(240);
+  });
+
+  it('escalates shot-reading as the streak grows', () => {
+    const readsFor = (streak: number) => {
+      const randomSpy = vi.spyOn(Math, 'random');
+      let reads = 0;
+      for (let i = 0; i < 200; i++) {
+        randomSpy.mockReturnValueOnce(i / 200);
+        const plan = planDive(100, params, null, {
+          streak,
+          lastGoalSide: 1,
+          postGoalSwitchRatio: 0.8,
+        });
+        if (!plan.anticipated) reads++;
+      }
+      randomSpy.mockRestore();
+      return reads;
+    };
+    const readsAtStreak1 = readsFor(1);
+    const readsAtStreak4 = readsFor(4);
+    expect(readsAtStreak1).toBeGreaterThan(50);
+    expect(readsAtStreak1).toBeLessThan(130);
+    expect(readsAtStreak4).toBeGreaterThan(165);
   });
 });
 

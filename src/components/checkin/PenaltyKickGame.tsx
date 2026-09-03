@@ -188,7 +188,10 @@ export function zoneCenterForIndex(index: number): { x: number; y: number } {
 export function hottestZone(shots: ShotMemory[]): HeatTarget | null {
   if (shots.length < HOT_ZONE_MIN + 1) return null;
   const counts = new Array<number>(LEARN_ZONES).fill(0);
-  for (const s of shots) counts[zoneIndexForShot(s.x)] += 1;
+  for (const s of shots) {
+    if (s.outcome !== undefined && s.outcome !== 'goal') continue;
+    counts[zoneIndexForShot(s.x)] += 1;
+  }
   let best = 0;
   for (let i = 1; i < counts.length; i++) {
     if (counts[i] > counts[best]) best = i;
@@ -248,6 +251,19 @@ export function planDive(
   const switchRatio = options?.postGoalSwitchRatio ?? 0.75;
 
   if (streak >= 1) {
+    const readChance = Math.min(0.45 + (streak - 1) * 0.15, 0.95);
+    if (!lastGoalSide || Math.random() < readChance) {
+      const readTarget = clamp(shotX, GOAL_CENTER_X - params.reach, GOAL_CENTER_X + params.reach);
+      const readDir: -1 | 0 | 1 =
+        readTarget < GOAL_CENTER_X - 8 ? -1 : readTarget > GOAL_CENTER_X + 8 ? 1 : 0;
+      return {
+        diveDir: readDir,
+        diveTarget: readTarget,
+        diveTargetY: options?.shotY ?? 200,
+        anticipated: false,
+      };
+    }
+
     const anticipatedTargetSide: -1 | 1 =
       lastGoalSide === 1
         ? switchRatio >= 0.5 ? -1 : 1
@@ -275,13 +291,15 @@ export function planDive(
   }
 
   if (heat && Math.random() < heat.p) {
-    const diveTarget = clamp(
-      heat.x + (Math.random() * 2 - 1) * 6,
-      GOAL_CENTER_X - params.reach,
-      GOAL_CENTER_X + params.reach
-    );
-    const dir = diveTarget < GOAL_CENTER_X - 8 ? -1 : diveTarget > GOAL_CENTER_X + 8 ? 1 : 0;
-    return { diveDir: dir, diveTarget, diveTargetY: options?.shotY ?? heat.y, anticipated: true };
+    if (Math.abs(shotX - heat.x) <= 30) {
+      const diveTarget = clamp(
+        heat.x + (Math.random() * 2 - 1) * 6,
+        GOAL_CENTER_X - params.reach,
+        GOAL_CENTER_X + params.reach
+      );
+      const dir = diveTarget < GOAL_CENTER_X - 8 ? -1 : diveTarget > GOAL_CENTER_X + 8 ? 1 : 0;
+      return { diveDir: dir, diveTarget, diveTargetY: options?.shotY ?? heat.y, anticipated: true };
+    }
   }
 
   const roll = Math.random();
@@ -529,6 +547,9 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
       const plan = planDive(tx, params, heat, {
         shotY: ty,
+        streak: currentStreak,
+        lastGoalSide: lastGoalSideRef.current,
+        postGoalSwitchRatio: switchRatio,
       });
 
       anticipatedRef.current = plan.anticipated;
