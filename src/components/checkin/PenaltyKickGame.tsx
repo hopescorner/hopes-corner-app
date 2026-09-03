@@ -918,7 +918,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       const netRipples = netRipplesRef.current;
       const currentStreak = streakRef.current;
       const params = levelParams(levelRef.current, currentStreak);
-      const heatNow = hottestZone(memoryRef.current);
 
       const pw = powerRef.current;
       if (pw.charging && phase === 'aim') {
@@ -1548,13 +1547,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.fillStyle = '#e2e8f0';
       ctx.fillText(`KICKS ${kicksRef.current}`, 102, HEIGHT - 18);
 
-      if (heatNow) {
-        ctx.fillStyle = '#fbbf24';
-        ctx.fillText(`ADAPTING`, 182, HEIGHT - 18);
-      } else {
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillText(`LV ${levelRef.current}`, 182, HEIGHT - 18);
-      }
+      ctx.fillStyle = '#38bdf8';
+      ctx.fillText(`LV ${levelRef.current}`, 182, HEIGHT - 18);
 
       ctx.textAlign = 'right';
       ctx.fillStyle = currentStreak >= 2 ? '#fbbf24' : '#94a3b8';
