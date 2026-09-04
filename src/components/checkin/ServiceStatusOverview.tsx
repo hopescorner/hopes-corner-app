@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
-import { ShowerHead, WashingMachine } from 'lucide-react';
+import { ArrowRight, ShowerHead, WashingMachine } from 'lucide-react';
 import { UserRole } from '@/lib/auth/types';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -11,6 +11,7 @@ import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
 import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { cn } from '@/lib/utils/cn';
 
 // Subscribe to array lengths to ensure re-renders when records change
 // This is a workaround for potential subscription issues with complex selectors
@@ -40,13 +41,18 @@ interface CardContentProps {
     stats: any;
     nextSlotLabel: string;
     type: 'shower' | 'laundry';
+    canNavigate: boolean;
 }
 
-const CardContent = ({ stats, nextSlotLabel, type }: CardContentProps) => {
+const CardContent = ({ stats, nextSlotLabel, type, canNavigate }: CardContentProps) => {
     const isShower = type === 'shower';
     const Icon = isShower ? ShowerHead : WashingMachine;
     const label = isShower ? 'Showers' : 'Laundry';
     const colorClass = isShower ? 'blue' : 'purple';
+    const booked = isShower ? stats.booked : stats.onsiteBooked;
+    const fillPct = stats.totalCapacity > 0
+        ? Math.min(100, Math.round((booked / stats.totalCapacity) * 100))
+        : 100;
 
     return (
         <>
@@ -65,21 +71,48 @@ const CardContent = ({ stats, nextSlotLabel, type }: CardContentProps) => {
                 </div>
             </div>
 
-            <div className="bg-white/80 rounded-lg p-3 border border-gray-100 flex items-center justify-between shadow-sm">
-                <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
-                    {isShower ? (stats.available > 0 ? 'Available' : 'Waitlist') : 'Available'}
-                </span>
-                <span className={`text-2xl font-black ${isShower
-                        ? (stats.available > 0 ? 'text-blue-600' : 'text-amber-600')
-                        : (stats.onsiteAvailable > 0 ? 'text-purple-600' : 'text-gray-400')
-                    }`}>
-                    {isShower
-                        ? (stats.available > 0 ? stats.available : stats.waitlisted)
-                        : stats.onsiteAvailable
-                    }
-                </span>
+            <div className="bg-white/80 rounded-lg p-3 border border-gray-100 shadow-sm">
+                <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">
+                        {isShower ? (stats.available > 0 ? 'Available' : 'Waitlist') : 'Available'}
+                    </span>
+                    <span className={`text-2xl font-black ${isShower
+                            ? (stats.available > 0 ? 'text-blue-600' : 'text-amber-600')
+                            : (stats.onsiteAvailable > 0 ? 'text-purple-600' : 'text-gray-400')
+                        }`}>
+                        {isShower
+                            ? (stats.available > 0 ? stats.available : stats.waitlisted)
+                            : stats.onsiteAvailable
+                        }
+                    </span>
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                    <div className="h-1.5 flex-1 bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                            className={cn(
+                                'h-full rounded-full transition-all duration-500',
+                                stats.isFull ? 'bg-red-400' : stats.isNearlyFull ? 'bg-amber-400' : 'bg-emerald-400'
+                            )}
+                            style={{ width: `${fillPct}%` }}
+                        />
+                    </div>
+                    <span className="text-[10px] font-semibold text-gray-400 whitespace-nowrap tabular-nums">
+                        {booked} of {stats.totalCapacity} booked
+                    </span>
+                </div>
             </div>
-            <p className="mt-2 text-xs text-gray-500 font-medium">{nextSlotLabel}</p>
+            <div className="mt-2 flex items-center justify-between">
+                <p className="text-xs text-gray-500 font-medium">{nextSlotLabel}</p>
+                {canNavigate && !stats.isFull && (
+                    <span className={cn(
+                        'inline-flex items-center gap-0.5 text-xs font-bold',
+                        isShower ? 'text-blue-600' : 'text-purple-600'
+                    )}>
+                        Book
+                        <ArrowRight size={12} strokeWidth={2.5} />
+                    </span>
+                )}
+            </div>
         </>
     );
 };
@@ -233,7 +266,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
                         : 'bg-blue-50/30 border-blue-100 hover:bg-blue-50/50'
                         }`}
                 >
-                    <CardContent stats={showerStats} nextSlotLabel={nextShowerSlotLabel} type="shower" />
+                    <CardContent stats={showerStats} nextSlotLabel={nextShowerSlotLabel} type="shower" canNavigate={canNavigate} />
                 </Link>
             ) : (
                 <div
@@ -242,7 +275,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
                         : 'bg-blue-50/30 border-blue-100'
                         }`}
                 >
-                    <CardContent stats={showerStats} nextSlotLabel={nextShowerSlotLabel} type="shower" />
+                    <CardContent stats={showerStats} nextSlotLabel={nextShowerSlotLabel} type="shower" canNavigate={canNavigate} />
                 </div>
             )}
 
@@ -256,7 +289,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
                         : 'bg-purple-50/30 border-purple-100 hover:bg-purple-50/50'
                         }`}
                 >
-                    <CardContent stats={laundryStats} nextSlotLabel={nextLaundrySlotLabel} type="laundry" />
+                    <CardContent stats={laundryStats} nextSlotLabel={nextLaundrySlotLabel} type="laundry" canNavigate={canNavigate} />
                 </Link>
             ) : (
                 <div
@@ -265,7 +298,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
                         : 'bg-purple-50/30 border-purple-100'
                         }`}
                 >
-                    <CardContent stats={laundryStats} nextSlotLabel={nextLaundrySlotLabel} type="laundry" />
+                    <CardContent stats={laundryStats} nextSlotLabel={nextLaundrySlotLabel} type="laundry" canNavigate={canNavigate} />
                 </div>
             )}
         </div>

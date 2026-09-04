@@ -184,7 +184,7 @@ describe('MealServiceTimer Component', () => {
     });
 
     describe('Ended State', () => {
-        it('renders with gray styling for ended service', () => {
+        it('renders with amber styling for ended service', () => {
             mockGetMealServiceStatus.mockReturnValue({
                 type: 'ended',
                 message: 'Meal service ended',
@@ -199,7 +199,7 @@ describe('MealServiceTimer Component', () => {
 
             expect(screen.getByText('Meal service ended')).toBeDefined();
             const element = container.firstChild as HTMLElement;
-            expect(element.className).toContain('text-gray-500');
+            expect(element.className).toContain('text-amber-700');
         });
 
         it('does not show progress bar when ended', () => {

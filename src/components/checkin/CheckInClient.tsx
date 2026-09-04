@@ -79,7 +79,14 @@ export default function CheckInClient({
     const firstSearchMarkRef = useRef(false);
     const firstCreateModalMarkRef = useRef(false);
     const [showPenaltyGame, setShowPenaltyGame] = useState(false);
+    const [isMac, setIsMac] = useState(false);
     const handleSecretTap = useSecretTap(() => setShowPenaltyGame(true));
+
+    // Platform glyph for the New Guest shortcut hint (set post-hydration to
+    // avoid a server/client mismatch; non-Mac keeps the explicit text form)
+    useEffect(() => {
+        setIsMac(/Mac|iPhone|iPad|iPod/i.test(navigator.platform || ''));
+    }, []);
 
     const markPerf = useCallback((name: string) => {
         if (typeof performance === 'undefined') return;
@@ -669,33 +676,12 @@ export default function CheckInClient({
                         {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-2">
-                        <LiveConnectionPill />
-                        <MealServiceTimer />
-                    </div>
+                <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
+                    <LiveConnectionPill />
+                    <MealServiceTimer />
                     <TodayStats />
                 </div>
             </div>
-
-            {/* Service Status Overview */}
-            <ServiceStatusOverview />
-
-            {/* Daily Notes Section */}
-            <DailyNotesSection />
-
-            {duplicateCandidatePairs.length > 0 && (
-                <div className="flex flex-col gap-4 rounded-2xl border-2 border-amber-300 bg-amber-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                        <div className="rounded-xl bg-amber-100 p-2.5 text-amber-700"><AlertTriangle size={22} /></div>
-                        <div>
-                            <p className="font-black text-amber-950">{duplicateCandidatePairs.length} potential duplicate profile{duplicateCandidatePairs.length === 1 ? '' : 's'} need review</p>
-                            <p className="mt-1 text-sm font-medium text-amber-800">Legacy migration records have matching names. Choose the profile to keep; all history will be consolidated before the duplicate is deleted.</p>
-                        </div>
-                    </div>
-                    <button type="button" onClick={() => setDuplicatePairToResolve(duplicateCandidatePairs[0])} className="shrink-0 rounded-xl bg-amber-700 px-4 py-2.5 font-bold text-white hover:bg-amber-800">Review next duplicate</button>
-                </div>
-            )}
 
             {/* Search Header */}
             <div className="sticky top-0 z-30 bg-white rounded-2xl shadow-xl shadow-emerald-900/5 border border-emerald-100/50 p-6 sm:p-8">
@@ -743,6 +729,13 @@ export default function CheckInClient({
                     </div>
                 </div>
 
+                {/* Recent check-ins for one-tap re-selection (hidden when none today) */}
+                <RecentCheckinsBar
+                    guests={guests}
+                    onSelectGuest={handleSelectRecentGuest}
+                    className="mt-4"
+                />
+
                 {/* Keyboard Shortcuts Bar */}
                 <KeyboardShortcutsBar className="mt-4" />
 
@@ -754,17 +747,32 @@ export default function CheckInClient({
                         <UserPlus size={18} />
                         New Guest
                     </button>
-                    <span className="hidden sm:inline-flex items-center gap-1 text-xs text-gray-400">
-                        <kbd className="px-1.5 py-0.5 text-[10px] font-bold text-gray-400 bg-gray-100 rounded border border-gray-200">⌘⌥G</kbd>
+                    <span className="hidden sm:inline-flex items-center text-xs text-gray-400" title="Open the New Guest form">
+                        <kbd className="px-1.5 py-0.5 text-[10px] font-bold text-gray-400 bg-gray-100 rounded border border-gray-200">
+                            {isMac ? '⌘⌥G' : 'Ctrl+Alt+G'}
+                        </kbd>
                     </span>
                 </div>
             </div>
 
-            {/* Recent Check-ins Quick-Bar */}
-            <RecentCheckinsBar
-                guests={guests}
-                onSelectGuest={handleSelectRecentGuest}
-            />
+            {/* Service Status Overview (secondary glance info, below the search) */}
+            <ServiceStatusOverview />
+
+            {/* Daily Notes Section */}
+            <DailyNotesSection />
+
+            {duplicateCandidatePairs.length > 0 && (
+                <div className="flex flex-col gap-4 rounded-2xl border-2 border-amber-300 bg-amber-50 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                        <div className="rounded-xl bg-amber-100 p-2.5 text-amber-700"><AlertTriangle size={22} /></div>
+                        <div>
+                            <p className="font-black text-amber-950">{duplicateCandidatePairs.length} potential duplicate profile{duplicateCandidatePairs.length === 1 ? '' : 's'} need review</p>
+                            <p className="mt-1 text-sm font-medium text-amber-800">Legacy migration records have matching names. Choose the profile to keep; all history will be consolidated before the duplicate is deleted.</p>
+                        </div>
+                    </div>
+                    <button type="button" onClick={() => setDuplicatePairToResolve(duplicateCandidatePairs[0])} className="shrink-0 rounded-xl bg-amber-700 px-4 py-2.5 font-bold text-white hover:bg-amber-800">Review next duplicate</button>
+                </div>
+            )}
 
             {/* Results Section */}
             <div

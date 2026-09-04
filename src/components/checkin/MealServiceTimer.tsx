@@ -40,7 +40,9 @@ export function MealServiceTimer() {
                 }
                 return 'text-emerald-700 bg-emerald-50 border-emerald-200';
             case 'ended':
-                return 'text-gray-500 bg-gray-50 border-gray-200';
+                // Amber, not gray: this state changes the primary workflow
+                // (meal logging is over), so it should read as a caution.
+                return 'text-amber-700 bg-amber-50 border-amber-200';
             default:
                 return 'text-gray-500 bg-gray-50 border-gray-200';
         }
@@ -67,6 +69,7 @@ export function MealServiceTimer() {
                 "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors duration-300",
                 getStatusColor()
             )}
+            title={status.type === 'ended' ? 'Meals can no longer be logged for today' : undefined}
         >
             <Clock size={13} className="shrink-0" />
             <span className="whitespace-nowrap">{status.message}</span>

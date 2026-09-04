@@ -113,30 +113,28 @@ export function DailyNotesSection() {
 
     return (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            {/* Header - Always visible */}
+            {/* Header - Always visible (slim, single line) */}
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+                className="w-full px-4 py-2.5 flex items-center gap-3 hover:bg-gray-50 transition-colors"
             >
-                <div className="flex items-center gap-3">
-                    <div className={cn(
-                        "w-8 h-8 rounded-xl flex items-center justify-center",
-                        hasNotes ? "bg-amber-100 text-amber-600" : "bg-gray-100 text-gray-400"
-                    )}>
-                        <StickyNote size={16} />
-                    </div>
-                    <div className="text-left">
-                        <h3 className="text-sm font-bold text-gray-900">Daily Notes</h3>
-                        <p className="text-xs text-gray-500">
-                            {hasNotes ? (
-                                <span>{todaysNotes.length} note{todaysNotes.length !== 1 ? 's' : ''} for {formattedDate}</span>
-                            ) : (
-                                <span>No notes for {formattedDate}</span>
-                            )}
-                        </p>
-                    </div>
+                <div className={cn(
+                    "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
+                    hasNotes ? "bg-amber-100 text-amber-600" : "bg-gray-100 text-gray-400"
+                )}>
+                    <StickyNote size={14} />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-baseline gap-2 min-w-0 text-left">
+                    <h3 className="text-sm font-bold text-gray-900 shrink-0">Daily Notes</h3>
+                    <p className="text-xs text-gray-400 truncate">
+                        {hasNotes ? (
+                            <span>{todaysNotes.length} note{todaysNotes.length !== 1 ? 's' : ''} for {formattedDate}</span>
+                        ) : (
+                            <span>None for {formattedDate}</span>
+                        )}
+                    </p>
+                </div>
+                <div className="ml-auto flex items-center gap-2 shrink-0">
                     {hasNotes && (
                         <div className="flex -space-x-1">
                             {todaysNotes.slice(0, 3).map((note) => {
