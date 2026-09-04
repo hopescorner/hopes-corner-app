@@ -12,7 +12,7 @@ describe('ShopperChecklistClient', () => {
         children: [
             { id: 'child-1', age: 3, ageGroup: 'toddler', gender: 'girl' },
             { id: 'child-2', age: 8, ageGroup: 'child' },
-            { id: 'child-3', age: 16, ageGroup: 'teen_16_17' },
+            { id: 'child-3', age: 18, ageGroup: 'teen_16_18' },
         ],
         iat: 123456789,
     };
@@ -34,11 +34,11 @@ describe('ShopperChecklistClient', () => {
 
         expect(screen.getByText(/Age 3/i)).toBeDefined();
         expect(screen.getByText(/Age 8/i)).toBeDefined();
-        expect(screen.getByText(/Age 16/i)).toBeDefined();
+        expect(screen.getByText(/Age 18/i)).toBeDefined();
 
         expect(screen.getByText('Toddler (1-4)')).toBeDefined();
         expect(screen.getByText('Child (5-12)')).toBeDefined();
-        expect(screen.getByText('Teen (16-17)')).toBeDefined();
+        expect(screen.getByText('Teen (16-18)')).toBeDefined();
 
         expect(screen.getByText('Teen 14+ Gift Card')).toBeDefined();
         expect(screen.getByText(/Opt for Teen 14\+ Gift Card/i)).toBeDefined();

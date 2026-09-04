@@ -193,7 +193,7 @@ export default function HolidayRegistrationClient() {
                 setErrorMessage(t.errors.childAgeRange);
                 return;
             }
-            if (child.age >= 18) {
+            if (child.age > 18) {
                 const name = child.name.trim() || 'This child';
                 setErrorMessage(t.errors.childOverAge.replace('{name}', name));
                 return;

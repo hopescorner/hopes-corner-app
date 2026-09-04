@@ -366,7 +366,7 @@ export function selectHolidayMetrics(registrations: HolidayRegistration[]): Holi
                 case 'teen_15':
                     teen15Count++;
                     break;
-                case 'teen_16_17':
+                case 'teen_16_18':
                     teen16To18Count++;
                     break;
             }

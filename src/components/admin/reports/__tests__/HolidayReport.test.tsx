@@ -107,7 +107,7 @@ describe('HolidayReport Component', () => {
         expect(screen.getByText('Holiday Program Executive Report')).toBeDefined();
         expect(screen.getByText('Export CSV Report')).toBeDefined();
         expect(screen.getByText('Registered Families')).toBeDefined();
-        expect(screen.getByText('Total Children (0-17)')).toBeDefined();
+        expect(screen.getByText('Total Children (0-18)')).toBeDefined();
         expect(screen.getByText('Grocery Cards')).toBeDefined();
         expect(screen.getByText('Teen Gift Cards')).toBeDefined();
         expect(screen.getByText('Attendance Rate')).toBeDefined();

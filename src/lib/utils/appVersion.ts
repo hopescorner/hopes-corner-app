@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.16.0';
+export const APP_VERSION = '0.16.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.16.1',
+        date: 'September 4, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Toy Drive Registration Includes Age 18',
+                description: 'Teens who are 18 can now register for the toy drive. Registration, staff check-in tools, shopper lists, gift-card counts, and reports all use the same ages 0–18 rule.',
+            },
+        ],
+    },
     {
         version: '0.16.0',
         date: 'September 4, 2026',

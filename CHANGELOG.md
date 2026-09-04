@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.16.1] - 2026-09-04
+
+### Fixed
+
+- Teens who are 18 can now register for the toy drive. Registration, staff check-in tools, shopper lists, gift-card counts, and reports all use the same ages 0–18 rule.
+
 ## [0.16.0] - 2026-09-04
 
 ### Added

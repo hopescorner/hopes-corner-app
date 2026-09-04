@@ -35,7 +35,7 @@ const mockRegistrations: HolidayRegistration[] = [
         teenCards: 1,
         notes: undefined,
         children: [
-            { id: 'c1', name: 'Sofia', age: 14, ageGroup: 'teen_14', school: 'Graham Middle' },
+            { id: 'c1', name: 'Sofia', age: 18, ageGroup: 'teen_16_18', school: 'Graham Middle' },
         ],
         createdAt: '2026-11-01T10:00:00Z',
         updatedAt: '2026-11-01T10:00:00Z',
@@ -117,6 +117,7 @@ describe('HolidayProgramSection', () => {
         await waitFor(() => {
             expect(screen.getByText('Event Day Check-In')).toBeDefined();
             expect(screen.getByRole('heading', { name: /Ticket #1 – Carlos Ramirez/i })).toBeDefined();
+            expect(screen.getByText('Teen (16-18)')).toBeDefined();
         });
 
         const notesTextarea = screen.getByPlaceholderText(/Enter notes/i);
@@ -148,7 +149,7 @@ describe('HolidayProgramSection', () => {
         });
     });
 
-    it('opens walk-in modal', async () => {
+    it('allows staff to enter age 18 in the walk-in registration modal', async () => {
         render(<HolidayProgramSection />);
 
         const walkInBtn = screen.getByRole('button', { name: /Add Walk-In/i });
@@ -157,6 +158,8 @@ describe('HolidayProgramSection', () => {
         await waitFor(() => {
             expect(screen.getByText('Register Family On-Site')).toBeDefined();
         });
+
+        expect(screen.getByPlaceholderText('Age')).toHaveAttribute('max', '18');
     });
 
     it('shows edit buttons only for registrations waiting for check-in', () => {
@@ -178,6 +181,8 @@ describe('HolidayProgramSection', () => {
         await waitFor(() => {
             expect(screen.getByText('Edit Registration')).toBeDefined();
         });
+
+        expect(screen.getByPlaceholderText('Age')).toHaveAttribute('max', '18');
 
         const nameInput = screen.getByDisplayValue('Carlos Ramirez');
         fireEvent.change(nameInput, { target: { value: 'Carlos R. Updated' } });

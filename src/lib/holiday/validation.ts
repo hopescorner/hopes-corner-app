@@ -62,8 +62,8 @@ export function holidayRegistrationValidationError(input: unknown, options?: { r
         if (!child || typeof child !== 'object') return 'Invalid child information';
         if (typeof child.name !== 'string' || !child.name.trim()) return 'Child name is required';
         if (child.name.length > MAX_CHILD_NAME_LENGTH) return 'Child name is too long';
-        if (!Number.isInteger(child.age) || child.age < 0 || child.age >= 18) {
-            return 'Child age must be a whole number between 0 and 17';
+        if (!Number.isInteger(child.age) || child.age < 0 || child.age > 18) {
+            return 'Child age must be a whole number between 0 and 18';
         }
         if (!optionalStringIsValid(child.school, MAX_SCHOOL_LENGTH)) return 'School name is too long';
         if (!optionalStringIsValid(child.gender, MAX_GENDER_LENGTH)) return 'Gender value is too long';

@@ -1,6 +1,6 @@
 import { HolidayAgeGroup } from '@/types/holiday';
 
-export const MAX_HOLIDAY_CHILD_AGE = 17;
+export const MAX_HOLIDAY_CHILD_AGE = 18;
 
 export function calculateAge(birthdateStr?: string, referenceDate: Date = new Date(), maxAge: number = MAX_HOLIDAY_CHILD_AGE): number {
     if (!birthdateStr || typeof birthdateStr !== 'string') return 0;
@@ -31,7 +31,7 @@ export function getHolidayAgeGroup(age: number): HolidayAgeGroup {
     if (clampedAge === 13) return 'teen_13';
     if (clampedAge === 14) return 'teen_14';
     if (clampedAge === 15) return 'teen_15';
-    return 'teen_16_17';
+    return 'teen_16_18';
 }
 
 export function isTeen14Plus(age: number): boolean {
@@ -63,8 +63,8 @@ export function formatAgeGroupLabel(group: HolidayAgeGroup): string {
             return 'Teen (14)';
         case 'teen_15':
             return 'Teen (15)';
-        case 'teen_16_17':
-            return 'Teen (16-17)';
+        case 'teen_16_18':
+            return 'Teen (16-18)';
         default:
             return group;
     }
