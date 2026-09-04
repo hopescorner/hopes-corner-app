@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { PenaltyKickGame, planDive, zoneIndexForShot, zoneCenterForIndex, hottestZone, levelParams } from '../PenaltyKickGame';
+import { PenaltyKickGame, planDive, zoneIndexForShot, zoneCenterForIndex, hottestZone, levelParams, weakShotLanding } from '../PenaltyKickGame';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -81,6 +81,29 @@ describe('PenaltyKickGame', () => {
     render(<PenaltyKickGame onClose={onClose} graceMs={0} />);
     fireEvent.click(screen.getByTestId('penalty-kick'));
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('weak shot landing', () => {
+  it('lands short of the goal line regardless of aim', () => {
+    const left = weakShotLanding(70, 0.2);
+    const right = weakShotLanding(290, 0.2);
+    expect(left.y).toBeGreaterThan(250);
+    expect(right.y).toBeGreaterThan(250);
+  });
+
+  it('stays on the pitch and never enters the goal mouth', () => {
+    for (let p = 0.15; p < 0.3; p += 0.01) {
+      const landing = weakShotLanding(180, p);
+      expect(landing.y).toBeGreaterThanOrEqual(210);
+      expect(landing.y).toBeLessThanOrEqual(440);
+    }
+  });
+
+  it('carries the ball further as power approaches the weak threshold', () => {
+    const soft = weakShotLanding(180, 0.16);
+    const firmer = weakShotLanding(180, 0.28);
+    expect(firmer.y).toBeLessThan(soft.y);
   });
 });
 

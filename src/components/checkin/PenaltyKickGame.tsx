@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
 type Phase = 'aim' | 'flying' | 'result';
-type Outcome = 'goal' | 'saved' | 'post' | 'miss';
+type Outcome = 'goal' | 'saved' | 'post' | 'miss' | 'weak';
 
 interface Keeper {
   x: number;
@@ -101,6 +101,7 @@ const POWER_MIN = 0.15;
 const SWEET_LO = 0.72;
 const SWEET_HI = 0.78;
 const OVERHIT = 0.83;
+const WEAK_THRESHOLD = 0.3;
 
 const MEMORY_WINDOW = 20;
 const LEARN_ZONES = 4;
@@ -344,6 +345,16 @@ function classifyShot(x: number, y: number): Outcome {
   return 'miss';
 }
 
+export function weakShotLanding(targetX: number, power: number): { x: number; y: number } {
+  const p = clamp((power - POWER_MIN) / (WEAK_THRESHOLD - POWER_MIN), 0, 1);
+  const dist = SPOT_Y - (BAR_Y - 40);
+  const travel = 0.2 + p * 0.4;
+  return {
+    x: SPOT_X + (targetX - SPOT_X) * 0.7,
+    y: SPOT_Y - dist * travel,
+  };
+}
+
 function gloveAt(
   frame: number,
   plan: DivePlan,
@@ -534,7 +545,17 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ty = clamp(ty, 25, SPOT_Y - 30);
 
       let outcome = classifyShot(tx, ty);
+
+      if (power < WEAK_THRESHOLD) {
+        const landing = weakShotLanding(target.x, power);
+        tx = landing.x;
+        ty = landing.y;
+        outcome = 'weak';
+      }
+
       recordShot(tx, ty, outcome);
+      const diveShotX = power < WEAK_THRESHOLD ? target.x : tx;
+      const diveShotY = power < WEAK_THRESHOLD ? target.y : ty;
 
       const heat = hottestZone(memoryRef.current);
       const switches = postGoalHistoryRef.current.switches;
@@ -555,8 +576,8 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         switchRatio = leftCount > rightCount ? 0.15 : 0.85;
       }
 
-      const plan = planDive(tx, params, heat, {
-        shotY: ty,
+      const plan = planDive(diveShotX, params, heat, {
+        shotY: diveShotY,
         streak: currentStreak,
         lastGoalSide: lastGoalSideRef.current,
         postGoalSwitchRatio: switchRatio,
@@ -1055,6 +1076,14 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
               vy: 2.5,
               scale: 0.58,
             };
+          } else if (f.outcome === 'weak') {
+            looseBallRef.current = {
+              x: f.toX,
+              y: f.toY,
+              vx: (f.toX - f.fromX) / f.duration,
+              vy: 0.8,
+              scale: 0.58,
+            };
           } else {
             looseBallRef.current = {
               x: f.toX,
@@ -1551,9 +1580,11 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
               ? 'DENIED!'
               : outcome === 'post'
                 ? 'OFF THE POST!'
-                : resultRef.current.toY < BAR_Y
-                  ? 'OVER THE BAR!'
-                  : 'WIDE!';
+                : outcome === 'weak'
+                  ? 'TOO SOFT!'
+                  : resultRef.current.toY < BAR_Y
+                    ? 'OVER THE BAR!'
+                    : 'WIDE!';
         const sub =
           outcome === 'goal'
             ? isConsecutiveGoal
@@ -1565,11 +1596,12 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
                 : 'Superhuman fingertip save!'
               : outcome === 'post'
                 ? 'Inches away!'
-                : 'Ballooned into the crowd.';
+                : outcome === 'weak'
+                  ? 'Didn\'t reach the goal.'
+                  : 'Ballooned into the crowd.';
 
         const color =
           outcome === 'goal' ? '#22c55e' : outcome === 'saved' ? '#38bdf8' : '#fbbf24';
-
         ctx.save();
         ctx.translate(WIDTH / 2, 355);
         ctx.scale(pop, pop);
