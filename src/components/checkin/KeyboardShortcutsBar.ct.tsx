@@ -24,7 +24,8 @@ test.describe('KeyboardShortcutsBar', () => {
   test('renders kbd elements for all shortcuts', async ({ mount }) => {
     const component = await mount(<KeyboardShortcutsBar />);
     const kbds = component.locator('kbd');
-    await expect(kbds).toHaveCount(11);
+    // 11 desktop hints plus 8 condensed mobile hints
+    await expect(kbds).toHaveCount(19);
   });
 
   test('accepts custom className', async ({ mount }) => {

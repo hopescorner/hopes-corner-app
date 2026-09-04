@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef, useDeferredValue, useTransition } from 'react';
-import { AlertTriangle, Search, UserPlus, X, Users, Loader2 } from 'lucide-react';
+import { AlertTriangle, Search, UserPlus, X, Users } from 'lucide-react';
 import { useGuestsStore, Guest } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
@@ -17,6 +17,7 @@ import { TodayStats } from '@/components/checkin/TodayStats';
 import { DailyNotesSection } from '@/components/checkin/DailyNotesSection';
 import { LiveConnectionPill } from '@/components/checkin/LiveConnectionPill';
 import { RecentCheckinsBar } from '@/components/checkin/RecentCheckinsBar';
+import { UndoTray } from '@/components/checkin/UndoTray';
 import { useModalStore } from '@/stores/useModalStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
@@ -412,6 +413,28 @@ export default function CheckInClient({
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }, []);
 
+    // Keep the latest sorted list reachable from a stable callback so each guest
+    // card can advance to the next result without stale closure concerns.
+    const sortedGuestsRef = useRef(sortedGuests);
+    sortedGuestsRef.current = sortedGuests;
+
+    const handleAdvanceToNext = useCallback((guestId: string) => {
+        const current = sortedGuestsRef.current;
+        const idx = current.findIndex((g) => g.id === guestId);
+        if (idx < 0 || idx >= current.length - 1) {
+            handleClearSearch();
+            return;
+        }
+        const nextGuest = current[idx + 1];
+        setSelectedIndex(idx + 1);
+        if (isLargeList) {
+            rowVirtualizer.scrollToIndex(idx + 1, { align: 'auto' });
+        }
+        requestAnimationFrame(() => {
+            guestCardRefs.current[nextGuest.id]?.focus();
+        });
+    }, [handleClearSearch, isLargeList, rowVirtualizer]);
+
     const handleGuestCreated = useCallback(async () => {
         if (!snapshotReady) return;
         const response = await fetch('/api/check-in/snapshot', { cache: 'no-store' });
@@ -675,7 +698,7 @@ export default function CheckInClient({
             )}
 
             {/* Search Header */}
-            <div className="bg-white rounded-2xl shadow-xl shadow-emerald-900/5 border border-emerald-100/50 p-6 sm:p-8">
+            <div className="sticky top-0 z-30 bg-white rounded-2xl shadow-xl shadow-emerald-900/5 border border-emerald-100/50 p-6 sm:p-8">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 bg-emerald-100 rounded-xl">
@@ -721,7 +744,7 @@ export default function CheckInClient({
                 </div>
 
                 {/* Keyboard Shortcuts Bar */}
-                <KeyboardShortcutsBar className="mt-4 hidden sm:flex" />
+                <KeyboardShortcutsBar className="mt-4" />
 
                 <div className="flex items-center gap-3 mt-4">
                     <button
@@ -753,9 +776,20 @@ export default function CheckInClient({
                 }}
             >
                 {isLoading ? (
-                    <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100 gap-4">
-                        <Loader2 size={40} className="text-emerald-500 animate-spin" />
-                        <p className="text-gray-400 font-bold uppercase tracking-widest text-xs">Loading Guest Database...</p>
+                    <div className="space-y-4" aria-busy="true" aria-label="Loading guest database">
+                        <p className="sr-only">Loading guest database...</p>
+                        {[0, 1, 2].map((i) => (
+                            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 animate-pulse">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-xl bg-gray-200" />
+                                    <div className="flex-1 space-y-2">
+                                        <div className="h-4 w-1/3 bg-gray-200 rounded" />
+                                        <div className="h-3 w-1/2 bg-gray-100 rounded" />
+                                    </div>
+                                    <div className="w-24 h-10 bg-gray-100 rounded-xl" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 ) : sortedGuests.length === 0 ? (
                     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
@@ -910,6 +944,7 @@ export default function CheckInClient({
                                                 <GuestCard
                                                     guest={guest}
                                                     onClearSearch={handleClearSearch}
+                                                    onAdvanceToNext={handleAdvanceToNext}
                                                     isSelected={selectedIndex === virtualRow.index}
                                                     mealStatusMap={mealStatus}
                                                     serviceStatusMap={serviceStatus}
@@ -944,6 +979,7 @@ export default function CheckInClient({
                                                 <GuestCard
                                                     guest={guest}
                                                     onClearSearch={handleClearSearch}
+                                                    onAdvanceToNext={handleAdvanceToNext}
                                                     isSelected={selectedIndex === index}
                                                     mealStatusMap={mealStatus}
                                                     serviceStatusMap={serviceStatus}
@@ -991,6 +1027,9 @@ export default function CheckInClient({
             {showPenaltyGame && (
                     <PenaltyKickGame onClose={() => setShowPenaltyGame(false)} />
             )}
+
+            {/* Undo tray for the most recent action on this page */}
+            <UndoTray />
         </div>
     );
 }

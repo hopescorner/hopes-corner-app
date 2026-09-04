@@ -1099,4 +1099,81 @@ describe('GuestCard Component', () => {
             expect(screen.getByText('8:30 AM')).toBeDefined();
         });
     });
+
+    describe('Mobile One-Tap Meal Button', () => {
+        it('renders a one-tap meal button', () => {
+            render(<GuestCard guest={baseGuest} />);
+            expect(screen.getByRole('button', { name: 'Log 1 meal' })).toBeDefined();
+        });
+
+        it('logs one meal when the one-tap button is clicked', async () => {
+            render(<GuestCard guest={baseGuest} />);
+            fireEvent.click(screen.getByRole('button', { name: 'Log 1 meal' }));
+
+            await waitFor(() => {
+                expect(mockAddMealRecord).toHaveBeenCalledWith('g1', 1);
+            });
+        });
+
+        it('shows a meal-logged state when a meal is already assigned', () => {
+            const mealStatusMap = new Map([
+                ['g1', {
+                    hasMeal: true,
+                    mealRecord: { id: 'meal-1', count: 1 },
+                    mealCount: 1,
+                    extraMealCount: 0,
+                    totalMeals: 1,
+                }],
+            ]);
+            render(<GuestCard guest={baseGuest} mealStatusMap={mealStatusMap} />);
+            expect(screen.getByRole('button', { name: 'Meal logged' })).toBeDefined();
+        });
+    });
+
+    describe('Auto-Advance on Complete Check-in', () => {
+        const mealStatusMap = new Map([
+            ['g1', {
+                hasMeal: true,
+                mealRecord: { id: 'meal-1', count: 1 },
+                mealCount: 1,
+                extraMealCount: 0,
+                totalMeals: 1,
+            }],
+        ]);
+
+        it('calls onAdvanceToNext instead of clearing search when provided', () => {
+            const onAdvance = vi.fn();
+            const onClear = vi.fn();
+            const { container } = render(
+                <GuestCard
+                    guest={baseGuest}
+                    mealStatusMap={mealStatusMap}
+                    onAdvanceToNext={onAdvance}
+                    onClearSearch={onClear}
+                />
+            );
+
+            const completeButton = container.querySelector('.bg-blue-100.hover\\:bg-blue-200');
+            fireEvent.click(completeButton!);
+
+            expect(onAdvance).toHaveBeenCalledWith('g1');
+            expect(onClear).not.toHaveBeenCalled();
+        });
+
+        it('falls back to clearing search when onAdvanceToNext is not provided', () => {
+            const onClear = vi.fn();
+            const { container } = render(
+                <GuestCard
+                    guest={baseGuest}
+                    mealStatusMap={mealStatusMap}
+                    onClearSearch={onClear}
+                />
+            );
+
+            const completeButton = container.querySelector('.bg-blue-100.hover\\:bg-blue-200');
+            fireEvent.click(completeButton!);
+
+            expect(onClear).toHaveBeenCalled();
+        });
+    });
 });

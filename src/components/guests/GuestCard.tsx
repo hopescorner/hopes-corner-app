@@ -101,6 +101,9 @@ interface GuestCardProps {
 
     // Optional expansion callback (useful for list virtualization measurement)
     onExpandedChange?: (guestId: string, expanded: boolean) => void;
+
+    // Called when the staff completes a check-in and wants to advance to the next result.
+    onAdvanceToNext?: (guestId: string) => void;
 }
 
 type PureGuestCardProps = GuestCardProps & {
@@ -184,6 +187,7 @@ function PureGuestCard({
     linkedGuestsCount,
     activeRemindersCount,
     onExpandedChange,
+    onAdvanceToNext,
     mealRecords,
     extraMealRecords,
     showerRecords,
@@ -606,7 +610,11 @@ function PureGuestCard({
         const servicesSummary = servicesParts.join(' + ');
 
         toast.success(`${servicesSummary} completed`);
-        if (onClearSearch) onClearSearch();
+        if (onAdvanceToNext) {
+            onAdvanceToNext(guest.id);
+        } else if (onClearSearch) {
+            onClearSearch();
+        }
     };
 
     return (
@@ -822,6 +830,32 @@ function PureGuestCard({
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-2 shrink-0">
+                    {/* Mobile One-Tap Meal Button - only visible on small screens */}
+                    {!compact && (
+                        <button
+                            onClick={(e) => handleMealAdd(e, 1)}
+                            disabled={isPending || !!todayMeal || isBannedFromMeals}
+                            className={cn(
+                                "flex md:hidden items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full active:scale-95 transition-transform touch-manipulation",
+                                todayMeal
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : isBannedFromMeals
+                                        ? "bg-red-100 text-red-500 opacity-60"
+                                        : "bg-emerald-600 text-white"
+                            )}
+                            title={todayMeal ? "Meal logged" : "Log 1 meal"}
+                            aria-label={todayMeal ? "Meal logged" : "Log 1 meal"}
+                        >
+                            {isPending ? (
+                                <Loader2 size={22} className="animate-spin" />
+                            ) : todayMeal ? (
+                                <Check size={22} strokeWidth={2.5} />
+                            ) : (
+                                <Utensils size={22} />
+                            )}
+                        </button>
+                    )}
+
                     {/* Mobile Quick Add Button - only visible on small screens */}
                     <button
                         onClick={(e) => {
