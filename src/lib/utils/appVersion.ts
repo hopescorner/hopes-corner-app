@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.14.0';
+export const APP_VERSION = '0.15.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,37 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.15.0',
+        date: 'September 4, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'One-Tap Meal on Phones',
+                description: 'A one-tap meal button now shows on each guest card on phones and tablets. Staff can log a meal without opening the service sheet.',
+            },
+            {
+                type: 'feature',
+                title: 'Move to Next Guest After Check-In',
+                description: 'After staff finish a check-in, the page moves to the next guest in the search results. Staff no longer need to search again for each person.',
+            },
+            {
+                type: 'feature',
+                title: 'Undo Bar for Recent Actions',
+                description: 'A small Undo bar now shows after each action. Staff can undo the last meal, shower, laundry, bicycle, haircut, or holiday in one tap.',
+            },
+            {
+                type: 'improvement',
+                title: 'Sticky Search Box',
+                description: 'The search box now stays at the top of the screen while staff scroll through results.',
+            },
+            {
+                type: 'improvement',
+                title: 'Clearer Loading and Shortcut Hints',
+                description: 'The loading screen now shows placeholders that match the guest cards instead of a spinning circle. Phones and tablets now show a compact row of shortcut hints.',
+            },
+        ],
+    },
     {
         version: '0.14.0',
         date: 'September 3, 2026',

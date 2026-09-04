@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.15.0] - 2026-09-04
+
+### Added
+
+- A one-tap meal button now shows on each guest card on phones and tablets. Staff can log a meal without opening the service sheet.
+- After staff finish a check-in, the page now moves to the next guest in the search results. Staff no longer need to search again for each person.
+- A small Undo bar now shows after each action. Staff can undo the last meal, shower, laundry, bicycle, haircut, or holiday in one tap.
+
+### Improved
+
+- The search box now stays at the top of the screen while staff scroll through results.
+- The loading screen now shows placeholders that match the guest cards instead of a spinning circle.
+- Phones and tablets now show a compact row of shortcut hints.
+
 ## [0.14.0] - 2026-09-03
 
 ### Added
