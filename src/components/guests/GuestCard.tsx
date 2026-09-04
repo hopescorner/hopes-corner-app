@@ -30,7 +30,8 @@ import {
     History,
     Sparkles,
     Users,
-    ListPlus
+    ListPlus,
+    ArrowRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
@@ -830,30 +831,63 @@ function PureGuestCard({
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-2 shrink-0">
-                    {/* Mobile One-Tap Meal Button - only visible on small screens */}
+                    {/* Mobile Meal Controls (1/2 + undo) - only visible on small screens */}
                     {!compact && (
-                        <button
-                            onClick={(e) => handleMealAdd(e, 1)}
-                            disabled={isPending || !!todayMeal || isBannedFromMeals}
-                            className={cn(
-                                "flex md:hidden items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full active:scale-95 transition-transform touch-manipulation",
-                                todayMeal
-                                    ? "bg-emerald-100 text-emerald-700"
-                                    : isBannedFromMeals
-                                        ? "bg-red-100 text-red-500 opacity-60"
-                                        : "bg-emerald-600 text-white"
-                            )}
-                            title={todayMeal ? "Meal logged" : "Log 1 meal"}
-                            aria-label={todayMeal ? "Meal logged" : "Log 1 meal"}
-                        >
-                            {isPending ? (
-                                <Loader2 size={22} className="animate-spin" />
-                            ) : todayMeal ? (
-                                <Check size={22} strokeWidth={2.5} />
+                        <div className="flex md:hidden items-center gap-1.5">
+                            {!todayMeal ? (
+                                isBannedFromMeals ? (
+                                    <div
+                                        className="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-red-100 text-red-500 opacity-60"
+                                        title="Banned from meals"
+                                    >
+                                        <Ban size={20} />
+                                    </div>
+                                ) : (
+                                    [1, 2].map((count) => (
+                                        <button
+                                            key={count}
+                                            onClick={(e) => handleMealAdd(e, count)}
+                                            disabled={isPending}
+                                            className="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-emerald-600 text-white active:scale-95 transition-transform touch-manipulation disabled:opacity-50"
+                                            title={`Log ${count} meal${count > 1 ? 's' : ''}`}
+                                            aria-label={`Log ${count} meal${count > 1 ? 's' : ''}`}
+                                        >
+                                            {isPending ? (
+                                                <Loader2 size={18} className="animate-spin" />
+                                            ) : count === 1 ? (
+                                                <Utensils size={20} />
+                                            ) : (
+                                                <span className="text-sm font-black">2</span>
+                                            )}
+                                        </button>
+                                    ))
+                                )
                             ) : (
-                                <Utensils size={22} />
+                                <>
+                                    <div
+                                        className="flex items-center justify-center gap-0.5 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-emerald-100 text-emerald-700"
+                                        title="Meal logged"
+                                    >
+                                        <Check size={14} strokeWidth={3} />
+                                        <span className="text-sm font-black">{baseMealCount}</span>
+                                        {extraMealsCount > 0 && (
+                                            <span className="text-[10px] font-black text-orange-600">+{extraMealsCount}</span>
+                                        )}
+                                    </div>
+                                    {mealAction && (
+                                        <button
+                                            onClick={(e) => handleUndo(e, mealAction.id, 'Check-in')}
+                                            disabled={isPending}
+                                            className="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-orange-100 border border-orange-200 text-orange-700 active:scale-95 transition-transform touch-manipulation disabled:opacity-50"
+                                            title="Undo meal"
+                                            aria-label="Undo meal"
+                                        >
+                                            <RotateCcw size={18} />
+                                        </button>
+                                    )}
+                                </>
                             )}
-                        </button>
+                        </div>
                     )}
 
                     {/* Mobile Quick Add Button - only visible on small screens */}
@@ -1051,6 +1085,21 @@ function PureGuestCard({
                                 <UserCheck size={20} />
                             </button>
                         </>
+                    )}
+
+                    {/* Next Result Button - lets staff skip a guest without service today */}
+                    {!hasServiceToday && !compact && onAdvanceToNext && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onAdvanceToNext(guest.id);
+                            }}
+                            className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-xl bg-gray-50 border border-gray-100 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 transition-all active:scale-95 touch-manipulation"
+                            title="Next guest"
+                            aria-label="Next guest"
+                        >
+                            <ArrowRight size={18} />
+                        </button>
                     )}
 
                     <div className={cn(

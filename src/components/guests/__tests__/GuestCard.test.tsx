@@ -830,7 +830,8 @@ describe('GuestCard Component', () => {
                 <GuestCard guest={baseGuest} mealStatusMap={statusWithExtras} />
             );
             // Desktop: should show base count and +extra count
-            expect(screen.getByText('+2')).toBeDefined();
+            // (the mobile meal badge also renders the +extra count)
+            expect(screen.getAllByText('+2').length).toBeGreaterThan(0);
         });
 
         it('displays base meal count separately from extra count on desktop', () => {
@@ -847,7 +848,8 @@ describe('GuestCard Component', () => {
                 <GuestCard guest={baseGuest} mealStatusMap={statusWithExtras} />
             );
             // The desktop extra button should show "+1" extra count indicator
-            expect(screen.getByText('+1')).toBeDefined();
+            // (the mobile meal badge also renders the +extra count)
+            expect(screen.getAllByText('+1').length).toBeGreaterThan(0);
             // The Extra button should be present and visually separate
             const extraButton = container.querySelector('button[title="Add extra meal (requires confirmation)"]');
             expect(extraButton).not.toBeNull();
@@ -1100,13 +1102,14 @@ describe('GuestCard Component', () => {
         });
     });
 
-    describe('Mobile One-Tap Meal Button', () => {
-        it('renders a one-tap meal button', () => {
+    describe('Mobile Meal Controls', () => {
+        it('renders one-tap meal buttons for 1 and 2 meals', () => {
             render(<GuestCard guest={baseGuest} />);
             expect(screen.getByRole('button', { name: 'Log 1 meal' })).toBeDefined();
+            expect(screen.getByRole('button', { name: 'Log 2 meals' })).toBeDefined();
         });
 
-        it('logs one meal when the one-tap button is clicked', async () => {
+        it('logs one meal when the 1-meal button is clicked', async () => {
             render(<GuestCard guest={baseGuest} />);
             fireEvent.click(screen.getByRole('button', { name: 'Log 1 meal' }));
 
@@ -1115,7 +1118,16 @@ describe('GuestCard Component', () => {
             });
         });
 
-        it('shows a meal-logged state when a meal is already assigned', () => {
+        it('logs two meals when the 2-meal button is clicked', async () => {
+            render(<GuestCard guest={baseGuest} />);
+            fireEvent.click(screen.getByRole('button', { name: 'Log 2 meals' }));
+
+            await waitFor(() => {
+                expect(mockAddMealRecord).toHaveBeenCalledWith('g1', 2);
+            });
+        });
+
+        it('shows the meal count and an undo button when a meal is already assigned', () => {
             const mealStatusMap = new Map([
                 ['g1', {
                     hasMeal: true,
@@ -1125,8 +1137,53 @@ describe('GuestCard Component', () => {
                     totalMeals: 1,
                 }],
             ]);
-            render(<GuestCard guest={baseGuest} mealStatusMap={mealStatusMap} />);
-            expect(screen.getByRole('button', { name: 'Meal logged' })).toBeDefined();
+            const actionStatusMap = new Map([
+                ['g1', { mealActionId: 'action-meal-1' }],
+            ]);
+            render(
+                <GuestCard
+                    guest={baseGuest}
+                    mealStatusMap={mealStatusMap}
+                    actionStatusMap={actionStatusMap}
+                />
+            );
+            expect(screen.getByTitle('Meal logged')).toBeDefined();
+            expect(screen.queryByRole('button', { name: 'Log 1 meal' })).toBeNull();
+            expect(screen.getByRole('button', { name: 'Undo meal' })).toBeDefined();
+        });
+
+        it('calls undoAction when the mobile undo meal button is clicked', async () => {
+            const mealStatusMap = new Map([
+                ['g1', {
+                    hasMeal: true,
+                    mealRecord: { id: 'meal-1', count: 1 },
+                    mealCount: 1,
+                    extraMealCount: 0,
+                    totalMeals: 1,
+                }],
+            ]);
+            const actionStatusMap = new Map([
+                ['g1', { mealActionId: 'action-meal-1' }],
+            ]);
+            render(
+                <GuestCard
+                    guest={baseGuest}
+                    mealStatusMap={mealStatusMap}
+                    actionStatusMap={actionStatusMap}
+                />
+            );
+            fireEvent.click(screen.getByRole('button', { name: 'Undo meal' }));
+
+            await waitFor(() => {
+                expect(mockUndoAction).toHaveBeenCalledWith('action-meal-1');
+            });
+        });
+
+        it('shows a banned state instead of meal buttons when banned from meals', () => {
+            const bannedGuest = { ...baseGuest, isBanned: true, bannedFromMeals: true };
+            render(<GuestCard guest={bannedGuest} />);
+            expect(screen.getByTitle('Banned from meals')).toBeDefined();
+            expect(screen.queryByRole('button', { name: 'Log 1 meal' })).toBeNull();
         });
     });
 
@@ -1174,6 +1231,39 @@ describe('GuestCard Component', () => {
             fireEvent.click(completeButton!);
 
             expect(onClear).toHaveBeenCalled();
+        });
+    });
+
+    describe('Next Guest Button', () => {
+        it('shows a next-guest button when the guest has no service and onAdvanceToNext is provided', () => {
+            render(<GuestCard guest={baseGuest} onAdvanceToNext={vi.fn()} />);
+            expect(screen.getByRole('button', { name: 'Next guest' })).toBeDefined();
+        });
+
+        it('does not show the next-guest button when onAdvanceToNext is not provided', () => {
+            render(<GuestCard guest={baseGuest} />);
+            expect(screen.queryByRole('button', { name: 'Next guest' })).toBeNull();
+        });
+
+        it('calls onAdvanceToNext with the guest id when next-guest is clicked', () => {
+            const onAdvance = vi.fn();
+            render(<GuestCard guest={baseGuest} onAdvanceToNext={onAdvance} />);
+            fireEvent.click(screen.getByRole('button', { name: 'Next guest' }));
+            expect(onAdvance).toHaveBeenCalledWith('g1');
+        });
+
+        it('shows the complete button instead of next-guest when a service is present', () => {
+            const mealStatusMap = new Map([
+                ['g1', {
+                    hasMeal: true,
+                    mealRecord: { id: 'meal-1', count: 1 },
+                    mealCount: 1,
+                    extraMealCount: 0,
+                    totalMeals: 1,
+                }],
+            ]);
+            render(<GuestCard guest={baseGuest} mealStatusMap={mealStatusMap} onAdvanceToNext={vi.fn()} />);
+            expect(screen.queryByRole('button', { name: 'Next guest' })).toBeNull();
         });
     });
 });
