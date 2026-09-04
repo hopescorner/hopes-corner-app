@@ -12,7 +12,11 @@ import {
     Loader2,
     ChevronDown,
     RotateCcw,
+    Clock,
 } from 'lucide-react';
+import { cn } from '@/lib/utils/cn';
+import { formatSlotLabel } from '@/lib/utils/serviceSlots';
+import type { NextAvailableShowerSlot, NextAvailableLaundrySlot } from '@/lib/utils/nextAvailableSlot';
 import { GuestBanNotice } from '@/components/guests/GuestBanNotice';
 
 interface Guest {
@@ -41,14 +45,22 @@ interface MobileServiceSheetProps {
     onMealUndo?: () => void;
     // Shower props
     onShowerSelect: (guest: Guest) => void;
+    onQuickShowerSelect?: (guest: Guest) => void;
     hasShowerToday?: boolean;
     isBannedFromShower?: boolean;
     onShowerUndo?: () => void;
+    nextAvailableShowerSlot?: NextAvailableShowerSlot | null;
+    bookedShowerTime?: string | null;
+    isPendingShower?: boolean;
     // Laundry props
     onLaundrySelect: (guest: Guest) => void;
+    onQuickLaundrySelect?: (guest: Guest) => void;
     hasLaundryToday?: boolean;
     isBannedFromLaundry?: boolean;
     onLaundryUndo?: () => void;
+    nextAvailableLaundrySlot?: NextAvailableLaundrySlot | null;
+    bookedLaundryTime?: string | null;
+    isPendingLaundry?: boolean;
 }
 
 /**
@@ -70,14 +82,22 @@ export function MobileServiceSheet({
     onMealUndo,
     // Shower props
     onShowerSelect,
+    onQuickShowerSelect,
     hasShowerToday = false,
     isBannedFromShower = false,
     onShowerUndo,
+    nextAvailableShowerSlot,
+    bookedShowerTime,
+    isPendingShower = false,
     // Laundry props
     onLaundrySelect,
+    onQuickLaundrySelect,
     hasLaundryToday = false,
     isBannedFromLaundry = false,
     onLaundryUndo,
+    nextAvailableLaundrySlot,
+    bookedLaundryTime,
+    isPendingLaundry = false,
 }: MobileServiceSheetProps) {
     const sheetRef = useRef<HTMLDivElement>(null);
     const startY = useRef(0);
@@ -273,9 +293,16 @@ export function MobileServiceSheet({
                                 </h3>
                                 {hasShowerToday ? (
                                     <div className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-sky-50 border-2 border-sky-200 text-sky-700 font-bold">
-                                        <div className="flex items-center gap-3">
-                                            <Check size={24} className="text-sky-600" />
-                                            <span>Shower Booked Today</span>
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <Check size={24} className="text-sky-600 shrink-0" />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="truncate">Shower Booked Today</span>
+                                                {bookedShowerTime && (
+                                                    <span className="text-xs font-semibold text-sky-600 truncate">
+                                                        Slot: {formatSlotLabel(bookedShowerTime)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         {onShowerUndo && (
                                             <button
@@ -283,7 +310,7 @@ export function MobileServiceSheet({
                                                     onShowerUndo();
                                                     onClose();
                                                 }}
-                                                className="flex items-center justify-center gap-1.5 px-3 h-10 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 font-semibold active:scale-95 transition-transform touch-manipulation"
+                                                className="flex items-center justify-center gap-1.5 px-3 h-10 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 font-semibold active:scale-95 transition-transform touch-manipulation shrink-0"
                                                 title="Undo shower"
                                             >
                                                 <RotateCcw size={16} />
@@ -296,16 +323,68 @@ export function MobileServiceSheet({
                                         <span>Banned from Showers</span>
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={() => {
-                                            onShowerSelect(guest);
-                                            onClose();
-                                        }}
-                                        className="flex items-center justify-center gap-3 w-full h-16 rounded-2xl bg-white border-2 border-sky-200 text-sky-700 font-bold hover:bg-sky-50 active:bg-sky-100 active:scale-[0.98] transition-all touch-manipulation"
-                                    >
-                                        <ShowerHead size={24} />
-                                        <span className="text-lg">Book Shower</span>
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => {
+                                                if (onQuickShowerSelect) {
+                                                    onQuickShowerSelect(guest);
+                                                } else {
+                                                    onShowerSelect(guest);
+                                                }
+                                                onClose();
+                                            }}
+                                            disabled={isPendingShower}
+                                            className={cn(
+                                                "flex items-center gap-3 flex-1 min-w-0 h-16 px-4 rounded-2xl bg-white border-2 text-left transition-all active:scale-[0.98] touch-manipulation disabled:opacity-50",
+                                                nextAvailableShowerSlot === null
+                                                    ? "border-amber-200 text-amber-700 hover:bg-amber-50 active:bg-amber-100"
+                                                    : "border-sky-200 text-sky-700 hover:bg-sky-50 active:bg-sky-100"
+                                            )}
+                                        >
+                                            {isPendingShower ? (
+                                                <Loader2 size={24} className="animate-spin shrink-0" />
+                                            ) : (
+                                                <ShowerHead size={24} className="shrink-0" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-base font-bold truncate">
+                                                        {nextAvailableShowerSlot === null ? 'Join Waitlist' : 'Book Shower'}
+                                                    </span>
+                                                    {nextAvailableShowerSlot ? (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800 shrink-0">
+                                                            {nextAvailableShowerSlot.slotTime || nextAvailableShowerSlot.label}
+                                                        </span>
+                                                    ) : nextAvailableShowerSlot === null ? (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0">
+                                                            Waitlist
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                                {(nextAvailableShowerSlot || nextAvailableShowerSlot === null) && (
+                                                    <p className="text-xs text-gray-500 font-medium truncate">
+                                                        {nextAvailableShowerSlot
+                                                            ? `Next available: ${nextAvailableShowerSlot.label}`
+                                                            : 'All slots full today · Tap to join waitlist'}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                onShowerSelect(guest);
+                                                onClose();
+                                            }}
+                                            disabled={isPendingShower}
+                                            className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-white border-2 border-gray-200 text-gray-600 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-700 active:scale-95 transition-all touch-manipulation shrink-0 disabled:opacity-50"
+                                            title="Choose specific shower time"
+                                            aria-label="Choose specific shower time"
+                                        >
+                                            <Clock size={20} />
+                                            <span className="text-[10px] font-bold mt-0.5">Time</span>
+                                        </button>
+                                    </div>
                                 )}
                             </div>
 
@@ -319,9 +398,16 @@ export function MobileServiceSheet({
                                 </h3>
                                 {hasLaundryToday ? (
                                     <div className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-indigo-50 border-2 border-indigo-200 text-indigo-700 font-bold">
-                                        <div className="flex items-center gap-3">
-                                            <Check size={24} className="text-indigo-600" />
-                                            <span>Laundry Booked Today</span>
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <Check size={24} className="text-indigo-600 shrink-0" />
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="truncate">Laundry Booked Today</span>
+                                                {bookedLaundryTime && (
+                                                    <span className="text-xs font-semibold text-indigo-600 truncate">
+                                                        Slot: {formatSlotLabel(bookedLaundryTime)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </div>
                                         {onLaundryUndo && (
                                             <button
@@ -329,7 +415,7 @@ export function MobileServiceSheet({
                                                     onLaundryUndo();
                                                     onClose();
                                                 }}
-                                                className="flex items-center justify-center gap-1.5 px-3 h-10 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 font-semibold active:scale-95 transition-transform touch-manipulation"
+                                                className="flex items-center justify-center gap-1.5 px-3 h-10 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 font-semibold active:scale-95 transition-transform touch-manipulation shrink-0"
                                                 title="Undo laundry"
                                             >
                                                 <RotateCcw size={16} />
@@ -342,16 +428,68 @@ export function MobileServiceSheet({
                                         <span>Banned from Laundry</span>
                                     </div>
                                 ) : (
-                                    <button
-                                        onClick={() => {
-                                            onLaundrySelect(guest);
-                                            onClose();
-                                        }}
-                                        className="flex items-center justify-center gap-3 w-full h-16 rounded-2xl bg-white border-2 border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-50 active:bg-indigo-100 active:scale-[0.98] transition-all touch-manipulation"
-                                    >
-                                        <WashingMachine size={24} />
-                                        <span className="text-lg">Book Laundry</span>
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => {
+                                                if (nextAvailableLaundrySlot && onQuickLaundrySelect) {
+                                                    onQuickLaundrySelect(guest);
+                                                } else {
+                                                    onLaundrySelect(guest);
+                                                }
+                                                onClose();
+                                            }}
+                                            disabled={isPendingLaundry}
+                                            className={cn(
+                                                "flex items-center gap-3 flex-1 min-w-0 h-16 px-4 rounded-2xl bg-white border-2 text-left transition-all active:scale-[0.98] touch-manipulation disabled:opacity-50",
+                                                nextAvailableLaundrySlot === null
+                                                    ? "border-amber-200 text-amber-700 hover:bg-amber-50 active:bg-amber-100"
+                                                    : "border-indigo-200 text-indigo-700 hover:bg-indigo-50 active:bg-indigo-100"
+                                            )}
+                                        >
+                                            {isPendingLaundry ? (
+                                                <Loader2 size={24} className="animate-spin shrink-0" />
+                                            ) : (
+                                                <WashingMachine size={24} className="shrink-0" />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-base font-bold truncate">
+                                                        {nextAvailableLaundrySlot === null ? 'Laundry Options' : 'Book Laundry'}
+                                                    </span>
+                                                    {nextAvailableLaundrySlot ? (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 shrink-0">
+                                                            {nextAvailableLaundrySlot.label.split(' - ')[0]}
+                                                        </span>
+                                                    ) : nextAvailableLaundrySlot === null ? (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0">
+                                                            Off-site / Full
+                                                        </span>
+                                                    ) : null}
+                                                </div>
+                                                {(nextAvailableLaundrySlot || nextAvailableLaundrySlot === null) && (
+                                                    <p className="text-xs text-gray-500 font-medium truncate">
+                                                        {nextAvailableLaundrySlot
+                                                            ? `Next available: ${nextAvailableLaundrySlot.label}`
+                                                            : 'On-site full · Tap for off-site or waitlist'}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                onLaundrySelect(guest);
+                                                onClose();
+                                            }}
+                                            disabled={isPendingLaundry}
+                                            className="flex flex-col items-center justify-center w-16 h-16 rounded-2xl bg-white border-2 border-gray-200 text-gray-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 active:scale-95 transition-all touch-manipulation shrink-0 disabled:opacity-50"
+                                            title="Choose laundry options"
+                                            aria-label="Choose laundry options"
+                                        >
+                                            <Clock size={20} />
+                                            <span className="text-[10px] font-bold mt-0.5">Options</span>
+                                        </button>
+                                    </div>
                                 )}
                             </div>
 

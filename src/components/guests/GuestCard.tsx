@@ -1551,13 +1551,21 @@ function PureGuestCard({
                 isBannedFromMeals={isBannedFromMeals}
                 onMealUndo={mealAction ? () => handleUndo(undefined, mealAction.id, 'Check-in') : undefined}
                 onShowerSelect={(g) => setShowerPickerGuest(g)}
+                onQuickShowerSelect={() => { void handleQuickShower(); }}
                 hasShowerToday={!!todayShower}
                 isBannedFromShower={isBannedFromShower}
                 onShowerUndo={showerAction ? () => handleUndo(undefined, showerAction.id, 'Shower booking') : undefined}
+                nextAvailableShowerSlot={nextAvailableShowerSlot}
+                bookedShowerTime={serviceStatus.showerRecord?.time}
+                isPendingShower={isPending}
                 onLaundrySelect={(g) => setLaundryPickerGuest(g)}
+                onQuickLaundrySelect={() => { void handleQuickLaundry(); }}
                 hasLaundryToday={!!todayLaundry}
                 isBannedFromLaundry={isBannedFromLaundry}
                 onLaundryUndo={laundryAction ? () => handleUndo(undefined, laundryAction.id, 'Laundry booking') : undefined}
+                nextAvailableLaundrySlot={nextAvailableLaundrySlot}
+                bookedLaundryTime={serviceStatus.laundryRecord?.time}
+                isPendingLaundry={isPending}
             />
         </div>
     );

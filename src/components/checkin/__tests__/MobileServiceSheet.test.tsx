@@ -108,6 +108,60 @@ describe('MobileServiceSheet', () => {
             expect(screen.getByText('Shower Booked Today')).toBeDefined();
         });
 
+        it('shows booked shower slot time when provided', () => {
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasShowerToday={true}
+                    bookedShowerTime="07:30"
+                />
+            );
+            expect(screen.getByText('Slot: 7:30 AM')).toBeDefined();
+        });
+
+        it('shows next available shower slot details and triggers onQuickShowerSelect', () => {
+            const onQuickShowerSelect = vi.fn();
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasShowerToday={false}
+                    nextAvailableShowerSlot={{ slotTime: '07:30', label: '7:30 AM', count: 1 }}
+                    onQuickShowerSelect={onQuickShowerSelect}
+                />
+            );
+            expect(screen.getByText('07:30')).toBeDefined();
+            expect(screen.getByText('Next available: 7:30 AM')).toBeDefined();
+
+            fireEvent.click(screen.getByText('Book Shower'));
+            expect(onQuickShowerSelect).toHaveBeenCalledWith(mockGuest);
+            expect(defaultProps.onClose).toHaveBeenCalled();
+        });
+
+        it('calls onShowerSelect and onClose when choose specific time button clicked', () => {
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasShowerToday={false}
+                    nextAvailableShowerSlot={{ slotTime: '08:00', label: '8:00 AM', count: 0 }}
+                />
+            );
+            fireEvent.click(screen.getByTitle('Choose specific shower time'));
+            expect(defaultProps.onShowerSelect).toHaveBeenCalledWith(mockGuest);
+            expect(defaultProps.onClose).toHaveBeenCalled();
+        });
+
+        it('shows waitlist UI when shower slots are full', () => {
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasShowerToday={false}
+                    nextAvailableShowerSlot={null}
+                />
+            );
+            expect(screen.getByText('Join Waitlist')).toBeDefined();
+            expect(screen.getByText('All slots full today · Tap to join waitlist')).toBeDefined();
+        });
+
         it('calls onShowerUndo and onClose when undo button clicked', () => {
             const onShowerUndo = vi.fn();
             render(
@@ -144,6 +198,61 @@ describe('MobileServiceSheet', () => {
         it('shows booked message when laundry already booked', () => {
             render(<MobileServiceSheet {...defaultProps} hasLaundryToday={true} />);
             expect(screen.getByText('Laundry Booked Today')).toBeDefined();
+        });
+
+        it('shows booked laundry slot time when provided', () => {
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasLaundryToday={true}
+                    bookedLaundryTime="07:30 - 08:30"
+                />
+            );
+            expect(screen.getByText('Slot: 7:30 AM - 8:30 AM')).toBeDefined();
+        });
+
+        it('shows next available laundry slot details and triggers onQuickLaundrySelect', () => {
+            const onQuickLaundrySelect = vi.fn();
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasLaundryToday={false}
+                    nextAvailableLaundrySlot={{ slotLabel: '07:30 - 08:30', label: '7:30 AM - 8:30 AM' }}
+                    onQuickLaundrySelect={onQuickLaundrySelect}
+                />
+            );
+            expect(screen.getByText('7:30 AM')).toBeDefined();
+            expect(screen.getByText('Next available: 7:30 AM - 8:30 AM')).toBeDefined();
+
+            fireEvent.click(screen.getByText('Book Laundry'));
+            expect(onQuickLaundrySelect).toHaveBeenCalledWith(mockGuest);
+            expect(defaultProps.onClose).toHaveBeenCalled();
+        });
+
+        it('calls onLaundrySelect and onClose when choose laundry options button clicked', () => {
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasLaundryToday={false}
+                    nextAvailableLaundrySlot={{ slotLabel: '08:00 - 09:00', label: '8:00 AM - 9:00 AM' }}
+                />
+            );
+            fireEvent.click(screen.getByTitle('Choose laundry options'));
+            expect(defaultProps.onLaundrySelect).toHaveBeenCalledWith(mockGuest);
+            expect(defaultProps.onClose).toHaveBeenCalled();
+        });
+
+        it('shows offsite / options UI when onsite laundry slots are full', () => {
+            render(
+                <MobileServiceSheet
+                    {...defaultProps}
+                    hasLaundryToday={false}
+                    nextAvailableLaundrySlot={null}
+                />
+            );
+            expect(screen.getByText('Laundry Options')).toBeDefined();
+            expect(screen.getByText('Off-site / Full')).toBeDefined();
+            expect(screen.getByText('On-site full · Tap for off-site or waitlist')).toBeDefined();
         });
 
         it('calls onLaundryUndo and onClose when undo button clicked', () => {
