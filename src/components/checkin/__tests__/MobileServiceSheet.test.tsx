@@ -129,8 +129,7 @@ describe('MobileServiceSheet', () => {
                     onQuickShowerSelect={onQuickShowerSelect}
                 />
             );
-            expect(screen.getByText('07:30')).toBeDefined();
-            expect(screen.getByText('Next available: 7:30 AM')).toBeDefined();
+            expect(screen.getByText('7:30 AM')).toBeDefined();
 
             fireEvent.click(screen.getByText('Book Shower'));
             expect(onQuickShowerSelect).toHaveBeenCalledWith(mockGuest);
@@ -159,7 +158,7 @@ describe('MobileServiceSheet', () => {
                 />
             );
             expect(screen.getByText('Join Waitlist')).toBeDefined();
-            expect(screen.getByText('All slots full today · Tap to join waitlist')).toBeDefined();
+            expect(screen.getByText('Waitlist')).toBeDefined();
         });
 
         it('calls onShowerUndo and onClose when undo button clicked', () => {
@@ -222,7 +221,6 @@ describe('MobileServiceSheet', () => {
                 />
             );
             expect(screen.getByText('7:30 AM')).toBeDefined();
-            expect(screen.getByText('Next available: 7:30 AM - 8:30 AM')).toBeDefined();
 
             fireEvent.click(screen.getByText('Book Laundry'));
             expect(onQuickLaundrySelect).toHaveBeenCalledWith(mockGuest);
@@ -252,7 +250,6 @@ describe('MobileServiceSheet', () => {
             );
             expect(screen.getByText('Laundry Options')).toBeDefined();
             expect(screen.getByText('Off-site / Full')).toBeDefined();
-            expect(screen.getByText('On-site full · Tap for off-site or waitlist')).toBeDefined();
         });
 
         it('calls onLaundryUndo and onClose when undo button clicked', () => {

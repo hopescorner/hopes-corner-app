@@ -346,28 +346,19 @@ export function MobileServiceSheet({
                                             ) : (
                                                 <ShowerHead size={24} className="shrink-0" />
                                             )}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-base font-bold truncate">
-                                                        {nextAvailableShowerSlot === null ? 'Join Waitlist' : 'Book Shower'}
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <span className="text-base font-bold truncate">
+                                                    {nextAvailableShowerSlot === null ? 'Join Waitlist' : 'Book Shower'}
+                                                </span>
+                                                {nextAvailableShowerSlot ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800 shrink-0">
+                                                        {nextAvailableShowerSlot.label || nextAvailableShowerSlot.slotTime}
                                                     </span>
-                                                    {nextAvailableShowerSlot ? (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-sky-100 text-sky-800 shrink-0">
-                                                            {nextAvailableShowerSlot.slotTime || nextAvailableShowerSlot.label}
-                                                        </span>
-                                                    ) : nextAvailableShowerSlot === null ? (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0">
-                                                            Waitlist
-                                                        </span>
-                                                    ) : null}
-                                                </div>
-                                                {(nextAvailableShowerSlot || nextAvailableShowerSlot === null) && (
-                                                    <p className="text-xs text-gray-500 font-medium truncate">
-                                                        {nextAvailableShowerSlot
-                                                            ? `Next available: ${nextAvailableShowerSlot.label}`
-                                                            : 'All slots full today · Tap to join waitlist'}
-                                                    </p>
-                                                )}
+                                                ) : nextAvailableShowerSlot === null ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0">
+                                                        Waitlist
+                                                    </span>
+                                                ) : null}
                                             </div>
                                         </button>
                                         <button
@@ -451,28 +442,19 @@ export function MobileServiceSheet({
                                             ) : (
                                                 <WashingMachine size={24} className="shrink-0" />
                                             )}
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-base font-bold truncate">
-                                                        {nextAvailableLaundrySlot === null ? 'Laundry Options' : 'Book Laundry'}
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <span className="text-base font-bold truncate">
+                                                    {nextAvailableLaundrySlot === null ? 'Laundry Options' : 'Book Laundry'}
+                                                </span>
+                                                {nextAvailableLaundrySlot ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 shrink-0">
+                                                        {nextAvailableLaundrySlot.label.split(' - ')[0]}
                                                     </span>
-                                                    {nextAvailableLaundrySlot ? (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 shrink-0">
-                                                            {nextAvailableLaundrySlot.label.split(' - ')[0]}
-                                                        </span>
-                                                    ) : nextAvailableLaundrySlot === null ? (
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0">
-                                                            Off-site / Full
-                                                        </span>
-                                                    ) : null}
-                                                </div>
-                                                {(nextAvailableLaundrySlot || nextAvailableLaundrySlot === null) && (
-                                                    <p className="text-xs text-gray-500 font-medium truncate">
-                                                        {nextAvailableLaundrySlot
-                                                            ? `Next available: ${nextAvailableLaundrySlot.label}`
-                                                            : 'On-site full · Tap for off-site or waitlist'}
-                                                    </p>
-                                                )}
+                                                ) : nextAvailableLaundrySlot === null ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 shrink-0">
+                                                        Off-site / Full
+                                                    </span>
+                                                ) : null}
                                             </div>
                                         </button>
                                         <button
