@@ -128,26 +128,36 @@ function easeOutBack(t: number) {
 export function levelParams(level: number, streak = 0): LevelParams {
   const t = clamp(level - 1, 0, MAX_LEVEL - 1) / (MAX_LEVEL - 1);
   const base: LevelParams = {
-    readProb: 0.65 + t * 0.3,
-    noise: 24 - t * 20,
-    reactDelay: Math.max(0, Math.round(5 - t * 4)),
-    diveFrames: Math.round(16 - t * 7),
-    reach: 90 + t * 18,
-    saveR: 24 + t * 10,
+    readProb: 0.52 + t * 0.2,
+    noise: 30 - t * 12,
+    reactDelay: Math.max(1, Math.round(7 - t * 4)),
+    diveFrames: Math.round(19 - t * 8),
+    reach: 88 + t * 16,
+    saveR: 22 + t * 6,
     sway: 4 + t * 6,
     wobble: clamp(level - 1, 0, 9) * 0.75,
-    chargeRate: 0.022 + t * 0.013,
+    chargeRate: 0.02 + t * 0.014,
   };
 
   if (streak >= 1) {
-    base.readProb = 0.99;
-    base.noise = 0;
+    base.readProb = 0.94;
+    base.noise = 2;
     base.reactDelay = 0;
     base.diveFrames = 6;
-    base.reach = 125;
-    base.saveR = 48;
-    base.wobble = Math.max(base.wobble, 7.5) + streak * 1.5;
-    base.chargeRate = 0.04 + streak * 0.006;
+    base.reach = 120;
+    base.saveR = 40;
+    base.wobble = 7.5;
+    base.chargeRate = 0.04;
+  }
+
+  if (streak >= 2) {
+    base.readProb = 1;
+    base.noise = 0;
+    base.diveFrames = 4;
+    base.reach = 130;
+    base.saveR = 52;
+    base.wobble = 9.5;
+    base.chargeRate = 0.045;
   }
 
   return base;
@@ -793,6 +803,15 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
     const cameraFlashes: Array<{ x: number; y: number; life: number }> = [];
 
+    const grass: Array<{ x: number; y: number; h: number }> = [];
+    for (let i = 0; i < 130; i++) {
+      grass.push({
+        x: Math.random() * WIDTH,
+        y: 176 + Math.random() * (HEIGHT - 184),
+        h: 2 + Math.random() * 3,
+      });
+    }
+
     const drawSoccerBall = (x: number, y: number, r: number, rot: number) => {
       ctx.save();
       ctx.translate(x, y);
@@ -804,6 +823,11 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.fillStyle = g;
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.75)';
+      ctx.beginPath();
+      ctx.arc(-r * 0.32, -r * 0.34, r * 0.15, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.rotate(rot);
@@ -881,13 +905,29 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.roundRect(-10, -32, 20, 12, 3);
       ctx.fill();
 
-      ctx.fillStyle = kitColor;
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fillRect(-10, -32, 3, 12);
+      ctx.fillRect(7, -32, 3, 12);
+
+      const kitGrad = ctx.createLinearGradient(0, -58, 0, -28);
+      kitGrad.addColorStop(0, '#34d399');
+      kitGrad.addColorStop(0.55, '#059669');
+      kitGrad.addColorStop(1, '#047857');
+      ctx.fillStyle = kitGrad;
       ctx.strokeStyle = kitTrim;
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.roundRect(-11, -58, 22, 30, 6);
       ctx.fill();
       ctx.stroke();
+
+      ctx.fillStyle = '#022c22';
+      ctx.beginPath();
+      ctx.moveTo(-5, -58);
+      ctx.lineTo(5, -58);
+      ctx.lineTo(0, -53);
+      ctx.closePath();
+      ctx.fill();
 
       ctx.fillStyle = kitTrim;
       ctx.fillRect(-11, -44, 22, 4);
@@ -920,6 +960,14 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.fill();
       ctx.beginPath();
       ctx.arc(gloveRX, gloveY, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.beginPath();
+      ctx.arc(gloveLX - 2, gloveY - 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(gloveRX - 2, gloveY - 2, 2, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.fillStyle = '#fcd9b8';
@@ -1157,6 +1205,9 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         ctx.fillStyle = fan.c;
         ctx.globalAlpha = cheerActive ? 0.95 : 0.85;
         ctx.fillRect(fan.x, fan.y - bob, 3.2, 4.2);
+        ctx.beginPath();
+        ctx.arc(fan.x + 1.6, fan.y - bob - 1.6, 2, 0, Math.PI * 2);
+        ctx.fill();
       }
       ctx.globalAlpha = 1;
 
@@ -1200,6 +1251,15 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         ctx.closePath();
         ctx.fill();
       }
+
+      ctx.strokeStyle = 'rgba(34,197,94,0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (const blade of grass) {
+        ctx.moveTo(blade.x, blade.y);
+        ctx.lineTo(blade.x, blade.y - blade.h);
+      }
+      ctx.stroke();
 
       ctx.strokeStyle = 'rgba(255,255,255,0.85)';
       ctx.lineWidth = 2;
