@@ -915,13 +915,12 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.stroke();
 
       ctx.fillStyle = '#f8fafc';
-      ctx.strokeStyle = '#0284c7';
-      ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(gloveLX, gloveY, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
       ctx.arc(gloveRX, gloveY, 6.5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.stroke();
 
       ctx.fillStyle = '#fcd9b8';
       ctx.beginPath();
