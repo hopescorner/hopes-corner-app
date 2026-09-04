@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.17.0] - 2026-09-04
+
+### Added
+
+- The mobile services sheet now displays the next available shower and laundry slot times directly on the buttons with one-tap quick booking and dedicated time picker buttons.
+
 ## [0.16.1] - 2026-09-04
 
 ### Fixed

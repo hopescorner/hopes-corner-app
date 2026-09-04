@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.16.1';
+export const APP_VERSION = '0.17.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.17.0',
+        date: 'September 4, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Next Shower & Laundry Slots on Mobile',
+                description: 'The mobile services sheet now displays the next available shower and laundry slot times directly on the buttons with one-tap quick booking and dedicated time picker buttons.',
+            },
+        ],
+    },
     {
         version: '0.16.1',
         date: 'September 4, 2026',
