@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.19.0] - 2026-09-04
+
+### Improved
+
+- The Meals page is redesigned to be easier to scan: a compact toolbar with date navigation and the Add button, a slimmer automation switch, and clearly grouped entry forms.
+- Meal entry forms now sit in a tidy layout: individual and multi-guest entry on the left, the family meal program on the right, and bulk entries below as compact rows instead of large cards.
+- Day summary numbers are easier to read with cleaner stat tiles.
+- Activity log rows are half as tall, with the type badge shown next to each name instead of floating on the right.
+- Edit and delete buttons on activity log rows are now always faintly visible instead of appearing only on mouse hover.
+- One consistent primary action color across the page, with category color kept only to identify record types.
+
 ## [0.18.0] - 2026-09-04
 
 ### Improved

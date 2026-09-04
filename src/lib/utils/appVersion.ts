@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.18.0';
+export const APP_VERSION = '0.19.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.19.0',
+        date: 'September 4, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Easier-to-Read Meals Page',
+                description: 'The Meals page now has a compact toolbar with date navigation and the Add button, a slimmer automation switch, and clearly grouped entry forms so staff can find what they need faster.',
+            },
+            {
+                type: 'improvement',
+                title: 'Compact Bulk Entry Rows',
+                description: 'Bulk meal entries are now a tidy list of rows instead of large cards, and the entry forms sit side by side: individual and multi-guest entry on the left, the family meal program on the right.',
+            },
+            {
+                type: 'improvement',
+                title: 'Cleaner Summary and Activity Log',
+                description: 'Day summary tiles are easier to read, and activity log rows are half as tall with the type badge shown next to each name and edit and delete buttons always visible.',
+            },
+        ],
+    },
     {
         version: '0.18.0',
         date: 'September 4, 2026',
