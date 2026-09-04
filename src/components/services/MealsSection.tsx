@@ -21,10 +21,11 @@ import {
     HandHeart,
     Handshake,
     Trash2,
-    Check,
     Search,
     CheckSquare,
     Square,
+    Pencil,
+    Zap,
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
@@ -700,108 +701,117 @@ const proxyPickerIds = new Set<string>();
 
 
     return (
-        <div className="space-y-8">
-            {/* ... Date Navigation ... */}
-            <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
-                        <Utensils size={24} />
+        <div className="space-y-6">
+            {/* Toolbar: title, date navigation, service timer, add button */}
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="p-2.5 bg-emerald-50 rounded-xl text-emerald-600 shrink-0">
+                        <Utensils size={22} />
                     </div>
-                    <div>
-                        <h2 className="text-xl font-black text-gray-900 tracking-tight">Daily Meal Logs</h2>
-                        <p className="text-xs text-gray-400 font-bold uppercase tracking-widest">Service Distribution Tracker</p>
+                    <div className="min-w-0">
+                        <h2 className="text-lg font-bold text-gray-900 tracking-tight truncate">Daily Meal Logs</h2>
+                        <p className="text-xs text-gray-500 font-medium">Service Distribution Tracker</p>
                     </div>
                 </div>
 
-                {/* Meal Service Timer - subtle indicator for volunteers */}
-                <MealServiceTimer />
-
-                <div className="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-100">
-                    <button
-                        onClick={() => shiftDate(-1)}
-                        className="p-2 hover:bg-white rounded-xl transition-all text-gray-400 hover:text-emerald-600 shadow-sm"
-                    >
-                        <ChevronLeft size={20} />
-                    </button>
-                    <div className="text-center px-4">
-                        <p className="text-sm font-black text-gray-900">{new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
-                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest mt-0.5">
-                            {isToday ? 'Active Service Day' : 'Archived Records'}
-                        </p>
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    {/* Date navigation */}
+                    <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1">
+                        <button
+                            onClick={() => shiftDate(-1)}
+                            aria-label="Previous day"
+                            className="p-2 rounded-lg hover:bg-white transition-all text-gray-500 hover:text-gray-900"
+                        >
+                            <ChevronLeft size={18} />
+                        </button>
+                        <div className="text-center px-2 sm:px-3 min-w-[8rem]">
+                            <p className="text-sm font-bold text-gray-900 leading-tight">{new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                            <p className={cn(
+                                "text-[11px] font-bold mt-0.5",
+                                isToday ? 'text-emerald-600' : 'text-gray-400'
+                            )}>
+                                {isToday ? 'Active Service Day' : 'Archived Records'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => shiftDate(1)}
+                            aria-label="Next day"
+                            className="p-2 rounded-lg hover:bg-white transition-all text-gray-500 hover:text-gray-900"
+                        >
+                            <ChevronRight size={18} />
+                        </button>
                     </div>
-                    <div className="flex items-center gap-2">
-                        {isToday && (
-                    <button
-                        onClick={() => setSelectedDate(todayPacificDateString())}
-                        className="px-2.5 py-1 text-xs font-bold bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors"
-                    >
-                        Today
-                    </button>
-                )}
-                <button
-                    onClick={() => shiftDate(1)}
-                    className="p-2 hover:bg-white rounded-xl transition-all text-gray-400 hover:text-emerald-600 shadow-sm"
-                >
-                    <ChevronRight size={20} />
-                </button>
-            </div>
-        </div>
+                    {!isToday && (
+                        <button
+                            onClick={() => setSelectedDate(todayPacificDateString())}
+                            className="px-3 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-600 rounded-lg hover:border-emerald-300 hover:text-emerald-700 transition-colors"
+                        >
+                            Today
+                        </button>
+                    )}
 
-        <button
-            onClick={() => setShowAddPanel(!showAddPanel)}
-            className={cn(
-                "px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl transition-all flex items-center gap-2",
-                showAddPanel
-                    ? "bg-gray-200 text-gray-600 shadow-gray-100"
-                    : "bg-gray-900 text-white shadow-gray-200 hover:scale-105 active:scale-95"
-            )}
-        >
-            {showAddPanel ? 'Close' : <><Plus size={14} /> Add Bulk Meals</>}
-        </button>
+                    {/* Meal Service Timer - subtle indicator for volunteers */}
+                    <MealServiceTimer />
+
+                    <button
+                        onClick={() => setShowAddPanel(!showAddPanel)}
+                        className={cn(
+                            "px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5",
+                            showAddPanel
+                                ? "bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200"
+                                : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 shadow-sm"
+                        )}
+                    >
+                        {showAddPanel ? 'Close' : <><Plus size={14} /> Add Bulk Meals</>}
+                    </button>
+                </div>
             </div>
 
             <ServiceDayNote date={selectedDate} serviceType="meals" />
 
-            <div className="bg-gradient-to-r from-emerald-50 via-white to-sky-50 rounded-3xl border border-emerald-100 p-4 sm:p-5 shadow-sm">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700">Meal Automation</p>
-                        <h3 className="mt-1 text-base font-black text-gray-900">Automatic RV, lunch bag, and day worker additions</h3>
-                        <p className="mt-1 text-xs text-gray-500 max-w-2xl">
-                            Turn this off to pause auto-added lunch bags on guest meal entry and scheduled RV, lunch bag, and day worker bulk entries.
-                        </p>
+            {/* Meal Automation - slim one-line control */}
+            <div className="bg-white rounded-2xl border border-gray-200 px-4 py-3 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className={cn(
+                        "p-2 rounded-lg shrink-0",
+                        autoMealAdditionsEnabled ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                    )}>
+                        <Zap size={16} />
                     </div>
-                    <div className="flex items-center gap-3 self-start lg:self-center">
-                        <span className={cn(
-                            "text-[11px] font-black uppercase tracking-widest",
-                            autoMealAdditionsEnabled ? 'text-emerald-700' : 'text-amber-700'
-                        )}>
-                            {isSavingAutoMealAdditions ? 'Saving' : autoMealAdditionsEnabled ? 'Enabled' : 'Paused'}
-                        </span>
-                        <button
-                            type="button"
-                            role="switch"
-                            aria-checked={autoMealAdditionsEnabled}
-                            aria-label="Automatic RV, lunch bag, and day worker additions"
-                            disabled={isSavingAutoMealAdditions}
-                            onClick={handleToggleAutoMealAdditions}
-                            className={cn(
-                                "relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors",
-                                isSavingAutoMealAdditions ? 'cursor-wait opacity-70' : 'cursor-pointer',
-                                autoMealAdditionsEnabled ? 'bg-emerald-500' : 'bg-amber-400'
-                            )}
-                        >
-                            <span
-                                className={cn(
-                                    "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
-                                    autoMealAdditionsEnabled ? 'translate-x-5' : 'translate-x-0'
-                                )}
-                            />
-                        </button>
+                    <div className="min-w-0">
+                        <p className="text-sm font-bold text-gray-900">Meal Automation</p>
+                        <p className="text-xs text-gray-500">Automatic RV, lunch bag, and day worker additions. Turn off to pause auto-added lunch bags on guest meal entry.</p>
                     </div>
                 </div>
+                <div className="flex items-center gap-3 sm:shrink-0">
+                    <span className={cn(
+                        "text-[11px] font-bold uppercase tracking-wider",
+                        autoMealAdditionsEnabled ? 'text-emerald-700' : 'text-amber-700'
+                    )}>
+                        {isSavingAutoMealAdditions ? 'Saving' : autoMealAdditionsEnabled ? 'Enabled' : 'Paused'}
+                    </span>
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={autoMealAdditionsEnabled}
+                        aria-label="Automatic RV, lunch bag, and day worker additions"
+                        disabled={isSavingAutoMealAdditions}
+                        onClick={handleToggleAutoMealAdditions}
+                        className={cn(
+                            "relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors",
+                            isSavingAutoMealAdditions ? 'cursor-wait opacity-70' : 'cursor-pointer',
+                            autoMealAdditionsEnabled ? 'bg-emerald-500' : 'bg-amber-400'
+                        )}
+                    >
+                        <span
+                            className={cn(
+                                "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-lg ring-0 transition-transform",
+                                autoMealAdditionsEnabled ? 'translate-x-5' : 'translate-x-0'
+                            )}
+                        />
+                    </button>
+                </div>
             </div>
-
             {/* Quick Add Panel */}
             <AnimatePresence>
                 {/* ... Panel Content ... */}
@@ -812,65 +822,73 @@ const proxyPickerIds = new Set<string>();
                         exit={{ opacity: 0, height: 0 }}
                         className="overflow-hidden"
                     >
-                        <div className="bg-white rounded-3xl border border-gray-100 p-6 shadow-sm">
-                            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <Plus size={16} /> Quick Add Bulk Meals
-                            </h3>
-                            <p className="text-[11px] text-gray-500 mb-4" title="All entries in this panel save to the date selected above.">
+                        <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-6 shadow-sm space-y-5">
+                            <div className="flex items-center justify-between gap-3">
+                                <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                                    <Plus size={16} className="text-emerald-600" /> Quick Add Bulk Meals
+                                </h3>
+                            </div>
+                            <p className="text-xs text-gray-500 -mt-3" title="All entries in this panel save to the date selected above.">
                                 Entries save to selected date: {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </p>
 
-                            <div className="mb-5 p-4 rounded-2xl border border-emerald-100 bg-emerald-50/40">
-                                <p className="text-[11px] font-black uppercase tracking-widest text-emerald-700 mb-3">Individual Meal Entry</p>
-                                <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_160px] gap-3">
-                                    <select
-                                        value={individualGuestId}
-                                        onChange={(e) => setIndividualGuestId(e.target.value)}
-                                        className="w-full p-2.5 rounded-xl border border-emerald-200 bg-white text-sm font-medium"
-                                    >
-                                        <option value="">Select guest</option>
-                                        {guests
-                                            .filter((guest) => guest?.id)
-                                            .sort((firstGuest, secondGuest) => {
-                                                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${firstGuest.lastName || ''}`).toString();
-                                                const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
-                                                return firstName.localeCompare(secondName);
-                                            })
-                                            .map((guest) => {
-                                                const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
-                                                return (
-                                                    <option key={guest.id} value={guest.id}>
-                                                        {displayName}
-                                                    </option>
-                                                );
-                                            })}
-                                    </select>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={individualMealCount}
-                                        onChange={(e) => setIndividualMealCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                        className="w-full p-2.5 rounded-xl border border-emerald-200 bg-white text-sm font-bold text-center"
-                                        aria-label="Individual meal quantity"
-                                    />
-                                    <button
-                                        onClick={handleAddIndividualMeal}
-                                        disabled={!individualGuestId || isPendingIndividual}
-                                        className={cn(
-                                            "w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all",
-                                            !individualGuestId || isPendingIndividual
-                                                ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                                : "bg-emerald-600 text-white hover:bg-emerald-700"
-                                        )}
-                                    >
-                                        {isPendingIndividual ? 'Adding...' : `Add${!isToday ? ` for ${selectedDate}` : ''}`}
-                                    </button>
-                                </div>
-                            </div>
+                            <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+                                <div className="space-y-5 min-w-0">
+                                    {/* Individual Meal Entry */}
+                                    <section className="p-4 rounded-2xl border border-gray-200 bg-gray-50/60">
+                                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1 flex items-center gap-1.5">
+                                            <User size={13} /> Individual Meal Entry
+                                        </p>
+                                        <p className="text-[11px] text-gray-400 mb-3">Log a meal for one guest. Max 2 base meals per guest per day.</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_160px] gap-3">
+                                            <select
+                                                value={individualGuestId}
+                                                onChange={(e) => setIndividualGuestId(e.target.value)}
+                                                className="w-full p-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                                            >
+                                                <option value="">Select guest</option>
+                                                {guests
+                                                    .filter((guest) => guest?.id)
+                                                    .sort((firstGuest, secondGuest) => {
+                                                        const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${firstGuest.lastName || ''}`).toString();
+                                                        const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
+                                                        return firstName.localeCompare(secondName);
+                                                    })
+                                                    .map((guest) => {
+                                                        const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
+                                                        return (
+                                                            <option key={guest.id} value={guest.id}>
+                                                                {displayName}
+                                                            </option>
+                                                        );
+                                                    })}
+                                            </select>
+                                            <input
+                                                type="number"
+                                                min={1}
+                                                value={individualMealCount}
+                                                onChange={(e) => setIndividualMealCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                                className="w-full p-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                                                aria-label="Individual meal quantity"
+                                            />
+                                            <button
+                                                onClick={handleAddIndividualMeal}
+                                                disabled={!individualGuestId || isPendingIndividual}
+                                                className={cn(
+                                                    "w-full py-2.5 rounded-xl text-xs font-bold transition-all",
+                                                    !individualGuestId || isPendingIndividual
+                                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                                                        : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
+                                                )}
+                                            >
+                                                {isPendingIndividual ? 'Adding...' : `Add${!isToday ? ` for ${selectedDate}` : ''}`}
+                                            </button>
+                                        </div>
+                                    </section>
 
-                            {/* Multi-Guest Bulk Add */}
-                            <div className="mb-5 p-4 rounded-2xl border border-blue-100 bg-blue-50/40">
-                                <p className="text-[11px] font-black uppercase tracking-widest text-blue-700 mb-3 flex items-center gap-2">
+                                    {/* Multi-Guest Meal Entry */}
+                                    <section className="p-4 rounded-2xl border border-gray-200 bg-gray-50/60">
+                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 flex items-center gap-1.5">
                                     <Users size={13} /> Multi-Guest Meal Entry
                                 </p>
 
@@ -883,7 +901,7 @@ const proxyPickerIds = new Set<string>();
                                             placeholder="Search guests…"
                                             value={bulkGuestSearch}
                                             onChange={(e) => setBulkGuestSearch(e.target.value)}
-                                            className="w-full pl-8 pr-3 py-2 rounded-xl border border-blue-200 bg-white text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                            className="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
                                             aria-label="Search guests for bulk meal add"
                                         />
                                     </div>
@@ -896,7 +914,7 @@ const proxyPickerIds = new Set<string>();
                                             }
                                             setSelectedGuestIds(new Set());
                                         }}
-                                        className="px-3 py-2 rounded-xl border border-blue-200 bg-white text-xs font-bold text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                        className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
                                         aria-label="Filter by meal status"
                                     >
                                         <option value="all">All from This Date</option>
@@ -907,7 +925,7 @@ const proxyPickerIds = new Set<string>();
 
                                 {/* Select all / deselect all */}
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[11px] text-blue-600 font-bold uppercase tracking-wide">
+                                    <span className="text-[11px] text-gray-600 font-bold uppercase tracking-wide">
                                         {filteredBulkGuests.length} guest{filteredBulkGuests.length !== 1 ? 's' : ''} shown
                                         {selectedGuestIds.size > 0 && ` · ${selectedGuestIds.size} selected`}
                                     </span>
@@ -916,7 +934,7 @@ const proxyPickerIds = new Set<string>();
                                             type="button"
                                             onClick={() => setSelectedGuestIds(new Set(filteredBulkGuests.map((g) => g.id)))}
                                             disabled={filteredBulkGuests.length === 0}
-                                            className="text-[11px] font-black uppercase tracking-wider text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                                            className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
                                             aria-label="Select all visible guests"
                                         >
                                             Select All
@@ -935,7 +953,7 @@ const proxyPickerIds = new Set<string>();
                                 </div>
 
                                 {/* Guest list */}
-                                <div data-testid="multi-guest-list" className="max-h-52 overflow-y-auto rounded-xl border border-blue-100 bg-white divide-y divide-gray-50 mb-3">
+                                <div data-testid="multi-guest-list" className="max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white divide-y divide-gray-50 mb-3">
                                     {filteredBulkGuests.length === 0 ? (
                                         <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">No guests served on this date</p>
                                     ) : (
@@ -958,12 +976,12 @@ const proxyPickerIds = new Set<string>();
                                                     }}
                                                     className={cn(
                                                         "w-full flex items-center gap-3 px-3 py-2 text-left transition-colors",
-                                                        checked ? "bg-blue-50" : "hover:bg-gray-50"
+                                                        checked ? "bg-emerald-50" : "hover:bg-gray-50"
                                                     )}
                                                     aria-pressed={checked}
                                                 >
                                                     {checked
-                                                        ? <CheckSquare size={16} className="shrink-0 text-blue-600" />
+                                                        ? <CheckSquare size={16} className="shrink-0 text-emerald-600" />
                                                         : <Square size={16} className="shrink-0 text-gray-300" />
                                                     }
                                                     <span className="flex-1 text-sm font-medium text-gray-900 truncate">{displayName}</span>
@@ -992,17 +1010,17 @@ const proxyPickerIds = new Set<string>();
                                             min={1}
                                             value={bulkGuestMealCount}
                                             onChange={(e) => setBulkGuestMealCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                            className="w-20 p-2 rounded-xl border border-blue-200 bg-white text-sm font-bold text-center focus:outline-none focus:ring-1 focus:ring-blue-300"
+                                            className="w-20 p-2 rounded-xl border border-gray-200 bg-white text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
                                             aria-label="Meals per guest"
                                         />
                                         <button
                                             onClick={handleBulkAddGuestMeals}
                                             disabled={selectedGuestIds.size === 0 || isBulkAddingGuests}
                                             className={cn(
-                                                "flex-1 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                                                "flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2",
                                                 selectedGuestIds.size > 0 && !isBulkAddingGuests
-                                                    ? "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
-                                                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                                                    ? "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
+                                                    : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
                                             )}
                                         >
                                             {isBulkAddingGuests
@@ -1016,37 +1034,39 @@ const proxyPickerIds = new Set<string>();
                                         Adds {bulkGuestMealCount} additional meal{bulkGuestMealCount !== 1 ? 's' : ''} per guest (e.g. guest with 1 meal → {1 + bulkGuestMealCount} meals). Max 2 base meals per guest per day.
                                     </p>
                                 </div>
+                                </section>
                             </div>
 
-                            <div className="mb-5 p-4 rounded-2xl border border-teal-100 bg-teal-50/50">
-                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
-                                    <p className="text-[11px] font-black uppercase tracking-widest text-teal-700 flex items-center gap-2">
-                                        <Users size={13} /> Family Meal Program
-                                    </p>
-                                    <label className="inline-flex items-center gap-2 text-[11px] font-bold text-teal-700">
+                                {/* Family Meal Program */}
+                                <section className="p-4 rounded-2xl border border-gray-200 bg-gray-50/60 min-w-0">
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
+                                        <p className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+                                            <Users size={13} /> Family Meal Program
+                                        </p>
+                                        <label className="inline-flex items-center gap-2 text-[11px] font-bold text-gray-600">
+                                            <input
+                                                type="checkbox"
+                                                checked={showUnenrolledFamilies}
+                                                onChange={(event) => setShowUnenrolledFamilies(event.target.checked)}
+                                                className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                                            />
+                                            Show unenrolled
+                                        </label>
+                                    </div>
+
+                                    <div className="relative mb-3">
+                                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
                                         <input
-                                            type="checkbox"
-                                            checked={showUnenrolledFamilies}
-                                            onChange={(event) => setShowUnenrolledFamilies(event.target.checked)}
-                                            className="h-4 w-4 rounded border-teal-300 text-teal-600"
+                                            type="text"
+                                            placeholder="Search enrolled families..."
+                                            value={familySearch}
+                                            onChange={(event) => setFamilySearch(event.target.value)}
+                                            className="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                                            aria-label="Search family meal program households"
                                         />
-                                        Show unenrolled
-                                    </label>
-                                </div>
+                                    </div>
 
-                                <div className="relative mb-3">
-                                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-teal-500 pointer-events-none" />
-                                    <input
-                                        type="text"
-                                        placeholder="Search enrolled families..."
-                                        value={familySearch}
-                                        onChange={(event) => setFamilySearch(event.target.value)}
-                                        className="w-full pl-8 pr-3 py-2 rounded-xl border border-teal-200 bg-white text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-teal-300"
-                                        aria-label="Search family meal program households"
-                                    />
-                                </div>
-
-                                <div className="max-h-60 overflow-y-auto rounded-xl border border-teal-100 bg-white divide-y divide-gray-50 mb-3">
+                                    <div className="max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white divide-y divide-gray-50 mb-3">
                                     {familyRows.length === 0 ? (
                                         <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">
                                             {showUnenrolledFamilies ? 'No families found' : 'No enrolled families found'}
@@ -1062,7 +1082,7 @@ const proxyPickerIds = new Set<string>();
                                                     key={row.family.id}
                                                     className={cn(
                                                         "flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center",
-                                                        checked ? "bg-teal-50" : "hover:bg-gray-50"
+                                                        checked ? "bg-emerald-50" : "hover:bg-gray-50"
                                                     )}
                                                 >
                                                     <button
@@ -1079,7 +1099,7 @@ const proxyPickerIds = new Set<string>();
                                                         aria-pressed={checked}
                                                     >
                                                         {checked
-                                                            ? <CheckSquare size={16} className="mt-0.5 shrink-0 text-teal-600" />
+                                                            ? <CheckSquare size={16} className="mt-0.5 shrink-0 text-emerald-600" />
                                                             : <Square size={16} className="mt-0.5 shrink-0 text-gray-300" />
                                                         }
                                                         <span className="min-w-0 flex-1">
@@ -1088,19 +1108,19 @@ const proxyPickerIds = new Set<string>();
                                                                 {row.memberCount} member{row.memberCount !== 1 ? 's' : ''}{memberPreview ? ` · ${memberPreview}` : ''}
                                                             </span>
                                                             {row.existingRecord && (
-                                                                <span className="mt-1 inline-block rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-teal-700">
+                                                                <span className="mt-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
                                                                     Existing: {row.existingRecord.count} meal{row.existingRecord.count !== 1 ? 's' : ''}
                                                                 </span>
                                                             )}
                                                             {!row.family.enrolledInFamilyMeal && (
-                                                                <span className="ml-2 mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-700">
+                                                                <span className="ml-2 mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
                                                                     Unenrolled
                                                                 </span>
                                                             )}
                                                         </span>
                                                     </button>
                                                     <div className="flex items-center gap-2 sm:w-56">
-                                                        <label className="text-[10px] font-black uppercase tracking-wider text-gray-500">Per Person</label>
+                                                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Per Person</label>
                                                         <input
                                                             type="number"
                                                             min={1}
@@ -1109,38 +1129,44 @@ const proxyPickerIds = new Set<string>();
                                                                 const next = Math.max(1, parseInt(event.target.value) || 1);
                                                                 setFamilyMealCounts((prev) => ({ ...prev, [row.family.id]: next }));
                                                             }}
-                                                            className="w-16 rounded-xl border border-teal-200 bg-white p-2 text-center text-sm font-black text-gray-900 focus:outline-none focus:ring-1 focus:ring-teal-300"
+                                                            className="w-16 rounded-xl border border-gray-200 bg-white p-2 text-center text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
                                                             aria-label={`Meals per member for ${getGuestDisplayName(row.primaryGuest)} household`}
                                                         />
-                                                        <span className="text-xs font-bold text-teal-700">{totalMeals} total</span>
+                                                        <span className="text-xs font-bold text-emerald-700">{totalMeals} total</span>
                                                     </div>
                                                 </div>
                                             );
                                         })
                                     )}
-                                </div>
+                                    </div>
 
-                                <button
-                                    type="button"
-                                    onClick={handleAddFamilyMeals}
-                                    disabled={selectedFamilyIds.size === 0 || isAddingFamilyMeals}
-                                    className={cn(
-                                        "w-full py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
-                                        selectedFamilyIds.size > 0 && !isAddingFamilyMeals
-                                            ? "bg-teal-600 text-white hover:bg-teal-700 active:scale-95"
-                                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                    )}
-                                >
-                                    {isAddingFamilyMeals
-                                        ? 'Saving...'
-                                        : selectedFamilyIds.size > 0
-                                            ? `Save ${selectedFamilyIds.size} Family Meal${selectedFamilyIds.size > 1 ? 's' : ''}`
-                                            : 'Select Families Above'}
-                                </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddFamilyMeals}
+                                        disabled={selectedFamilyIds.size === 0 || isAddingFamilyMeals}
+                                        className={cn(
+                                            "w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2",
+                                            selectedFamilyIds.size > 0 && !isAddingFamilyMeals
+                                                ? "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
+                                                : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                                        )}
+                                    >
+                                        {isAddingFamilyMeals
+                                            ? 'Saving...'
+                                            : selectedFamilyIds.size > 0
+                                                ? `Save ${selectedFamilyIds.size} Family Meal${selectedFamilyIds.size > 1 ? 's' : ''}`
+                                                : 'Select Families Above'}
+                                    </button>
+                                </section>
                             </div>
 
-                            <p className="text-[11px] font-black uppercase tracking-widest text-gray-400 mb-3">Bulk Meal Entry</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                            {/* Bulk Meal Entry - compact rows, scannable list */}
+                            <section className="rounded-2xl border border-gray-200 bg-gray-50/60 p-4">
+                                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1 flex items-center gap-1.5">
+                                    <Package size={13} /> Bulk Meal Entry
+                                </p>
+                                <p className="text-[11px] text-gray-400 mb-3">Count-based entries not tied to a specific guest. RV is hidden on Wednesdays.</p>
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                                 {MEAL_CATEGORIES.filter((category) => !(category.id === 'rv' && isWednesdayDate)).map((category) => {
                                     const Icon = category.icon;
                                     const qty = quantities[category.id] || 0;
@@ -1149,17 +1175,9 @@ const proxyPickerIds = new Set<string>();
                                     return (
                                         <div
                                             key={category.id}
-                                            className={cn(
-                                                "rounded-2xl border-2 p-4 transition-all",
-                                                category.color === 'orange' && "border-orange-200 bg-orange-50",
-                                                category.color === 'purple' && "border-purple-200 bg-purple-50",
-                                                category.color === 'blue' && "border-blue-200 bg-blue-50",
-                                                category.color === 'amber' && "border-amber-200 bg-amber-50",
-                                                category.color === 'emerald' && "border-emerald-200 bg-emerald-50",
-                                                category.color === 'rose' && "border-rose-200 bg-rose-50",
-                                            )}
+                                            className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:flex-row sm:items-center"
                                         >
-                                            <div className="flex items-center gap-3 mb-4">
+                                            <div className="flex items-center gap-3 min-w-0 flex-1">
                                                 <div className={cn(
                                                     "p-2.5 rounded-xl shrink-0",
                                                     category.color === 'orange' && "bg-orange-100 text-orange-600",
@@ -1173,57 +1191,63 @@ const proxyPickerIds = new Set<string>();
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="font-bold text-gray-900 text-sm truncate">{category.label}</p>
-                                                    <p className="text-[10px] text-gray-500 truncate">{category.description}</p>
+                                                    <p className="text-[11px] text-gray-500 truncate">{category.description}</p>
                                                 </div>
                                             </div>
 
-                                            <div className="flex items-center justify-between gap-2 bg-white rounded-xl border border-gray-100 p-1 shadow-sm">
+                                            <div className="flex items-center gap-2 sm:shrink-0">
+                                                <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-0.5">
+                                                    <button
+                                                        onClick={() => setQuantities(prev => ({ ...prev, [category.id]: Math.max(0, qty - 10) }))}
+                                                        aria-label={`Decrease ${category.label} quantity by 10`}
+                                                        className="p-2 rounded-lg hover:bg-white text-gray-400 hover:text-gray-900 transition-colors shrink-0"
+                                                    >
+                                                        <Minus size={14} />
+                                                    </button>
+                                                    <input
+                                                        type="number"
+                                                        value={qty || ''}
+                                                        onChange={(e) => setQuantities(prev => ({ ...prev, [category.id]: parseInt(e.target.value) || 0 }))}
+                                                        className="w-16 text-center font-bold text-base text-gray-900 bg-transparent focus:outline-none placeholder-gray-200"
+                                                        placeholder="0"
+                                                        min={0}
+                                                        aria-label={`${category.label} quantity`}
+                                                    />
+                                                    <button
+                                                        onClick={() => setQuantities(prev => ({ ...prev, [category.id]: qty + 10 }))}
+                                                        aria-label={`Increase ${category.label} quantity by 10`}
+                                                        className="p-2 rounded-lg hover:bg-white text-gray-400 hover:text-gray-900 transition-colors shrink-0"
+                                                    >
+                                                        <Plus size={14} />
+                                                    </button>
+                                                </div>
+
                                                 <button
-                                                    onClick={() => setQuantities(prev => ({ ...prev, [category.id]: Math.max(0, qty - 10) }))}
-                                                    className="p-2 rounded-lg hover:bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors shrink-0"
+                                                    onClick={() => handleAddBulkMeal(category.id)}
+                                                    disabled={qty <= 0 || isAdding}
+                                                    className={cn(
+                                                        "w-24 py-2.5 rounded-xl font-bold text-xs transition-all shrink-0",
+                                                        qty > 0
+                                                            ? "bg-gray-900 text-white hover:bg-gray-800 active:scale-95"
+                                                            : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                                                    )}
                                                 >
-                                                    <Minus size={14} />
-                                                </button>
-                                                <input
-                                                    type="number"
-                                                    value={qty || ''}
-                                                    onChange={(e) => setQuantities(prev => ({ ...prev, [category.id]: parseInt(e.target.value) || 0 }))}
-                                                    className="w-full text-center font-black text-lg text-gray-900 focus:outline-none placeholder-gray-200"
-                                                    placeholder="0"
-                                                    min={0}
-                                                />
-                                                <button
-                                                    onClick={() => setQuantities(prev => ({ ...prev, [category.id]: qty + 10 }))}
-                                                    className="p-2 rounded-lg hover:bg-gray-50 text-gray-400 hover:text-gray-900 transition-colors shrink-0"
-                                                >
-                                                    <Plus size={14} />
+                                                    {isAdding ? 'Adding...' : 'Add'}
                                                 </button>
                                             </div>
-
-                                            <button
-                                                onClick={() => handleAddBulkMeal(category.id)}
-                                                disabled={qty <= 0 || isAdding}
-                                                className={cn(
-                                                    "w-full mt-3 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all",
-                                                    qty > 0
-                                                        ? "bg-gray-900 text-white hover:bg-gray-800 active:scale-95 shadow-md shadow-gray-200"
-                                                        : "bg-white/50 text-gray-400 cursor-not-allowed border border-gray-100"
-                                                )}
-                                            >
-                                                {isAdding ? 'Adding...' : 'Add'}
-                                            </button>
                                         </div>
                                     );
                                 })}
                             </div>
+                            </section>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
             {/* Service Summary */}
-            <div className="bg-white rounded-3xl border border-gray-100 p-5 shadow-sm space-y-4">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 sm:p-5 shadow-sm space-y-5">
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
                     <StatCard label="Total Meals" value={dayMetrics.total} color="emerald" icon={Utensils} />
                     <StatCard label="Guests Served" value={dayMetrics.uniqueGuests} color="purple" icon={User} />
                     <StatCard label="Guest Meals" value={dayMetrics.guestCount} color="blue" icon={Users} />
@@ -1234,25 +1258,28 @@ const proxyPickerIds = new Set<string>();
 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                     {/* Proxy pickups: headline metrics plus who picked up for whom */}
-                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4">
                         <div className="flex flex-col gap-3">
                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-500">Proxy Pickup Activity</p>
+                                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                                    <span className="w-2 h-2 rounded-full bg-indigo-500" aria-hidden />
+                                    Proxy Pickup Activity
+                                </p>
                                 {dayMetrics.proxyPickups > 0 ? (
                                     <>
-                                        <p className="mt-1 text-2xl font-black tracking-tight text-indigo-700">
+                                        <p className="mt-1 text-xl font-bold tracking-tight text-indigo-700">
                                             {dayMetrics.proxyPickerCount.toLocaleString()} {dayMetrics.proxyPickerCount === 1 ? 'person' : 'people'} picked up {dayMetrics.proxyPickups.toLocaleString()} meal{dayMetrics.proxyPickups === 1 ? '' : 's'} for others
                                         </p>
-                                        <p className="mt-1 text-xs font-bold text-indigo-900/70">
+                                        <p className="mt-1 text-xs font-medium text-gray-500">
                                             {dayMetrics.proxyPickerSelfMeals.toLocaleString()} meal{dayMetrics.proxyPickerSelfMeals === 1 ? '' : 's'} also collected for themselves · {dayMetrics.proxyPickupPercent}% of guest meals.
                                         </p>
                                     </>
                                 ) : mealsDataIsLoaded ? (
-                                    <p className="mt-1 text-2xl font-black tracking-tight text-indigo-700">
+                                    <p className="mt-1 text-xl font-bold tracking-tight text-indigo-700">
                                         No proxy pickups logged for this date.
                                     </p>
                                 ) : (
-                                    <p className="mt-1 text-2xl font-black tracking-tight text-indigo-400 animate-pulse">
+                                    <p className="mt-1 text-xl font-bold tracking-tight text-gray-400 animate-pulse">
                                         Loading pickup activity…
                                     </p>
                                 )}
@@ -1263,7 +1290,7 @@ const proxyPickerIds = new Set<string>();
                                 <CompactStat label="Collective Pickups" value={dayMetrics.proxyPickups} color="emerald" icon={HandshakeIcon} />
                             </div>
                             {proxyPickupDetail.length > 0 && (
-                                <div className="rounded-xl border border-indigo-100 bg-white divide-y divide-gray-50 max-h-56 overflow-y-auto">
+                                <div className="rounded-xl border border-gray-200 bg-gray-50/60 divide-y divide-gray-100 max-h-56 overflow-y-auto">
                                     {proxyPickupDetail.map((pickup) => (
                                         <div key={pickup.id} className="flex items-center gap-3 px-3 py-2">
                                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
@@ -1287,31 +1314,34 @@ const proxyPickerIds = new Set<string>();
                     </div>
 
                     {/* Lunch bags: per-guest assignment with times */}
-                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4">
                         <div className="flex flex-col gap-3">
                             <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Lunch Bag Assignments</p>
+                                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500" aria-hidden />
+                                    Lunch Bag Assignments
+                                </p>
                                 {dayMetrics.lunchBagCount > 0 ? (
                                     <>
-                                        <p className="mt-1 text-2xl font-black tracking-tight text-emerald-700">
+                                        <p className="mt-1 text-xl font-bold tracking-tight text-emerald-700">
                                             {dayMetrics.lunchBagCount.toLocaleString()} lunch bag{dayMetrics.lunchBagCount === 1 ? '' : 's'} handed out
                                         </p>
-                                        <p className="mt-1 text-xs font-bold text-emerald-900/70">
+                                        <p className="mt-1 text-xs font-medium text-gray-500">
                                             {lunchBagDetail.assignedCount.toLocaleString()} assigned to guests · {lunchBagDetail.bulkCount.toLocaleString()} from bulk entries.
                                         </p>
                                     </>
                                 ) : mealsDataIsLoaded ? (
-                                    <p className="mt-1 text-2xl font-black tracking-tight text-emerald-700">
+                                    <p className="mt-1 text-xl font-bold tracking-tight text-emerald-700">
                                         No lunch bags logged for this date.
                                     </p>
                                 ) : (
-                                    <p className="mt-1 text-2xl font-black tracking-tight text-emerald-400 animate-pulse">
+                                    <p className="mt-1 text-xl font-bold tracking-tight text-gray-400 animate-pulse">
                                         Loading lunch bag activity…
                                     </p>
                                 )}
                             </div>
                             {lunchBagDetail.bags.length > 0 && (
-                                <div className="rounded-xl border border-emerald-100 bg-white divide-y divide-gray-50 max-h-72 overflow-y-auto">
+                                <div className="rounded-xl border border-gray-200 bg-gray-50/60 divide-y divide-gray-100 max-h-72 overflow-y-auto">
                                     {lunchBagDetail.bags.map((bag) => (
                                         <div key={bag.id} className="flex items-center gap-3 px-3 py-2">
                                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
@@ -1336,8 +1366,8 @@ const proxyPickerIds = new Set<string>();
 
                 <div className="border-t border-gray-100 pt-4">
                     <div className="flex items-baseline justify-between gap-3 mb-3">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Service Mix</p>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{dayMetrics.total.toLocaleString()} meals served</p>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Service Mix</p>
+                        <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wider">{dayMetrics.total.toLocaleString()} meals served</p>
                     </div>
                     <div className="space-y-2">
                         {serviceMix.items.map(({ label, value, icon: Icon, iconClass, barClass }) => (
@@ -1364,13 +1394,13 @@ const proxyPickerIds = new Set<string>();
             </div>
 
             {/* History List */}
-            <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-8 border-b border-gray-50 flex items-center justify-between flex-wrap gap-3">
-                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <History size={16} /> Activity Log ({filteredHistory.length}{activityFilter !== 'all' ? ` of ${history.length}` : ''})
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-4 sm:px-5 py-3.5 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
+                    <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                        <History size={15} className="text-gray-400" /> Activity Log ({filteredHistory.length}{activityFilter !== 'all' ? ` of ${history.length}` : ''})
                     </h3>
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-100 px-2 py-1">
+                        <div className="flex items-center gap-2 bg-gray-50 rounded-xl border border-gray-200 px-2 py-1.5">
                             <Filter size={12} className="text-gray-400" />
                             <select
                                 value={activityFilter}
@@ -1394,10 +1424,10 @@ const proxyPickerIds = new Set<string>();
                                 onClick={handleBatchDeleteLunchBags}
                                 disabled={isBatchDeleting}
                                 className={cn(
-                                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
+                                    "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all",
                                     isBatchDeleting
-                                        ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                        : "bg-rose-100 text-rose-700 hover:bg-rose-200 border border-rose-200"
+                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                                        : "bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200"
                                 )}
                             >
                                 <Trash2 size={12} />
@@ -1407,7 +1437,7 @@ const proxyPickerIds = new Set<string>();
                     </div>
                 </div>
 
-                <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
+                <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
                     <AnimatePresence mode="popLayout">
                         {filteredHistory.map((record) => {
                             const Icon = getRecordIcon(record.type);
@@ -1418,107 +1448,108 @@ const proxyPickerIds = new Set<string>();
                                     initial={{ opacity: 0, x: -10 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     key={record.id}
-                                    className="p-6 flex items-center justify-between hover:bg-gray-50 transition-all group"
+                                    className="px-4 sm:px-5 py-3 flex items-center gap-3 hover:bg-gray-50 transition-all group"
                                 >
-                                    <div className="flex items-center gap-4">
-                                        <div className={cn(
-                                            "w-12 h-12 rounded-2xl flex items-center justify-center transition-all",
-                                            getRecordColor(record.type)
-                                        )}>
-                                            <Icon size={20} />
-                                        </div>
-                                        <div>
-                                            <h4 className="font-black text-gray-900">{getDisplayName(record)}</h4>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                {isEditing ? (
-                                                    <div className="flex items-center gap-2">
-                                                        <input
-                                                            type="number"
-                                                            value={editValue}
-                                                            onChange={(e) => setEditValue(parseInt(e.target.value) || 0)}
-                                                            className="w-16 px-2 py-1 text-xs font-bold border border-gray-300 rounded focus:border-emerald-500 outline-none"
-                                                            autoFocus
-                                                        />
-                                                        <button onClick={() => handleSaveEdit(record)} className="text-emerald-600 hover:text-emerald-700 font-bold text-xs uppercase">Save</button>
-                                                        <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xs uppercase">Cancel</button>
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-xs text-gray-400 font-bold uppercase tracking-widest cursor-pointer hover:text-gray-600" onClick={() => handleEdit(record)}>
-                                                        {record.type === 'family'
-                                                            ? `${(record as any).mealsPerMember || 0} per member · ${record.count} total`
-                                                            : `${record.count} Meal${record.count > 1 ? 's' : ''}`
-                                                        } · {formatTimeInPacific(record.createdAt || record.date, { hour: '2-digit', minute: '2-digit' })}
-                                                    </p>
-                                                )}
-                                            </div>
-
-                                            {record?.isProxyPickup && (
-                                                <p className="text-xs text-emerald-700 font-bold mt-1 flex items-center gap-1">
-                                                    <Handshake size={13} aria-hidden />
-                                                    <span>Picked up by {getPickedUpByName(record)}</span>
-                                                </p>
-                                            )}
-                                        </div>
+                                    <div className={cn(
+                                        "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all",
+                                        getRecordColor(record.type)
+                                    )}>
+                                        <Icon size={18} />
                                     </div>
 
-                                    <div className="flex items-center gap-4">
-                                        <span className={cn(
-                                            "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
-                                            record.type === 'rv' && "bg-purple-100 text-purple-700",
-                                            record.type === 'day_worker' && "bg-blue-100 text-blue-700",
-                                            record.type === 'shelter' && "bg-amber-100 text-amber-700",
-                                            record.type === 'lunch_bag' && "bg-emerald-100 text-emerald-700",
-                                            record.type === 'united_effort' && "bg-rose-100 text-rose-700",
-                                            record.type === 'family' && "bg-teal-100 text-teal-700",
-                                            record.type === 'extra' && "bg-orange-100 text-orange-700",
-                                            record.type === 'guest' && !record?.isProxyPickup && "bg-gray-100 text-gray-700",
-                                            record.type === 'guest' && record?.isProxyPickup && "bg-emerald-100 text-emerald-700",
-                                        )}>
-                                            {record.type === 'guest' && record?.isProxyPickup
-                                                ? 'Proxy Pickup'
-                                                : record.type === 'day_worker'
-                                                    ? 'Day Worker'
-                                                    : record.type === 'lunch_bag'
-                                                        ? 'Lunch Bag'
-                                                        : record.type === 'united_effort'
-                                                            ? 'United Effort'
-                                                            : record.type === 'family'
-                                                                ? 'Family Meal'
-                                                                : record.type === 'extra'
-                                                                    ? 'Extra'
-                                                                    : record.type === 'guest'
-                                                                        ? 'Guest'
-                                                                        : record.type}
-                                        </span>
-                                        {!isEditing && (
-                                            <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {/* Edit Button */}
-                                                <button
-                                                    onClick={() => handleEdit(record)}
-                                                    className="p-2 text-gray-300 hover:text-blue-500 transition-all"
-                                                    title="Edit Record"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(record)}
-                                                    className="p-2 text-gray-300 hover:text-rose-500 transition-all"
-                                                    title="Delete Record"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <h4 className="font-bold text-gray-900 text-sm truncate">{getDisplayName(record)}</h4>
+                                            <span className={cn(
+                                                "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                                                record.type === 'rv' && "bg-purple-100 text-purple-700",
+                                                record.type === 'day_worker' && "bg-blue-100 text-blue-700",
+                                                record.type === 'shelter' && "bg-amber-100 text-amber-700",
+                                                record.type === 'lunch_bag' && "bg-emerald-100 text-emerald-700",
+                                                record.type === 'united_effort' && "bg-rose-100 text-rose-700",
+                                                record.type === 'family' && "bg-teal-100 text-teal-700",
+                                                record.type === 'extra' && "bg-orange-100 text-orange-700",
+                                                record.type === 'guest' && !record?.isProxyPickup && "bg-gray-100 text-gray-700",
+                                                record.type === 'guest' && record?.isProxyPickup && "bg-emerald-100 text-emerald-700",
+                                            )}>
+                                                {record.type === 'guest' && record?.isProxyPickup
+                                                    ? 'Proxy Pickup'
+                                                    : record.type === 'day_worker'
+                                                        ? 'Day Worker'
+                                                        : record.type === 'lunch_bag'
+                                                            ? 'Lunch Bag'
+                                                            : record.type === 'united_effort'
+                                                                ? 'United Effort'
+                                                                : record.type === 'family'
+                                                                    ? 'Family Meal'
+                                                                    : record.type === 'extra'
+                                                                        ? 'Extra'
+                                                                        : record.type === 'guest'
+                                                                            ? 'Guest'
+                                                                            : record.type}
+                                            </span>
+                                        </div>
+
+                                        {isEditing ? (
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <input
+                                                    type="number"
+                                                    value={editValue}
+                                                    onChange={(e) => setEditValue(parseInt(e.target.value) || 0)}
+                                                    className="w-16 px-2 py-1 text-xs font-bold border border-gray-300 rounded focus:border-emerald-500 outline-none"
+                                                    autoFocus
+                                                />
+                                                <button onClick={() => handleSaveEdit(record)} className="text-emerald-600 hover:text-emerald-700 font-bold text-xs">Save</button>
+                                                <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600 font-bold text-xs">Cancel</button>
                                             </div>
+                                        ) : (
+                                            <p className="text-xs text-gray-500 font-medium tabular-nums cursor-pointer hover:text-gray-800 transition-colors w-fit" onClick={() => handleEdit(record)} title="Click to edit count">
+                                                {record.type === 'family'
+                                                    ? `${(record as any).mealsPerMember || 0} per member · ${record.count} total`
+                                                    : `${record.count} Meal${record.count > 1 ? 's' : ''}`
+                                                } · {formatTimeInPacific(record.createdAt || record.date, { hour: '2-digit', minute: '2-digit' })}
+                                            </p>
+                                        )}
+
+                                        {record?.isProxyPickup && (
+                                            <p className="text-xs text-emerald-700 font-bold mt-0.5 flex items-center gap-1">
+                                                <Handshake size={12} aria-hidden />
+                                                <span>Picked up by {getPickedUpByName(record)}</span>
+                                            </p>
                                         )}
                                     </div>
+
+                                    {!isEditing && (
+                                        <div className="flex items-center gap-1 opacity-40 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
+                                            <button
+                                                onClick={() => handleEdit(record)}
+                                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                                title="Edit Record"
+                                                aria-label="Edit Record"
+                                            >
+                                                <Pencil size={15} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(record)}
+                                                className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                                                title="Delete Record"
+                                                aria-label="Delete Record"
+                                            >
+                                                <Trash2 size={15} />
+                                            </button>
+                                        </div>
+                                    )}
                                 </motion.div>
                             );
                         })}
                     </AnimatePresence>
 
                     {filteredHistory.length === 0 && (
-                        <div className="py-20 text-center opacity-40">
-                            <Utensils size={48} className="mx-auto mb-4" />
-                            <p className="font-black text-sm uppercase tracking-widest">
+                        <div className="py-16 text-center">
+                            <div className="w-14 h-14 rounded-full bg-gray-50 flex items-center justify-center mx-auto mb-3">
+                                <Utensils size={24} className="text-gray-300" />
+                            </div>
+                            <p className="font-bold text-sm text-gray-400">
                                 {activityFilter !== 'all' ? `No ${activityFilter.replace('_', ' ')} records for this date` : 'No meals logged for this date'}
                             </p>
                         </div>
@@ -1538,82 +1569,53 @@ type IconComponentType = LucideIcon | React.ComponentType<{
     'aria-hidden'?: boolean;
 }>;
 
+const STAT_COLOR_STYLES: Record<StatColor, { text: string; chip: string }> = {
+    emerald: { text: 'text-emerald-600', chip: 'bg-emerald-50 text-emerald-600' },
+    blue: { text: 'text-blue-600', chip: 'bg-blue-50 text-blue-600' },
+    indigo: { text: 'text-indigo-600', chip: 'bg-indigo-50 text-indigo-600' },
+    purple: { text: 'text-purple-600', chip: 'bg-purple-50 text-purple-600' },
+    sky: { text: 'text-sky-600', chip: 'bg-sky-50 text-sky-600' },
+    amber: { text: 'text-amber-600', chip: 'bg-amber-50 text-amber-600' },
+    rose: { text: 'text-rose-600', chip: 'bg-rose-50 text-rose-600' },
+    teal: { text: 'text-teal-600', chip: 'bg-teal-50 text-teal-600' },
+};
+
 function StatCard({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: IconComponentType }) {
-    const textColors: Record<string, string> = {
-        emerald: 'text-emerald-600',
-        blue: 'text-blue-600',
-        indigo: 'text-indigo-600',
-        purple: 'text-purple-600',
-        sky: 'text-sky-600',
-        amber: 'text-amber-600',
-        rose: 'text-rose-600',
-        teal: 'text-teal-600',
-    };
-    const iconColors: Record<string, string> = {
-        emerald: 'bg-emerald-100 text-emerald-600',
-        blue: 'bg-blue-100 text-blue-600',
-        indigo: 'bg-indigo-100 text-indigo-600',
-        purple: 'bg-purple-100 text-purple-600',
-        sky: 'bg-sky-100 text-sky-600',
-        amber: 'bg-amber-100 text-amber-600',
-        rose: 'bg-rose-100 text-rose-600',
-        teal: 'bg-teal-100 text-teal-600',
-    };
+    const styles = STAT_COLOR_STYLES[color];
 
     return (
-        <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4">
-            <div className="flex items-start justify-between gap-3">
-                <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">{label}</p>
-                    <p className={cn("text-2xl font-black tracking-tight", textColors[color])}>{value.toLocaleString()}</p>
-                </div>
-                <span
-                    aria-label={`${label} icon`}
-                    role="img"
-                    className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-xl", iconColors[color])}
-                >
-                    <Icon size={24} strokeWidth={2.25} aria-hidden />
-                </span>
+        <div className="rounded-xl border border-gray-200 bg-white p-3 flex items-center gap-3 min-w-0">
+            <span
+                aria-label={`${label} icon`}
+                role="img"
+                className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", styles.chip)}
+            >
+                <Icon size={17} strokeWidth={2.25} aria-hidden />
+            </span>
+            <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-gray-500 leading-tight truncate">{label}</p>
+                <p className={cn("text-xl font-bold tracking-tight tabular-nums leading-tight", styles.text)}>{value.toLocaleString()}</p>
             </div>
         </div>
     );
 }
 
 function CompactStat({ label, value, color, icon: Icon }: { label: string, value: number, color: StatColor, icon: IconComponentType }) {
-    const textColors: Record<string, string> = {
-        emerald: 'text-emerald-600',
-        blue: 'text-blue-600',
-        indigo: 'text-indigo-600',
-        purple: 'text-purple-600',
-        sky: 'text-sky-600',
-        amber: 'text-amber-600',
-        rose: 'text-rose-600',
-        teal: 'text-teal-600',
-    };
-    const iconColors: Record<string, string> = {
-        emerald: 'bg-emerald-50 text-emerald-600',
-        blue: 'bg-blue-50 text-blue-600',
-        indigo: 'bg-indigo-50 text-indigo-600',
-        purple: 'bg-purple-50 text-purple-600',
-        sky: 'bg-sky-50 text-sky-600',
-        amber: 'bg-amber-50 text-amber-600',
-        rose: 'bg-rose-50 text-rose-600',
-        teal: 'bg-teal-50 text-teal-600',
-    };
+    const styles = STAT_COLOR_STYLES[color];
 
     return (
-        <div className="rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between gap-3">
+        <div className="rounded-xl border border-gray-200 bg-gray-50/60 px-3 py-2 flex items-center justify-between gap-3">
             <span className="min-w-0 flex items-center gap-2">
                 <span
                     aria-label={`${label} icon`}
                     role="img"
-                    className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg", iconColors[color])}
+                    className={cn("flex h-6 w-6 shrink-0 items-center justify-center rounded-md", styles.chip)}
                 >
-                    <Icon size={16} strokeWidth={2.25} aria-hidden />
+                    <Icon size={13} strokeWidth={2.25} aria-hidden />
                 </span>
-                <span className="truncate text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>
+                <span className="truncate text-[11px] font-semibold text-gray-500">{label}</span>
             </span>
-            <span className={cn('text-sm font-black', textColors[color])}>{value.toLocaleString()}</span>
+            <span className={cn('text-sm font-bold tabular-nums', styles.text)}>{value.toLocaleString()}</span>
         </div>
     );
 }
