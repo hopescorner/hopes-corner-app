@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.17.0';
+export const APP_VERSION = '0.18.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,32 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.18.0',
+        date: 'September 4, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Check-In Page Puts Search First',
+                description: 'The name search is now the first thing on the check-in page, with recent check-ins inside the search card so staff can tap a guest they just served instead of searching again.',
+            },
+            {
+                type: 'improvement',
+                title: 'Capacity Bars on Service Cards',
+                description: 'Shower and laundry cards now show how full the day is (for example, 2 of 20 booked) with a bar that turns amber when nearly full and red when full, plus a Book hint pointing to the next open slot.',
+            },
+            {
+                type: 'improvement',
+                title: 'Calmer Header and Shortcuts',
+                description: 'Status pills share a single row, Daily Notes shrinks to one slim line, keyboard hints show only the essentials with a question-mark button for the rest, and the meal service ended notice is now amber.',
+            },
+            {
+                type: 'improvement',
+                title: 'Lunch Bag Sanity Check',
+                description: "Today's stats now include the lunch bag count and turn amber when bags don't match guests served, so orphan bags are spotted the same day.",
+            },
+        ],
+    },
     {
         version: '0.17.0',
         date: 'September 4, 2026',

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.18.0] - 2026-09-04
+
+### Improved
+
+- The name search is now the first thing on the check-in page. Staff no longer scroll past service status cards to find a guest.
+- Recent check-ins now show inside the search card, so staff can tap a guest they just served instead of searching again.
+- Shower and laundry cards now show a capacity bar with how many slots are booked (for example, 2 of 20 booked). The bar turns amber when nearly full and red when full.
+- Service cards show a Book hint with an arrow pointing to the next open slot time.
+- Keyboard shortcut hints now show only the essentials, with a question-mark button to reveal the full list.
+- The header keeps status pills on a single row instead of stacking them, and Daily Notes shrinks to one slim line when there is nothing to read.
+- The lunch bag count now shows in today's stats and turns amber when bags don't match guests served.
+- "Meal service ended for today" now shows in amber instead of gray so it is harder to miss.
+- The New Guest keyboard hint now shows the correct keys for Mac and Windows.
+
 ## [0.17.0] - 2026-09-04
 
 ### Added
