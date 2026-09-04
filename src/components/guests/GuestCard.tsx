@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useMemo, memo, useCallback } from 'react';
-import { MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
+import { AGE_GROUPS, MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
 import dynamic from 'next/dynamic';
 import {
-    User,
     ChevronDown,
     ChevronUp,
     Utensils,
@@ -31,7 +30,11 @@ import {
     Sparkles,
     Users,
     ListPlus,
-    ArrowRight
+    ArrowRight,
+    Mars,
+    Venus,
+    CircleHelp,
+    NonBinary
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
@@ -145,6 +148,35 @@ const getGuestFullName = (guest: { name?: string; firstName?: string; lastName?:
 const getGuestDisplayName = (guest: { preferredName?: string; name?: string; firstName?: string; lastName?: string }) =>
     guest.preferredName?.trim() || getGuestFullName(guest) || 'Unknown';
 
+const getGuestAgeRange = (value: unknown) => {
+    if (value === null || value === undefined) return '';
+
+    const normalizedValue = String(value).trim();
+    if (!/^\d+$/.test(normalizedValue)) return normalizedValue;
+
+    const exactAge = Number(normalizedValue);
+    if (exactAge <= 17) return AGE_GROUPS[2];
+    if (exactAge <= 59) return AGE_GROUPS[0];
+    return AGE_GROUPS[1];
+};
+
+const getGuestGenderPresentation = (value: unknown) => {
+    const gender = String(value || '').trim();
+
+    switch (gender.toLowerCase()) {
+        case 'male':
+            return { Icon: Mars, shortLabel: 'M' };
+        case 'female':
+            return { Icon: Venus, shortLabel: 'F' };
+        case 'non-binary':
+            return { Icon: NonBinary, shortLabel: 'NB' };
+        case 'unknown':
+            return { Icon: CircleHelp, shortLabel: 'Unknown' };
+        default:
+            return { Icon: CircleHelp, shortLabel: gender };
+    }
+};
+
 function GuestWarningsPanel({ guestId }: { guestId: string }) {
     const warnings = useGuestsStore((s) => s.warnings);
 
@@ -230,6 +262,8 @@ function PureGuestCard({
     const displayName = getGuestDisplayName(guest);
     const fullName = getGuestFullName(guest);
     const showFullName = Boolean(fullName) && normalizeGuestName(displayName) !== normalizeGuestName(fullName);
+    const ageRange = getGuestAgeRange(guest.age);
+    const genderPresentation = getGuestGenderPresentation(guest.gender);
 
     const blockedSlotFn = useMemo(() => isSlotBlocked || (() => false), [isSlotBlocked]);
 
@@ -376,6 +410,52 @@ function PureGuestCard({
     const isBannedFromShower = banDetails.programs.find(p => p.key === 'shower')?.isBanned ?? false;
     const isBannedFromLaundry = banDetails.programs.find(p => p.key === 'laundry')?.isBanned ?? false;
     const isBannedFromBicycle = banDetails.programs.find(p => p.key === 'bicycle')?.isBanned ?? false;
+
+    const lastVisitDateStr = useMemo(() => {
+        const precomputedDate = lastVisitDateMap?.get(guest.id);
+        if (precomputedDate) return precomputedDate;
+
+        const dateOf = (record: any): string =>
+            record?.serviceDate || record?.dateKey || (record?.date ? pacificDateStringFrom(record.date) : '');
+        const allRecords = [
+            ...mealRecords.filter(record => record.guestId === guest.id),
+            ...extraMealRecords.filter(record => record.guestId === guest.id),
+            ...showerRecords.filter(record => record.guestId === guest.id),
+            ...laundryRecords.filter(record => record.guestId === guest.id),
+            ...bicycleRecords.filter(record => record.guestId === guest.id),
+            ...haircutRecords.filter(record => record.guestId === guest.id),
+            ...holidayRecords.filter(record => record.guestId === guest.id),
+        ];
+
+        return allRecords.reduce((latest, record) => {
+            const date = dateOf(record);
+            return date > latest ? date : latest;
+        }, '') || null;
+    }, [
+        lastVisitDateMap,
+        guest.id,
+        mealRecords,
+        extraMealRecords,
+        showerRecords,
+        laundryRecords,
+        bicycleRecords,
+        haircutRecords,
+        holidayRecords,
+    ]);
+
+    const lastVisitLabel = useMemo(() => {
+        if (!lastVisitDateStr) return null;
+
+        // Parse as noon local time to avoid DST edge-case shifts.
+        const date = new Date(`${lastVisitDateStr}T12:00:00`);
+        const todayDate = new Date(`${today}T12:00:00`);
+        const diffDays = Math.round((todayDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays < 7) return `${diffDays}d ago`;
+        return date.toLocaleDateString();
+    }, [lastVisitDateStr, today]);
 
     const handleMealAdd = async (e: React.MouseEvent, count: number) => {
         e.stopPropagation();
@@ -629,13 +709,24 @@ function PureGuestCard({
         >
             <div
                 className={cn(
-                    'flex items-center justify-between gap-3 p-4 cursor-pointer',
-                    compact && 'p-3'
+                    'cursor-pointer',
+                    compact
+                        ? 'flex items-center justify-between gap-3 p-3'
+                        : 'flex flex-col md:flex-row md:items-center md:justify-between md:gap-3 md:p-4'
                 )}
                 onClick={toggleExpand}
             >
                 {/* Left: Avatar & Info */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div
+                    role={compact ? undefined : 'group'}
+                    aria-label={compact ? undefined : 'Guest identity'}
+                    className={cn(
+                        'flex flex-1 min-w-0',
+                        compact
+                            ? 'items-center gap-3'
+                            : 'w-full items-start gap-3 px-4 pb-3 pt-4 md:w-auto md:items-center md:p-0'
+                    )}
+                >
                     {(() => {
                         const avatarColor = getGuestAvatarColor(guest?.id || displayName);
                         const initials = getGuestInitials(guest);
@@ -653,11 +744,13 @@ function PureGuestCard({
                     })()}
 
                     <div className="flex-1 min-w-0">
-                        <div className="flex items-start gap-2 flex-wrap">
-                            <div className="min-w-0">
+                        <div className="flex flex-col items-start gap-1 md:flex-row md:gap-2">
+                            <div className="min-w-0 w-full md:w-auto">
                                 <h3 className={cn(
-                                    'font-bold text-gray-900 truncate',
-                                    compact ? 'text-sm' : 'text-base'
+                                    'font-bold text-gray-900',
+                                    compact
+                                        ? 'truncate text-sm'
+                                        : 'break-words text-lg leading-tight md:truncate md:text-base'
                                 )}>
                                     {displayName}
                                 </h3>
@@ -762,85 +855,69 @@ function PureGuestCard({
                         </div>
 
                         {/* Guest details */}
-                        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50/60 rounded-md border border-blue-100/50 text-xs text-gray-600">
+                        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs font-medium text-gray-600 md:mt-1.5">
+                            <span className="inline-flex items-center gap-1.5 md:gap-1 md:rounded-md md:border md:border-blue-100/50 md:bg-blue-50/60 md:px-2 md:py-0.5">
                                 <Home size={12} className="text-blue-500" />
                                 {guest.housingStatus}
                             </span>
                             {guest.location && (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50/60 rounded-md border border-amber-100/50 text-xs text-gray-600">
+                                <span className="inline-flex items-center gap-1.5 border-l border-gray-200 pl-2 md:gap-1 md:rounded-md md:border md:border-amber-100/50 md:bg-amber-50/60 md:px-2 md:py-0.5">
                                     <MapPin size={12} className="text-amber-500" />
                                     {guest.location}
                                 </span>
                             )}
                             {guest.gender && (
-                                <span className="px-2 py-0.5 bg-purple-50/60 text-purple-700 rounded-md border border-purple-100/50 text-xs font-medium">
-                                    {guest.gender.charAt(0)}
+                                <span
+                                    aria-label={`Gender: ${guest.gender}`}
+                                    className="inline-flex items-center gap-1 border-l border-gray-200 pl-2 text-purple-700 md:rounded-md md:border md:border-purple-100/50 md:bg-purple-50/60 md:px-2 md:py-0.5"
+                                >
+                                    <genderPresentation.Icon size={13} aria-hidden="true" />
+                                    <span>{genderPresentation.shortLabel}</span>
                                 </span>
                             )}
-                            {guest.age && (
-                                <span className="px-2 py-0.5 bg-teal-50/60 text-teal-700 rounded-md border border-teal-100/50 text-xs font-medium">
-                                    {guest.age}
+                            {ageRange && (
+                                <span className="border-l border-gray-200 pl-2 text-teal-700 md:rounded-md md:border md:border-teal-100/50 md:bg-teal-50/60 md:px-2 md:py-0.5">
+                                    {ageRange}
                                 </span>
                             )}
-                            {/* Last Visit */}
-                            {(() => {
-                                // Prefer precomputed lastVisitDateMap; fall back to scanning all available records.
-                                const lastVisitDateStr: string | null = lastVisitDateMap?.get(guest.id) ?? (() => {
-                                    const dateOf = (r: any): string =>
-                                        r?.serviceDate || r?.dateKey || (r?.date ? pacificDateStringFrom(r.date) : '');
-                                    const allRecords = [
-                                        ...mealRecords.filter(r => r.guestId === guest.id),
-                                        ...extraMealRecords.filter(r => r.guestId === guest.id),
-                                        ...showerRecords.filter(r => r.guestId === guest.id),
-                                        ...laundryRecords.filter(r => r.guestId === guest.id),
-                                        ...bicycleRecords.filter(r => r.guestId === guest.id),
-                                        ...haircutRecords.filter(r => r.guestId === guest.id),
-                                        ...holidayRecords.filter(r => r.guestId === guest.id),
-                                    ];
-                                    if (allRecords.length === 0) return null;
-                                    return allRecords.reduce((latest, r) => {
-                                        const d = dateOf(r);
-                                        return d > latest ? d : latest;
-                                    }, '') || null;
-                                })();
-
-                                if (!lastVisitDateStr) return null;
-
-                                // Parse as noon local time to avoid DST edge-case shifts
-                                const date = new Date(lastVisitDateStr + 'T12:00:00');
-                                const todayDate = new Date(today + 'T12:00:00');
-                                const diffDays = Math.round((todayDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-
-                                let timeString = '';
-                                if (diffDays === 0) timeString = 'Today';
-                                else if (diffDays === 1) timeString = 'Yesterday';
-                                else if (diffDays < 7) timeString = `${diffDays}d ago`;
-                                else timeString = date.toLocaleDateString();
-
-                                return (
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-50 rounded-md border border-gray-100 text-[10px] font-medium text-gray-500 ml-auto sm:ml-0" title={`Last visit: ${lastVisitDateStr}`}>
-                                        <Clock size={10} className="text-gray-400" />
-                                        Last visit: {timeString}
-                                    </span>
-                                );
-                            })()}
+                            {lastVisitLabel && (
+                                <span className="inline-flex items-center gap-1.5 border-l border-gray-200 pl-2 text-[11px] text-gray-500 md:ml-0 md:gap-1 md:rounded-md md:border md:border-gray-100 md:bg-gray-50 md:px-2 md:py-0.5 md:text-[10px]" title={`Last visit: ${lastVisitDateStr}`}>
+                                    <Clock size={10} className="text-gray-400" />
+                                    Last visit: {lastVisitLabel}
+                                </span>
+                            )}
                         </div>
                     </div>
+
+                    {!compact && (
+                        <div className="flex h-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 text-gray-400 transition-colors group-hover:text-emerald-500 md:hidden">
+                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                        </div>
+                    )}
                 </div>
 
                 {/* Right: Actions */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div
+                    role={compact ? undefined : 'group'}
+                    aria-label={compact ? undefined : `Quick check-in actions for ${displayName}`}
+                    className={cn(
+                        'shrink-0',
+                        compact
+                            ? 'flex items-center gap-2'
+                            : 'grid w-full grid-cols-4 gap-2 border-t border-gray-100 bg-gray-50/40 p-3 md:flex md:w-auto md:items-center md:gap-2 md:border-0 md:bg-transparent md:p-0'
+                    )}
+                >
                     {/* Mobile Meal Controls (1/2 + undo) - only visible on small screens */}
                     {!compact && (
-                        <div className="flex md:hidden items-center gap-1.5">
+                        <div className="contents md:hidden">
                             {!todayMeal ? (
                                 isBannedFromMeals ? (
                                     <div
-                                        className="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-red-100 text-red-500 opacity-60"
+                                        className="col-span-2 flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-red-100 px-1 text-red-600 opacity-70"
                                         title="Banned from meals"
                                     >
-                                        <Ban size={20} />
+                                        <Ban size={19} />
+                                        <span className="text-[11px] font-bold leading-none">Meals unavailable</span>
                                     </div>
                                 ) : (
                                     [1, 2].map((count) => (
@@ -848,41 +925,42 @@ function PureGuestCard({
                                             key={count}
                                             onClick={(e) => handleMealAdd(e, count)}
                                             disabled={isPending}
-                                            className="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-emerald-600 text-white active:scale-95 transition-transform touch-manipulation disabled:opacity-50"
+                                            className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-emerald-600 px-1 text-white shadow-sm transition-transform active:scale-95 touch-manipulation disabled:opacity-50"
                                             title={`Log ${count} meal${count > 1 ? 's' : ''}`}
                                             aria-label={`Log ${count} meal${count > 1 ? 's' : ''}`}
                                         >
                                             {isPending ? (
                                                 <Loader2 size={18} className="animate-spin" />
-                                            ) : count === 1 ? (
-                                                <Utensils size={20} />
                                             ) : (
-                                                <span className="text-sm font-black">2</span>
+                                                <Utensils size={19} />
                                             )}
+                                            <span className="text-[11px] font-bold leading-none">
+                                                {count} Meal{count > 1 ? 's' : ''}
+                                            </span>
                                         </button>
                                     ))
                                 )
                             ) : (
                                 <>
                                     <div
-                                        className="flex items-center justify-center gap-0.5 w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-emerald-100 text-emerald-700"
+                                        className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-emerald-100 px-1 text-emerald-700"
                                         title="Meal logged"
                                     >
-                                        <Check size={14} strokeWidth={3} />
-                                        <span className="text-sm font-black">{baseMealCount}</span>
-                                        {extraMealsCount > 0 && (
-                                            <span className="text-[10px] font-black text-orange-600">+{extraMealsCount}</span>
-                                        )}
+                                        <Check size={18} strokeWidth={3} />
+                                        <span className="text-[11px] font-bold leading-none">
+                                            {totalMeals} Meal{totalMeals === 1 ? '' : 's'}
+                                        </span>
                                     </div>
                                     {mealAction && (
                                         <button
                                             onClick={(e) => handleUndo(e, mealAction.id, 'Check-in')}
                                             disabled={isPending}
-                                            className="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-orange-100 border border-orange-200 text-orange-700 active:scale-95 transition-transform touch-manipulation disabled:opacity-50"
+                                            className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-100 px-1 text-orange-700 transition-transform active:scale-95 touch-manipulation disabled:opacity-50"
                                             title="Undo meal"
                                             aria-label="Undo meal"
                                         >
                                             <RotateCcw size={18} />
+                                            <span className="text-[11px] font-bold leading-none">Undo</span>
                                         </button>
                                     )}
                                 </>
@@ -896,11 +974,12 @@ function PureGuestCard({
                             e.stopPropagation();
                             setShowMobileSheet(true);
                         }}
-                        className="flex md:hidden items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-blue-100 text-blue-600 active:scale-95 transition-transform touch-manipulation"
+                        className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-blue-100 px-1 text-blue-700 transition-transform active:scale-95 touch-manipulation md:hidden"
                         title="Quick Add Services"
                         aria-label="Quick add services"
                     >
-                        <Plus size={22} strokeWidth={2.5} />
+                        <Plus size={20} strokeWidth={2.5} />
+                        <span className="text-[11px] font-bold leading-none">Services</span>
                     </button>
 
                     {/* Meal Buttons - hidden on mobile */}
@@ -1076,13 +1155,14 @@ function PureGuestCard({
                     {hasServiceToday && !compact && (
                         <>
                             {/* Visual separator to distinguish from undo button */}
-                            <div className="w-px h-8 bg-gray-200 mx-1" aria-hidden="true"></div>
+                            <div className="hidden w-px h-8 bg-gray-200 mx-1 md:block" aria-hidden="true"></div>
                             <button
                                 onClick={handleCompleteCheckIn}
-                                className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3.5 rounded-xl bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold transition-all active:scale-95 touch-manipulation"
+                                className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-blue-100 px-1 text-blue-800 font-bold transition-all hover:bg-blue-200 active:scale-95 touch-manipulation md:h-11 md:min-w-[44px] md:flex-row md:px-3.5"
                                 title="Complete check-in and search for next guest"
                             >
                                 <UserCheck size={20} />
+                                <span className="text-[11px] leading-none md:hidden">Done</span>
                             </button>
                         </>
                     )}
@@ -1094,17 +1174,20 @@ function PureGuestCard({
                                 e.stopPropagation();
                                 onAdvanceToNext(guest.id);
                             }}
-                            className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-xl bg-gray-50 border border-gray-100 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 transition-all active:scale-95 touch-manipulation"
+                            className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white px-1 text-gray-500 transition-all hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600 active:scale-95 touch-manipulation md:h-11 md:min-w-[44px] md:flex-row md:px-3"
                             title="Next guest"
                             aria-label="Next guest"
                         >
                             <ArrowRight size={18} />
+                            <span className="text-[11px] font-bold leading-none md:hidden">Next</span>
                         </button>
                     )}
 
                     <div className={cn(
-                        "h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-gray-50 border border-gray-100 text-gray-400 group-hover:text-emerald-500 transition-colors touch-manipulation",
-                        compact && "h-9 min-h-[36px] min-w-[36px]"
+                        "items-center justify-center rounded-xl bg-gray-50 border border-gray-100 text-gray-400 group-hover:text-emerald-500 transition-colors touch-manipulation",
+                        compact
+                            ? "flex h-9 min-h-[36px] min-w-[36px]"
+                            : "hidden h-11 min-h-[44px] min-w-[44px] md:flex"
                     )}>
                         {isExpanded ? <ChevronUp size={compact ? 16 : 20} /> : <ChevronDown size={compact ? 16 : 20} />}
                     </div>

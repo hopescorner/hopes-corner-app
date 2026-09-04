@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import { GuestCard } from '../GuestCard';
 import { pacificDateStringFrom, todayPacificDateString } from '@/lib/utils/date';
@@ -203,14 +203,34 @@ describe('GuestCard Component', () => {
             expect(screen.getByText('San Jose')).toBeDefined();
         });
 
-        it('renders gender initial', () => {
-            render(<GuestCard guest={baseGuest} />);
-            expect(screen.getByText('M')).toBeDefined();
+        it.each([
+            ['Male', 'M', 'lucide-mars'],
+            ['Female', 'F', 'lucide-venus'],
+            ['Unknown', 'Unknown', 'lucide-circle-question-mark'],
+            ['Non-binary', 'NB', 'lucide-non-binary'],
+        ])('pairs %s with a respectful icon and readable label', (gender, shortLabel, iconClass) => {
+            render(<GuestCard guest={{ ...baseGuest, gender }} />);
+
+            const genderDetail = screen.getByLabelText(`Gender: ${gender}`);
+            expect(genderDetail).toHaveTextContent(shortLabel);
+            expect(genderDetail.querySelector(`.${iconClass}`)).not.toBeNull();
         });
 
         it('renders age group', () => {
             render(<GuestCard guest={baseGuest} />);
             expect(screen.getByText('Adult 18-59')).toBeDefined();
+        });
+
+        it.each([
+            [17, 'Child 0-17'],
+            [18, 'Adult 18-59'],
+            [59, 'Adult 18-59'],
+            [60, 'Senior 60+'],
+        ])('shows exact age %i as demographic range %s', (age, expectedRange) => {
+            render(<GuestCard guest={{ ...baseGuest, age }} />);
+
+            expect(screen.getByText(expectedRange)).toBeDefined();
+            expect(screen.queryByText(String(age))).toBeNull();
         });
 
         it('renders meal buttons', () => {
@@ -1103,6 +1123,24 @@ describe('GuestCard Component', () => {
     });
 
     describe('Mobile Meal Controls', () => {
+        it('keeps the guest identity separate from the mobile action dock', () => {
+            render(<GuestCard guest={baseGuest} onAdvanceToNext={vi.fn()} />);
+
+            const identity = screen.getByRole('group', { name: 'Guest identity' });
+            expect(within(identity).getByRole('heading', { name: 'Johnny' })).toBeDefined();
+            expect(within(identity).queryByRole('button', { name: 'Log 1 meal' })).toBeNull();
+        });
+
+        it('shows clear text labels for every mobile quick action', () => {
+            render(<GuestCard guest={baseGuest} onAdvanceToNext={vi.fn()} />);
+
+            const actions = screen.getByRole('group', { name: 'Quick check-in actions for Johnny' });
+            expect(within(actions).getByRole('button', { name: 'Log 1 meal' })).toHaveTextContent('1 Meal');
+            expect(within(actions).getByRole('button', { name: 'Log 2 meals' })).toHaveTextContent('2 Meals');
+            expect(within(actions).getByRole('button', { name: 'Quick add services' })).toHaveTextContent('Services');
+            expect(within(actions).getByRole('button', { name: 'Next guest' })).toHaveTextContent('Next');
+        });
+
         it('renders one-tap meal buttons for 1 and 2 meals', () => {
             render(<GuestCard guest={baseGuest} />);
             expect(screen.getByRole('button', { name: 'Log 1 meal' })).toBeDefined();
