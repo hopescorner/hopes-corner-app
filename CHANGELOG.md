@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.16.0] - 2026-09-04
+
+### Added
+
+- Guest cards on phones and tablets now have meal buttons for one meal and two meals. Staff no longer need to open the sheet to give two meals.
+- After a meal is logged, an undo button shows next to the meal count on the card. Staff can remove a meal with one tap.
+- A Next button now shows on guest cards without a service today. Staff can skip to the next search result without clearing the search.
+
 ## [0.15.0] - 2026-09-04
 
 ### Added

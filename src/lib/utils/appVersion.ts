@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.15.0';
+export const APP_VERSION = '0.16.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.16.0',
+        date: 'September 4, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Two-Meal Buttons on Mobile',
+                description: 'Guest cards on phones and tablets now have meal buttons for one meal and two meals. Staff no longer need to open the sheet to give two meals.',
+            },
+            {
+                type: 'feature',
+                title: 'Undo Button for Mobile Meals',
+                description: 'After a meal is logged, an undo button shows next to the meal count on the card. Staff can remove a meal with one tap.',
+            },
+            {
+                type: 'feature',
+                title: 'Next Button for Skipped Guests',
+                description: 'A Next button now shows on guest cards without a service today. Staff can skip to the next search result without clearing the search.',
+            },
+        ],
+    },
     {
         version: '0.15.0',
         date: 'September 4, 2026',
