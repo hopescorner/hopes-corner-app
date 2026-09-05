@@ -91,15 +91,16 @@ export function snapshotToLegacyState(snapshot: CheckInSnapshot) {
 
 export function hydrateLegacyStoresFromSnapshot(snapshot: CheckInSnapshot) {
     const legacy = snapshotToLegacyState(snapshot);
+    // Snapshots contain directory summaries, not the details loaded when a
+    // card expands. Reconciliation must not erase those details or links.
+    const existingGuests = new Map(useGuestsStore.getState().guests.map((guest) => [guest.id, guest]));
     useGuestsStore.setState({
         guests: snapshot.guests.map((guest) => ({
             ...guest,
-            notes: '',
-            bicycleDescription: '',
+            notes: existingGuests.get(guest.id)?.notes ?? '',
+            bicycleDescription: existingGuests.get(guest.id)?.bicycleDescription ?? '',
             docId: guest.id,
         })),
-        warnings: [],
-        guestProxies: [],
         isLoaded: true,
         isLoading: false,
         lastLoadedAt: snapshot.generatedAt,

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { hydrateLegacyStoresFromSnapshot, snapshotToLegacyState, snapshotToMealStatusMap } from '@/lib/checkin/legacyAdapter';
 import { useMealsStore } from '@/stores/useMealsStore';
+import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import type { CheckInSnapshot } from '@/types/checkin';
 
@@ -59,6 +60,7 @@ describe('hydrateLegacyStoresFromSnapshot', () => {
     } as unknown as CheckInSnapshot;
 
     beforeEach(() => {
+        useGuestsStore.setState({ guests: [], guestProxies: [], warnings: [] });
         useMealsStore.setState({ mealRecords: [], extraMealRecords: [], isLoaded: false, isLoading: false });
         useServicesStore.setState({ isLoaded: false, isLoading: false });
     });
@@ -71,6 +73,27 @@ describe('hydrateLegacyStoresFromSnapshot', () => {
         expect(state.mealRecords[0].id).toBe('snapshot-meal-guest-1');
         expect(state.isLoaded).toBe(false);
         expect(useServicesStore.getState().isLoaded).toBe(false);
+    });
+
+    it('preserves loaded details while updating directory fields and adding new guests', () => {
+        hydrateLegacyStoresFromSnapshot(snapshot);
+        useGuestsStore.setState((state) => ({
+            guests: state.guests.map((guest) => ({ ...guest, notes: 'Needs assistance', bicycleDescription: 'Blue bicycle' })),
+            warnings: [{ id: 'warning-1', guestId: 'guest-1', message: 'Speak with staff', severity: 1, active: true, createdAt: snapshot.generatedAt, updatedAt: snapshot.generatedAt }],
+        }));
+
+        hydrateLegacyStoresFromSnapshot({
+            ...snapshot,
+            guests: [
+                { ...snapshot.guests[0], preferredName: 'Updated name', bannedFromMeals: true },
+                { ...snapshot.guests[0], id: 'guest-2' },
+            ],
+        });
+
+        const state = useGuestsStore.getState();
+        expect(state.guests[0]).toMatchObject({ preferredName: 'Updated name', bannedFromMeals: true, notes: 'Needs assistance', bicycleDescription: 'Blue bicycle' });
+        expect(state.guests[1]).toMatchObject({ id: 'guest-2', notes: '', bicycleDescription: '', docId: 'guest-2' });
+        expect(state.warnings).toEqual([expect.objectContaining({ id: 'warning-1', message: 'Speak with staff', active: true })]);
     });
 
     it('does not overwrite a store that already holds real data', () => {

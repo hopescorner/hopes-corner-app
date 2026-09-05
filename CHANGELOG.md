@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.20.0] - 2026-09-05
+
+### Fixed
+
+- Background check-in refreshes no longer clear loaded linked guests from expanded cards. Linked guests remain visible after recording a primary guest's meal and subsequent refreshes.
+- Loaded warnings, notes, and bicycle descriptions are preserved when refreshed directory summaries arrive; updated summary fields still take effect.
+
+### Tests
+
+- Added regression coverage using the real linked-guest list and stores for primary meal updates followed by repeated snapshot refreshes, both relationship directions, and reopening the list.
+- Added coverage for preserving detailed guest fields and warnings while updating directory fields and initializing new guests.
+
 ## [0.19.0] - 2026-09-04
 
 ### Improved

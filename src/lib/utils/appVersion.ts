@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.19.0';
+export const APP_VERSION = '0.20.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.20.0',
+        date: 'September 5, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Linked Guests Stay Visible',
+                description: 'Background check-in refreshes now preserve loaded linked guests, warnings, notes, and bicycle descriptions, including when staff are recording meals.',
+            },
+        ],
+    },
     {
         version: '0.19.0',
         date: 'September 4, 2026',
