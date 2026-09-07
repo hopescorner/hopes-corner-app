@@ -245,4 +245,38 @@ describe('GuestCard Linked Guests Meals', () => {
             expect(mockAddMealRecord).toHaveBeenCalledWith('guest-buddy', 1, 'guest-primary', undefined);
         });
     });
+
+    it('accurately counts linked guests on load when guestProxies contains symmetric database entries', () => {
+        useGuestsStore.setState({
+            guests: [primaryGuest, buddyGuest],
+            guestProxies: [
+                {
+                    id: 'proxy-1',
+                    guestId: 'guest-primary',
+                    proxyId: 'guest-buddy',
+                    relationship: 'friend',
+                    canPickupMeals: true,
+                    canPickupServices: false,
+                    isActive: true,
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                },
+                {
+                    id: 'proxy-2',
+                    guestId: 'guest-buddy',
+                    proxyId: 'guest-primary',
+                    relationship: 'friend',
+                    canPickupMeals: true,
+                    canPickupServices: false,
+                    isActive: true,
+                    createdAt: '2026-01-01T00:00:00.000Z',
+                },
+            ],
+            warnings: [],
+        });
+
+        render(<GuestCard guest={primaryGuest} />);
+
+        expect(screen.getByText('0 of 1 served')).toBeInTheDocument();
+        expect(screen.getByText('John Doe + 1 linked guest')).toBeInTheDocument();
+    });
 });

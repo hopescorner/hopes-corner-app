@@ -264,23 +264,28 @@ function PureGuestCard({
 
     const linkedGuestIds = useGuestsStore(
         useShallow((s) => {
-            const ids: string[] = [];
-            for (const p of s.guestProxies) {
-                if (p.guestId === guest.id) ids.push(p.proxyId);
-                else if (p.proxyId === guest.id) ids.push(p.guestId);
+            const ids = new Set<string>();
+            for (const p of s.guestProxies || []) {
+                if (p.guestId === guest.id && p.proxyId && p.proxyId !== guest.id) {
+                    ids.add(p.proxyId);
+                } else if (p.proxyId === guest.id && p.guestId && p.guestId !== guest.id) {
+                    ids.add(p.guestId);
+                }
             }
-            return ids;
+            return Array.from(ids);
         })
     );
 
     const effectiveLinkedIds = useMemo(() => {
-        if (guestContext?.linkedGuests && guestContext.linkedGuests.length > 0) {
-            return guestContext.linkedGuests.map((g) => g.id);
+        if (guestContext?.linkedGuests) {
+            return Array.from(new Set(guestContext.linkedGuests.map((g) => g.id)));
         }
         return linkedGuestIds;
     }, [guestContext, linkedGuestIds]);
 
-    const totalLinkedCount = Math.max(linkedBadgeCount, effectiveLinkedIds.length);
+    const totalLinkedCount = guestContext
+        ? effectiveLinkedIds.length
+        : Math.max(linkedBadgeCount, effectiveLinkedIds.length);
 
     const today = todayPacificDateString();
     const servedLinkedIds = useMemo(() => new Set(effectiveLinkedIds.filter((id) => (
