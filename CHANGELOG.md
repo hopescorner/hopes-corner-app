@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.23.0] - 2026-09-07
+
+### Improved
+
+- Linked guests now have a dedicated responsive meal panel with a clear served count, named “1 meal each” and “2 meals each” actions, and larger individual meal and undo controls on desktop, tablet, and mobile.
+- Link management is separated behind “Manage links”, keeping unlink actions away from routine meal service.
+- Linked guest names and remaining meal needs are visible before expanding the guest card.
+
+### Tests
+
+- Added responsive linked-guest flow coverage for group serving, individual serving, undo, and link management.
+
 ## [0.22.0] - 2026-09-07
 
 ### Fixed

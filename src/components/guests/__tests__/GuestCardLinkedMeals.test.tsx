@@ -85,7 +85,7 @@ describe('GuestCard Linked Guests Meals', () => {
         });
     });
 
-    it('renders All ×1 and All ×2 buttons when guest has linked buddies and no meals today', () => {
+    it('renders clearly named group meal actions when guest has linked buddies and no meals today', () => {
         render(
             <GuestCard
                 guest={primaryGuest}
@@ -93,11 +93,11 @@ describe('GuestCard Linked Guests Meals', () => {
             />
         );
 
-        expect(screen.getByText('All ×1')).toBeInTheDocument();
-        expect(screen.getByText('All ×2')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '1 meal each' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: '2 meals each' })).toBeInTheDocument();
     });
 
-    it.each([1, 2])('checks in primary and linked buddy when All ×%s is clicked', async (quantity) => {
+    it.each([1, 2])('checks in primary and linked buddy when %s meal each is clicked', async (quantity) => {
         render(
             <GuestCard
                 guest={primaryGuest}
@@ -106,7 +106,7 @@ describe('GuestCard Linked Guests Meals', () => {
             />
         );
 
-        const allButton = screen.getByText(`All ×${quantity}`);
+        const allButton = screen.getByRole('button', { name: `${quantity} meal${quantity === 1 ? '' : 's'} each` });
         fireEvent.click(allButton);
 
         await waitFor(() => {
@@ -115,7 +115,7 @@ describe('GuestCard Linked Guests Meals', () => {
         });
     });
 
-    it('loads guest context first if proxies are not yet loaded when All ×1 is clicked', async () => {
+    it('loads guest context first if proxies are not yet loaded when a group meal action is clicked', async () => {
         // Initially empty proxies in store (like fresh snapshot load)
         useGuestsStore.setState({
             guests: [primaryGuest],
@@ -149,7 +149,7 @@ describe('GuestCard Linked Guests Meals', () => {
             />
         );
 
-        const allButton = screen.getByText('All ×1');
+        const allButton = screen.getByRole('button', { name: '1 meal each' });
         fireEvent.click(allButton);
 
         await waitFor(() => {
@@ -195,10 +195,7 @@ describe('GuestCard Linked Guests Meals', () => {
 
         // Header badge shows buddy served
         expect(screen.getByText('1/1 served')).toBeInTheDocument();
-        // Action section shows buddy served indicator chip
-        expect(screen.getByText('1 buddy')).toBeInTheDocument();
-        // Should NOT show + Buddy ×1 since all are served
-        expect(screen.queryByText('+ Buddy ×1')).not.toBeInTheDocument();
+        expect(screen.getByText('All linked guests served')).toBeInTheDocument();
     });
 
     it('displays + Buddy ×1 button when primary is served but linked buddy is not yet served', async () => {
@@ -236,14 +233,12 @@ describe('GuestCard Linked Guests Meals', () => {
             />
         );
 
-        // Badge shows unserved title
-        expect(screen.getByTitle('1 linked buddy')).toBeInTheDocument();
+        expect(screen.getByText('1 linked guest still need meals')).toBeInTheDocument();
 
-        // Action area has quick "+ Buddy ×1" button
-        const addBuddyBtn = screen.getByText('+ Buddy ×1');
+        const addBuddyBtn = screen.getByRole('button', { name: '1 meal each' });
         expect(addBuddyBtn).toBeInTheDocument();
 
-        // Clicking "+ Buddy ×1" logs meal for the unserved buddy
+        // Clicking the group action logs the meal for the unserved buddy.
         fireEvent.click(addBuddyBtn);
 
         await waitFor(() => {

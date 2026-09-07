@@ -1,16 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useId, useState, useMemo } from 'react';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
+import { useCheckInStore } from '@/stores/useCheckInStore';
 import { useTodayMealStatusMap, useTodayActionStatusMap } from '@/stores/selectors/todayStatusSelectors';
-import { UserRole } from '@/lib/auth/types';
-import { useSession } from 'next-auth/react';
-import { Link, Unlink, Utensils, Search, X, Loader2, RotateCcw } from 'lucide-react';
+import { Link, Unlink, Search, X, Loader2, RotateCcw, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { pacificDateStringFrom, todayPacificDateString } from '@/lib/utils/date';
-
 import type { MealStatusMap } from '@/stores/selectors/todayStatusSelectors';
 
 interface LinkedGuestsListProps {
@@ -18,261 +15,146 @@ interface LinkedGuestsListProps {
     className?: string;
     mealStatusMap?: MealStatusMap;
     addMealRecord?: (guestId: string, quantity?: number, pickedUpByGuestId?: string | null, serviceDate?: string) => Promise<any>;
+    disabled?: boolean;
 }
 
-export default function LinkedGuestsList({
-    guestId,
-    className = '',
-    mealStatusMap: passedMealStatusMap,
-    addMealRecord: passedAddMealRecord,
-}: LinkedGuestsListProps) {
-    const { data: session } = useSession();
-    // Assuming 'checkin' users can also see/use this feature as it helps with speed
-    // const role = session?.user?.role as UserRole; 
-
-    const {
-        getLinkedGuests,
-        linkGuests,
-        unlinkGuests,
-        guests: allGuests
-    } = useGuestsStore();
-
-    const { addMealRecord, mealRecords } = useMealsStore();
-    const { addAction, getActionsForGuestToday } = useActionHistoryStore();
-
-    // Use precomputed maps for efficient lookups (prefer passed snapshot map)
+export default function LinkedGuestsList({ guestId, className = '', mealStatusMap: passedMealStatusMap, addMealRecord: passedAddMealRecord, disabled = false }: LinkedGuestsListProps) {
+    const { getLinkedGuests, linkGuests, unlinkGuests, guests: allGuests } = useGuestsStore();
+    const { addMealRecord } = useMealsStore();
+    const { addAction } = useActionHistoryStore();
     const storeMealStatusMap = useTodayMealStatusMap();
     const effectiveMealStatusMap = passedMealStatusMap || storeMealStatusMap;
     const actionStatusMap = useTodayActionStatusMap();
-
     const [isLinking, setIsLinking] = useState(false);
+    const [isManaging, setIsManaging] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [isPending, setIsPending] = useState(false);
-
-    const linkedGuests = getLinkedGuests(guestId);
-    const today = todayPacificDateString();
+    const searchId = useId();
+    const busy = isPending || disabled;
+    const linkedGuests = getLinkedGuests(guestId).filter(Boolean);
 
     const handleLinkGuest = async (proxyId: string) => {
-        if (isPending) return;
+        if (busy) return;
         setIsPending(true);
         try {
             await linkGuests(guestId, proxyId);
             toast.success('Guest linked successfully');
             setIsLinking(false);
             setSearchTerm('');
-        } catch (error) {
+        } catch {
             toast.error('Failed to link guest');
-        } finally {
-            setIsPending(false);
-        }
+        } finally { setIsPending(false); }
     };
 
-    const handleUnlinkGuest = async (proxyId: string) => {
-        if (!confirm('Are you sure you want to unlink this guest?')) return;
-
+    const handleUnlinkGuest = async (proxyId: string, name: string) => {
+        if (busy || !confirm(`Unlink ${name}? Their meal records will be kept.`)) return;
+        setIsPending(true);
         try {
             await unlinkGuests(guestId, proxyId);
             toast.success('Guest unlinked');
-        } catch (error) {
-            toast.error('Failed to unlink guest');
-        }
+        } catch { toast.error('Failed to unlink guest'); }
+        finally { setIsPending(false); }
     };
 
-    const handleQuickMeal = async (linkedGuestId: string, linkedGuestName: string, quantity: number) => {
-        if (isPending) return;
+    const handleQuickMeal = async (linkedGuestId: string, name: string, quantity: number) => {
+        if (busy) return;
         setIsPending(true);
         try {
-            // guestId (prop) is the Guest currently at the window (Proxy)
-            // linkedGuestId is the Guest receiving the meal
-            const executeAddMeal = passedAddMealRecord || addMealRecord;
-            const record = await executeAddMeal(linkedGuestId, quantity, guestId);
-            if (record?.id) {
-                addAction('MEAL_ADDED', { recordId: record.id, guestId: linkedGuestId, count: quantity });
-            }
-            toast.success(`${quantity} Meal${quantity > 1 ? 's' : ''} logged for ${linkedGuestName}`);
-        } catch (error: any) {
-            // Check if it's just a duplicate warning or actual error
-            if (error.message?.includes('already received')) {
-                toast.error(`${linkedGuestName} already received a meal today`);
-            } else {
-                toast.error('Failed to log meal');
-            }
-        } finally {
-            setIsPending(false);
-        }
+            const record = await (passedAddMealRecord || addMealRecord)(linkedGuestId, quantity, guestId);
+            if (record?.id) addAction('MEAL_ADDED', { recordId: record.id, guestId: linkedGuestId, count: quantity });
+            toast.success(`${quantity} meal${quantity > 1 ? 's' : ''} logged for ${name}`);
+        } catch (error: any) { toast.error(error.message || 'Failed to log meal'); }
+        finally { setIsPending(false); }
+    };
+
+    const handleUndo = async (linkedGuestId: string, actionId: string) => {
+        if (busy) return;
+        setIsPending(true);
+        try {
+            const history = useActionHistoryStore.getState();
+            const action = history.actionHistory?.find((entry) => entry.id === actionId);
+            const success = await history.undoAction(actionId);
+            if (success) {
+                if (action && useCheckInStore.getState().isReady) {
+                    useCheckInStore.getState().applyUndo({ type: 'MEAL_ADDED', guestId: linkedGuestId, recordId: action.data.recordId });
+                }
+                toast.success('Meal undone');
+            } else { toast.error('Failed to undo meal'); }
+        } finally { setIsPending(false); }
     };
 
     const filteredCandidates = useMemo(() => {
-        if (searchTerm.length < 2) return [];
-        const lowerTerm = searchTerm.toLowerCase();
-        const linkedIds = new Set(linkedGuests.map(g => g.id));
-        linkedIds.add(guestId); // Exclude self
-
-        return allGuests
-            .filter(g =>
-                g && !linkedIds.has(g.id) &&
-                ((g.preferredName || '').toLowerCase().includes(lowerTerm) ||
-                    (g.firstName || '').toLowerCase().includes(lowerTerm) ||
-                    (g.lastName || '').toLowerCase().includes(lowerTerm))
-            )
-            .slice(0, 5); // Limit to 5 results
+        const term = searchTerm.trim().toLowerCase();
+        if (term.length < 2) return [];
+        const linkedIds = new Set(linkedGuests.map((guest) => guest.id));
+        linkedIds.add(guestId);
+        return allGuests.filter((guest) => guest && !linkedIds.has(guest.id) &&
+            `${guest.preferredName || ''} ${guest.firstName || ''} ${guest.lastName || ''}`.toLowerCase().includes(term)).slice(0, 5);
     }, [searchTerm, allGuests, linkedGuests, guestId]);
 
-    // Use precomputed map instead of scanning mealRecords per guest
-    const getLinkedGuestStatus = (id: string) => {
-        const status = effectiveMealStatusMap.get(id);
-        return { hasMeal: status?.hasMeal || false };
-    };
+    const buttonClass = 'inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 touch-manipulation';
 
-    // Helper to get action ID for a linked guest from precomputed map
-    const getLinkedGuestMealActionId = (id: string) => {
-        const actions = actionStatusMap.get(id);
-        return actions?.mealActionId;
-    };
-
-    if (linkedGuests.length === 0 && !isLinking) {
-        return (
-            <div className={`mt-4 ${className}`}>
-                <button
-                    onClick={() => setIsLinking(true)}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1.5"
-                >
-                    <Link size={14} />
-                    Link Guest
-                </button>
-            </div>
-        );
-    }
+    if (linkedGuests.length === 0 && !isLinking) return (
+        <div className={`mt-3 ${className}`}>
+            <button type="button" onClick={() => setIsLinking(true)} className={`${buttonClass} text-emerald-800 hover:bg-emerald-50`}><Link size={16} />Link Guest</button>
+        </div>
+    );
 
     return (
-        <div className={`mt-4 pt-4 border-t border-gray-100 ${className}`}>
-            <div className="flex items-center justify-between mb-3">
-                <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                    <Link size={12} />
-                    Linked Guests ({linkedGuests.length})
-                </h4>
-                {!isLinking && (
-                    <button
-                        onClick={() => setIsLinking(true)}
-                        className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                    >
-                        + Add Check-in Buddy
-                    </button>
-                )}
+        <div className={`mt-3 border-t border-gray-200 pt-3 ${className}`}>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <h4 className="text-sm font-bold text-gray-800">Linked Guests ({linkedGuests.length})</h4>
+                {linkedGuests.length > 0 && <button type="button" aria-pressed={isManaging} onClick={() => setIsManaging(!isManaging)} className={`${buttonClass} text-gray-600 hover:bg-gray-100`}>{isManaging ? 'Done managing' : 'Manage links'}</button>}
             </div>
-
-            <div className="space-y-2">
-                {linkedGuests.filter(g => !!g).map(g => {
-                    const status = getLinkedGuestStatus(g.id);
-                    const displayName = g.preferredName || `${g.firstName || ''} ${g.lastName || ''}`.trim() || 'Unknown Guest';
-
-                    // Use precomputed action ID instead of scanning actions per guest
-                    const mealActionId = getLinkedGuestMealActionId(g.id);
-
+            <ul className="space-y-2">
+                {linkedGuests.map((guest) => {
+                    const status = effectiveMealStatusMap.get(guest.id);
+                    const name = guest.preferredName || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Unknown Guest';
+                    const mealActionId = actionStatusMap.get(guest.id)?.mealActionId;
                     return (
-                        <div key={g.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg border border-gray-100 group">
-                            <div className="flex items-center gap-2 max-w-[50%]">
-                                <span className={`text-sm font-medium ${status.hasMeal ? 'text-gray-400' : 'text-gray-700'}`}>
-                                    {displayName}
-                                </span>
+                        <li key={guest.id} className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                            <div className="min-w-0">
+                                <p className="break-words text-sm font-semibold text-gray-900">{name}</p>
+                                <p className={`mt-1 flex items-center gap-1 text-xs ${status?.hasMeal ? 'text-emerald-700' : 'text-gray-600'}`}>
+                                    {status?.hasMeal ? <><Check size={14} /><span>Served</span>{status.mealCount ? ` · ${status.mealCount} meal${status.mealCount === 1 ? '' : 's'}` : ''}</> : 'No meal yet today'}
+                                </p>
                             </div>
-
-                            <div className="flex items-center gap-1.5">
-                                {status.hasMeal ? (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-bold">
-                                            Served
-                                        </span>
-                                        {mealActionId && (
-                                            <button
-                                                onClick={async () => {
-                                                    if (confirm(`Undo meal for ${displayName}?`)) {
-                                                        const success = await useActionHistoryStore.getState().undoAction(mealActionId);
-                                                        if (success) toast.success('Meal undone');
-                                                    }
-                                                }}
-                                                className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded transition-all"
-                                                title="Undo Meal"
-                                            >
-                                                <RotateCcw size={14} />
-                                            </button>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-                                        <button
-                                            onClick={() => handleQuickMeal(g.id, displayName, 1)}
-                                            disabled={isPending}
-                                            className="px-2.5 py-1.5 text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-700 border-r border-gray-100 transition-colors"
-                                            title="1 Meal"
-                                        >
-                                            1
-                                        </button>
-                                        <button
-                                            onClick={() => handleQuickMeal(g.id, displayName, 2)}
-                                            disabled={isPending}
-                                            className="px-2.5 py-1.5 text-xs font-bold text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                                            title="2 Meals"
-                                        >
-                                            2
-                                        </button>
-                                    </div>
-                                )}
-
-                                <div className="w-px h-4 bg-gray-200 mx-1"></div>
-
-                                <button
-                                    onClick={() => handleUnlinkGuest(g.id)}
-                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
-                                    title="Unlink Guest"
-                                >
-                                    <Unlink size={14} />
-                                </button>
+                            <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+                                {isManaging ? (
+                                    <button type="button" disabled={busy} onClick={() => handleUnlinkGuest(guest.id, name)} title="Unlink Guest" aria-label={`Unlink ${name}`} className={`${buttonClass} border border-red-200 text-red-700 hover:bg-red-50`}><Unlink size={16} />Unlink</button>
+                                ) : status?.hasMeal ? (
+                                    mealActionId && <button type="button" disabled={busy} onClick={() => handleUndo(guest.id, mealActionId)} title="Undo Meal" aria-label={`Undo meal for ${name}`} className={`${buttonClass} border border-orange-200 text-orange-800 hover:bg-orange-50`}><RotateCcw size={16} />Undo meal</button>
+                                ) : [1, 2].map((quantity) => (
+                                    <button key={quantity} type="button" disabled={busy} onClick={() => handleQuickMeal(guest.id, name, quantity)} title={`${quantity} Meal${quantity === 1 ? '' : 's'}`} aria-label={`${quantity} meal${quantity === 1 ? '' : 's'} for ${name}`} className={`${buttonClass} flex-1 border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 sm:flex-none`}>
+                                        {isPending && <Loader2 size={14} className="animate-spin" />}{quantity} meal{quantity === 1 ? '' : 's'}
+                                    </button>
+                                ))}
                             </div>
-                        </div>
+                        </li>
                     );
                 })}
-            </div>
-
+            </ul>
+            {isManaging && !isLinking && (
+                linkedGuests.length < 3 ? <button type="button" onClick={() => setIsLinking(true)} className={`${buttonClass} mt-2 text-emerald-800 hover:bg-emerald-50`}><Link size={16} />Link Guest</button> : <p className="mt-3 text-sm text-gray-600">Maximum of 3 linked guests reached.</p>
+            )}
             {isLinking && (
-                <div className="mt-3 bg-white p-3 rounded-lg border border-blue-100 shadow-sm animate-in fade-in slide-in-from-top-2">
-                    <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-semibold text-gray-700">Link New Guest</label>
-                        <button onClick={() => setIsLinking(false)} className="text-gray-400 hover:text-gray-600">
-                            <X size={14} />
-                        </button>
+                <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <label htmlFor={searchId} className="text-sm font-semibold text-gray-800">Find a guest to link</label>
+                        <button type="button" aria-label="Cancel linking" onClick={() => setIsLinking(false)} className={`${buttonClass} text-gray-600 hover:bg-gray-100`}><X size={18} /></button>
                     </div>
                     <div className="relative">
-                        <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search by name..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            autoFocus
-                        />
+                        <Search size={18} className="absolute left-3 top-3.5 text-gray-400" aria-hidden="true" />
+                        <input id={searchId} type="search" placeholder="Search by name..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setIsLinking(false); }} className="min-h-11 w-full rounded-lg border border-gray-300 py-2 pl-10 pr-3 text-base focus:outline-2 focus:outline-emerald-600" autoFocus />
                     </div>
-
-                    {searchTerm.length >= 2 && (
-                        <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                            {filteredCandidates.length === 0 ? (
-                                <p className="text-xs text-gray-500 p-2 text-center italic">No guests found</p>
-                            ) : (
-                                filteredCandidates.map(c => (
-                                    <button
-                                        key={c.id}
-                                        onClick={() => handleLinkGuest(c.id)}
-                                        disabled={isPending}
-                                        className="w-full text-left flex items-center justify-between p-2 hover:bg-blue-50 rounded text-sm group"
-                                    >
-                                        <span className="font-medium text-gray-700">
-                                            {c.preferredName ? `${c.preferredName} (${c.firstName} ${c.lastName})` : `${c.firstName} ${c.lastName}`}
-                                        </span>
-                                        <span className="text-xs text-blue-600 opacity-0 group-hover:opacity-100 font-medium">Link</span>
-                                    </button>
-                                ))
-                            )}
+                    {searchTerm.trim().length < 2 ? <p className="mt-2 text-xs text-gray-600">Type at least 2 letters. Up to 3 guests can be linked.</p> : (
+                        <div className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+                            {filteredCandidates.length === 0 ? <p role="status" className="p-3 text-sm text-gray-600">No guests found</p> : filteredCandidates.map((candidate) => (
+                                <button type="button" key={candidate.id} disabled={busy} onClick={() => handleLinkGuest(candidate.id)} className={`${buttonClass} w-full justify-between gap-3 text-left text-gray-800 hover:bg-emerald-50`}>
+                                    <span className="min-w-0 break-words">{candidate.preferredName ? `${candidate.preferredName} (${candidate.firstName} ${candidate.lastName})` : `${candidate.firstName} ${candidate.lastName}`}</span>
+                                    <span className="shrink-0 text-emerald-700">Link</span>
+                                </button>
+                            ))}
                         </div>
                     )}
                 </div>

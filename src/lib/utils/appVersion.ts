@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.22.0';
+export const APP_VERSION = '0.23.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.23.0',
+        date: 'September 7, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Clearer Linked Guest Check-In',
+                description: 'Linked guests now have a dedicated, responsive meal panel with a clear served count, named group actions, and larger individual meal and undo controls across desktop, tablet, and mobile.',
+            },
+            {
+                type: 'improvement',
+                title: 'Safer Link Management',
+                description: 'Unlinking is now separated behind Manage links so routine meal service stays focused and accidental unlink taps are less likely.',
+            },
+        ],
+    },
     {
         version: '0.22.0',
         date: 'September 7, 2026',

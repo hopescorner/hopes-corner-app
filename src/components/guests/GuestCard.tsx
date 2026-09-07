@@ -248,6 +248,8 @@ function PureGuestCard({
     guestContext,
 }: PureGuestCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [showLinkedGuests, setShowLinkedGuests] = useState(false);
+    const [loadingLinkedGuests, setLoadingLinkedGuests] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBanModal, setShowBanModal] = useState(false);
@@ -280,12 +282,17 @@ function PureGuestCard({
 
     const totalLinkedCount = Math.max(linkedBadgeCount, effectiveLinkedIds.length);
 
-    const linkedServedCount = useMemo(() => {
-        if (!mealStatusMap || effectiveLinkedIds.length === 0) return 0;
-        return effectiveLinkedIds.filter((id) => mealStatusMap.get(id)?.hasMeal).length;
-    }, [mealStatusMap, effectiveLinkedIds]);
-
     const today = todayPacificDateString();
+    const servedLinkedIds = useMemo(() => new Set(effectiveLinkedIds.filter((id) => (
+        mealStatusMap
+            ? mealStatusMap.get(id)?.hasMeal
+            : mealRecords.some((record) => record.guestId === id && (record.dateKey || pacificDateStringFrom(record.date)) === today)
+    ))), [mealStatusMap, effectiveLinkedIds, mealRecords, today]);
+    const linkedServedCount = servedLinkedIds.size;
+    const linkedNames = useGuestsStore(useShallow((state) => (state.guests ?? [])
+        .filter((linked) => effectiveLinkedIds.includes(linked.id))
+        .map(getGuestDisplayName)));
+
     const [haircutDate, setHaircutDate] = useState(today);
     const displayName = getGuestDisplayName(guest);
     const fullName = getGuestFullName(guest);
@@ -587,8 +594,7 @@ function PureGuestCard({
 
             let proxySuccessCount = 0;
             for (const proxy of linkedList) {
-                const status = mealStatusMap?.get(proxy.id);
-                if (!status?.hasMeal) {
+                if (!servedLinkedIds.has(proxy.id)) {
                     try {
                         const proxyRecord = await addMealRecord(proxy.id, count, guest.id);
                         if (proxyRecord?.id) {
@@ -596,7 +602,7 @@ function PureGuestCard({
                             proxySuccessCount++;
                         }
                     } catch {
-                        // Continue to next buddy if one fails
+                        toast.error(`Could not record meals for ${getGuestDisplayName(proxy)}. Please try this guest individually.`);
                     }
                 }
             }
@@ -1014,7 +1020,6 @@ function PureGuestCard({
                                         <Check size={18} strokeWidth={3} />
                                         <span className="text-[11px] font-bold leading-none">
                                             {totalMeals} Meal{totalMeals === 1 ? '' : 's'}
-                                            {totalLinkedCount > 0 && linkedServedCount > 0 ? ` + ${linkedServedCount}B` : ''}
                                         </span>
                                     </div>
                                     {mealAction && (
@@ -1064,22 +1069,6 @@ function PureGuestCard({
                                             <span>{count}</span>
                                         </button>
                                     ))}
-                                    {totalLinkedCount > 0 && (
-                                        <div className="flex items-center gap-1 pl-1 ml-0.5 border-l border-gray-200">
-                                            {[1, 2].map((count) => (
-                                                <button
-                                                    key={count}
-                                                    onClick={(e) => handleCheckInAll(e, count)}
-                                                    disabled={isPending}
-                                                    className="flex items-center justify-center gap-1 h-11 min-h-[44px] px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                                    title={`Check in ${displayName} + ${totalLinkedCount} linked buddy/buddies (${count} meal${count > 1 ? 's' : ''} each)`}
-                                                >
-                                                    {isPending ? <Loader2 size={12} className="animate-spin" /> : <Users size={12} />}
-                                                    <span>All ×{count}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
                                 </div>
                             ) : (
                                 <div className="flex items-center gap-2">
@@ -1102,28 +1091,6 @@ function PureGuestCard({
                                             </button>
                                         )}
                                     </div>
-                                    {totalLinkedCount > 0 && (
-                                        linkedServedCount >= totalLinkedCount ? (
-                                            <div
-                                                className="flex items-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs"
-                                                title={`All ${totalLinkedCount} linked ${totalLinkedCount === 1 ? 'buddy' : 'buddies'} served`}
-                                            >
-                                                <Users size={13} />
-                                                <Check size={13} />
-                                                <span>{totalLinkedCount} buddy</span>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={(e) => handleCheckInAll(e, 1)}
-                                                disabled={isPending}
-                                                className="flex items-center justify-center gap-1 h-11 min-h-[44px] px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                                title={`Check in unserved linked buddy (${totalLinkedCount - linkedServedCount} remaining)`}
-                                            >
-                                                {isPending ? <Loader2 size={12} className="animate-spin" /> : <Users size={12} />}
-                                                <span>+ Buddy ×1</span>
-                                            </button>
-                                        )
-                                    )}
                                     {hasReachedMealLimit || hasReachedExtraMealLimit ? (
                                         <div className="flex items-center gap-1">
                                             <div
@@ -1283,6 +1250,67 @@ function PureGuestCard({
             </div>
 
             {/* Expanded Content */}
+            {!compact && totalLinkedCount > 0 && (
+                <section aria-label={`Linked guest meals for ${displayName}`} className="border-t border-gray-100 bg-slate-50/70 px-4 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <h4 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-gray-800">
+                                <Users size={16} className="text-emerald-700" aria-hidden="true" />
+                                Linked guests
+                                <span className="text-xs font-medium text-gray-600">{linkedServedCount} of {totalLinkedCount} served</span>
+                            </h4>
+                            <p className="mt-1 break-words text-sm text-gray-600">{linkedNames.join(', ') || 'View guests to see who is linked'}</p>
+                        </div>
+                        <button
+                            type="button"
+                            aria-label={showLinkedGuests ? 'Hide linked guests' : 'View linked guests'}
+                            aria-expanded={showLinkedGuests}
+                            aria-controls={`linked-guests-${guest.id}`}
+                            onClick={async () => {
+                                const next = !showLinkedGuests;
+                                setShowLinkedGuests(next);
+                                if (next && loadGuestContext) {
+                                    setLoadingLinkedGuests(true);
+                                    try { await loadGuestContext(); } finally { setLoadingLinkedGuests(false); }
+                                }
+                            }}
+                            className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+                        >
+                            {showLinkedGuests ? 'Hide' : 'View'}
+                            {showLinkedGuests ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+                    </div>
+                    {todayMeal && linkedServedCount >= totalLinkedCount ? (
+                        <p role="status" className="mt-3 flex items-center gap-2 text-sm font-semibold text-emerald-700"><Check size={16} />All linked guests served</p>
+                    ) : (
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                            <p className="text-sm font-semibold text-gray-700">
+                                {todayMeal
+                                    ? `${totalLinkedCount - linkedServedCount} linked guest${totalLinkedCount - linkedServedCount === 1 ? '' : 's'} still need meals`
+                                    : `${displayName} + ${totalLinkedCount - linkedServedCount} linked guest${totalLinkedCount - linkedServedCount === 1 ? '' : 's'}`}
+                            </p>
+                            <div className="grid grid-cols-2 gap-2 sm:shrink-0">
+                                {[1, 2].map((count) => (
+                                    <button key={count} type="button" onClick={(e) => handleCheckInAll(e, count)}
+                                        disabled={isPending || (!todayMeal && isBannedFromMeals)}
+                                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 touch-manipulation">
+                                        {isPending ? <Loader2 size={16} className="animate-spin" /> : <Utensils size={16} aria-hidden="true" />}
+                                        {count} meal{count === 1 ? '' : 's'} each
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {showLinkedGuests && (
+                        <div id={`linked-guests-${guest.id}`}>
+                            {loadingLinkedGuests ? <p role="status" className="py-3 text-sm text-gray-600">Loading linked guests…</p> : (
+                                <LinkedGuestsList guestId={guest.id} mealStatusMap={mealStatusMap} addMealRecord={addMealRecord} disabled={isPending} />
+                            )}
+                        </div>
+                    )}
+                </section>
+            )}
+
             {isExpanded && (
                 <div className="border-t border-gray-100 bg-gray-50/30 overflow-hidden motion-safe:animate-[fadeIn_160ms_ease-out]">
                     <div className="p-4 space-y-4">
@@ -1470,12 +1498,12 @@ function PureGuestCard({
                             )}
 
                             {/* Linked Guests Manager */}
-                            <LinkedGuestsList
+                            {totalLinkedCount === 0 && <LinkedGuestsList
                                 guestId={guest.id}
                                 mealStatusMap={mealStatusMap}
                                 addMealRecord={addMealRecord}
                                 className="mb-4"
-                            />
+                            />}
 
                             {/* Warnings (store-driven, mounted only when expanded) */}
                             <GuestWarningsPanel guestId={guest.id} />

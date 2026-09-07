@@ -115,9 +115,9 @@ describe('LinkedGuestsList Component', () => {
             expect(screen.getByText('Linked Two')).toBeDefined();
         });
 
-        it('shows "+ Add Check-in Buddy" button', () => {
+        it('keeps link management separate from serving actions', () => {
             render(<LinkedGuestsList guestId="g1" />);
-            expect(screen.getByText('+ Add Check-in Buddy')).toBeDefined();
+            expect(screen.getByRole('button', { name: 'Manage links' })).toBeDefined();
         });
 
         it('shows meal buttons (1 and 2) for guests without meals', () => {
@@ -128,9 +128,10 @@ describe('LinkedGuestsList Component', () => {
             expect(twoButtons.length).toBe(2);
         });
 
-        it('shows unlink button for each linked guest', () => {
+        it('reveals unlink buttons in link management mode', () => {
             render(<LinkedGuestsList guestId="g1" />);
-            const unlinkButtons = screen.getAllByTitle('Unlink Guest');
+            fireEvent.click(screen.getByRole('button', { name: 'Manage links' }));
+            const unlinkButtons = screen.getAllByRole('button', { name: /Unlink/ });
             expect(unlinkButtons.length).toBe(2);
         });
     });
@@ -265,7 +266,8 @@ describe('LinkedGuestsList Component', () => {
                 { id: 'candidate-1', firstName: 'Candidate', lastName: 'User', preferredName: 'Candy' }
             ]);
             render(<LinkedGuestsList guestId="g1" />);
-            fireEvent.click(screen.getByText('+ Add Check-in Buddy'));
+            fireEvent.click(screen.getByRole('button', { name: 'Manage links' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Link Guest' }));
             fireEvent.change(screen.getByPlaceholderText('Search by name...'), { target: { value: 'Candy' } });
             expect(screen.getByText('No guests found')).toBeDefined();
         });
@@ -332,13 +334,15 @@ describe('LinkedGuestsList Component', () => {
 
         it('shows confirmation before unlinking', () => {
             render(<LinkedGuestsList guestId="g1" />);
-            fireEvent.click(screen.getByTitle('Unlink Guest'));
+            fireEvent.click(screen.getByRole('button', { name: 'Manage links' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Unlink Linky' }));
             expect(window.confirm).toHaveBeenCalled();
         });
 
         it('calls unlinkGuests after confirmation', async () => {
             render(<LinkedGuestsList guestId="g1" />);
-            fireEvent.click(screen.getByTitle('Unlink Guest'));
+            fireEvent.click(screen.getByRole('button', { name: 'Manage links' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Unlink Linky' }));
 
             await waitFor(() => {
                 expect(mockUnlinkGuests).toHaveBeenCalledWith('g1', 'linked-1');
@@ -348,7 +352,8 @@ describe('LinkedGuestsList Component', () => {
         it('does not unlink when confirmation cancelled', () => {
             window.confirm = vi.fn().mockReturnValue(false);
             render(<LinkedGuestsList guestId="g1" />);
-            fireEvent.click(screen.getByTitle('Unlink Guest'));
+            fireEvent.click(screen.getByRole('button', { name: 'Manage links' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Unlink Linky' }));
 
             expect(mockUnlinkGuests).not.toHaveBeenCalled();
         });
@@ -356,7 +361,8 @@ describe('LinkedGuestsList Component', () => {
         it('shows error when unlink fails', async () => {
             mockUnlinkGuests.mockRejectedValueOnce(new Error('Failed'));
             render(<LinkedGuestsList guestId="g1" />);
-            fireEvent.click(screen.getByTitle('Unlink Guest'));
+            fireEvent.click(screen.getByRole('button', { name: 'Manage links' }));
+            fireEvent.click(screen.getByRole('button', { name: 'Unlink Linky' }));
 
             await waitFor(() => {
                 expect(mockUnlinkGuests).toHaveBeenCalled();
