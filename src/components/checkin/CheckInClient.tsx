@@ -178,6 +178,7 @@ export default function CheckInClient({
     const loadAllData = useCallback(async () => {
         if (initialSnapshot) {
             applySnapshot(initialSnapshot);
+            void loadGuestProxiesFromSupabase();
             return;
         }
         if (v2Enabled) {
@@ -185,6 +186,7 @@ export default function CheckInClient({
                 const response = await fetch('/api/check-in/snapshot', { cache: 'no-store' });
                 if (!response.ok) throw new Error(`Snapshot request failed (${response.status})`);
                 applySnapshot(await response.json() as CheckInSnapshot);
+                void loadGuestProxiesFromSupabase();
                 return;
             } catch (error) {
                 console.warn('[check-in] Snapshot unavailable; using legacy loader', error);

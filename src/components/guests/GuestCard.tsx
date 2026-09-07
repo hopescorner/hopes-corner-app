@@ -136,6 +136,7 @@ type PureGuestCardProps = GuestCardProps & {
     undoAction: (actionId: string) => Promise<any>;
     getActionsForGuestToday: (guestId: string) => any[];
     loadGuestContext?: () => Promise<void>;
+    guestContext?: CheckInGuestContext | null;
 };
 
 const EMPTY_ARRAY: any[] = [];
@@ -243,6 +244,7 @@ function PureGuestCard({
     undoAction,
     getActionsForGuestToday,
     loadGuestContext,
+    guestContext,
 }: PureGuestCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isPending, setIsPending] = useState(false);
@@ -256,6 +258,31 @@ function PureGuestCard({
     const warningBadgeCount = warningsCount ?? 0;
     const linkedBadgeCount = linkedGuestsCount ?? 0;
     const reminderBadgeCount = activeRemindersCount ?? 0;
+
+    const linkedGuestIds = useGuestsStore(
+        useShallow((s) => {
+            const ids: string[] = [];
+            for (const p of s.guestProxies) {
+                if (p.guestId === guest.id) ids.push(p.proxyId);
+                else if (p.proxyId === guest.id) ids.push(p.guestId);
+            }
+            return ids;
+        })
+    );
+
+    const effectiveLinkedIds = useMemo(() => {
+        if (guestContext?.linkedGuests && guestContext.linkedGuests.length > 0) {
+            return guestContext.linkedGuests.map((g) => g.id);
+        }
+        return linkedGuestIds;
+    }, [guestContext, linkedGuestIds]);
+
+    const totalLinkedCount = Math.max(linkedBadgeCount, effectiveLinkedIds.length);
+
+    const linkedServedCount = useMemo(() => {
+        if (!mealStatusMap || effectiveLinkedIds.length === 0) return 0;
+        return effectiveLinkedIds.filter((id) => mealStatusMap.get(id)?.hasMeal).length;
+    }, [mealStatusMap, effectiveLinkedIds]);
 
     const today = todayPacificDateString();
     const [haircutDate, setHaircutDate] = useState(today);
@@ -372,7 +399,7 @@ function PureGuestCard({
         : localActionStatus;
 
     // Extract values for easier use
-    const todayMeal = mealStatus.mealRecord;
+    const todayMeal = mealStatus.mealRecord || (mealStatus.hasMeal ? { id: `meal-${guest.id}`, guestId: guest.id, count: mealStatus.mealCount, date: '' } as any : undefined);
     const baseMealCount = mealStatus.mealCount;
     const extraMealsCount = mealStatus.extraMealCount;
     const totalMeals = mealStatus.totalMeals;
@@ -532,19 +559,32 @@ function PureGuestCard({
 
     const handleCheckInAll = async (e: React.MouseEvent, count: number = 1) => {
         e.stopPropagation();
-        if (todayMeal || isPending || isBannedFromMeals) return;
+        if (isPending || (todayMeal && totalLinkedCount > 0 && linkedServedCount >= totalLinkedCount) || (!todayMeal && isBannedFromMeals)) return;
 
         setIsPending(true);
         try {
-            const primaryRecord = await addMealRecord(guest.id, count);
-            if (primaryRecord?.id) {
-                addAction('MEAL_ADDED', { recordId: primaryRecord.id, guestId: guest.id, count });
+            let primarySuccess = false;
+            if (!todayMeal) {
+                const primaryRecord = await addMealRecord(guest.id, count);
+                if (primaryRecord?.id) {
+                    addAction('MEAL_ADDED', { recordId: primaryRecord.id, guestId: guest.id, count });
+                    primarySuccess = true;
+                }
             }
 
-            const { getLinkedGuests } = useGuestsStore.getState();
-            const linkedList = getLinkedGuests(guest.id);
-            let proxySuccessCount = 0;
+            let linkedList = useGuestsStore.getState().getLinkedGuests(guest.id);
+            if (linkedList.length === 0 && guestContext?.linkedGuests && guestContext.linkedGuests.length > 0) {
+                linkedList = guestContext.linkedGuests as unknown as typeof linkedList;
+            }
+            if (linkedList.length === 0 && totalLinkedCount > 0 && loadGuestContext) {
+                await loadGuestContext();
+                linkedList = useGuestsStore.getState().getLinkedGuests(guest.id);
+                if (linkedList.length === 0 && guestContext?.linkedGuests) {
+                    linkedList = guestContext.linkedGuests as unknown as typeof linkedList;
+                }
+            }
 
+            let proxySuccessCount = 0;
             for (const proxy of linkedList) {
                 const status = mealStatusMap?.get(proxy.id);
                 if (!status?.hasMeal) {
@@ -560,9 +600,11 @@ function PureGuestCard({
                 }
             }
 
-            if (proxySuccessCount > 0) {
+            if (primarySuccess && proxySuccessCount > 0) {
                 toast.success(`Checked in ${displayName} + ${proxySuccessCount} linked buddy${proxySuccessCount > 1 ? 'ies' : ''} (${count} meal${count > 1 ? 's' : ''} each)`);
-            } else {
+            } else if (proxySuccessCount > 0) {
+                toast.success(`Checked in ${proxySuccessCount} linked buddy${proxySuccessCount > 1 ? 'ies' : ''} (${count} meal${count > 1 ? 's' : ''} each)`);
+            } else if (primarySuccess) {
                 toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${displayName}`);
             }
         } catch (error: any) {
@@ -790,10 +832,32 @@ function PureGuestCard({
                                         {reminderBadgeCount}
                                     </button>
                                 )}
-                                {linkedBadgeCount > 0 && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">
-                                        <Link2 size={10} />
-                                        {linkedBadgeCount}
+                                {totalLinkedCount > 0 && (
+                                    <span
+                                        className={cn(
+                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold",
+                                            linkedServedCount > 0 && linkedServedCount >= totalLinkedCount
+                                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                                : linkedServedCount > 0
+                                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                                    : "bg-blue-50 text-blue-700 border border-blue-200"
+                                        )}
+                                        title={
+                                            linkedServedCount > 0
+                                                ? `${linkedServedCount} of ${totalLinkedCount} linked ${totalLinkedCount === 1 ? 'buddy' : 'buddies'} served`
+                                                : `${totalLinkedCount} linked ${totalLinkedCount === 1 ? 'buddy' : 'buddies'}`
+                                        }
+                                    >
+                                        {linkedServedCount > 0 && linkedServedCount >= totalLinkedCount ? (
+                                            <Check size={10} />
+                                        ) : (
+                                            <Link2 size={10} />
+                                        )}
+                                        <span>
+                                            {linkedServedCount > 0
+                                                ? `${linkedServedCount}/${totalLinkedCount} served`
+                                                : totalLinkedCount}
+                                        </span>
                                     </span>
                                 )}
                                 {isBanned && (
@@ -949,6 +1013,7 @@ function PureGuestCard({
                                         <Check size={18} strokeWidth={3} />
                                         <span className="text-[11px] font-bold leading-none">
                                             {totalMeals} Meal{totalMeals === 1 ? '' : 's'}
+                                            {totalLinkedCount > 0 && linkedServedCount > 0 ? ` + ${linkedServedCount}B` : ''}
                                         </span>
                                     </div>
                                     {mealAction && (
@@ -998,7 +1063,7 @@ function PureGuestCard({
                                             <span>{count}</span>
                                         </button>
                                     ))}
-                                    {linkedBadgeCount > 0 && (
+                                    {totalLinkedCount > 0 && (
                                         <div className="flex items-center gap-1 pl-1 ml-0.5 border-l border-gray-200">
                                             {[1, 2].map((count) => (
                                                 <button
@@ -1006,7 +1071,7 @@ function PureGuestCard({
                                                     onClick={(e) => handleCheckInAll(e, count)}
                                                     disabled={isPending}
                                                     className="flex items-center justify-center gap-1 h-11 min-h-[44px] px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                                    title={`Check in ${displayName} + ${linkedBadgeCount} linked buddy/buddies (${count} meal${count > 1 ? 's' : ''} each)`}
+                                                    title={`Check in ${displayName} + ${totalLinkedCount} linked buddy/buddies (${count} meal${count > 1 ? 's' : ''} each)`}
                                                 >
                                                     {isPending ? <Loader2 size={12} className="animate-spin" /> : <Users size={12} />}
                                                     <span>All ×{count}</span>
@@ -1036,6 +1101,28 @@ function PureGuestCard({
                                             </button>
                                         )}
                                     </div>
+                                    {totalLinkedCount > 0 && (
+                                        linkedServedCount >= totalLinkedCount ? (
+                                            <div
+                                                className="flex items-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs"
+                                                title={`All ${totalLinkedCount} linked ${totalLinkedCount === 1 ? 'buddy' : 'buddies'} served`}
+                                            >
+                                                <Users size={13} />
+                                                <Check size={13} />
+                                                <span>{totalLinkedCount} buddy</span>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => handleCheckInAll(e, 1)}
+                                                disabled={isPending}
+                                                className="flex items-center justify-center gap-1 h-11 min-h-[44px] px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                                title={`Check in unserved linked buddy (${totalLinkedCount - linkedServedCount} remaining)`}
+                                            >
+                                                {isPending ? <Loader2 size={12} className="animate-spin" /> : <Users size={12} />}
+                                                <span>+ Buddy ×1</span>
+                                            </button>
+                                        )
+                                    )}
                                     {hasReachedMealLimit || hasReachedExtraMealLimit ? (
                                         <div className="flex items-center gap-1">
                                             <div
@@ -1382,7 +1469,12 @@ function PureGuestCard({
                             )}
 
                             {/* Linked Guests Manager */}
-                            <LinkedGuestsList guestId={guest.id} className="mb-4" />
+                            <LinkedGuestsList
+                                guestId={guest.id}
+                                mealStatusMap={mealStatusMap}
+                                addMealRecord={addMealRecord}
+                                className="mb-4"
+                            />
 
                             {/* Warnings (store-driven, mounted only when expanded) */}
                             <GuestWarningsPanel guestId={guest.id} />
@@ -1745,6 +1837,7 @@ function GuestCardImpl(props: GuestCardProps) {
         <PureGuestCard
             {...props}
             guest={guestContext?.guest ?? guest}
+            guestContext={guestContext}
             mealRecords={mealRecords}
             extraMealRecords={extraMealRecords}
             showerRecords={showerRecords}
@@ -1766,7 +1859,7 @@ function GuestCardImpl(props: GuestCardProps) {
             addAction={addAction}
             undoAction={effectiveUndoAction}
             getActionsForGuestToday={getActionsForGuestToday}
-            loadGuestContext={loadGuestContext}
+            loadGuestContext={props.loadGuestContext || loadGuestContext}
             warningsCount={warningsCount}
             linkedGuestsCount={linkedGuestsCount}
             activeRemindersCount={activeRemindersCount}

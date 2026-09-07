@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.20.0';
+export const APP_VERSION = '0.21.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.21.0',
+        date: 'September 7, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Linked Guest Meal Visibility',
+                description: 'Guest cards now show whether linked buddies have received meals and provide a one-tap "+ Buddy ×1" button when unserved, eliminating the need to expand cards.',
+            },
+            {
+                type: 'fix',
+                title: 'Multi-Guest Meal Recording',
+                description: 'Fixed an issue in snapshot mode where linked guests were not loaded initially, preventing "All ×1" and "All ×2" meal actions from recording buddy meals.',
+            },
+        ],
+    },
     {
         version: '0.20.0',
         date: 'September 5, 2026',

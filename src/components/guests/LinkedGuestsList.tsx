@@ -11,12 +11,21 @@ import { Link, Unlink, Utensils, Search, X, Loader2, RotateCcw } from 'lucide-re
 import toast from 'react-hot-toast';
 import { pacificDateStringFrom, todayPacificDateString } from '@/lib/utils/date';
 
+import type { MealStatusMap } from '@/stores/selectors/todayStatusSelectors';
+
 interface LinkedGuestsListProps {
     guestId: string;
     className?: string;
+    mealStatusMap?: MealStatusMap;
+    addMealRecord?: (guestId: string, quantity?: number, pickedUpByGuestId?: string | null, serviceDate?: string) => Promise<any>;
 }
 
-export default function LinkedGuestsList({ guestId, className = '' }: LinkedGuestsListProps) {
+export default function LinkedGuestsList({
+    guestId,
+    className = '',
+    mealStatusMap: passedMealStatusMap,
+    addMealRecord: passedAddMealRecord,
+}: LinkedGuestsListProps) {
     const { data: session } = useSession();
     // Assuming 'checkin' users can also see/use this feature as it helps with speed
     // const role = session?.user?.role as UserRole; 
@@ -31,8 +40,9 @@ export default function LinkedGuestsList({ guestId, className = '' }: LinkedGues
     const { addMealRecord, mealRecords } = useMealsStore();
     const { addAction, getActionsForGuestToday } = useActionHistoryStore();
 
-    // Use precomputed maps for efficient lookups
-    const mealStatusMap = useTodayMealStatusMap();
+    // Use precomputed maps for efficient lookups (prefer passed snapshot map)
+    const storeMealStatusMap = useTodayMealStatusMap();
+    const effectiveMealStatusMap = passedMealStatusMap || storeMealStatusMap;
     const actionStatusMap = useTodayActionStatusMap();
 
     const [isLinking, setIsLinking] = useState(false);
@@ -74,8 +84,11 @@ export default function LinkedGuestsList({ guestId, className = '' }: LinkedGues
         try {
             // guestId (prop) is the Guest currently at the window (Proxy)
             // linkedGuestId is the Guest receiving the meal
-            const record = await addMealRecord(linkedGuestId, quantity, guestId);
-            addAction('MEAL_ADDED', { recordId: record.id, guestId: linkedGuestId, count: quantity });
+            const executeAddMeal = passedAddMealRecord || addMealRecord;
+            const record = await executeAddMeal(linkedGuestId, quantity, guestId);
+            if (record?.id) {
+                addAction('MEAL_ADDED', { recordId: record.id, guestId: linkedGuestId, count: quantity });
+            }
             toast.success(`${quantity} Meal${quantity > 1 ? 's' : ''} logged for ${linkedGuestName}`);
         } catch (error: any) {
             // Check if it's just a duplicate warning or actual error
@@ -107,7 +120,7 @@ export default function LinkedGuestsList({ guestId, className = '' }: LinkedGues
 
     // Use precomputed map instead of scanning mealRecords per guest
     const getLinkedGuestStatus = (id: string) => {
-        const status = mealStatusMap.get(id);
+        const status = effectiveMealStatusMap.get(id);
         return { hasMeal: status?.hasMeal || false };
     };
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.21.0] - 2026-09-07
+
+### Added
+
+- Guest cards now show whether linked guests have received their meals directly from the card badge (e.g. `✓ 1/1 served` or `1/2 served`).
+- Added a one-tap `+ Buddy ×1` quick action button on guest cards when primary guests have received a meal but buddies are still unserved, so staff and volunteers no longer have to expand the card.
+- A confirmed buddy badge shows on the card once all linked guests have been served.
+
+### Fixed
+
+- Fixed an issue where snapshot check-in mode did not load guest proxies on initial page load, causing "All ×1" and "All ×2" multi-guest check-in buttons to miss linked guests.
+- Ensured `LinkedGuestsList` reflects optimistic meal statuses from snapshot state.
+
+### Tests
+
+- Added automated tests for linked guest meal indicators, quick buddy check-in button, and multi-guest meal recording.
+
 ## [0.20.0] - 2026-09-05
 
 ### Fixed
