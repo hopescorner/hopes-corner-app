@@ -97,7 +97,7 @@ describe('GuestCard Linked Guests Meals', () => {
         expect(screen.getByText('All ×2')).toBeInTheDocument();
     });
 
-    it('checks in primary and linked buddy when All ×1 is clicked', async () => {
+    it.each([1, 2])('checks in primary and linked buddy when All ×%s is clicked', async (quantity) => {
         render(
             <GuestCard
                 guest={primaryGuest}
@@ -106,12 +106,12 @@ describe('GuestCard Linked Guests Meals', () => {
             />
         );
 
-        const allButton = screen.getByText('All ×1');
+        const allButton = screen.getByText(`All ×${quantity}`);
         fireEvent.click(allButton);
 
         await waitFor(() => {
-            expect(mockAddMealRecord).toHaveBeenCalledWith('guest-primary', 1);
-            expect(mockAddMealRecord).toHaveBeenCalledWith('guest-buddy', 1, 'guest-primary', undefined);
+            expect(mockAddMealRecord).toHaveBeenCalledWith('guest-primary', quantity);
+            expect(mockAddMealRecord).toHaveBeenCalledWith('guest-buddy', quantity, 'guest-primary', undefined);
         });
     });
 

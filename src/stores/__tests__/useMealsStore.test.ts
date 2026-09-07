@@ -16,6 +16,7 @@ const mockSupabase = {
     or: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
     single: vi.fn(),
+    maybeSingle: vi.fn(),
 };
 
 // 2. Mock Dependencies
@@ -48,6 +49,7 @@ vi.mock('@/lib/utils/mappers', () => ({
         date: row.served_on,
         recordedAt: row.recorded_at,
         type: row.meal_type || 'guest',
+        deduplicationKey: row.deduplication_key || null,
         pickedUpByGuestId: row.picked_up_by_guest_id || null,
         pickedUpByProxyId: row.picked_up_by_guest_id || null
     })),
@@ -108,6 +110,7 @@ describe('useMealsStore', () => {
         mockSupabase.in.mockReturnThis();
         mockSupabase.or.mockReturnThis();
         mockSupabase.limit.mockReturnThis();
+        mockSupabase.maybeSingle.mockReset().mockResolvedValue({ data: null, error: null });
 
         // Default Supabase Single Response
         mockSupabase.single.mockReset();
@@ -1024,12 +1027,10 @@ describe('useMealsStore', () => {
 
             it('handles deleteMealRecord error', async () => {
                 useMealsStore.setState({ mealRecords: [createMockMealRecord({ id: 'd1' })] });
-                await useMealsStore.getState().deleteMealRecord('d1');
-                // State should still be updated (optimistic) or logged
-                // Implementation: deleteMealRecord does NOT revert optimistic update currently?
-                // Let's check useMealsStore.ts?
-                // Most implementation just log error.
-                expect(console.error).toHaveBeenCalled();
+                mockSupabase.eq.mockReturnThis();
+                mockSupabase.maybeSingle.mockResolvedValueOnce({ data: null, error: { message: 'Delete Error' } });
+                await expect(useMealsStore.getState().deleteMealRecord('d1')).rejects.toThrow('Unable to delete meal record');
+                expect(useMealsStore.getState().mealRecords).toHaveLength(1);
             });
 
             it('handles deleteRvMealRecord error', async () => {
@@ -1040,8 +1041,10 @@ describe('useMealsStore', () => {
 
             it('handles deleteExtraMealRecord error', async () => {
                 useMealsStore.setState({ extraMealRecords: [createMockMealRecord({ id: 'e1' })] });
-                await useMealsStore.getState().deleteExtraMealRecord('e1');
-                expect(console.error).toHaveBeenCalled();
+                mockSupabase.eq.mockReturnThis();
+                mockSupabase.maybeSingle.mockResolvedValueOnce({ data: null, error: { message: 'Delete Error' } });
+                await expect(useMealsStore.getState().deleteExtraMealRecord('e1')).rejects.toThrow('Unable to delete meal record');
+                expect(useMealsStore.getState().extraMealRecords).toHaveLength(1);
             });
 
             it('handles deleteBulkMealRecord error', async () => {
@@ -1076,7 +1079,7 @@ describe('useMealsStore', () => {
             it('removes the guest\'s bag when their last meal is deleted', async () => {
                 useMealsStore.setState({
                     mealRecords: [createMockMealRecord({ id: 'd1', guestId: 'g1', dateKey: '2025-01-06' })],
-                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06', deduplicationKey: 'lunch_bag_auto_g1_2025-01-06' })],
                 });
                 // No meals remain for g1 after the delete.
                 mockSupabase.limit.mockResolvedValueOnce({ data: [], error: null });
@@ -1090,7 +1093,7 @@ describe('useMealsStore', () => {
             it('keeps the bag when the guest still has another meal that day', async () => {
                 useMealsStore.setState({
                     mealRecords: [createMockMealRecord({ id: 'd1', guestId: 'g1', dateKey: '2025-01-06' })],
-                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06', deduplicationKey: 'lunch_bag_auto_g1_2025-01-06' })],
                 });
                 // An extra meal still exists for g1.
                 mockSupabase.limit.mockResolvedValueOnce({ data: [{ id: 'still-here' }], error: null });
@@ -1104,7 +1107,7 @@ describe('useMealsStore', () => {
             it('retracts the bag when a guest\'s only meal was an extra', async () => {
                 useMealsStore.setState({
                     extraMealRecords: [createMockMealRecord({ id: 'e1', guestId: 'g1', type: 'extra', dateKey: '2025-01-06' })],
-                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06', deduplicationKey: 'lunch_bag_auto_g1_2025-01-06' })],
                 });
                 mockSupabase.limit.mockResolvedValueOnce({ data: [], error: null });
 
@@ -1118,8 +1121,8 @@ describe('useMealsStore', () => {
                 useMealsStore.setState({
                     mealRecords: [createMockMealRecord({ id: 'd1', guestId: 'g1', dateKey: '2025-01-06' })],
                     lunchBagRecords: [
-                        createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' }),
-                        createMockMealRecord({ id: 'bag2', guestId: 'g2', type: 'lunch_bag', dateKey: '2025-01-06' }),
+                        createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06', deduplicationKey: 'lunch_bag_auto_g1_2025-01-06' }),
+                        createMockMealRecord({ id: 'bag2', guestId: 'g2', type: 'lunch_bag', dateKey: '2025-01-06', deduplicationKey: 'lunch_bag_auto_g2_2025-01-06' }),
                     ],
                 });
                 mockSupabase.limit.mockResolvedValueOnce({ data: [], error: null });
@@ -1147,11 +1150,11 @@ describe('useMealsStore', () => {
             it('does not retract when the meal delete itself failed', async () => {
                 useMealsStore.setState({
                     mealRecords: [createMockMealRecord({ id: 'd1', guestId: 'g1', dateKey: '2025-01-06' })],
-                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06' })],
+                    lunchBagRecords: [createMockMealRecord({ id: 'bag1', guestId: 'g1', type: 'lunch_bag', dateKey: '2025-01-06', deduplicationKey: 'lunch_bag_auto_g1_2025-01-06' })],
                 });
-                mockSupabase.eq.mockResolvedValueOnce({ error: { message: 'Delete Error' } });
+                mockSupabase.maybeSingle.mockResolvedValueOnce({ data: null, error: { message: 'Delete Error' } });
 
-                await useMealsStore.getState().deleteMealRecord('d1');
+                await expect(useMealsStore.getState().deleteMealRecord('d1')).rejects.toThrow('Unable to delete meal record');
 
                 expect(bagDeleteCalls()).toHaveLength(0);
                 expect(useMealsStore.getState().lunchBagRecords).toHaveLength(1);

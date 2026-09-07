@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.22.0] - 2026-09-07
+
+### Fixed
+
+- Undoing a guest or extra meal now uses the deleted database row to retract its automatic lunch bag, including immediate undo before the check-in record reaches the local store.
+- Undo also checks the primary guest’s lunch bag when a linked pickup is removed. Bags remain while a qualifying meal or pickup still exists, and disappear after the last one is undone.
+- Manually entered lunch bags remain in local totals when an automatic bag is removed.
+- Failed meal deletions preserve the meal and undo action so staff can retry.
+
+### Tests
+
+- Added regression coverage through the real meal and action-history stores for immediate undo, one- and two-meal primary-plus-linked check-ins, both undo orders, remaining extra meals, manual bags, and deletion failures.
+
 ## [0.21.0] - 2026-09-07
 
 ### Added

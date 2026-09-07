@@ -111,24 +111,62 @@ const retractLunchBagIfNoMealsLeft = async (
         if (remaining && remaining.length > 0) return;
 
         const key = lunchBagKey(guestId, serviceDate);
-        const { error: deleteError } = await supabase
+        const { data: deletedBags, error: deleteError } = await supabase
             .from('meal_attendance')
             .delete()
             .eq('meal_type', 'lunch_bag')
-            .eq('deduplication_key', key);
+            .eq('deduplication_key', key)
+            .select('id');
 
         if (deleteError) {
             console.error('Failed to retract auto-added lunch bag:', deleteError);
             return;
         }
 
+        // Older persisted rows may not yet carry the deduplication key.
+        const deletedIds = new Set((deletedBags || []).map((row: { id: string }) => row.id));
         set((state) => {
             state.lunchBagRecords = state.lunchBagRecords.filter(
-                (r) => !(r.guestId === guestId && (r.dateKey || pacificDateStringFrom(r.date)) === serviceDate),
+                (r) => r.deduplicationKey !== key && !deletedIds.has(r.id),
             );
         });
     } catch (err) {
         console.error('Failed to retract auto-added lunch bag', err);
+    }
+};
+
+// Read the deleted row from the database: snapshot check-ins can be undone
+// before realtime has populated the local meal arrays.
+const deleteMealAndLunchBags = async (
+    set: (fn: (state: MealsState) => void) => void,
+    get: () => MealsState,
+    recordId: string,
+    recordsKey: 'mealRecords' | 'extraMealRecords',
+) => {
+    const cached = get()[recordsKey].find((record) => record.id === recordId);
+    const { data, error } = await createClient()
+        .from('meal_attendance')
+        .delete()
+        .eq('id', recordId)
+        .select()
+        .maybeSingle();
+
+    if (error) {
+        console.error('Failed to delete meal record:', error);
+        throw new Error('Unable to delete meal record');
+    }
+
+    const target = data ? mapMealRow(data) : cached;
+    set((state) => {
+        state[recordsKey] = state[recordsKey].filter((record) => record.id !== recordId);
+    });
+    if (!target) return;
+
+    const serviceDate = target.servedOn || target.dateKey || pacificDateStringFrom(target.date);
+    // A linked pickup can entitle both the recipient and the primary guest.
+    const guestIds = new Set([target.guestId, target.pickedUpByGuestId]);
+    for (const guestId of guestIds) {
+        if (guestId) await retractLunchBagIfNoMealsLeft(set, guestId, serviceDate);
     }
 };
 
@@ -422,36 +460,8 @@ export const useMealsStore = create<MealsState>()(
                         return mapped;
                     },
 
-                    deleteMealRecord: async (recordId: string) => {
-                        // Capture guest/date before the optimistic removal so the
-                        // lunch bag tied to this meal can be retracted afterwards.
-                        const target = get().mealRecords.find((r) => r.id === recordId);
-
-                        set((state) => {
-                            state.mealRecords = state.mealRecords.filter(
-                                (r) => r.id !== recordId
-                            );
-                        });
-
-                        const supabase = createClient();
-                        const { error } = await supabase
-                            .from('meal_attendance')
-                            .delete()
-                            .eq('id', recordId);
-
-                        if (error) {
-                            console.error('Failed to delete meal record from Supabase:', error);
-                            return;
-                        }
-
-                        if (target?.guestId) {
-                            await retractLunchBagIfNoMealsLeft(
-                                set,
-                                target.guestId,
-                                target.dateKey || pacificDateStringFrom(target.date),
-                            );
-                        }
-                    },
+                    deleteMealRecord: (recordId: string) =>
+                        deleteMealAndLunchBags(set, get, recordId, 'mealRecords'),
 
                     // RV Meal Actions
                     addRvMealRecord: async (guestId: string, quantity = 1) => {
@@ -555,27 +565,8 @@ export const useMealsStore = create<MealsState>()(
                         return mapped;
                     },
 
-                    deleteExtraMealRecord: async (recordId: string) => {
-                        const target = get().extraMealRecords.find((r) => r.id === recordId);
-
-                        set((state) => {
-                            state.extraMealRecords = state.extraMealRecords.filter(r => r.id !== recordId);
-                        });
-                        const supabase = createClient();
-                        const { error } = await supabase.from('meal_attendance').delete().eq('id', recordId);
-                        if (error) {
-                            console.error('Failed to delete Extra meal record:', error);
-                            return;
-                        }
-
-                        if (target?.guestId) {
-                            await retractLunchBagIfNoMealsLeft(
-                                set,
-                                target.guestId,
-                                target.dateKey || pacificDateStringFrom(target.date),
-                            );
-                        }
-                    },
+                    deleteExtraMealRecord: (recordId: string) =>
+                        deleteMealAndLunchBags(set, get, recordId, 'extraMealRecords'),
 
                     // Bulk Meal Actions (Day Worker, Shelter, Lunch Bags, United Effort)
                     addBulkMealRecord: async (mealType: string, quantity: number, label?: string, deduplicationKey?: string, date?: string, guestId?: string | null) => {

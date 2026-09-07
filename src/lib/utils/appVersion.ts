@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.21.0';
+export const APP_VERSION = '0.22.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.22.0',
+        date: 'September 7, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Meal Undo Includes Lunch Bags',
+                description: 'Undoing the last meal now removes the guest’s automatic lunch bag even immediately after check-in. This also covers meals added with All ×1, All ×2, and Buddy buttons, including the primary guest’s bag after their last linked pickup is undone. Bags remain when another meal or pickup still qualifies; manually entered bags are preserved.',
+            },
+            {
+                type: 'fix',
+                title: 'Failed Meal Undo Can Be Retried',
+                description: 'If a meal cannot be deleted, it stays visible and the undo action remains available to retry.',
+            },
+        ],
+    },
     {
         version: '0.21.0',
         date: 'September 7, 2026',

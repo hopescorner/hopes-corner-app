@@ -41,6 +41,7 @@ interface GuestRow {
 }
 
 interface MealRow {
+  deduplication_key?: string | null;
   id: string;
   guest_id: string;
   picked_up_by_guest_id?: string | null;
@@ -357,6 +358,7 @@ export const mapMealRow = (row: MealRow) => {
   return {
     id: row.id,
     guestId: row.guest_id,
+    deduplicationKey: row.deduplication_key || null,
     // Support both property names for historical compatibility and UI usage
     pickedUpByGuestId: picked,
     pickedUpByProxyId: picked,
