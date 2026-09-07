@@ -108,6 +108,9 @@ interface GuestCardProps {
 
     // Called when the staff completes a check-in and wants to advance to the next result.
     onAdvanceToNext?: (guestId: string) => void;
+
+    loadGuestContext?: () => Promise<void>;
+    guestContext?: CheckInGuestContext | null;
 }
 
 type PureGuestCardProps = GuestCardProps & {
@@ -135,8 +138,6 @@ type PureGuestCardProps = GuestCardProps & {
     addAction: (type: any, data?: any) => void;
     undoAction: (actionId: string) => Promise<any>;
     getActionsForGuestToday: (guestId: string) => any[];
-    loadGuestContext?: () => Promise<void>;
-    guestContext?: CheckInGuestContext | null;
 };
 
 const EMPTY_ARRAY: any[] = [];
