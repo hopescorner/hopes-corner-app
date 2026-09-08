@@ -52,7 +52,7 @@ interface Particle {
   shape?: 'circle' | 'square' | 'spark';
 }
 
-interface NetRipple {
+export interface NetRipple {
   x: number;
   y: number;
   life: number;
@@ -124,6 +124,49 @@ function easeOutBack(t: number) {
   const c1 = 1.70158;
   const c3 = c1 + 1;
   return 1 + c3 * (t - 1) ** 3 + c1 * (t - 1) ** 2;
+}
+
+export function netRippleDisplacement(
+  px: number,
+  py: number,
+  ripples: NetRipple[]
+): { dx: number; dy: number } {
+  let dx = 0;
+  let dy = 0;
+  for (let i = 0; i < ripples.length; i++) {
+    const rip = ripples[i];
+    const dist = Math.hypot(px - rip.x, py - rip.y);
+    const progress = clamp(rip.life / Math.max(rip.maxLife, 1), 0, 1);
+    const waveRadius = progress * 130;
+    const deltaDist = dist - waveRadius;
+    if (Math.abs(deltaDist) < 40) {
+      const envelope = Math.cos((deltaDist / 40) * (Math.PI / 2));
+      const decay = (1 - progress) * rip.amp;
+      const wave = Math.sin(deltaDist * 0.18) * envelope * decay * 6.5;
+      const angle = Math.atan2(py - rip.y, px - rip.x);
+      dx += Math.cos(angle) * wave;
+      dy += Math.sin(angle) * wave;
+    }
+  }
+  return { dx, dy };
+}
+
+export function keeperStancePose(frame: number) {
+  const weightShift = Math.sin(frame * 0.06);
+  const breathing = Math.sin(frame * 0.1) * 0.6;
+  return {
+    hipX: weightShift * 2.4,
+    hipY: -33 + breathing,
+    torsoAngle: weightShift * 0.04,
+    weightShift,
+  };
+}
+
+export function keeperDivePose(progress: number, diveDir: -1 | 0 | 1) {
+  const e = easeInOutQuad(clamp(progress, 0, 1));
+  const lift = Math.sin(e * Math.PI) * 20;
+  const bodyRot = diveDir * (0.82 + e * 0.25);
+  return { e, lift, bodyRot };
 }
 
 export function levelParams(level: number, streak = 0): LevelParams {
@@ -887,54 +930,25 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
 
     const drawKeeper = (kx: number, diveDir: -1 | 0 | 1, progress: number) => {
       const ky = LINE_Y;
-      const e = easeInOutQuad(progress);
-      const lift = Math.sin(e * Math.PI) * 16;
+      const frame = frameRef.current;
+      const isDiving = diveDir !== 0 && progress > 0;
+      const isCentralSave = diveDir === 0 && progress > 0;
 
-      // soft ground shadow
-      ctx.save();
-      const shX = kx - diveDir * e * 12;
-      const shR = 18 + e * 16;
-      const shGrad = ctx.createRadialGradient(shX, ky + 4, 1, shX, ky + 4, shR);
-      shGrad.addColorStop(0, 'rgba(0,0,0,0.45)');
-      shGrad.addColorStop(0.65, 'rgba(0,0,0,0.25)');
-      shGrad.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = shGrad;
-      ctx.beginPath();
-      ctx.ellipse(shX, ky + 4, shR, 6 + e * 2.5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-
-      // dive speed streaks
-      if (diveDir !== 0 && e > 0.2) {
-        ctx.save();
-        ctx.lineCap = 'round';
-        for (let i = 0; i < 3; i++) {
-          const flick = 0.5 + 0.5 * Math.sin(frameRef.current * 0.55 + i * 1.7);
-          ctx.globalAlpha = 0.16 * e * (0.4 + 0.6 * flick);
-          ctx.strokeStyle = '#a7f3d0';
-          ctx.lineWidth = 2.2 - i * 0.5;
-          const sy = ky - 30 - i * 24;
-          ctx.beginPath();
-          ctx.moveTo(kx - diveDir * (22 + i * 7), sy);
-          ctx.lineTo(kx - diveDir * (40 + i * 12), sy);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }
-
-      ctx.save();
-      ctx.translate(kx, ky - lift);
-      ctx.rotate(diveDir * e * 0.95);
-
-      const kitTrim = '#064e3b';
-
-      // tapered capsule between two points (fillStyle set by caller)
-      const limb = (x1: number, y1: number, x2: number, y2: number, w1: number, w2: number) => {
+      const limb = (
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
+        w1: number,
+        w2: number,
+        fill: CanvasGradient | string
+      ) => {
         const dx = x2 - x1;
         const dy = y2 - y1;
         const len = Math.hypot(dx, dy) || 1;
         const nx = -dy / len;
         const ny = dx / len;
+        ctx.fillStyle = fill;
         ctx.beginPath();
         ctx.moveTo(x1 + nx * w1, y1 + ny * w1);
         ctx.lineTo(x2 + nx * w2, y2 + ny * w2);
@@ -950,367 +964,558 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         ctx.fill();
       };
 
-      const legSpread = 8 + e * 12;
+      const drawBoot = (bx: number, by: number, rot: number, side: -1 | 1) => {
+        ctx.save();
+        ctx.translate(bx, by);
+        ctx.rotate(rot);
 
-      // ---- legs, socks and boots (planted) ----
-      for (const side of [-1, 1] as const) {
-        const hipX = side * 4.5;
-        const footX = side * legSpread;
-        const ankleX = footX * 0.92 + hipX * 0.08;
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(-6.5, 2.2, 13, 1.8);
 
-        const legGrad = ctx.createLinearGradient(hipX - 5, -30, hipX + 5, -30);
-        legGrad.addColorStop(0, '#1e293b');
-        legGrad.addColorStop(0.55, '#0f172a');
-        legGrad.addColorStop(1, '#050a14');
-        ctx.fillStyle = legGrad;
-        limb(hipX, -30, ankleX, -4, 5.2, 3.9);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-5.5, 3.8, 1.8, 2.2);
+        ctx.fillRect(-1.5, 3.8, 1.8, 2.0);
+        ctx.fillRect(3.2, 3.8, 1.8, 2.2);
 
-        const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-        const sockTopX = lerp(hipX, ankleX, 0.55);
-        const sockTopY = lerp(-30, -4, 0.55);
-        const sockGrad = ctx.createLinearGradient(ankleX - 4, -14, ankleX + 4, -14);
-        sockGrad.addColorStop(0, '#34d399');
-        sockGrad.addColorStop(0.6, '#059669');
-        sockGrad.addColorStop(1, '#047857');
-        ctx.fillStyle = sockGrad;
-        limb(sockTopX, sockTopY, ankleX, -3.5, 4.6, 4.2);
-
-        ctx.fillStyle = kitTrim;
-        limb(
-          lerp(hipX, ankleX, 0.55),
-          lerp(-30, -4, 0.55),
-          lerp(hipX, ankleX, 0.63),
-          lerp(-30, -4, 0.63),
-          4.6,
-          4.4
-        );
-
-        ctx.fillStyle = '#f8fafc';
-        limb(
-          lerp(hipX, ankleX, 0.78),
-          lerp(-30, -4, 0.78),
-          lerp(hipX, ankleX, 0.84),
-          lerp(-30, -4, 0.84),
-          4.4,
-          4.2
-        );
-
-        const bg = ctx.createRadialGradient(footX - 1.5, -4.5, 0.5, footX, -3, 5.5);
-        bg.addColorStop(0, '#ffffff');
-        bg.addColorStop(0.7, '#e2e8f0');
-        bg.addColorStop(1, '#9fb0c3');
-        ctx.fillStyle = bg;
+        ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.ellipse(footX, -3, 5.4, 3.4, 0, 0, Math.PI * 2);
+        ctx.moveTo(-6.5, 2.2);
+        ctx.lineTo(-6.5, -2.6);
+        ctx.quadraticCurveTo(-4, -4.5, -0.5, -4.2);
+        ctx.lineTo(3.5, -2.0);
+        ctx.quadraticCurveTo(6.8, -0.6, 7.2, 2.2);
+        ctx.closePath();
         ctx.fill();
 
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.ellipse(footX, -2.4, 5.1, 2.6, 0, Math.PI * 0.15, Math.PI * 0.85);
+        ctx.moveTo(-3, -1.2);
+        ctx.lineTo(4, 0.4);
         ctx.stroke();
 
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
         ctx.beginPath();
-        ctx.arc(footX - 1.6, -4.2, 1.1, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // idle breathing bob (upper body only)
-      const bob = Math.sin(frameRef.current * 0.07) * 0.7 * (1 - e);
-
-      ctx.save();
-      ctx.translate(0, -bob);
-
-      // ---- shorts ----
-      const shortsGrad = ctx.createLinearGradient(0, -32, 0, -19);
-      shortsGrad.addColorStop(0, '#334155');
-      shortsGrad.addColorStop(0.5, '#1e293b');
-      shortsGrad.addColorStop(1, '#0b1220');
-      ctx.fillStyle = shortsGrad;
-      ctx.beginPath();
-      ctx.roundRect(-10, -32, 20, 13, 4);
-      ctx.fill();
-
-      const sheenS = ctx.createLinearGradient(-10, 0, 10, 0);
-      sheenS.addColorStop(0, 'rgba(255,255,255,0.16)');
-      sheenS.addColorStop(0.35, 'rgba(255,255,255,0)');
-      sheenS.addColorStop(0.75, 'rgba(0,0,0,0)');
-      sheenS.addColorStop(1, 'rgba(2,6,23,0.5)');
-      ctx.fillStyle = sheenS;
-      ctx.beginPath();
-      ctx.roundRect(-10, -32, 20, 13, 4);
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(2,6,23,0.55)';
-      ctx.fillRect(-10, -21.5, 20, 2.5);
-
-      // ---- arms and gloves (behind torso) ----
-      const extend = 16 + e * 24;
-      const reachL = diveDir === 1 ? 8 : extend;
-      const reachR = diveDir === -1 ? 8 : extend;
-      const gloveLX = -8 - reachL;
-      const gloveRX = 8 + reachR;
-      const gloveY = -54 - e * 14;
-
-      const drawGlove = (gx: number, gy: number, side: number) => {
-        ctx.fillStyle = '#172033';
-        ctx.beginPath();
-        ctx.arc(gx - side * 4.8, gy + 2, 3.1, 0, Math.PI * 2);
+        ctx.arc(-4.2, -1.5, 1, 0, Math.PI * 2);
         ctx.fill();
 
-        const gg = ctx.createRadialGradient(gx - 2.2, gy - 2.6, 0.6, gx, gy, 7.2);
-        gg.addColorStop(0, '#ffffff');
-        gg.addColorStop(0.55, '#eef2f7');
-        gg.addColorStop(0.85, '#c3cedb');
-        gg.addColorStop(1, '#8fa1b5');
-        ctx.fillStyle = gg;
+        ctx.restore();
+      };
+
+      const drawGlove = (
+        gx: number,
+        gy: number,
+        rot: number,
+        isReaching: boolean,
+        side: number
+      ) => {
+        ctx.save();
+        ctx.translate(gx, gy);
+        ctx.rotate(rot);
+
+        ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.arc(gx, gy, 6.8, 0, Math.PI * 2);
+        ctx.roundRect(-4, 3.8, 8, 3.6, 1.2);
+        ctx.fill();
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(-2.5, 5, 5, 1);
+
+        const palmGrad = ctx.createRadialGradient(-1, -1, 1, 0, 0, 7.2);
+        palmGrad.addColorStop(0, '#ffffff');
+        palmGrad.addColorStop(0.65, '#f1f5f9');
+        palmGrad.addColorStop(1, '#94a3b8');
+        ctx.fillStyle = palmGrad;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 5.8, 6.2, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = 'rgba(100,116,139,0.55)';
-        ctx.lineWidth = 0.9;
-        for (let i = -1; i <= 1; i++) {
-          const a = -Math.PI / 2 + i * 0.55;
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.arc(0, -1, 4.4, Math.PI * 0.9, Math.PI * 2.1);
+        ctx.fill();
+
+        ctx.fillStyle = '#1e3a8a';
+        ctx.fillRect(-2.5, -4, 5, 2.2);
+
+        ctx.fillStyle = '#f8fafc';
+        ctx.strokeStyle = '#64748b';
+        ctx.lineWidth = 0.8;
+        const spread = isReaching ? 0.38 : 0.28;
+        for (let f = -1.5; f <= 1.5; f += 1) {
+          const fa = -Math.PI / 2 + f * spread;
+          const fx = Math.cos(fa) * 6.8;
+          const fy = Math.sin(fa) * 7.2;
           ctx.beginPath();
-          ctx.moveTo(gx + Math.cos(a) * 6.6, gy + Math.sin(a) * 6.6);
-          ctx.lineTo(gx + Math.cos(a) * 4.2, gy + Math.sin(a) * 4.2 + 1);
+          ctx.arc(fx, fy, 1.8, 0, Math.PI * 2);
+          ctx.fill();
           ctx.stroke();
         }
 
-        ctx.fillStyle = '#dde5ee';
         ctx.beginPath();
-        ctx.arc(gx + side * 5.8, gy + 2.2, 2.4, 0, Math.PI * 2);
+        ctx.arc(-side * 5.2, 1, 1.9, 0, Math.PI * 2);
         ctx.fill();
-
-        ctx.fillStyle = 'rgba(255,255,255,0.95)';
-        ctx.beginPath();
-        ctx.arc(gx - 2.4, gy - 2.6, 1.8, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.strokeStyle = 'rgba(148,163,184,0.6)';
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        ctx.arc(gx, gy, 6.8, 0, Math.PI * 2);
         ctx.stroke();
-      };
 
-      const drawArm = (sx: number, gx: number) => {
-        const dir = Math.sign(gx);
-        const wx = gx - dir * 2.5;
-
-        const armGrad = ctx.createLinearGradient(sx, -52, wx, gloveY + 2);
-        armGrad.addColorStop(0, '#0da271');
-        armGrad.addColorStop(1, '#047857');
-        ctx.fillStyle = armGrad;
-        limb(sx, -49, wx, gloveY + 2, 4.6, 3.1);
-
-        ctx.fillStyle = 'rgba(209,250,229,0.28)';
-        limb(sx - 0.9, -50.2, wx - 0.7, gloveY + 0.6, 1.8, 1.1);
-
-        ctx.fillStyle = 'rgba(2,44,34,0.4)';
-        limb(sx + 1, -48, wx + 0.8, gloveY + 3.4, 1.7, 1);
-
-        drawGlove(gx, gloveY, dir);
-      };
-
-      drawArm(-7.5, gloveLX);
-      drawArm(7.5, gloveRX);
-
-      // ---- jersey torso ----
-      const torsoPath = () => {
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
         ctx.beginPath();
-        ctx.moveTo(-12, -55);
-        ctx.quadraticCurveTo(-12.6, -59.4, -8, -59.8);
-        ctx.lineTo(8, -59.8);
-        ctx.quadraticCurveTo(12.6, -59.4, 12, -55);
-        ctx.lineTo(11.2, -30.5);
-        ctx.quadraticCurveTo(11, -27.2, 7.5, -27);
-        ctx.lineTo(-7.5, -27);
-        ctx.quadraticCurveTo(-11, -27.2, -11.2, -30.5);
-        ctx.closePath();
+        ctx.arc(-1.5, -2, 1.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
       };
 
-      torsoPath();
-      const kitGrad = ctx.createLinearGradient(0, -60, 0, -27);
-      kitGrad.addColorStop(0, '#34d399');
-      kitGrad.addColorStop(0.45, '#0ea56b');
-      kitGrad.addColorStop(1, '#047857');
-      ctx.fillStyle = kitGrad;
-      ctx.fill();
+      if (!isDiving && !isCentralSave) {
+        const { hipX } = keeperStancePose(frame);
+        ctx.save();
+        const shX = kx + hipX * 0.4;
+        const shGrad = ctx.createRadialGradient(shX, ky + 3, 1, shX, ky + 3, 20);
+        shGrad.addColorStop(0, 'rgba(0,0,0,0.5)');
+        shGrad.addColorStop(0.65, 'rgba(0,0,0,0.25)');
+        shGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shGrad;
+        ctx.beginPath();
+        ctx.ellipse(shX, ky + 3, 19, 6.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      } else {
+        const { e } = isDiving ? keeperDivePose(progress, diveDir) : { e: easeInOutQuad(progress) };
+        ctx.save();
+        const shX = kx - diveDir * e * 14;
+        const shR = 18 + e * 18;
+        const shGrad = ctx.createRadialGradient(shX, ky + 3, 1, shX, ky + 3, shR);
+        shGrad.addColorStop(0, 'rgba(0,0,0,0.45)');
+        shGrad.addColorStop(0.65, 'rgba(0,0,0,0.2)');
+        shGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = shGrad;
+        ctx.beginPath();
+        ctx.ellipse(shX, ky + 3, shR, 5.5 + (1 - e) * 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
 
-      ctx.save();
-      torsoPath();
-      ctx.clip();
+      if (isDiving && progress > 0.15) {
+        const e = easeInOutQuad(progress);
+        ctx.save();
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 3; i++) {
+          const flick = 0.5 + 0.5 * Math.sin(frame * 0.55 + i * 1.7);
+          ctx.globalAlpha = 0.22 * e * (0.4 + 0.6 * flick);
+          ctx.strokeStyle = i === 0 ? '#fde047' : '#ffffff';
+          ctx.lineWidth = 2.2 - i * 0.5;
+          const sy = ky - 30 - i * 22;
+          ctx.beginPath();
+          ctx.moveTo(kx - diveDir * (20 + i * 8), sy);
+          ctx.lineTo(kx - diveDir * (42 + i * 14), sy);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
 
-      const rimL = ctx.createLinearGradient(-13, 0, -3, 0);
-      rimL.addColorStop(0, 'rgba(255,255,255,0.28)');
-      rimL.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = rimL;
-      ctx.fillRect(-13, -61, 10, 35);
+      if (!isDiving && !isCentralSave) {
+        const { hipX, hipY, torsoAngle, weightShift } = keeperStancePose(frame);
+        ctx.save();
+        ctx.translate(kx, ky);
 
-      const rimR = ctx.createLinearGradient(3, 0, 13, 0);
-      rimR.addColorStop(0, 'rgba(2,44,34,0)');
-      rimR.addColorStop(1, 'rgba(2,44,34,0.45)');
-      ctx.fillStyle = rimR;
-      ctx.fillRect(3, -61, 10, 35);
+        const footLX = -11 + hipX * 0.2;
+        const footRX = 11 + hipX * 0.2;
+        const footLY = -3;
+        const footRY = -3;
 
-      const sheenC = ctx.createRadialGradient(-3.5, -50, 1, -3.5, -50, 14);
-      sheenC.addColorStop(0, 'rgba(255,255,255,0.20)');
-      sheenC.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = sheenC;
-      ctx.fillRect(-13, -61, 26, 35);
+        const hipLX = hipX - 5.5;
+        const hipRX = hipX + 5.5;
+        const hipsY = hipY;
 
-      ctx.strokeStyle = 'rgba(4,60,45,0.3)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(-7.5, -44);
-      ctx.quadraticCurveTo(-9, -37, -7, -30);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(6.5, -43);
-      ctx.quadraticCurveTo(8.5, -36, 6.8, -29.5);
-      ctx.stroke();
+        const kneeLX = -13 + hipX * 0.4 - (weightShift < 0 ? 1.4 : 0);
+        const kneeLY = hipsY + 16 + (weightShift < 0 ? 1.6 : 0);
+        const kneeRX = 13 + hipX * 0.4 + (weightShift > 0 ? 1.4 : 0);
+        const kneeRY = hipsY + 16 + (weightShift > 0 ? 1.6 : 0);
 
-      ctx.strokeStyle = 'rgba(209,250,229,0.22)';
-      ctx.beginPath();
-      ctx.moveTo(-2.5, -50);
-      ctx.quadraticCurveTo(-4, -42, -2.8, -32);
-      ctx.stroke();
+        const thighFill = '#0f172a';
+        limb(hipLX, hipsY, kneeLX, kneeLY, 5.0, 4.2, thighFill);
+        limb(hipRX, hipsY, kneeRX, kneeRY, 5.0, 4.2, thighFill);
 
-      ctx.restore();
+        const sockAmber = ctx.createLinearGradient(-10, hipsY + 14, 10, footLY);
+        sockAmber.addColorStop(0, '#fbbf24');
+        sockAmber.addColorStop(0.5, '#f59e0b');
+        sockAmber.addColorStop(1, '#d97706');
+        limb(kneeLX, kneeLY, footLX, footLY, 4.4, 3.8, sockAmber);
+        limb(kneeRX, kneeRY, footRX, footRY, 4.4, 3.8, sockAmber);
 
-      torsoPath();
-      ctx.strokeStyle = kitTrim;
-      ctx.lineWidth = 1.6;
-      ctx.stroke();
+        const navyTrim = '#0f172a';
+        limb(
+          kneeLX,
+          kneeLY,
+          kneeLX * 0.8 + footLX * 0.2,
+          kneeLY * 0.8 + footLY * 0.2,
+          4.4,
+          4.2,
+          navyTrim
+        );
+        limb(
+          kneeRX,
+          kneeRY,
+          kneeRX * 0.8 + footRX * 0.2,
+          kneeRY * 0.8 + footRY * 0.2,
+          4.4,
+          4.2,
+          navyTrim
+        );
 
-      // collar and placket
-      ctx.fillStyle = '#022c22';
-      ctx.beginPath();
-      ctx.moveTo(-5.5, -59.6);
-      ctx.lineTo(5.5, -59.6);
-      ctx.lineTo(0, -53.6);
-      ctx.closePath();
-      ctx.fill();
+        drawBoot(footLX, footLY, -0.05 + weightShift * 0.04, -1);
+        drawBoot(footRX, footRY, 0.05 + weightShift * 0.04, 1);
 
-      ctx.strokeStyle = 'rgba(2,44,34,0.55)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, -53.6);
-      ctx.lineTo(0, -46.5);
-      ctx.stroke();
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.roundRect(hipX - 10, hipsY - 4, 20, 14, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(hipX - 9.5, hipsY - 2);
+        ctx.lineTo(hipX - 9.5, hipsY + 8);
+        ctx.moveTo(hipX + 9.5, hipsY - 2);
+        ctx.lineTo(hipX + 9.5, hipsY + 8);
+        ctx.stroke();
 
-      // chest band
-      const bandGrad = ctx.createLinearGradient(0, -46, 0, -41.5);
-      bandGrad.addColorStop(0, '#0b5e46');
-      bandGrad.addColorStop(1, '#032c21');
-      ctx.fillStyle = bandGrad;
-      ctx.fillRect(-11.6, -46, 23.2, 4.4);
-      ctx.fillStyle = 'rgba(255,255,255,0.14)';
-      ctx.fillRect(-11.6, -46, 23.2, 1);
+        ctx.save();
+        ctx.translate(hipX, hipsY);
+        ctx.rotate(torsoAngle);
 
-      // hem shadow
-      ctx.fillStyle = 'rgba(2,44,34,0.5)';
-      ctx.fillRect(-10.6, -28.6, 21.2, 1.6);
+        const chestW = 23;
+        const waistW = 16;
+        const jerseyTopY = -27;
+        const jerseyBotY = -2;
 
-      // HC crest (embossed)
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.font = 'bold 8px sans-serif';
-      ctx.fillStyle = 'rgba(2,44,34,0.9)';
-      ctx.fillText('HC', 0.6, -33.4);
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillText('HC', 0, -34);
+        ctx.beginPath();
+        ctx.moveTo(-chestW / 2, jerseyTopY);
+        ctx.lineTo(chestW / 2, jerseyTopY);
+        ctx.lineTo(waistW / 2, jerseyBotY);
+        ctx.lineTo(-waistW / 2, jerseyBotY);
+        ctx.closePath();
 
-      // ---- head ----
-      ctx.fillStyle = '#d9a06b';
-      ctx.fillRect(-2.6, -60.5, 5.2, 3.4);
+        const amberJerseyGrad = ctx.createLinearGradient(
+          -chestW / 2,
+          jerseyTopY,
+          chestW / 2,
+          jerseyBotY
+        );
+        amberJerseyGrad.addColorStop(0, '#fef08a');
+        amberJerseyGrad.addColorStop(0.25, '#fbbf24');
+        amberJerseyGrad.addColorStop(0.65, '#f59e0b');
+        amberJerseyGrad.addColorStop(1, '#d97706');
+        ctx.fillStyle = amberJerseyGrad;
+        ctx.fill();
 
-      const faceGrad = ctx.createRadialGradient(-2.6, -68.6, 1, 0, -66, 9.4);
-      faceGrad.addColorStop(0, '#ffe3c4');
-      faceGrad.addColorStop(0.55, '#fcd9b8');
-      faceGrad.addColorStop(1, '#d69a6e');
-      ctx.fillStyle = faceGrad;
-      ctx.beginPath();
-      ctx.arc(0, -66, 8.6, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.moveTo(-chestW / 2, jerseyTopY + 5);
+        ctx.lineTo(-chestW / 2 + 3.2, jerseyTopY + 5);
+        ctx.lineTo(-waistW / 2 + 2.5, jerseyBotY);
+        ctx.lineTo(-waistW / 2, jerseyBotY);
+        ctx.closePath();
+        ctx.fill();
 
-      ctx.fillStyle = '#e8b48c';
-      ctx.beginPath();
-      ctx.arc(-8.4, -64, 1.8, 0, Math.PI * 2);
-      ctx.arc(8.4, -64, 1.8, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#c98a5e';
-      ctx.beginPath();
-      ctx.arc(-8.4, -64, 0.8, 0, Math.PI * 2);
-      ctx.arc(8.4, -64, 0.8, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(chestW / 2, jerseyTopY + 5);
+        ctx.lineTo(chestW / 2 - 3.2, jerseyTopY + 5);
+        ctx.lineTo(waistW / 2 - 2.5, jerseyBotY);
+        ctx.lineTo(waistW / 2, jerseyBotY);
+        ctx.closePath();
+        ctx.fill();
 
-      ctx.strokeStyle = '#4a3222';
-      ctx.lineWidth = 1.1;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-4.2, -67.6);
-      ctx.lineTo(-1.9, -67.1);
-      ctx.moveTo(4.2, -67.6);
-      ctx.lineTo(1.9, -67.1);
-      ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(-6.5, jerseyTopY);
+        ctx.lineTo(6.5, jerseyTopY);
+        ctx.lineTo(0, jerseyTopY + 7);
+        ctx.closePath();
+        ctx.fillStyle = '#0f172a';
+        ctx.fill();
 
-      ctx.fillStyle = '#16233b';
-      ctx.beginPath();
-      ctx.arc(-3, -65.9, 1, 0, Math.PI * 2);
-      ctx.arc(3, -65.9, 1, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 7.5px system-ui, sans-serif';
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText('HC', 0.5, jerseyTopY + 12.5);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('HC', 0, jerseyTopY + 12);
 
-      ctx.strokeStyle = 'rgba(180,110,70,0.45)';
-      ctx.lineWidth = 0.9;
-      ctx.beginPath();
-      ctx.arc(0, -63.2, 1.3, Math.PI * 0.25, Math.PI * 0.75);
-      ctx.stroke();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-chestW / 2 + 5, jerseyTopY + 2);
+        ctx.lineTo(chestW / 2 - 5, jerseyTopY + 2);
+        ctx.stroke();
 
-      ctx.fillStyle = 'rgba(60,25,15,0.55)';
-      ctx.beginPath();
-      ctx.ellipse(0, -60.8, 1.6, 1, 0, 0, Math.PI * 2);
-      ctx.fill();
+        const headY = jerseyTopY - 8.5;
+        const faceGrad = ctx.createRadialGradient(-2, headY - 2, 1, 0, headY, 9);
+        faceGrad.addColorStop(0, '#ffe3c4');
+        faceGrad.addColorStop(0.6, '#fcd9b8');
+        faceGrad.addColorStop(1, '#d69a6e');
+        ctx.fillStyle = faceGrad;
+        ctx.beginPath();
+        ctx.arc(0, headY, 8.2, 0, Math.PI * 2);
+        ctx.fill();
 
-      // cap brim
-      const brimGrad = ctx.createLinearGradient(-9, -72, 9, -70);
-      brimGrad.addColorStop(0, '#243247');
-      brimGrad.addColorStop(1, '#0b1220');
-      ctx.fillStyle = brimGrad;
-      ctx.beginPath();
-      ctx.ellipse(0, -70.8, 9.6, 2.6, 0, 0, Math.PI * 2);
-      ctx.fill();
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(-4, headY - 1.2);
+        ctx.lineTo(-1.5, headY - 0.8);
+        ctx.moveTo(4, headY - 1.2);
+        ctx.lineTo(1.5, headY - 0.8);
+        ctx.stroke();
 
-      // cap crown
-      const capGrad = ctx.createLinearGradient(-8, -82, 6, -72);
-      capGrad.addColorStop(0, '#31415c');
-      capGrad.addColorStop(0.6, '#17233a');
-      capGrad.addColorStop(1, '#0a1020');
-      ctx.fillStyle = capGrad;
-      ctx.beginPath();
-      ctx.arc(0, -72.4, 8.8, Math.PI, 0);
-      ctx.closePath();
-      ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(-2.8, headY + 0.5, 1, 0, Math.PI * 2);
+        ctx.arc(2.8, headY + 0.5, 1, 0, Math.PI * 2);
+        ctx.fill();
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.10)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      ctx.moveTo(-3.2, -80.6);
-      ctx.quadraticCurveTo(-3.8, -76.5, -3.4, -72.6);
-      ctx.moveTo(3.2, -80.6);
-      ctx.quadraticCurveTo(3.8, -76.5, 3.4, -72.6);
-      ctx.stroke();
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(0, headY - 2, 8.4, Math.PI * 0.95, Math.PI * 2.05);
+        ctx.fill();
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-8.4, headY - 4.5, 16.8, 2.8);
 
-      ctx.fillStyle = '#3d4f6d';
-      ctx.beginPath();
-      ctx.arc(0, -81.2, 1.5, 0, Math.PI * 2);
-      ctx.fill();
+        const shoulderLX = -chestW / 2 + 1.5;
+        const shoulderRX = chestW / 2 - 1.5;
+        const shouldersY = jerseyTopY + 2;
 
-      ctx.restore();
-      ctx.restore();
+        const elbowLX = -17;
+        const elbowLY = jerseyTopY + 14;
+        const elbowRX = 17;
+        const elbowRY = jerseyTopY + 14;
+
+        const wristLX = -13;
+        const wristLY = jerseyTopY + 25;
+        const wristRX = 13;
+        const wristRY = jerseyTopY + 25;
+
+        limb(shoulderLX, shouldersY, elbowLX, elbowLY, 4.2, 3.5, amberJerseyGrad);
+        limb(shoulderRX, shouldersY, elbowRX, elbowRY, 4.2, 3.5, amberJerseyGrad);
+        limb(
+          elbowLX * 0.85 + shoulderLX * 0.15,
+          elbowLY * 0.85 + shouldersY * 0.15,
+          elbowLX,
+          elbowLY,
+          3.6,
+          3.5,
+          navyTrim
+        );
+        limb(
+          elbowRX * 0.85 + shoulderRX * 0.15,
+          elbowRY * 0.85 + shouldersY * 0.15,
+          elbowRX,
+          elbowRY,
+          3.6,
+          3.5,
+          navyTrim
+        );
+
+        limb(elbowLX, elbowLY, wristLX, wristLY, 3.4, 3.0, '#e8b48c');
+        limb(elbowRX, elbowRY, wristRX, wristRY, 3.4, 3.0, '#e8b48c');
+
+        drawGlove(wristLX, wristLY, -0.4, false, -1);
+        drawGlove(wristRX, wristRY, 0.4, false, 1);
+
+        ctx.restore();
+        ctx.restore();
+      } else if (isDiving) {
+        const { e, lift, bodyRot } = keeperDivePose(progress, diveDir);
+        ctx.save();
+        ctx.translate(kx, ky - lift);
+        ctx.rotate(bodyRot);
+
+        const amberGrad = ctx.createLinearGradient(-12, -55, 12, -25);
+        amberGrad.addColorStop(0, '#fef08a');
+        amberGrad.addColorStop(0.3, '#fbbf24');
+        amberGrad.addColorStop(0.7, '#f59e0b');
+        amberGrad.addColorStop(1, '#d97706');
+
+        const lead = diveDir;
+        const trail = (-diveDir) as -1 | 1;
+
+        const trailHipX = trail * 5;
+        const trailHipY = -25;
+        const trailKneeX = trail * 16;
+        const trailKneeY = -18 + e * 4;
+        const trailBootX = trail * 29;
+        const trailBootY = -9 + e * 8;
+
+        const leadHipX = lead * 5;
+        const leadHipY = -25;
+        const leadKneeX = lead * 9;
+        const leadKneeY = -13;
+        const leadBootX = lead * 14;
+        const leadBootY = -2;
+
+        limb(trailHipX, trailHipY, trailKneeX, trailKneeY, 5.0, 4.2, '#0f172a');
+        limb(leadHipX, leadHipY, leadKneeX, leadKneeY, 5.0, 4.2, '#0f172a');
+
+        limb(trailKneeX, trailKneeY, trailBootX, trailBootY, 4.4, 3.6, amberGrad);
+        limb(leadKneeX, leadKneeY, leadBootX, leadBootY, 4.4, 3.6, amberGrad);
+
+        limb(
+          trailKneeX,
+          trailKneeY,
+          trailKneeX * 0.8 + trailBootX * 0.2,
+          trailKneeY * 0.8 + trailBootY * 0.2,
+          4.4,
+          4.0,
+          '#0f172a'
+        );
+        limb(
+          leadKneeX,
+          leadKneeY,
+          leadKneeX * 0.8 + leadBootX * 0.2,
+          leadKneeY * 0.8 + leadBootY * 0.2,
+          4.4,
+          4.0,
+          '#0f172a'
+        );
+
+        drawBoot(trailBootX, trailBootY, trail * 0.45, trail);
+        drawBoot(leadBootX, leadBootY, lead * 0.2, lead);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.roundRect(-10, -32, 20, 13, 3);
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-10, -32, 20, 13);
+
+        ctx.beginPath();
+        ctx.moveTo(-12, -56);
+        ctx.lineTo(12, -56);
+        ctx.lineTo(8.5, -31);
+        ctx.lineTo(-8.5, -31);
+        ctx.closePath();
+        ctx.fillStyle = amberGrad;
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-12, -56, 3, 25);
+        ctx.fillRect(9, -56, 3, 25);
+
+        ctx.beginPath();
+        ctx.moveTo(-6, -56);
+        ctx.lineTo(6, -56);
+        ctx.lineTo(0, -50);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = 'bold 7.5px system-ui, sans-serif';
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText('HC', 0, -42);
+
+        ctx.fillStyle = '#fcd9b8';
+        ctx.beginPath();
+        ctx.arc(lead * 1.5, -64, 8.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#1e293b';
+        ctx.beginPath();
+        ctx.arc(lead * 1.5, -66, 8.4, Math.PI * 0.9, Math.PI * 2.1);
+        ctx.fill();
+
+        const leadShoulderX = lead * 9;
+        const leadShoulderY = -54;
+        const leadElbowX = lead * 23;
+        const leadElbowY = -64 - e * 8;
+        const leadGloveX = lead * 39;
+        const leadGloveY = -75 - e * 14;
+
+        const trailShoulderX = trail * 7;
+        const trailShoulderY = -52;
+        const trailElbowX = trail * 13;
+        const trailElbowY = -60 - e * 5;
+        const trailGloveX = trail * 20;
+        const trailGloveY = -70 - e * 9;
+
+        limb(leadShoulderX, leadShoulderY, leadElbowX, leadElbowY, 4.2, 3.4, amberGrad);
+        limb(trailShoulderX, trailShoulderY, trailElbowX, trailElbowY, 4.2, 3.4, amberGrad);
+        limb(
+          leadElbowX * 0.85 + leadShoulderX * 0.15,
+          leadElbowY * 0.85 + leadShoulderY * 0.15,
+          leadElbowX,
+          leadElbowY,
+          3.6,
+          3.4,
+          '#0f172a'
+        );
+        limb(
+          trailElbowX * 0.85 + trailShoulderX * 0.15,
+          trailElbowY * 0.85 + trailShoulderY * 0.15,
+          trailElbowX,
+          trailElbowY,
+          3.6,
+          3.4,
+          '#0f172a'
+        );
+
+        limb(leadElbowX, leadElbowY, leadGloveX, leadGloveY, 3.4, 2.9, '#e8b48c');
+        limb(trailElbowX, trailElbowY, trailGloveX, trailGloveY, 3.4, 2.9, '#e8b48c');
+
+        drawGlove(leadGloveX, leadGloveY, lead * 0.5, true, lead);
+        drawGlove(trailGloveX, trailGloveY, trail * 0.3, true, trail);
+
+        ctx.restore();
+      } else {
+        const e = easeInOutQuad(progress);
+        const lift = Math.sin(e * Math.PI) * 18;
+        ctx.save();
+        ctx.translate(kx, ky - lift);
+
+        const amberGrad = ctx.createLinearGradient(-12, -55, 12, -25);
+        amberGrad.addColorStop(0, '#fef08a');
+        amberGrad.addColorStop(0.3, '#fbbf24');
+        amberGrad.addColorStop(0.7, '#f59e0b');
+        amberGrad.addColorStop(1, '#d97706');
+
+        limb(-6, -26, -11, -4, 4.8, 3.8, amberGrad);
+        limb(6, -26, 11, -4, 4.8, 3.8, amberGrad);
+        drawBoot(-11, -4, -0.1, -1);
+        drawBoot(11, -4, 0.1, 1);
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-10, -32, 20, 13);
+
+        ctx.fillStyle = amberGrad;
+        ctx.beginPath();
+        ctx.moveTo(-12, -56);
+        ctx.lineTo(12, -56);
+        ctx.lineTo(8.5, -31);
+        ctx.lineTo(-8.5, -31);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(-12, -56, 2.5, 25);
+        ctx.fillRect(9.5, -56, 2.5, 25);
+        ctx.beginPath();
+        ctx.moveTo(-6, -56);
+        ctx.lineTo(6, -56);
+        ctx.lineTo(0, -50);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = '#fcd9b8';
+        ctx.beginPath();
+        ctx.arc(0, -64, 8.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        limb(-10, -54, -14, -68 - e * 6, 4.0, 3.2, amberGrad);
+        limb(10, -54, 14, -68 - e * 6, 4.0, 3.2, amberGrad);
+        limb(-14, -68 - e * 6, -13, -78 - e * 10, 3.2, 2.8, '#e8b48c');
+        limb(14, -68 - e * 6, 13, -78 - e * 10, 3.2, 2.8, '#e8b48c');
+        drawGlove(-13, -78 - e * 10, -0.2, true, -1);
+        drawGlove(13, -78 - e * 10, 0.2, true, 1);
+
+        ctx.restore();
+      }
     };
 
     const loop = () => {
@@ -1630,26 +1835,6 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
       ctx.save();
       ctx.translate(wob, 0);
 
-      ctx.fillStyle = 'rgba(241,245,249,0.12)';
-      ctx.beginPath();
-      ctx.moveTo(POST_LEFT, BAR_Y);
-      ctx.lineTo(POST_LEFT + 16, BAR_Y - NET_DEPTH);
-      ctx.lineTo(POST_LEFT + 16, LINE_Y - NET_DEPTH);
-      ctx.lineTo(POST_LEFT, LINE_Y);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.moveTo(POST_RIGHT, BAR_Y);
-      ctx.lineTo(POST_RIGHT - 16, BAR_Y - NET_DEPTH);
-      ctx.lineTo(POST_RIGHT - 16, LINE_Y - NET_DEPTH);
-      ctx.lineTo(POST_RIGHT, LINE_Y);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(241,245,249,0.14)';
-      ctx.fillRect(POST_LEFT + 16, BAR_Y - NET_DEPTH, POST_RIGHT - POST_LEFT - 32, LINE_Y - BAR_Y);
-
       for (let rIdx = netRipples.length - 1; rIdx >= 0; rIdx--) {
         netRipples[rIdx].life += 1;
         if (netRipples[rIdx].life >= netRipples[rIdx].maxLife) {
@@ -1657,60 +1842,273 @@ export function PenaltyKickGame({ onClose, graceMs = 500 }: PenaltyKickGameProps
         }
       }
 
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-      ctx.lineWidth = 1;
-      for (let nx = POST_LEFT + 16; nx <= POST_RIGHT - 16; nx += 10) {
-        ctx.beginPath();
-        ctx.moveTo(nx, BAR_Y - NET_DEPTH);
-        ctx.lineTo(nx, LINE_Y - NET_DEPTH);
-        ctx.stroke();
-      }
-      for (let ny = BAR_Y - NET_DEPTH; ny <= LINE_Y - NET_DEPTH; ny += 8) {
-        ctx.beginPath();
-        ctx.moveTo(POST_LEFT + 16, ny);
-        ctx.lineTo(POST_RIGHT - 16, ny);
-        ctx.stroke();
-      }
-
-      ctx.strokeStyle = 'rgba(255,255,255,0.36)';
-      for (let nx = POST_LEFT; nx <= POST_RIGHT; nx += 11) {
-        ctx.beginPath();
-        ctx.moveTo(nx, BAR_Y);
-        for (let ny = BAR_Y; ny <= LINE_Y; ny += 7) {
-          let waveOffset = 0;
-          for (const rip of netRipples) {
-            const dist = Math.hypot(nx - rip.x, ny - rip.y);
-            const waveProgress = rip.life / rip.maxLife;
-            waveOffset +=
-              Math.sin(dist * 0.18 - waveProgress * 6) * (1 - waveProgress) * rip.amp * 6;
-          }
-          ctx.lineTo(nx + waveOffset, ny);
-        }
-        ctx.stroke();
-      }
-      for (let ny = BAR_Y; ny <= LINE_Y; ny += 9) {
-        ctx.beginPath();
-        ctx.moveTo(POST_LEFT, ny);
-        ctx.lineTo(POST_RIGHT, ny);
-        ctx.stroke();
-      }
-
-      const postGrad = ctx.createLinearGradient(POST_LEFT, BAR_Y, POST_RIGHT, BAR_Y);
-      postGrad.addColorStop(0, '#cbd5e1');
-      postGrad.addColorStop(0.5, '#ffffff');
-      postGrad.addColorStop(1, '#cbd5e1');
-      ctx.strokeStyle = postGrad;
-      ctx.lineWidth = 6;
-      ctx.lineCap = 'round';
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = 8;
+      const netDepthGrad = ctx.createLinearGradient(180, 148, 180, 232);
+      netDepthGrad.addColorStop(0, 'rgba(3, 7, 18, 0.35)');
+      netDepthGrad.addColorStop(0.5, 'rgba(15, 23, 42, 0.22)');
+      netDepthGrad.addColorStop(1, 'rgba(21, 128, 61, 0.15)');
+      ctx.fillStyle = netDepthGrad;
       ctx.beginPath();
-      ctx.moveTo(POST_LEFT, LINE_Y + 4);
-      ctx.lineTo(POST_LEFT, BAR_Y);
+      ctx.moveTo(84, 148);
+      ctx.lineTo(276, 148);
+      ctx.lineTo(268, 232);
+      ctx.lineTo(92, 232);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(241, 245, 249, 0.08)';
+      ctx.beginPath();
+      ctx.moveTo(POST_LEFT, BAR_Y);
       ctx.lineTo(POST_RIGHT, BAR_Y);
-      ctx.lineTo(POST_RIGHT, LINE_Y + 4);
+      ctx.lineTo(276, 148);
+      ctx.lineTo(84, 148);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(241, 245, 249, 0.06)';
+      ctx.beginPath();
+      ctx.moveTo(POST_LEFT, BAR_Y);
+      ctx.lineTo(84, 148);
+      ctx.lineTo(92, 232);
+      ctx.lineTo(POST_LEFT, LINE_Y);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.moveTo(POST_RIGHT, BAR_Y);
+      ctx.lineTo(276, 148);
+      ctx.lineTo(268, 232);
+      ctx.lineTo(POST_RIGHT, LINE_Y);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.65)';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(POST_LEFT, BAR_Y);
+      ctx.lineTo(84, 148);
+      ctx.lineTo(92, 232);
+      ctx.moveTo(POST_RIGHT, BAR_Y);
+      ctx.lineTo(276, 148);
+      ctx.lineTo(268, 232);
+      ctx.moveTo(84, 148);
+      ctx.lineTo(276, 148);
+      ctx.moveTo(92, 232);
+      ctx.lineTo(268, 232);
       ctx.stroke();
-      ctx.shadowBlur = 0;
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.32)';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      for (let i = 0; i <= 18; i++) {
+        const u = i / 18;
+        const tx = 84 + u * 192;
+        const bx = 92 + u * 176;
+        for (let s = 0; s <= 6; s++) {
+          const v = s / 6;
+          const px = tx + (bx - tx) * v;
+          const py = 148 + (232 - 148) * v;
+          const { dx, dy } = netRippleDisplacement(px, py, netRipples);
+          if (s === 0) ctx.moveTo(px + dx, py + dy);
+          else ctx.lineTo(px + dx, py + dy);
+        }
+      }
+      for (let j = 1; j <= 7; j++) {
+        const v = j / 8;
+        const ly = 148 + v * (232 - 148);
+        const lx = 84 + v * (92 - 84);
+        const rx = 276 + v * (268 - 276);
+        for (let s = 0; s <= 12; s++) {
+          const u = s / 12;
+          const px = lx + (rx - lx) * u;
+          const py = ly;
+          const { dx, dy } = netRippleDisplacement(px, py, netRipples);
+          if (s === 0) ctx.moveTo(px + dx, py + dy);
+          else ctx.lineTo(px + dx, py + dy);
+        }
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)';
+      ctx.beginPath();
+      for (let i = 0; i <= 18; i++) {
+        const u = i / 18;
+        const fx = POST_LEFT + u * (POST_RIGHT - POST_LEFT);
+        const bx = 84 + u * (276 - 84);
+        for (let s = 0; s <= 4; s++) {
+          const v = s / 4;
+          const px = fx + (bx - fx) * v;
+          const py = BAR_Y + (148 - BAR_Y) * v;
+          const { dx, dy } = netRippleDisplacement(px, py, netRipples);
+          if (s === 0) ctx.moveTo(px + dx, py + dy);
+          else ctx.lineTo(px + dx, py + dy);
+        }
+      }
+      for (let j = 1; j <= 3; j++) {
+        const v = j / 4;
+        const py = BAR_Y + v * (148 - BAR_Y);
+        const lx = POST_LEFT + v * (84 - POST_LEFT);
+        const rx = POST_RIGHT + v * (276 - POST_RIGHT);
+        for (let s = 0; s <= 12; s++) {
+          const u = s / 12;
+          const px = lx + (rx - lx) * u;
+          const { dx, dy } = netRippleDisplacement(px, py, netRipples);
+          if (s === 0) ctx.moveTo(px + dx, py + dy);
+          else ctx.lineTo(px + dx, py + dy);
+        }
+      }
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
+      ctx.beginPath();
+      for (let j = 1; j <= 6; j++) {
+        const v = j / 7;
+        const fy = BAR_Y + v * (LINE_Y - BAR_Y);
+        const by = 148 + v * (232 - 148);
+        const bx = 84 + v * (92 - 84);
+        const p1 = netRippleDisplacement(POST_LEFT, fy, netRipples);
+        const p2 = netRippleDisplacement(bx, by, netRipples);
+        ctx.moveTo(POST_LEFT + p1.dx, fy + p1.dy);
+        ctx.lineTo(bx + p2.dx, by + p2.dy);
+      }
+      for (let i = 1; i <= 3; i++) {
+        const u = i / 4;
+        const tx = POST_LEFT + u * (84 - POST_LEFT);
+        const ty = BAR_Y + u * (148 - BAR_Y);
+        const bx = POST_LEFT + u * (92 - POST_LEFT);
+        const by = LINE_Y + u * (232 - LINE_Y);
+        const p1 = netRippleDisplacement(tx, ty, netRipples);
+        const p2 = netRippleDisplacement(bx, by, netRipples);
+        ctx.moveTo(tx + p1.dx, ty + p1.dy);
+        ctx.lineTo(bx + p2.dx, by + p2.dy);
+      }
+      for (let j = 1; j <= 6; j++) {
+        const v = j / 7;
+        const fy = BAR_Y + v * (LINE_Y - BAR_Y);
+        const by = 148 + v * (232 - 148);
+        const bx = 276 + v * (268 - 276);
+        const p1 = netRippleDisplacement(POST_RIGHT, fy, netRipples);
+        const p2 = netRippleDisplacement(bx, by, netRipples);
+        ctx.moveTo(POST_RIGHT + p1.dx, fy + p1.dy);
+        ctx.lineTo(bx + p2.dx, by + p2.dy);
+      }
+      for (let i = 1; i <= 3; i++) {
+        const u = i / 4;
+        const tx = POST_RIGHT + u * (276 - POST_RIGHT);
+        const ty = BAR_Y + u * (148 - BAR_Y);
+        const bx = POST_RIGHT + u * (268 - POST_RIGHT);
+        const by = LINE_Y + u * (232 - LINE_Y);
+        const p1 = netRippleDisplacement(tx, ty, netRipples);
+        const p2 = netRippleDisplacement(bx, by, netRipples);
+        ctx.moveTo(tx + p1.dx, ty + p1.dy);
+        ctx.lineTo(bx + p2.dx, by + p2.dy);
+      }
+      ctx.stroke();
+
+      const lPostSh = ctx.createRadialGradient(
+        POST_LEFT - 1,
+        LINE_Y + 2,
+        0.5,
+        POST_LEFT - 1,
+        LINE_Y + 2,
+        9
+      );
+      lPostSh.addColorStop(0, 'rgba(0, 0, 0, 0.65)');
+      lPostSh.addColorStop(0.5, 'rgba(0, 0, 0, 0.3)');
+      lPostSh.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = lPostSh;
+      ctx.beginPath();
+      ctx.ellipse(POST_LEFT - 1, LINE_Y + 2, 9, 3.8, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+
+      const rPostSh = ctx.createRadialGradient(
+        POST_RIGHT + 1,
+        LINE_Y + 2,
+        0.5,
+        POST_RIGHT + 1,
+        LINE_Y + 2,
+        9
+      );
+      rPostSh.addColorStop(0, 'rgba(0, 0, 0, 0.65)');
+      rPostSh.addColorStop(0.5, 'rgba(0, 0, 0, 0.3)');
+      rPostSh.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = rPostSh;
+      ctx.beginPath();
+      ctx.ellipse(POST_RIGHT + 1, LINE_Y + 2, 9, 3.8, 0.15, 0, Math.PI * 2);
+      ctx.fill();
+
+      const leftPostGrad = ctx.createLinearGradient(POST_LEFT - 4, 0, POST_LEFT + 4, 0);
+      leftPostGrad.addColorStop(0, '#475569');
+      leftPostGrad.addColorStop(0.18, '#94a3b8');
+      leftPostGrad.addColorStop(0.42, '#ffffff');
+      leftPostGrad.addColorStop(0.68, '#f1f5f9');
+      leftPostGrad.addColorStop(0.88, '#cbd5e1');
+      leftPostGrad.addColorStop(1, '#64748b');
+      ctx.fillStyle = leftPostGrad;
+      ctx.fillRect(POST_LEFT - 4, BAR_Y, 8, LINE_Y - BAR_Y + 2);
+
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(POST_LEFT - 1.2, BAR_Y);
+      ctx.lineTo(POST_LEFT - 1.2, LINE_Y + 2);
+      ctx.stroke();
+
+      const rightPostGrad = ctx.createLinearGradient(POST_RIGHT - 4, 0, POST_RIGHT + 4, 0);
+      rightPostGrad.addColorStop(0, '#64748b');
+      rightPostGrad.addColorStop(0.12, '#cbd5e1');
+      rightPostGrad.addColorStop(0.32, '#f1f5f9');
+      rightPostGrad.addColorStop(0.58, '#ffffff');
+      rightPostGrad.addColorStop(0.82, '#94a3b8');
+      rightPostGrad.addColorStop(1, '#475569');
+      ctx.fillStyle = rightPostGrad;
+      ctx.fillRect(POST_RIGHT - 4, BAR_Y, 8, LINE_Y - BAR_Y + 2);
+
+      ctx.beginPath();
+      ctx.moveTo(POST_RIGHT + 1.2, BAR_Y);
+      ctx.lineTo(POST_RIGHT + 1.2, LINE_Y + 2);
+      ctx.stroke();
+
+      const barGrad = ctx.createLinearGradient(0, BAR_Y - 4, 0, BAR_Y + 4);
+      barGrad.addColorStop(0, '#cbd5e1');
+      barGrad.addColorStop(0.22, '#ffffff');
+      barGrad.addColorStop(0.55, '#f8fafc');
+      barGrad.addColorStop(0.82, '#94a3b8');
+      barGrad.addColorStop(1, '#334155');
+      ctx.fillStyle = barGrad;
+      ctx.fillRect(POST_LEFT - 4, BAR_Y - 4, POST_RIGHT - POST_LEFT + 8, 8);
+
+      ctx.beginPath();
+      ctx.moveTo(POST_LEFT - 4, BAR_Y - 2);
+      ctx.lineTo(POST_RIGHT + 4, BAR_Y - 2);
+      ctx.stroke();
+
+      const drawCornerJoint = (jx: number, jy: number) => {
+        ctx.save();
+        const jointGrad = ctx.createRadialGradient(jx - 1, jy - 1, 0.8, jx, jy, 6);
+        jointGrad.addColorStop(0, '#ffffff');
+        jointGrad.addColorStop(0.5, '#e2e8f0');
+        jointGrad.addColorStop(0.85, '#94a3b8');
+        jointGrad.addColorStop(1, '#475569');
+        ctx.fillStyle = jointGrad;
+        ctx.beginPath();
+        ctx.arc(jx, jy, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 0.9;
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        ctx.arc(jx - 1, jy - 1, 3.5, -Math.PI * 0.75, Math.PI * 0.25);
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      drawCornerJoint(POST_LEFT, BAR_Y);
+      drawCornerJoint(POST_RIGHT, BAR_Y);
+
       ctx.restore();
 
       drawKeeper(keeper.x, keeper.diveDir, phase === 'aim' ? 0 : keeper.progress);

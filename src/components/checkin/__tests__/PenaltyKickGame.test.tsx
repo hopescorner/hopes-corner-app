@@ -1,7 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import React from 'react';
-import { PenaltyKickGame, planDive, zoneIndexForShot, zoneCenterForIndex, hottestZone, levelParams, weakShotLanding } from '../PenaltyKickGame';
+import {
+  PenaltyKickGame,
+  planDive,
+  zoneIndexForShot,
+  zoneCenterForIndex,
+  hottestZone,
+  levelParams,
+  weakShotLanding,
+  netRippleDisplacement,
+  keeperStancePose,
+  keeperDivePose,
+} from '../PenaltyKickGame';
 
 // Mock framer-motion
 vi.mock('framer-motion', () => ({
@@ -259,6 +270,54 @@ describe('keeper learning (adaptive difficulty)', () => {
     expect(readsAtStreak1).toBeGreaterThan(50);
     expect(readsAtStreak1).toBeLessThan(130);
     expect(readsAtStreak4).toBeGreaterThan(165);
+  });
+});
+
+describe('net ripple displacement', () => {
+  it('returns zero displacement when no ripples exist', () => {
+    const { dx, dy } = netRippleDisplacement(180, 200, []);
+    expect(dx).toBe(0);
+    expect(dy).toBe(0);
+  });
+
+  it('calculates radial wave displacement around impact point', () => {
+    const ripples = [{ x: 180, y: 200, life: 15, maxLife: 50, amp: 1.0 }];
+    const progress = 15 / 50;
+    const waveRadius = progress * 130;
+    const sample = netRippleDisplacement(180 + waveRadius + 5, 200, ripples);
+    expect(Math.abs(sample.dx)).toBeGreaterThan(0);
+    expect(sample.dy).toBeCloseTo(0, 1);
+  });
+
+  it('drops to zero displacement far away from wavefront', () => {
+    const ripples = [{ x: 180, y: 200, life: 10, maxLife: 50, amp: 1.0 }];
+    const distant = netRippleDisplacement(340, 450, ripples);
+    expect(distant.dx).toBe(0);
+    expect(distant.dy).toBe(0);
+  });
+});
+
+describe('goalkeeper animations', () => {
+  it('shifts stance weight periodically across frames', () => {
+    const pose0 = keeperStancePose(0);
+    const posePeak = keeperStancePose(Math.PI / 0.12);
+    expect(pose0.hipX).toBeCloseTo(0, 1);
+    expect(Math.abs(posePeak.hipX)).toBeGreaterThan(1.5);
+    expect(pose0.hipY).toBeLessThan(-30);
+  });
+
+  it('calculates full-body dive flight arc and body rotation', () => {
+    const start = keeperDivePose(0, 1);
+    const midDive = keeperDivePose(0.5, 1);
+    const endDive = keeperDivePose(1, 1);
+
+    expect(start.lift).toBeCloseTo(0, 1);
+    expect(midDive.lift).toBeGreaterThan(15);
+    expect(endDive.lift).toBeCloseTo(0, 1);
+    expect(midDive.bodyRot).toBeGreaterThan(0.8);
+
+    const leftDive = keeperDivePose(0.5, -1);
+    expect(leftDive.bodyRot).toBeLessThan(-0.8);
   });
 });
 

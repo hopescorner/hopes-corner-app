@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.24.0] - 2026-09-07
+
+### Improved
+
+- Upgraded the penalty shootout goalkeeper with athletic proportions, bent knees, articulated elbows, recognizable gloves, and soccer cleats.
+- Kit updated to a bright amber jersey with navy details, providing high contrast against the green pitch.
+- Added a weight-shifting ready stance and dynamic full-body diving animations with reaching hands and trailing legs.
+- Goal posts and crossbar upgraded with 3D cylindrical rounded shading, crisp specular highlights, corner joints, and grounded turf shadows.
+- Net upgraded with consistent 3D perspective across the roof, sides, and back wall, open goal mouth, and radial ripples spreading from ball impact.
+
+### Tests
+
+- Added automated tests for net ripple propagation, keeper ready stance weight shifting, and full-body diving physics.
+
 ## [0.23.0] - 2026-09-07
 
 ### Improved

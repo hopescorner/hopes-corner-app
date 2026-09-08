@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.23.0';
+export const APP_VERSION = '0.24.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.24.0',
+        date: 'September 7, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Penalty Shootout Visuals & Physics',
+                description: 'The hidden penalty kick game features an athletic goalkeeper with natural ready stance and diving animations, a bright amber kit with navy details, 3D cylindrical goal posts with corner joints, and a perspective net with ball-impact ripples.',
+            },
+        ],
+    },
     {
         version: '0.23.0',
         date: 'September 7, 2026',
