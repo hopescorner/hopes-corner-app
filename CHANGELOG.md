@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.24.1] - 2026-09-09
+
+### Fixed
+
+- Process each meal attendance event individually so simultaneous guest check-ins and automatic lunch bags cannot cancel one another’s live updates across devices.
+- Refresh the affected guest’s counts after a check-in meal-limit error and show a readable error message. Failed writes are not retried, and daily meal limits remain enforced.
+
+### Tests
+
+- Added regression coverage for simultaneous meal and lunch-bag updates, recovery after a meal-limit error, failed recovery requests, and authentication errors.
+
 ## [0.24.0] - 2026-09-07
 
 ### Improved

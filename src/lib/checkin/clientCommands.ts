@@ -1,3 +1,5 @@
+import type { CheckInSnapshot } from '@/types/checkin';
+
 interface MealCommandResult {
     guestId: string;
     mealCount: number;
@@ -50,6 +52,22 @@ export async function executeOptimisticMeal({
         };
     } catch (error) {
         rollback();
+        if (error instanceof Error && error.message.includes('MEAL_LIMIT_REACHED')) {
+            // Another device may already have recorded the meal. Refresh after
+            // rollback so we do not leave the stale, actionable counts on screen.
+            // Never retry the write: the daily limit must remain enforced.
+            try {
+                const response = await request('/api/check-in/reconcile', { cache: 'no-store' });
+                if (response.ok) {
+                    const snapshot = await response.json() as CheckInSnapshot;
+                    const status = snapshot.todayByGuest[guestId];
+                    replaceMealCounts(guestId, status?.mealCount ?? 0, status?.extraMealCount ?? 0);
+                }
+            } catch {
+                // Keep the original save error if the recovery request fails.
+            }
+            throw new Error('This guest has reached the daily meal limit.');
+        }
         throw error;
     }
 }

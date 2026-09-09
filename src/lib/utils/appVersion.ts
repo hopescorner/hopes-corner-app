@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.24.0';
+export const APP_VERSION = '0.24.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.24.1',
+        date: 'September 9, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Reliable Meal Updates Across Devices',
+                description: 'Meal sign-ups and automatic lunch bags arriving together no longer cause meal updates to be missed on other laptops or tablets.',
+            },
+            {
+                type: 'fix',
+                title: 'Refresh Counts After a Meal Limit Error',
+                description: 'Check-in now fetches the guest’s current meal counts after a daily meal limit error, so a stale screen can recover without logging out. Daily limits remain enforced.',
+            },
+        ],
+    },
     {
         version: '0.24.0',
         date: 'September 7, 2026',

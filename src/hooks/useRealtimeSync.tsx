@@ -77,7 +77,6 @@ export function useRealtimeSync() {
         const refreshTimeouts: Record<string, ReturnType<typeof setTimeout> | null> = {
             showers: null,
             laundry: null,
-            meals: null,
             bicycles: null,
             guests: null,
             warnings: null,
@@ -232,7 +231,9 @@ export function useRealtimeSync() {
         // Subscribe to meal attendance changes
         const mealSubscription: SubscriptionOptions = {
             table: 'meal_attendance',
-            onChange: (payload) => debouncedWork('meals', () => {
+            // Every event matters: a later guest or lunch-bag row must not
+            // cancel an earlier meal, extra-meal, or undo update.
+            onChange: (payload) => {
                 try {
                     const realtimeRow = payload.eventType === 'DELETE' ? payload.old as any : payload.new as any;
                     const checkIn = useCheckInStore.getState();
@@ -312,7 +313,7 @@ export function useRealtimeSync() {
                     console.error('[RealtimeSync] Meal patch failed, reloading:', error);
                     fallbackReload(mealsLoadFromSupabase, 'meal');
                 }
-            }),
+            },
         };
 
         const familyMealSubscription: SubscriptionOptions = {

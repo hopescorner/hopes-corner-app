@@ -170,6 +170,7 @@ vi.mock('@/stores/useDonationsStore', () => ({
 describe('useRealtimeSync', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        useCheckInStore.getState().reset();
         vi.useFakeTimers();
     });
 
@@ -312,29 +313,37 @@ describe('useRealtimeSync', () => {
         expect(mockServicesSetState).toHaveBeenCalledTimes(2);
     });
 
-    it('debounces rapid changes', async () => {
-        let capturedOnChange: ((payload: any) => void) | undefined;
+    it('preserves simultaneous guest meals and automatic lunch bags', async () => {
+        useCheckInStore.getState().hydrate({
+            generatedAt: '2025-01-06T17:00:00Z', directoryVersion: 'v1', serviceDate: '2025-01-06',
+            guests: [], todayByGuest: {}, dailyNotes: [],
+        });
+        let onChange: ((payload: any) => void) | undefined;
         mockSubscribeToTable.mockImplementation((options: { table: string; onChange?: (payload: any) => void }) => {
-            if (options.table === 'meal_attendance') {
-                capturedOnChange = options.onChange;
-            }
+            if (options.table === 'meal_attendance') onChange = options.onChange;
             return vi.fn();
         });
-
         renderHook(() => useRealtimeSync());
-
-        // Trigger multiple rapid changes
-        capturedOnChange?.({ eventType: 'INSERT', new: { id: 'm-1', guest_id: 'g-1', meal_type: 'guest', quantity: 1, served_on: '2025-01-06' } });
-        capturedOnChange?.({ eventType: 'INSERT', new: { id: 'm-2', guest_id: 'g-1', meal_type: 'guest', quantity: 1, served_on: '2025-01-06' } });
-        capturedOnChange?.({ eventType: 'INSERT', new: { id: 'm-3', guest_id: 'g-1', meal_type: 'guest', quantity: 1, served_on: '2025-01-06' } });
-
-        // Fast-forward debounce timer
-        await act(async () => {
-            vi.advanceTimersByTime(600);
-        });
-
-        expect(mockMealsSetState).toHaveBeenCalledTimes(1);
-        expect(mockMealsLoadFromSupabase).not.toHaveBeenCalled();
+        for (const row of [
+            { id: 'm-1', guest_id: 'g-1', meal_type: 'guest', quantity: 2 },
+            { id: 'm-2', guest_id: 'g-2', meal_type: 'guest', quantity: 1 },
+            { id: 'bag-1', guest_id: 'g-1', meal_type: 'lunch_bag', quantity: 1 },
+        ]) {
+            onChange?.({ eventType: 'INSERT', new: { ...row, served_on: '2025-01-06' } });
+        }
+        await act(async () => { vi.advanceTimersByTime(600); });
+        let state = {
+            mealRecords: [], extraMealRecords: [], rvMealRecords: [], dayWorkerMealRecords: [],
+            shelterMealRecords: [], unitedEffortMealRecords: [], lunchBagRecords: [],
+        };
+        for (const [update] of mockMealsSetState.mock.calls) state = { ...state, ...update(state) };
+        expect(state.mealRecords).toEqual(expect.arrayContaining([
+            expect.objectContaining({ id: 'm-1', count: 2 }),
+            expect.objectContaining({ id: 'm-2', count: 1 }),
+        ]));
+        expect(state.lunchBagRecords).toEqual([expect.objectContaining({ id: 'bag-1' })]);
+        expect(useCheckInStore.getState().todayByGuest['g-1']).toMatchObject({ mealCount: 2, totalMeals: 2 });
+        expect(useCheckInStore.getState().todayByGuest['g-2']).toMatchObject({ mealCount: 1, totalMeals: 1 });
     });
 
     it('replaces the synthetic snapshot record when the real guest meal row arrives', async () => {
