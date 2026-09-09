@@ -16,6 +16,7 @@ import {
     mapHaircutRow,
     mapHolidayRow,
     mapShowerStatusToDb,
+    mapShowerStatusToApp,
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom, weekStartPacificDateString, nextWeekStartPacificDateString } from '@/lib/utils/date';
 import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES, MAX_LAUNDRY_LOADS_PER_WEEK, LAUNDRY_WEEKLY_COUNT_STATUSES, LAUNDRY_WEEKLY_VOID_STATUSES } from '@/lib/constants/constants';
@@ -650,10 +651,16 @@ export const useServicesStore = create<ServicesState>()(
                             status === 'done' &&
                             (target.status === 'cancelled' || target.status === 'no_show');
 
+                        // Optimistically show the display-canonical status: raw
+                        // 'booked' (e.g. from reopen/undo-cancel) would flash an
+                        // unstyled badge until realtime maps it back to
+                        // 'awaiting'. The database write below still uses the
+                        // DB-canonical value.
+                        const displayStatus = mapShowerStatusToApp(status as any);
                         set((state) => {
                             const index = state.showerRecords.findIndex((r) => r.id === recordId);
                             if (index !== -1) {
-                                state.showerRecords[index].status = status;
+                                state.showerRecords[index].status = displayStatus;
                             }
                         });
 

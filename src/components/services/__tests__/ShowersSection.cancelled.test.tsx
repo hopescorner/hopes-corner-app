@@ -255,8 +255,7 @@ describe('ShowersSection Cancelled Tab', () => {
         });
     });
 
-    it('displays empty state when no cancelled showers exist', async () => {
-        // Override the mock to have no cancelled showers
+    it('displays empty state when no cancelled showers exist', async () => {        // Override the mock to have no cancelled showers
         const { useServicesStore } = await import('@/stores/useServicesStore');
         vi.mocked(useServicesStore).mockImplementation((selector: any) => {
             const state = {
@@ -274,12 +273,40 @@ describe('ShowersSection Cancelled Tab', () => {
         });
         
         render(<ShowersSection />);
-        
+
         const cancelledTab = screen.getAllByRole('button', { name: /cancelled/i })[0];
         fireEvent.click(cancelledTab);
-        
+
         await waitFor(() => {
             expect(screen.getByText(/no showers in this list/i)).toBeDefined();
         });
+    });
+
+    it('excludes terminal no_show showers from End-of-Day cancel', async () => {
+        // Reset the store mock: the previous test overrides it with a
+        // single-record state.
+        const { useServicesStore } = await import('@/stores/useServicesStore');
+        vi.mocked(useServicesStore).mockImplementation((selector: any) => {
+            const state = {
+                showerRecords: defaultShowerRecords,
+                cancelMultipleShowers: mockCancelMultipleShowers,
+                addShowerRecord: mockAddShowerRecord,
+                addShowerWaitlist: mockAddShowerWaitlist,
+                loadFromSupabase: mockLoadFromSupabase,
+                deleteShowerRecord: vi.fn(),
+                updateShowerStatus: mockUpdateShowerStatus,
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+        render(<ShowersSection />);
+
+        // Today has booked (1), waitlisted (3), and no_show (5) records.
+        fireEvent.click(screen.getByRole('button', { name: /end showers/i }));
+        fireEvent.click(screen.getByRole('button', { name: /^end service day$/i }));
+
+        await waitFor(() => {
+            expect(mockCancelMultipleShowers).toHaveBeenCalledWith(['1', '3']);
+        });
+        expect(mockCancelMultipleShowers).not.toHaveBeenCalledWith(expect.arrayContaining(['5']));
     });
 });

@@ -19,6 +19,7 @@ import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom, formatDateForDisplay } from '@/lib/utils/date';
+import { laundryBagRequired } from '@/lib/utils/laundryBag';
 import { generateLaundrySlots } from '@/lib/utils/serviceSlots';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
@@ -244,26 +245,11 @@ const selectableGuests = useMemo(() => {
         return map;
     }, [guests]);
 
-    // Bag number check
-    const hasBagNumber = useCallback((record: any) =>
-        Boolean(String(record?.bagNumber ?? '').trim().length), []);
-
-    // Check if bag is required before moving from initial status
-    const requiresBagPrompt = useCallback((record: any, newStatus: string) => {
-        if (hasBagNumber(record)) return false; // Already has bag number
-
-        const isOffsite = record?.laundryType === 'offsite';
-        const currentStatus = record?.status;
-
-        // For offsite: require bag when moving from pending/waiting
-        if (isOffsite) {
-            return (currentStatus === 'pending' || currentStatus === 'waiting') &&
-                newStatus !== 'pending' && newStatus !== 'waiting';
-        }
-
-        // For onsite: require bag when moving from waiting
-        return currentStatus === 'waiting' && newStatus !== 'waiting';
-    }, [hasBagNumber]);
+    // Check if bag is required before moving from initial status.
+    // Shared helper keeps the kanban and list views in agreement; always
+    // evaluate the freshest store record (see handleStatusChange).
+    const requiresBagPrompt = useCallback((record: any, newStatus: string) =>
+        laundryBagRequired(record, newStatus), []);
 
     // Handle status change with bag number validation
     const handleStatusChange = useCallback(async (record: any, newStatus: string) => {
@@ -338,19 +324,33 @@ const selectableGuests = useMemo(() => {
         );
         if (!confirmed) return;
         let successCount = 0;
+        const failedNames: string[] = [];
         for (const record of legacyLaundry) {
             const isOnsite = record.laundryType === 'onsite' || !record.laundryType;
             try {
                 const ok = await updateLaundryStatus(record.id, isOnsite ? 'picked_up' : 'offsite_picked_up');
                 if (ok) successCount++;
+                else failedNames.push(getGuestNameDetails(record.guestId).primaryName);
             } catch {
-                // Continue with remaining records
+                // Keep going so one failure cannot block the rest, but
+                // remember every failure for the summary below.
+                failedNames.push(getGuestNameDetails(record.guestId).primaryName);
             }
         }
         if (successCount > 0) {
             toast.success(`${successCount} laundry item${successCount > 1 ? 's' : ''} marked as picked up`);
         }
-    }, [legacyLaundry, updateLaundryStatus]);
+        if (failedNames.length > 0) {
+            const shown = failedNames.slice(0, 3).join(', ');
+            const remainder = failedNames.length > 3 ? ` and ${failedNames.length - 3} more` : '';
+            toast.error(
+                `Could not mark ${failedNames.length} laundry item${failedNames.length > 1 ? 's' : ''} as picked up (${shown}${remainder}). ` +
+                `They remain in the list — please retry them individually.`
+            );
+        } else if (successCount === 0) {
+            toast.error('Could not mark laundry as picked up. Please try again.');
+        }
+    }, [legacyLaundry, updateLaundryStatus, getGuestNameDetails]);
 
     return (
         <div className="space-y-8">

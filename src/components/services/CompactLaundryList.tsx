@@ -9,6 +9,7 @@ import { HousingStatusBadge } from '@/components/ui/HousingStatusBadge';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
 import { ReminderIndicator } from '@/components/ui/ReminderIndicator';
 import { cn } from '@/lib/utils/cn';
+import { laundryBagRequired } from '@/lib/utils/laundryBag';
 import toast from 'react-hot-toast';
 
 // Status Constants
@@ -176,28 +177,29 @@ function useStatusChange(recordId: string, readOnly: boolean) {
         if ('stopPropagation' in e) e.stopPropagation();
         if (readOnly || isUpdating) return;
 
-        // Check if bag number is needed (moving out of waiting/pending without one)
-        if (currentRecord && !currentRecord.bagNumber) {
-            const isOffsite = currentRecord.laundryType === 'offsite';
-            const currentStatus = currentRecord.status;
-            const needsBag = isOffsite
-                ? (currentStatus === 'pending' || currentStatus === 'waiting') && newStatus !== 'pending' && newStatus !== 'waiting'
-                : currentStatus === 'waiting' && newStatus !== 'waiting';
+        // Read the freshest record from the store: the row prop may predate
+        // a bag number just saved elsewhere (mirrors the kanban view). The
+        // guarded getState access keeps test doubles without it working.
+        const storeApi = useServicesStore as unknown as { getState?: () => { laundryRecords?: Array<{ id: string; bagNumber?: string; laundryType?: string; status?: string }> } };
+        const freshRecord = typeof storeApi.getState === 'function'
+            ? storeApi.getState().laundryRecords?.find((record) => record.id === recordId)
+            : undefined;
+        const effectiveRecord = freshRecord ?? currentRecord;
 
-            if (needsBag) {
-                const manualBag = window.prompt('A bag number is required before moving out of waiting. Enter one to continue.');
-                const trimmedBag = (manualBag || '').trim();
-                if (!trimmedBag) {
-                    toast.error('Please enter a bag number to continue');
-                    return;
-                }
-                try {
-                    await updateLaundryBagNumber(recordId, trimmedBag);
-                    toast.success('Bag number saved');
-                } catch {
-                    toast.error('Failed to save bag number');
-                    return;
-                }
+        // Check if bag number is needed (moving out of waiting/pending without one)
+        if (laundryBagRequired(effectiveRecord, newStatus)) {
+            const manualBag = window.prompt('A bag number is required before moving out of waiting. Enter one to continue.');
+            const trimmedBag = (manualBag || '').trim();
+            if (!trimmedBag) {
+                toast.error('Please enter a bag number to continue');
+                return;
+            }
+            try {
+                await updateLaundryBagNumber(recordId, trimmedBag);
+                toast.success('Bag number saved');
+            } catch {
+                toast.error('Failed to save bag number');
+                return;
             }
         }
 

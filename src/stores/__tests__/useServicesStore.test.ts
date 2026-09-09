@@ -38,6 +38,7 @@ vi.mock('@/lib/utils/mappers', () => ({
     mapHaircutRow: vi.fn((row: any) => row ? { ...row, id: row.id || 'mapped-haircut-id', date: row.service_date || '2025-01-06' } : null),
     mapHolidayRow: vi.fn((row: any) => row ? { ...row, id: row.id || 'mapped-holiday-id', date: row.visit_date || '2025-01-06' } : null),
     mapShowerStatusToDb: vi.fn((status: string) => status === 'awaiting' ? 'booked' : status),
+    mapShowerStatusToApp: vi.fn((status: string) => status === 'booked' ? 'awaiting' : status),
 }));
 
 vi.mock('@/lib/utils/date', () => ({
@@ -889,6 +890,20 @@ describe('useServicesStore', () => {
                     const success = await useServicesStore.getState().updateShowerStatus('s1', 'showering');
                     expect(success).toBe(false);
                     expect(useServicesStore.getState().showerRecords[0].status).toBe('waiting');
+                });
+
+                it('normalizes raw booked to awaiting for display while writing booked to the database', async () => {
+                    useServicesStore.setState({ showerRecords: [createMockShowerRecord({ id: 's1', status: 'cancelled' })] });
+                    mockSupabase.update.mockReturnThis();
+                    mockSupabase.eq.mockReturnThis();
+                    mockSupabase.single.mockResolvedValueOnce({ data: null, error: null });
+
+                    const success = await useServicesStore.getState().updateShowerStatus('s1', 'booked');
+                    expect(success).toBe(true);
+                    // Database keeps the canonical enum value ...
+                    expect(mockSupabase.update).toHaveBeenCalledWith({ status: 'booked' });
+                    // ... but the UI never flashes the raw value before realtime maps it back.
+                    expect(useServicesStore.getState().showerRecords[0].status).toBe('awaiting');
                 });
             });
 

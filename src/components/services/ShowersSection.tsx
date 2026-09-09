@@ -6,6 +6,7 @@ import { ShowerHead, Clock, CheckCircle, XCircle, ChevronRight, User, AlertCircl
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
+import { isShowerPendingForEndOfDay } from '@/lib/utils/serviceStatus';
 import { formatSlotLabel } from '@/lib/utils/serviceSlots';
 import { generateShowerSlots } from '@/lib/utils/serviceSlots';
 import { cn } from '@/lib/utils/cn';
@@ -92,9 +93,12 @@ export function ShowersSection() {
     );
 
     const pendingShowers = useMemo(() => {
-        // For today only - pending showers for end-of-day cancellation
+        // For today only - pending showers for end-of-day cancellation.
+        // Matches the confirmation dialog copy (booked, awaiting, waitlisted):
+        // terminal no_show rows are already closed out and must not be
+        // re-cancelled.
         const todaysRecords = showerRecords.filter((r) => getRecordDateKey(r) === today);
-        return todaysRecords.filter((r) => r.status !== 'done' && r.status !== 'cancelled');
+        return todaysRecords.filter((r) => isShowerPendingForEndOfDay(r.status));
     }, [showerRecords, today, getRecordDateKey]);
 
     const selectedDateSlots = useMemo(() => {

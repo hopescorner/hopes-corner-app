@@ -337,8 +337,50 @@ describe('LaundrySection Component', () => {
         });
     });
 
-    describe('Weekly Limit in Admin Backfill Form', () => {
-        it('shows weekly load remaining indicator when guest is under the limit', () => {
+    describe('Bulk legacy pickup', () => {
+        it('reports per-record failures instead of swallowing them', async () => {
+            const legacyRecords = [
+                { id: 'legacy-1', guestId: 'g1', status: 'done', time: '09:00-09:30', bagNumber: '1', date: '2026-01-06', laundryType: 'onsite', createdAt: '2026-01-06T09:00:00Z' },
+                { id: 'legacy-2', guestId: 'g2', status: 'done', time: '10:00-10:30', bagNumber: '2', date: '2026-01-06', laundryType: 'onsite', createdAt: '2026-01-06T10:00:00Z' },
+            ];
+            const updateLaundryStatus = vi.fn()
+                .mockResolvedValueOnce(true)
+                .mockRejectedValueOnce(new Error('DB down'));
+            const storeData = { ...defaultStoreData, laundryRecords: legacyRecords, updateLaundryStatus };
+            mockUseServicesStore.mockReturnValue(storeData);
+            mockUseServicesStore.getState.mockReturnValue(storeData);
+            vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+            render(<LaundrySection />);
+            fireEvent.click(screen.getByRole('button', { name: 'Mark All Picked Up' }));
+
+            await waitFor(() => {
+                expect(updateLaundryStatus).toHaveBeenCalledTimes(2);
+                expect(mockToastError).toHaveBeenCalledWith(expect.stringMatching(/could not mark 1/i));
+            });
+        });
+
+        it('errors loudly when every pickup fails instead of staying silent', async () => {
+            const legacyRecords = [
+                { id: 'legacy-1', guestId: 'g1', status: 'done', time: '09:00-09:30', bagNumber: '1', date: '2026-01-06', laundryType: 'onsite', createdAt: '2026-01-06T09:00:00Z' },
+                { id: 'legacy-2', guestId: 'g2', status: 'done', time: '10:00-10:30', bagNumber: '2', date: '2026-01-06', laundryType: 'onsite', createdAt: '2026-01-06T10:00:00Z' },
+            ];
+            const updateLaundryStatus = vi.fn().mockRejectedValue(new Error('DB down'));
+            const storeData = { ...defaultStoreData, laundryRecords: legacyRecords, updateLaundryStatus };
+            mockUseServicesStore.mockReturnValue(storeData);
+            mockUseServicesStore.getState.mockReturnValue(storeData);
+            vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+            render(<LaundrySection />);
+            fireEvent.click(screen.getByRole('button', { name: 'Mark All Picked Up' }));
+
+            await waitFor(() => {
+                expect(mockToastError).toHaveBeenCalledWith(expect.stringMatching(/could not mark 2/i));
+            });
+        });
+    });
+
+    describe('Weekly Limit in Admin Backfill Form', () => {        it('shows weekly load remaining indicator when guest is under the limit', () => {
             mockUseServicesStore.mockReturnValue({
                 ...defaultStoreData,
                 getLaundryWeeklyUsage: () => ({

@@ -8,14 +8,26 @@ const mockUpdateLaundryBagNumber = vi.fn().mockResolvedValue(true);
 
 // Mock dependencies
 vi.mock('@/stores/useServicesStore', () => ({
-    useServicesStore: vi.fn(() => ({
-        laundryRecords: [
-            { id: 'l1', guestId: 'g1', time: '09:00-09:30', status: 'waiting', laundryType: 'onsite', date: '2026-01-08', createdAt: '2026-01-08T09:00:00Z' },
-            { id: 'l2', guestId: 'g2', time: '10:00-10:30', status: 'washer', laundryType: 'onsite', date: '2026-01-08', createdAt: '2026-01-08T10:00:00Z' },
-        ],
-        updateLaundryStatus: mockUpdateLaundryStatus,
-        updateLaundryBagNumber: mockUpdateLaundryBagNumber,
-    })),
+    useServicesStore: Object.assign(
+        vi.fn(() => ({
+            laundryRecords: [
+                { id: 'l1', guestId: 'g1', time: '09:00-09:30', status: 'waiting', laundryType: 'onsite', date: '2026-01-08', createdAt: '2026-01-08T09:00:00Z' },
+                { id: 'l2', guestId: 'g2', time: '10:00-10:30', status: 'washer', laundryType: 'onsite', date: '2026-01-08', createdAt: '2026-01-08T10:00:00Z' },
+            ],
+            updateLaundryStatus: mockUpdateLaundryStatus,
+            updateLaundryBagNumber: mockUpdateLaundryBagNumber,
+        })),
+        {
+            getState: vi.fn(() => ({
+                laundryRecords: [
+                    { id: 'l1', guestId: 'g1', time: '09:00-09:30', status: 'waiting', laundryType: 'onsite', date: '2026-01-08', createdAt: '2026-01-08T09:00:00Z' },
+                    { id: 'l2', guestId: 'g2', time: '10:00-10:30', status: 'washer', laundryType: 'onsite', date: '2026-01-08', createdAt: '2026-01-08T10:00:00Z' },
+                ],
+                updateLaundryStatus: mockUpdateLaundryStatus,
+                updateLaundryBagNumber: mockUpdateLaundryBagNumber,
+            })),
+        },
+    ),
 }));
 
 vi.mock('@/stores/useGuestsStore', () => ({
@@ -126,8 +138,29 @@ describe('CompactLaundryList Component', () => {
         });
     });
 
-    describe('View Date', () => {
-        it('handles viewDate prop', () => {
+    describe('Fresh bag-number reads', () => {
+        it('skips the bag prompt when the store already has a bag (stale row prop)', async () => {
+            const { useServicesStore } = await import('@/stores/useServicesStore');
+            // getState() returns the FRESH record with a bag number, while the
+            // rendered row was built before the bag was saved.
+            (useServicesStore as any).getState.mockReturnValue({
+                laundryRecords: [
+                    { id: 'l1', guestId: 'g1', status: 'waiting', laundryType: 'onsite', bagNumber: 'B99' },
+                ],
+            });
+            const promptSpy = vi.spyOn(window, 'prompt');
+            render(<CompactLaundryList />);
+            fireEvent.click(screen.getAllByLabelText(/Advance to/)[0]);
+
+            await waitFor(() => {
+                expect(mockUpdateLaundryStatus).toHaveBeenCalledWith('l1', 'washer');
+            });
+            expect(promptSpy).not.toHaveBeenCalled();
+            promptSpy.mockRestore();
+        });
+    });
+
+    describe('View Date', () => {        it('handles viewDate prop', () => {
             render(<CompactLaundryList viewDate="2026-01-08" />);
             // Component should render
         });
