@@ -48,3 +48,25 @@ describe('production hardening migration (Critical 1-7)', () => {
         expect(sql).toContain('picked_up_by_guest_id');
     });
 });
+
+describe('advisory lock hash hygiene', () => {
+    const LOCK_MIGRATION = '20260910000001_unify_advisory_lock_hashes.sql';
+
+    function readLockMigration() {
+        return readFileSync(resolve(process.cwd(), 'supabase/migrations', LOCK_MIGRATION), 'utf8');
+    }
+
+    it('widens shower slot locks to 64-bit like laundry', () => {
+        const sql = readLockMigration();
+        expect(sql).toContain('function public.book_shower_slot(');
+        expect(sql).toContain('function public.check_shower_slot_capacity()');
+        expect(sql).toContain('hashtextextended(');
+        // No 32-bit shower slot lock may remain: every participant must agree
+        // on the key space or mutual exclusion silently breaks.
+        const slotLockLines = sql.split('\n').filter((line) => line.includes('pg_advisory_xact_lock'));
+        expect(slotLockLines.length).toBeGreaterThan(0);
+        for (const line of slotLockLines) {
+            expect(line).not.toMatch(/[^e]hashtext\(/);
+        }
+    });
+});

@@ -1590,7 +1590,7 @@ declare
     v_max_capacity constant integer := 2;
 begin
     perform pg_advisory_xact_lock(
-        hashtext(p_scheduled_for::text || '_' || coalesce(p_scheduled_time, ''))
+        hashtextextended(p_scheduled_for::text || '_' || coalesce(p_scheduled_time, ''), 0)
     );
 
     if p_scheduled_time is not null and exists (
@@ -1664,7 +1664,7 @@ begin
     end if;
 
     perform pg_advisory_xact_lock(
-        hashtext(NEW.scheduled_for::text || '_' || NEW.scheduled_time)
+        hashtextextended(NEW.scheduled_for::text || '_' || NEW.scheduled_time, 0)
     );
 
     select count(*) into slot_count
