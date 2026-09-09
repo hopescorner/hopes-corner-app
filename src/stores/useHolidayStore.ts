@@ -275,7 +275,17 @@ export const useHolidayStore = create<HolidayStoreState>()(
                     });
 
                     if (!res.ok) {
-                        console.error('[useHolidayStore] Error resetting ticket counter:', res.statusText);
+                        // res.statusText is empty over HTTP/2, so read the
+                        // JSON error body — otherwise failures log as
+                        // "<empty string>" and cannot be diagnosed.
+                        let detail = '';
+                        try {
+                            const body = await res.json() as { error?: string };
+                            if (body?.error) detail = body.error;
+                        } catch {
+                            // Fall back to the status code below.
+                        }
+                        console.error('[useHolidayStore] Error resetting ticket counter:', detail || `HTTP ${res.status}`);
                         return null;
                     }
 

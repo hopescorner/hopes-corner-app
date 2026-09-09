@@ -458,6 +458,24 @@ describe('Holiday API Routes', () => {
                 expect(json.deletedRegistrations).toBe(5);
                 expect(json.nextTicketNumber).toBe(1);
             });
+
+            it('surfaces the database error message when the reset RPC fails', async () => {
+                mockRpc.mockResolvedValueOnce({
+                    data: null,
+                    error: { message: 'relation "public.holiday_rate_limits" does not exist' },
+                });
+
+                const { POST } = await import('../staff/reset-tickets/route');
+                const req = new NextRequest('http://localhost/api/holiday/staff/reset-tickets', {
+                    method: 'POST',
+                    body: JSON.stringify({ clearRegistrations: true, targetNumber: 1 }),
+                });
+
+                const res = await POST(req);
+                expect(res.status).toBe(500);
+                const json = await res.json();
+                expect(json.error).toMatch(/holiday_rate_limits/);
+            });
         });
 
         describe('PATCH /api/holiday/staff/registrations/[id]', () => {

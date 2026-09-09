@@ -27,7 +27,11 @@ export async function POST(req: NextRequest) {
 
         if (error) {
             console.error('[holiday-reset-tickets] RPC error:', error);
-            return NextResponse.json({ error: 'Failed to reset ticket counter' }, { status: 500 });
+            // Include the database message (staff-only route): a generic
+            // message once hid a stale function body referencing a renamed
+            // table, which was only diagnosable from server logs.
+            const detail = error.message ? `: ${error.message}` : '';
+            return NextResponse.json({ error: `Failed to reset ticket counter${detail}` }, { status: 500 });
         }
 
         return NextResponse.json(data);

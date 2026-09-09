@@ -325,4 +325,28 @@ describe('useHolidayStore & Selectors', () => {
             expect(result).toBeNull();
         });
     });
+
+    describe('resetTicketCounter', () => {
+        it('logs the server error body (not the empty status text) when reset fails', async () => {
+            global.fetch = vi.fn().mockResolvedValueOnce({
+                ok: false,
+                status: 500,
+                statusText: '',
+                json: async () => ({ error: 'Failed to reset ticket counter: relation "public.holiday_rate_limits" does not exist' }),
+            } as any);
+            const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+            try {
+                const result = await useHolidayStore.getState().resetTicketCounter({ clearRegistrations: true, targetNumber: 1 });
+
+                expect(result).toBeNull();
+                expect(log).toHaveBeenCalledWith(
+                    '[useHolidayStore] Error resetting ticket counter:',
+                    expect.stringContaining('holiday_rate_limits'),
+                );
+            } finally {
+                log.mockRestore();
+            }
+        });
+    });
 });
