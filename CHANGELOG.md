@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.24.3] - 2026-09-09
+
+### Fixed
+
+- Blocked shower and laundry slots are now enforced by the database on every write path (booking RPC plus triggers), not just greyed out in the booking dialog. Stale screens, backfill forms, and direct writes can no longer book into a blocked slot, and closing or voiding a booking on a blocked slot still works.
+- Canonicalized the onsite laundry slot limit to 1 guest per slot across fresh and migrated databases (a stale duplicate trigger definition enforced 2 on fresh builds).
+- Closing out a shower or laundry booking (done, cancelled, no-show, pickup, return) is no longer rejected when the guest was banned after the booking was made, so End-of-Day can always finish open rows.
+- Proxy meal pickups on the Check-In page now record the picker and grant the picker a lunch bag, matching the Services page and the one-bag-per-person-per-day rule (including the concurrent-write recovery path).
+- Meal undo is quantity-aware: undoing one tap decrements the shared daily row instead of deleting it, the lunch bag is retracted only with the last remaining meal, and pickers can undo proxy pickups from their own card.
+- Laundry waitlist writes now include the required laundry type, and a cancelled laundry booking can be re-booked the same day by reusing its row.
+
+### Tests
+
+- Added migration contract coverage for the database guards, store coverage for blocked-slot rejection, waitlist payloads, cancelled-row reuse, and friendly duplicate errors, plus chain coverage for picker forwarding, API validation, decrement-on-undo, and shared-record double undo.
+- Updated undo expectations from clear-the-day to decrement semantics.
+
 ## [0.24.2] - 2026-09-09
 
 ### Fixed

@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.24.2';
+export const APP_VERSION = '0.24.3';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,32 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.24.3',
+        date: 'September 9, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Blocked Slots Enforced Everywhere',
+                description: 'Blocked shower and laundry slots are now rejected by the database on every write path, not just greyed out in the booking dialog, so a blocked slot can no longer be booked from a stale screen or backfill form.',
+            },
+            {
+                type: 'fix',
+                title: 'Bookings Survive a Later Ban',
+                description: 'Closing out a shower or laundry booking (done, cancelled, no-show, pickup) is no longer rejected when the guest was banned after booking, so End-of-Day can always finish open rows.',
+            },
+            {
+                type: 'fix',
+                title: 'Proxy Pickups Keep Their Lunch Bag',
+                description: 'Collecting a meal for a linked buddy on the Check-In page now records who picked it up and grants the picker their own lunch bag, matching the Services page.',
+            },
+            {
+                type: 'fix',
+                title: 'Undo Removes One Tap at a Time',
+                description: 'Undoing a check-in meal now removes only that tap instead of clearing the whole day, including when two taps share one record. Cancelled laundry bookings can also be re-booked the same day.',
+            },
+        ],
+    },
     {
         version: '0.24.2',
         date: 'September 9, 2026',
