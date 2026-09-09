@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.24.7] - 2026-09-09
+
+### Improved
+
+- Guest warnings on the check-in card are now color-coded by highest severity (Low/Medium/High), with a one-tap badge that expands the card and scrolls to the warnings section.
+- Collapsed guest cards now preview the first warning message with a severity pill and "+N more" instead of hiding all details until expand.
+- The expanded warnings panel shows severity, date, and message per warning with a Manage shortcut, and the Warnings action button carries the active count.
+
+### Tests
+
+- Updated `GuestCard` warning coverage for the collapsed preview vs. mounted panel distinction and added badge-expands coverage.
+
 ## [0.24.6] - 2026-09-09
 
 ### Fixed

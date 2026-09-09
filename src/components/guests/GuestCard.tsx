@@ -179,26 +179,194 @@ const getGuestGenderPresentation = (value: unknown) => {
     }
 };
 
-function GuestWarningsPanel({ guestId }: { guestId: string }) {
+const WARNING_SEVERITY_META: Record<number, { label: string; pill: string; dot: string }> = {
+    1: { label: 'Low', pill: 'bg-yellow-100 text-yellow-800 border-yellow-200', dot: 'bg-yellow-500' },
+    2: { label: 'Med', pill: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-500' },
+    3: { label: 'High', pill: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-500' },
+};
+
+function getActiveWarnings(warnings: any[], guestId: string) {
+    return (warnings || []).filter((w: any) => w.guestId === guestId && w.active !== false);
+}
+
+function getMaxWarningSeverity(activeWarnings: any[]): number {
+    let max = 0;
+    for (const w of activeWarnings) {
+        const s = typeof w.severity === 'number' ? w.severity : 1;
+        if (s > max) max = s;
+    }
+    return max;
+}
+
+function GuestWarningBadge({
+    guestId,
+    fallbackCount,
+    onExpand,
+}: {
+    guestId: string;
+    fallbackCount: number;
+    onExpand: () => void;
+}) {
+    const warnings = useGuestsStore((s) => s.warnings);
+    const activeWarnings = useMemo(() => getActiveWarnings(warnings || [], guestId), [warnings, guestId]);
+    // Use the larger of store count vs precomputed prop so a stale/placeholder
+    // prop (e.g. in tests) never hides a real warning, and vice versa.
+    const count = Math.max(activeWarnings.length, fallbackCount ?? 0);
+    const maxSeverity = useMemo(() => getMaxWarningSeverity(activeWarnings), [activeWarnings]);
+
+    if (count <= 0) return null;
+
+    const tooltip =
+        activeWarnings.length > 0
+            ? activeWarnings
+                  .slice(0, 3)
+                  .map((w: any) => `• [${WARNING_SEVERITY_META[w.severity || 1]?.label || 'Low'}] ${w.message}`)
+                  .join('\n') + (activeWarnings.length > 3 ? `\n+${activeWarnings.length - 3} more — tap to view` : '\nTap to view')
+            : `${count} active warning${count === 1 ? '' : 's'} — tap to view`;
+
+    const severityStyle =
+        maxSeverity >= 3
+            ? 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200'
+            : maxSeverity === 2
+              ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
+              : 'bg-yellow-50 text-yellow-800 border-yellow-300 hover:bg-yellow-100';
+
+    return (
+        <button
+            type="button"
+            data-testid="warning-badge"
+            title={tooltip}
+            aria-label={`${count} active warning${count === 1 ? '' : 's'}${maxSeverity >= 3 ? ', includes high severity' : ''}. Activate to view warnings.`}
+            onClick={(e) => {
+                e.stopPropagation();
+                onExpand();
+            }}
+            className={cn(
+                'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold transition-colors cursor-pointer',
+                severityStyle,
+                maxSeverity >= 3 && 'animate-pulse'
+            )}
+        >
+            <AlertTriangle size={10} aria-hidden="true" />
+            <span>{count}</span>
+            <span>{count === 1 ? 'warning' : 'warnings'}</span>
+            {maxSeverity >= 3 && <span className="uppercase tracking-wide">• high</span>}
+        </button>
+    );
+}
+
+function GuestWarningPreview({
+    guestId,
+    fallbackCount,
+    onExpand,
+}: {
+    guestId: string;
+    fallbackCount: number;
+    onExpand: () => void;
+}) {
+    const warnings = useGuestsStore((s) => s.warnings);
+    const activeWarnings = useMemo(() => getActiveWarnings(warnings || [], guestId), [warnings, guestId]);
+    const count = Math.max(activeWarnings.length, fallbackCount ?? 0);
+
+    if (count <= 0) return null;
+
+    const firstMessage = activeWarnings[0]?.message;
+    const maxSeverity = getMaxWarningSeverity(activeWarnings);
+    const meta = WARNING_SEVERITY_META[maxSeverity || 1];
+
+    return (
+        <button
+            type="button"
+            data-testid="warning-preview"
+            onClick={(e) => {
+                e.stopPropagation();
+                onExpand();
+            }}
+            title={activeWarnings.map((w: any) => w.message).join('\n')}
+            className={cn(
+                'mt-2 flex w-full items-center gap-2 rounded-lg border-l-4 px-2.5 py-1.5 text-left transition-colors',
+                maxSeverity >= 3
+                    ? 'border-red-500 bg-red-50 hover:bg-red-100'
+                    : maxSeverity === 2
+                      ? 'border-amber-500 bg-amber-50 hover:bg-amber-100'
+                      : 'border-yellow-400 bg-yellow-50 hover:bg-yellow-100'
+            )}
+        >
+            <AlertTriangle
+                size={14}
+                aria-hidden="true"
+                className={cn('shrink-0', maxSeverity >= 3 ? 'text-red-600' : maxSeverity === 2 ? 'text-amber-600' : 'text-yellow-600')}
+            />
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-800">
+                {firstMessage || `${count} active warning${count === 1 ? '' : 's'}`}
+                {count > 1 && <span className="font-bold text-gray-500"> +{count - 1} more</span>}
+            </span>
+            {meta && activeWarnings.length > 0 && (
+                <span className={cn('shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase', meta.pill)}>
+                    {meta.label}
+                </span>
+            )}
+        </button>
+    );
+}
+
+function GuestWarningsPanel({ guestId, onManage }: { guestId: string; onManage?: () => void }) {
     const warnings = useGuestsStore((s) => s.warnings);
 
-    const activeWarnings = useMemo(
-        () => (warnings || []).filter((w: any) => w.guestId === guestId && w.active),
-        [warnings, guestId]
-    );
+    const activeWarnings = useMemo(() => getActiveWarnings(warnings || [], guestId), [warnings, guestId]);
 
     if (activeWarnings.length === 0) return null;
 
+    const maxSeverity = getMaxWarningSeverity(activeWarnings);
+    const containerStyle =
+        maxSeverity >= 3
+            ? 'bg-red-50/60 border-red-200'
+            : maxSeverity === 2
+              ? 'bg-amber-50/60 border-amber-200'
+              : 'bg-yellow-50/60 border-yellow-200';
+
     return (
-        <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
-            <p className="text-xs font-bold text-amber-700 uppercase tracking-wider mb-2">Warnings</p>
-            <ul className="space-y-1">
-                {activeWarnings.map((warning: any) => (
-                    <li key={warning.id} className="text-sm text-amber-800 flex items-start gap-2">
-                        <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-                        {warning.message}
-                    </li>
-                ))}
+        <div id={`warnings-${guestId}`} data-testid="warnings-panel" className={cn('p-3 rounded-xl border', containerStyle)}>
+            <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <AlertTriangle size={13} aria-hidden="true" className={maxSeverity >= 3 ? 'text-red-600' : 'text-amber-600'} />
+                    Warnings ({activeWarnings.length})
+                </p>
+                {onManage && (
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onManage();
+                        }}
+                        className="text-[11px] font-bold text-amber-700 hover:text-amber-900 hover:underline"
+                    >
+                        Manage
+                    </button>
+                )}
+            </div>
+            <ul className="space-y-2">
+                {activeWarnings.map((warning: any) => {
+                    const meta = WARNING_SEVERITY_META[warning.severity || 1] || WARNING_SEVERITY_META[1];
+                    return (
+                        <li key={warning.id} className="flex items-start gap-2 rounded-lg bg-white/70 border border-black/5 px-2.5 py-2">
+                            <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', meta.dot)} aria-hidden="true" />
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={cn('rounded-full border px-1.5 py-px text-[9px] font-black uppercase', meta.pill)}>
+                                        {meta.label}
+                                    </span>
+                                    {warning.createdAt && (
+                                        <span className="text-[10px] text-gray-400">
+                                            {new Date(warning.createdAt).toLocaleDateString()}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-sm text-gray-800 mt-0.5 break-words">{warning.message}</p>
+                            </div>
+                        </li>
+                    );
+                })}
             </ul>
         </div>
     );
@@ -684,6 +852,22 @@ function PureGuestCard({
         if (onSelect) onSelect();
     };
 
+    const expandAndScrollToWarnings = useCallback(() => {
+        if (compact) return;
+        if (!isExpanded) {
+            setIsExpanded(true);
+            void loadGuestContext?.();
+            onExpandedChange?.(guest.id, true);
+            if (onSelect) onSelect();
+        }
+        // Wait a tick for the expanded panel to mount, then scroll it into view.
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                document.getElementById(`warnings-${guest.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 60);
+        });
+    }, [compact, isExpanded, loadGuestContext, onExpandedChange, onSelect, guest.id]);
+
     const handleHaircutAdd = async (e: React.MouseEvent) => {
         e.stopPropagation();
         if (isPending || isBanned) return; // Blanket ban check
@@ -829,12 +1013,11 @@ function PureGuestCard({
                                         </span>
                                     ) : null;
                                 })()}
-                                {warningBadgeCount > 0 && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
-                                        <AlertTriangle size={10} />
-                                        {warningBadgeCount}
-                                    </span>
-                                )}
+                                <GuestWarningBadge
+                                    guestId={guest.id}
+                                    fallbackCount={warningBadgeCount}
+                                    onExpand={expandAndScrollToWarnings}
+                                />
                                 {reminderBadgeCount > 0 && (
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
@@ -963,6 +1146,14 @@ function PureGuestCard({
                                 </span>
                             )}
                         </div>
+                        {/* Inline warning preview — visible without expanding so staff don't miss it */}
+                        {!isExpanded && (
+                            <GuestWarningPreview
+                                guestId={guest.id}
+                                fallbackCount={warningBadgeCount}
+                                onExpand={expandAndScrollToWarnings}
+                            />
+                        )}
                     </div>
 
                     {!compact && (
@@ -1511,7 +1702,7 @@ function PureGuestCard({
                             />}
 
                             {/* Warnings (store-driven, mounted only when expanded) */}
-                            <GuestWarningsPanel guestId={guest.id} />
+                            <GuestWarningsPanel guestId={guest.id} onManage={() => setShowWarningModal(true)} />
 
                             {/* Actions */}
                             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
@@ -1617,10 +1808,20 @@ function PureGuestCard({
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowWarningModal(true); }}
-                                    className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-amber-600 hover:bg-amber-50 rounded-xl transition-all active:scale-95 touch-manipulation"
+                                    className={cn(
+                                        "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation",
+                                        warningBadgeCount > 0
+                                            ? "text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200"
+                                            : "text-amber-600 hover:bg-amber-50"
+                                    )}
                                 >
                                     <AlertTriangle size={14} />
                                     Warnings
+                                    {warningBadgeCount > 0 && (
+                                        <span className="ml-0.5 px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded-full text-[9px] font-black">
+                                            {warningBadgeCount}
+                                        </span>
+                                    )}
                                 </button>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); setShowEditModal(true); }}

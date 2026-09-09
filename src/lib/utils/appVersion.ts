@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.24.6';
+export const APP_VERSION = '0.24.7';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.24.7',
+        date: 'September 9, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Clearer Guest Warning Display',
+                description: 'Guest warnings are now color-coded by severity, preview the first message on the collapsed card, and open with one tap on the badge. The expanded panel shows severity, date, and a Manage shortcut, and the Warnings button carries the count.',
+            },
+        ],
+    },
     {
         version: '0.24.6',
         date: 'September 9, 2026',
