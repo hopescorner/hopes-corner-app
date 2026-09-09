@@ -1,6 +1,6 @@
 {
   "name": "hopes-corner-nextjs",
-  "version": "0.24.7",
+  "version": "0.24.8",
   "private": true,
   "overrides": {
     "eslint-plugin-react-hooks": "7.0.1"

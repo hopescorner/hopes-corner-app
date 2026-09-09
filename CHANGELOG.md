@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.24.8] - 2026-09-09
+
+### Improved
+
+- Guest warnings now show by default on the check-in card. The full panel (severity, date, message, Manage shortcut) renders whether the card is expanded or not, so staff never have to expand just to read a warning. The truncated single-line preview was removed since the real details are always visible.
+- The warning badge scroll is now guarded for environments without `scrollIntoView`, fixing an unhandled error in tests.
+
+### Tests
+
+- Updated `GuestCard` warning coverage for the default-visible panel (visible collapsed, still present expanded) and hardened the badge-expands assertion.
+
 ## [0.24.7] - 2026-09-09
 
 ### Improved

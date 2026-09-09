@@ -354,23 +354,22 @@ describe('GuestCard Component', () => {
             expect(screen.getByText('99')).toBeDefined();
         });
 
-        it('only mounts warning panel when expanded', () => {
+        it('shows warning panel by default without expanding', () => {
             render(<GuestCard guest={baseGuest} />);
 
-            // Collapsed card shows an inline preview, but the full panel stays unmounted
-            expect(screen.queryByTestId('warning-preview')).toBeDefined();
-            expect(screen.queryByTestId('warnings-panel')).toBeNull();
-
-            fireEvent.click(screen.getByText('Johnny'));
+            // Full warning details are visible on the collapsed card — no expand needed
             expect(screen.getByTestId('warnings-panel')).toBeDefined();
             expect(screen.getByText('Test warning')).toBeDefined();
         });
 
         it('warning badge expands the card and scrolls to warnings', () => {
-            render(<GuestCard guest={baseGuest} />);
-            expect(screen.queryByTestId('warnings-panel')).toBeNull();
+            render(<GuestCard guest={baseGuest} warningsCount={0} />);
+
+            // Expanded-only action proves the card starts collapsed
+            expect(screen.queryByText('History')).toBeNull();
 
             fireEvent.click(screen.getByTestId('warning-badge'));
+            expect(screen.queryByText('History')).toBeDefined();
             expect(screen.getByTestId('warnings-panel')).toBeDefined();
         });
     });

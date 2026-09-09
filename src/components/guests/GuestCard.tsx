@@ -255,61 +255,6 @@ function GuestWarningBadge({
     );
 }
 
-function GuestWarningPreview({
-    guestId,
-    fallbackCount,
-    onExpand,
-}: {
-    guestId: string;
-    fallbackCount: number;
-    onExpand: () => void;
-}) {
-    const warnings = useGuestsStore((s) => s.warnings);
-    const activeWarnings = useMemo(() => getActiveWarnings(warnings || [], guestId), [warnings, guestId]);
-    const count = Math.max(activeWarnings.length, fallbackCount ?? 0);
-
-    if (count <= 0) return null;
-
-    const firstMessage = activeWarnings[0]?.message;
-    const maxSeverity = getMaxWarningSeverity(activeWarnings);
-    const meta = WARNING_SEVERITY_META[maxSeverity || 1];
-
-    return (
-        <button
-            type="button"
-            data-testid="warning-preview"
-            onClick={(e) => {
-                e.stopPropagation();
-                onExpand();
-            }}
-            title={activeWarnings.map((w: any) => w.message).join('\n')}
-            className={cn(
-                'mt-2 flex w-full items-center gap-2 rounded-lg border-l-4 px-2.5 py-1.5 text-left transition-colors',
-                maxSeverity >= 3
-                    ? 'border-red-500 bg-red-50 hover:bg-red-100'
-                    : maxSeverity === 2
-                      ? 'border-amber-500 bg-amber-50 hover:bg-amber-100'
-                      : 'border-yellow-400 bg-yellow-50 hover:bg-yellow-100'
-            )}
-        >
-            <AlertTriangle
-                size={14}
-                aria-hidden="true"
-                className={cn('shrink-0', maxSeverity >= 3 ? 'text-red-600' : maxSeverity === 2 ? 'text-amber-600' : 'text-yellow-600')}
-            />
-            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-gray-800">
-                {firstMessage || `${count} active warning${count === 1 ? '' : 's'}`}
-                {count > 1 && <span className="font-bold text-gray-500"> +{count - 1} more</span>}
-            </span>
-            {meta && activeWarnings.length > 0 && (
-                <span className={cn('shrink-0 rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase', meta.pill)}>
-                    {meta.label}
-                </span>
-            )}
-        </button>
-    );
-}
-
 function GuestWarningsPanel({ guestId, onManage }: { guestId: string; onManage?: () => void }) {
     const warnings = useGuestsStore((s) => s.warnings);
 
@@ -326,7 +271,7 @@ function GuestWarningsPanel({ guestId, onManage }: { guestId: string; onManage?:
               : 'bg-yellow-50/60 border-yellow-200';
 
     return (
-        <div id={`warnings-${guestId}`} data-testid="warnings-panel" className={cn('p-3 rounded-xl border', containerStyle)}>
+        <div id={`warnings-${guestId}`} data-testid="warnings-panel" className={cn('p-3 rounded-xl border mx-4 mb-3', containerStyle)}>
             <div className="flex items-center justify-between gap-2 mb-2">
                 <p className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
                     <AlertTriangle size={13} aria-hidden="true" className={maxSeverity >= 3 ? 'text-red-600' : 'text-amber-600'} />
@@ -861,9 +806,13 @@ function PureGuestCard({
             if (onSelect) onSelect();
         }
         // Wait a tick for the expanded panel to mount, then scroll it into view.
+        // Guarded: non-visual environments (jsdom) lack scrollIntoView.
         requestAnimationFrame(() => {
             setTimeout(() => {
-                document.getElementById(`warnings-${guest.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                const el = document.getElementById(`warnings-${guest.id}`);
+                if (el && typeof el.scrollIntoView === 'function') {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
             }, 60);
         });
     }, [compact, isExpanded, loadGuestContext, onExpandedChange, onSelect, guest.id]);
@@ -1146,14 +1095,6 @@ function PureGuestCard({
                                 </span>
                             )}
                         </div>
-                        {/* Inline warning preview — visible without expanding so staff don't miss it */}
-                        {!isExpanded && (
-                            <GuestWarningPreview
-                                guestId={guest.id}
-                                fallbackCount={warningBadgeCount}
-                                onExpand={expandAndScrollToWarnings}
-                            />
-                        )}
                     </div>
 
                     {!compact && (
@@ -1507,6 +1448,9 @@ function PureGuestCard({
                 </section>
             )}
 
+            {/* Warnings — always visible so staff see full details without expanding */}
+            <GuestWarningsPanel guestId={guest.id} onManage={() => setShowWarningModal(true)} />
+
             {isExpanded && (
                 <div className="border-t border-gray-100 bg-gray-50/30 overflow-hidden motion-safe:animate-[fadeIn_160ms_ease-out]">
                     <div className="p-4 space-y-4">
@@ -1700,9 +1644,6 @@ function PureGuestCard({
                                 addMealRecord={addMealRecord}
                                 className="mb-4"
                             />}
-
-                            {/* Warnings (store-driven, mounted only when expanded) */}
-                            <GuestWarningsPanel guestId={guest.id} onManage={() => setShowWarningModal(true)} />
 
                             {/* Actions */}
                             <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">

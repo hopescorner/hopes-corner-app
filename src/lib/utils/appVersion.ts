@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.24.7';
+export const APP_VERSION = '0.24.8';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.24.8',
+        date: 'September 9, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Guest Warnings Shown by Default',
+                description: 'Warning details (severity, date, message, Manage shortcut) now appear directly on the check-in card with no expanding needed. The truncated preview is gone since the full panel is always visible.',
+            },
+        ],
+    },
     {
         version: '0.24.7',
         date: 'September 9, 2026',
