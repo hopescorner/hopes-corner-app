@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.24.4] - 2026-09-09
+
+### Fixed
+
+- "Mark All Picked Up" for previous-day laundry now reports each item that failed (with guest names) instead of silently skipping failures, and errors loudly when everything fails instead of staying silent.
+- The laundry list view now evaluates the bag-number gate against the freshest store record rather than a possibly stale row prop, matching the kanban view; both views share one `laundryBagRequired` rule.
+- Reopening or undo-cancelling a shower now optimistically shows the display-canonical `awaiting` status (the database still receives `booked`), eliminating the unstyled `booked` flash before realtime maps it back.
+- End-of-Day shower cancel now covers exactly what its confirmation dialog claims (booked, awaiting, waitlisted): terminal `no_show` rows are excluded from the pending set and the cancelled ids.
+
+### Improved
+
+- Shower advisory locks moved from 32-bit `hashtext` to 64-bit `hashtextextended`, unifying with laundry and shrinking collision odds under parallel booking (new migration `20260910000001_unify_advisory_lock_hashes`, mirrored in `database/schema.sql`).
+
+### Tests
+
+- Added unit coverage for the shared bag gate and the End-of-Day pending predicate, render coverage for bulk-pickup failure reporting and stale-prop bag reads, a store test for booked-to-awaiting normalization, an integration test excluding `no_show` from End-of-Day cancel, and migration contract coverage for the 64-bit locks.
+
 ## [0.24.3] - 2026-09-09
 
 ### Fixed

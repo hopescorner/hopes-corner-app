@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.24.3';
+export const APP_VERSION = '0.24.4';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,32 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.24.4',
+        date: 'September 9, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Honest Bulk Pickup Results',
+                description: 'Marking all previous-day laundry as picked up now names any items that failed instead of silently skipping them, so nothing looks done that is not.',
+            },
+            {
+                type: 'fix',
+                title: 'Reliable Bag-Number Checks',
+                description: 'The laundry list view now checks the latest saved bag number before asking for one, matching the kanban view, and both views share one rule.',
+            },
+            {
+                type: 'fix',
+                title: 'Steadier Shower Status and End-of-Day',
+                description: 'Reopened showers no longer flash an unstyled status before settling, and End-of-Day cancel skips already closed no-show rows, matching its confirmation message.',
+            },
+            {
+                type: 'improvement',
+                title: 'Stronger Booking Locks',
+                description: 'Shower booking locks now use the same 64-bit hashing as laundry, lowering the chance that unrelated slots interfere with each other during busy check-ins.',
+            },
+        ],
+    },
     {
         version: '0.24.3',
         date: 'September 9, 2026',
