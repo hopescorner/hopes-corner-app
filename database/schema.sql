@@ -25,7 +25,21 @@ declare
   normalized_service text;
   formatted_until text;
   service_label text;
+  closing_status text;
 begin
+  -- Closing out a booking (cancel / no-show / completion / pickup) must
+  -- never be blocked by a ban recorded after the booking was made.
+  -- Otherwise a newly-banned guest's rows are stuck open forever because
+  -- every status update raises and rolls back (including End-of-Day).
+  -- Tables without a status column (e.g. meal_attendance) yield NULL here
+  -- and fall through to the normal ban check below.
+  if TG_OP = 'UPDATE' then
+    closing_status := to_jsonb(NEW)->>'status';
+    if closing_status in ('cancelled', 'no_show', 'done', 'picked_up', 'offsite_picked_up', 'returned') then
+      return NEW;
+    end if;
+  end if;
+
   if new.guest_id is null then
     return new;
   end if;
@@ -1579,6 +1593,16 @@ begin
         hashtext(p_scheduled_for::text || '_' || coalesce(p_scheduled_time, ''))
     );
 
+    if p_scheduled_time is not null and exists (
+        select 1 from public.blocked_slots
+        where date = p_scheduled_for::text
+          and service_type = 'shower'
+          and slot_time = p_scheduled_time
+    ) then
+        raise exception 'SLOT_BLOCKED: Shower slot % on % is blocked',
+            p_scheduled_time, p_scheduled_for;
+    end if;
+
     select id, status
     into v_existing_id, v_existing_status
     from public.shower_reservations
@@ -1621,7 +1645,7 @@ end;
 $$;
 
 comment on function public.book_shower_slot(uuid, date, text, text) is
-'Atomically books a shower slot, reusing a cancelled/no-show reservation for the same guest and date.';
+'Atomically books a shower slot, reusing a cancelled/no-show reservation for the same guest and date. Rejects blocked slots with SLOT_BLOCKED.';
 
 -- SHOWER SLOT CAPACITY CONSTRAINT (safety-net trigger)
 -- Limits to 2 guests per slot, uses advisory lock for concurrency safety
@@ -1667,35 +1691,95 @@ for each row execute function public.check_shower_slot_capacity();
 comment on function public.check_shower_slot_capacity() is 
 'Trigger function to enforce max 2 guests per shower time slot. Uses advisory lock to prevent race conditions.';
 
--- LAUNDRY SLOT CAPACITY CONSTRAINT  
--- Limits to 2 guests per slot for onsite laundry
+-- Blocked-slot enforcement: no new/changed booking may occupy a blocked slot.
+-- Closing/void transitions are exempt so End-of-Day cancel never fails.
+create or replace function public.check_shower_blocked_slot()
+returns trigger as $$
+begin
+  if NEW.scheduled_time is null then
+    return NEW;
+  end if;
+  if NEW.status in ('cancelled', 'no_show', 'waitlisted') then
+    return NEW;
+  end if;
+  if exists (
+    select 1 from public.blocked_slots
+    where date = NEW.scheduled_for::text
+      and service_type = 'shower'
+      and slot_time = NEW.scheduled_time
+  ) then
+    raise exception 'SLOT_BLOCKED: Shower slot % on % is blocked',
+      NEW.scheduled_time, NEW.scheduled_for;
+  end if;
+  return NEW;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_shower_blocked_slot on public.shower_reservations;
+create trigger trg_shower_blocked_slot
+before insert or update of status, scheduled_time, scheduled_for
+on public.shower_reservations
+for each row execute function public.check_shower_blocked_slot();
+
+create or replace function public.check_laundry_blocked_slot()
+returns trigger as $$
+begin
+  if NEW.slot_label is null then
+    return NEW;
+  end if;
+  if NEW.status in ('cancelled', 'no_show', 'waitlisted') then
+    return NEW;
+  end if;
+  if exists (
+    select 1 from public.blocked_slots
+    where date = NEW.scheduled_for::text
+      and service_type = 'laundry'
+      and slot_time = NEW.slot_label
+  ) then
+    raise exception 'SLOT_BLOCKED: Laundry slot % on % is blocked',
+      NEW.slot_label, NEW.scheduled_for;
+  end if;
+  return NEW;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_laundry_blocked_slot on public.laundry_bookings;
+create trigger trg_laundry_blocked_slot
+before insert or update of status, slot_label, scheduled_for, laundry_type
+on public.laundry_bookings
+for each row execute function public.check_laundry_blocked_slot();
+
+-- LAUNDRY SLOT CAPACITY CONSTRAINT
+-- Limits to 1 guest per slot for onsite laundry (canonical: matches the app
+-- constant MAX_GUESTS_PER_LAUNDRY_SLOT and the concurrency-hardening
+-- migration; a stale duplicate definition with max 2 used to live below).
 create or replace function public.check_laundry_slot_capacity()
 returns trigger as $$
 declare
     slot_count integer;
-    max_capacity integer := 2; -- Configure max guests per laundry slot
+    max_per_slot constant integer := 1; -- 1 guest per onsite laundry slot
 begin
     -- Only check for onsite laundry with a slot
     if new.laundry_type = 'onsite' and new.slot_label is not null then
-        -- Only check active statuses
-        if new.status in ('waiting', 'washer', 'dryer') then
-            -- Count existing active bookings for this slot
+        -- Only check occupying statuses
+        if new.status in ('waiting', 'washer', 'dryer', 'done', 'picked_up') then
+            perform pg_advisory_xact_lock(hashtextextended('laundry_slot:' || new.scheduled_for::text || ':' || new.slot_label, 0));
+            -- Count existing occupying bookings for this slot
             select count(*) into slot_count
             from public.laundry_bookings
             where scheduled_for = new.scheduled_for
               and slot_label = new.slot_label
               and laundry_type = 'onsite'
-              and status in ('waiting', 'washer', 'dryer')
-              and id != coalesce(new.id, '00000000-0000-0000-0000-000000000000'::uuid);
-            
-            if slot_count >= max_capacity then
-                raise exception 'Laundry slot % on % is at full capacity (% of % slots taken)', 
-                    new.slot_label, new.scheduled_for, slot_count, max_capacity
-                    using errcode = 'P0001';
+              and status in ('waiting', 'washer', 'dryer', 'done', 'picked_up')
+              and id != new.id;
+
+            if slot_count >= max_per_slot then
+                raise exception 'Laundry slot % on % is already booked',
+                    new.slot_label, new.scheduled_for;
             end if;
         end if;
     end if;
-    
+
     return new;
 end;
 $$ language plpgsql;
@@ -1705,8 +1789,8 @@ create trigger trg_laundry_slot_capacity
 before insert or update on public.laundry_bookings
 for each row execute function public.check_laundry_slot_capacity();
 
-comment on function public.check_laundry_slot_capacity() is 
-'Trigger function to enforce max 2 guests per laundry time slot for onsite laundry. Prevents race conditions when multiple staff book simultaneously.';
+comment on function public.check_laundry_slot_capacity() is
+'Trigger function to enforce max 1 guest per laundry time slot for onsite laundry. Prevents race conditions when multiple staff book simultaneously.';
 
 -- HELPER FUNCTION: Get available shower slots
 -- Returns slots that have capacity available
@@ -1752,7 +1836,7 @@ $$ language plpgsql;
 -- Returns slots that have capacity available
 create or replace function public.get_available_laundry_slots(
     check_date date,
-    max_per_slot integer default 2
+    max_per_slot integer default 1
 )
 returns table (
     slot_label text,
@@ -1775,7 +1859,7 @@ begin
         from public.laundry_bookings lb
         where lb.scheduled_for = check_date
           and lb.laundry_type = 'onsite'
-          and lb.status in ('waiting', 'washer', 'dryer')
+          and lb.status in ('waiting', 'washer', 'dryer', 'done', 'picked_up')
           and lb.slot_label is not null
         group by lb.slot_label
     )
