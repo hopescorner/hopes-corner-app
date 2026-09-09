@@ -197,8 +197,7 @@ describe('HolidayProgramSection', () => {
         });
     });
 
-    it('opens reset modal and confirms resetting ticket counter to #1', async () => {
-        const resetSpy = vi.fn().mockResolvedValue({ success: true, deletedRegistrations: 2, nextTicketNumber: 1 });
+    it('opens reset modal and confirms resetting ticket counter to #1', async () => {        const resetSpy = vi.fn().mockResolvedValue({ success: true, deletedRegistrations: 2, nextTicketNumber: 1 });
         useHolidayStore.setState({ resetTicketCounter: resetSpy });
 
         render(<HolidayProgramSection />);
@@ -234,5 +233,20 @@ describe('HolidayProgramSection', () => {
         });
 
         expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the server reason when resetting the ticket counter fails', async () => {
+        const resetSpy = vi.fn().mockResolvedValue({ success: false, deletedRegistrations: 0, nextTicketNumber: 0, error: 'DB down' });
+        useHolidayStore.setState({ resetTicketCounter: resetSpy });
+        const toast = await import('react-hot-toast');
+
+        render(<HolidayProgramSection />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Reset Test Data/i }));
+        fireEvent.click(screen.getByRole('button', { name: /Reset Test Data & Start at #1/i }));
+
+        await waitFor(() => {
+            expect(toast.default.error).toHaveBeenCalledWith('DB down');
+        });
     });
 });

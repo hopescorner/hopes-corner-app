@@ -338,7 +338,10 @@ export function HolidayProgramSection() {
                 );
                 setIsResetModalOpen(false);
             } else {
-                toast.error('Failed to reset ticket counter');
+                const reason = res && typeof res.error === 'string' && res.error
+                    ? res.error
+                    : 'Failed to reset ticket counter';
+                toast.error(reason);
             }
         } catch {
             toast.error('Error resetting ticket counter');

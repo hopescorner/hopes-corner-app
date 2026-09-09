@@ -2418,7 +2418,9 @@ begin
     )
     select count(*) into v_deleted_count from deleted;
 
-    delete from public.holiday_registration_rate_limits;
+    -- Also clear rate limit attempts for fresh start. The WHERE clause is
+    -- required: unqualified DELETEs are rejected by the database guard.
+    delete from public.holiday_registration_rate_limits where true;
   end if;
 
   v_seq_name := pg_get_serial_sequence('public.holiday_registrations', 'ticket_number');

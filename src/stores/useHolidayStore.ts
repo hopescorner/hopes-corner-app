@@ -32,7 +32,7 @@ interface HolidayStoreState {
     resetTicketCounter: (options?: {
         clearRegistrations?: boolean;
         targetNumber?: number;
-    }) => Promise<{ success: boolean; deletedRegistrations: number; nextTicketNumber: number } | null>;
+    }) => Promise<{ success: boolean; deletedRegistrations: number; nextTicketNumber: number; error?: string } | null>;
     setSelectedSlotFilter: (slot: string | null) => void;
     setSearchQuery: (query: string) => void;
     setStatusFilter: (filter: 'all' | 'registered' | 'checked_in') => void;
@@ -276,8 +276,9 @@ export const useHolidayStore = create<HolidayStoreState>()(
 
                     if (!res.ok) {
                         // res.statusText is empty over HTTP/2, so read the
-                        // JSON error body — otherwise failures log as
-                        // "<empty string>" and cannot be diagnosed.
+                        // JSON error body. The message travels with the
+                        // result (instead of null) so the UI can show staff
+                        // the real reason instead of a generic toast.
                         let detail = '';
                         try {
                             const body = await res.json() as { error?: string };
@@ -285,8 +286,9 @@ export const useHolidayStore = create<HolidayStoreState>()(
                         } catch {
                             // Fall back to the status code below.
                         }
-                        console.error('[useHolidayStore] Error resetting ticket counter:', detail || `HTTP ${res.status}`);
-                        return null;
+                        const message = detail || `HTTP ${res.status}`;
+                        console.error('[useHolidayStore] Error resetting ticket counter:', message);
+                        return { success: false, deletedRegistrations: 0, nextTicketNumber: 0, error: message };
                     }
 
                     const json = await res.json();
