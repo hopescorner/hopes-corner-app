@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.24.5] - 2026-09-09
+
+### Fixed
+
+- Holiday "Reset Test Data & Start at #1" works again. The reset function running in production was a stale copy referencing a rate-limits table that never existed, because the fix had edited the original migration file in place and `supabase db push` never re-applies an already-recorded version. The corrected function now ships in a new migration (`20260910000002_fix_holiday_ticket_counter_reset`), and `database/schema.sql` already matched.
+- Reset failures now surface the real database message in the API response and in the console log. Previously the app logged the empty HTTP status text, so failures were undiagnosable without server logs.
+
+### Tests
+
+- Added migration contract coverage pinning the redeploy (new version, correct table, no phantom table reference) plus API and store coverage for error surfacing.
+
 ## [0.24.4] - 2026-09-09
 
 ### Fixed
