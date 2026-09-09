@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.24.9] - 2026-09-09
+
+### Fixed
+
+- Warning details now actually appear on check-in cards by default. The badge count comes from the daily snapshot but the panel reads full warning records from the store — and the snapshot load path never fetched them (only the legacy fallback did), so the panel stayed empty. The snapshot path now loads warnings alongside proxies via the same cached query.
+
 ## [0.24.8] - 2026-09-09
 
 ### Improved

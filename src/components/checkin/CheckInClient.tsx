@@ -188,6 +188,10 @@ export default function CheckInClient({
                 if (!response.ok) throw new Error(`Snapshot request failed (${response.status})`);
                 applySnapshot(await response.json() as CheckInSnapshot);
                 void loadGuestProxiesFromSupabase();
+                // Warning counts come from the snapshot, but the full warning
+                // records (message/severity) live in the guests store — without
+                // this the GuestCard warnings panel stays empty in snapshot mode.
+                void loadGuestWarningsFromSupabase();
                 return;
             } catch (error) {
                 console.warn('[check-in] Snapshot unavailable; using legacy loader', error);

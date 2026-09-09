@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.24.8';
+export const APP_VERSION = '0.24.9';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.24.9',
+        date: 'September 9, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Warnings Actually Appear on Check-In Cards',
+                description: 'The check-in page now loads full warning records alongside the snapshot, so the warning panel shows by default instead of an empty space under the badge.',
+            },
+        ],
+    },
     {
         version: '0.24.8',
         date: 'September 9, 2026',
