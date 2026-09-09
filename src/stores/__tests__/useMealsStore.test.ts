@@ -151,6 +151,25 @@ describe('useMealsStore', () => {
         vi.useRealTimers();
     });
 
+    it.each([false, true])('counts a saved meal once when its live event arrives before the response (extra=%s)', async (extra) => {
+        useSettingsStore.setState({ autoMealAdditionsEnabled: false });
+        const bucket = extra ? 'extraMealRecords' : 'mealRecords';
+        const row = { id: 'race-meal', guest_id: 'guest-1', quantity: 1, served_on: '2025-01-06', meal_type: extra ? 'extra' : 'guest' };
+        mockSupabase.single.mockImplementationOnce(async () => {
+            // The websocket already patched this device while its HTTP save was pending.
+            useMealsStore.setState({ [bucket]: [createMockMealRecord({
+                id: 'race-meal', guestId: 'guest-1', count: 1, date: '2025-01-06', type: row.meal_type,
+            })] });
+            return { data: row, error: null };
+        });
+        if (extra) await useMealsStore.getState().addExtraMealRecord('guest-1', 1);
+        else await useMealsStore.getState().addMealRecord('guest-1', 1);
+        expect(useMealsStore.getState()[bucket]).toHaveLength(1);
+        expect(useMealsStore.getState().getTodayMealCountsForGuest('guest-1')).toEqual({
+            baseMeals: extra ? 0 : 1, extraMeals: extra ? 1 : 0, totalMeals: 1,
+        });
+    });
+
     describe('initial state', () => {
         it('starts with empty meal records', () => expect(useMealsStore.getState().mealRecords).toEqual([]));
         it('starts with empty RV meal records', () => expect(useMealsStore.getState().rvMealRecords).toEqual([]));

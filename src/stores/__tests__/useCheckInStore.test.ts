@@ -50,6 +50,26 @@ describe('useCheckInStore', () => {
         expect('persist' in useCheckInStore).toBe(false);
     });
 
+    it('does not overwrite a successful card check-in with an in-flight background snapshot', () => {
+        const store = useCheckInStore.getState();
+        store.hydrate(snapshot);
+        const countsAtRequestStart = useCheckInStore.getState().todayByGuest;
+        store.optimisticMeal('guest-1', 2, false);
+        store.replaceMealCounts('guest-1', 2, 0);
+        // The refresh began before the click and returns afterward with no meals.
+        store.hydrate({ ...snapshot, generatedAt: '2026-07-19T18:01:00.000Z' }, countsAtRequestStart);
+        expect(useCheckInStore.getState().todayByGuest['guest-1']).toMatchObject({ mealCount: 2, totalMeals: 2 });
+    });
+
+    it('applies a background refresh when no activity occurred during the request', () => {
+        const store = useCheckInStore.getState();
+        store.hydrate(snapshot);
+        const countsAtRequestStart = useCheckInStore.getState().todayByGuest;
+        const incoming = { ...snapshot, generatedAt: '2026-07-19T18:01:00.000Z' };
+        expect(store.hydrate(incoming, countsAtRequestStart)).toBe(true);
+        expect(useCheckInStore.getState().generatedAt).toBe(incoming.generatedAt);
+    });
+
     it('applies and rolls back an optimistic meal command', () => {
         useCheckInStore.getState().hydrate(snapshot);
 

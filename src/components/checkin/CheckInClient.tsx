@@ -169,9 +169,10 @@ export default function CheckInClient({
         : legacyLastVisitDates,
     [snapshotReady, snapshotGuests, legacyLastVisitDates]);
 
-    const applySnapshot = useCallback((snapshot: CheckInSnapshot) => {
-        hydrateCheckIn(snapshot);
-        hydrateLegacyStoresFromSnapshot(snapshot);
+    const applySnapshot = useCallback((snapshot: CheckInSnapshot, expectedTodayByGuest?: CheckInSnapshot['todayByGuest']) => {
+        if (hydrateCheckIn(snapshot, expectedTodayByGuest)) {
+            hydrateLegacyStoresFromSnapshot(snapshot);
+        }
     }, [hydrateCheckIn]);
 
     // Shared function to load all data
@@ -230,9 +231,10 @@ export default function CheckInClient({
     useEffect(() => {
         if (!snapshotReady) return;
         const reconcile = async () => {
+            const countsAtRequestStart = useCheckInStore.getState().todayByGuest;
             try {
                 const response = await fetch('/api/check-in/reconcile', { cache: 'no-store' });
-                if (response.ok) applySnapshot(await response.json() as CheckInSnapshot);
+                if (response.ok) applySnapshot(await response.json() as CheckInSnapshot, countsAtRequestStart);
             } catch {
                 // Realtime remains active; the next reconciliation can recover.
             }

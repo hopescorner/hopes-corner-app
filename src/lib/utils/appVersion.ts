@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.24.1';
+export const APP_VERSION = '0.24.2';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.24.2',
+        date: 'September 9, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Keep Recent Check-Ins Visible',
+                description: 'Background refreshes no longer replace newer meal counts when a guest is checked in while the refresh is loading, including when only one laptop is recording meals.',
+            },
+            {
+                type: 'fix',
+                title: 'Count Each Saved Meal Once',
+                description: 'Keyboard and Services meal entries no longer count the same saved record twice when its live update arrives before the save response.',
+            },
+        ],
+    },
     {
         version: '0.24.1',
         date: 'September 9, 2026',

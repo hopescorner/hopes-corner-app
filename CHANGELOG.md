@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.24.2] - 2026-09-09
+
+### Fixed
+
+- Ignore background check-in snapshots when meal or service status changed while the request was loading. A refresh started before a guest-card check-in can no longer overwrite its newer counts, including on a single laptop.
+- Keep one local copy of each regular or extra meal when a live event arrives before the save response in the keyboard or Services flow.
+
+### Tests
+
+- Reproduced stale refreshes overwriting successful card check-ins and duplicate local records from live events arriving before save responses. Added regression coverage for both cases and unchanged-state refreshes.
+
 ## [0.24.1] - 2026-09-09
 
 ### Fixed

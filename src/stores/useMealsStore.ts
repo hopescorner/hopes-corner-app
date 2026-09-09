@@ -445,6 +445,7 @@ export const useMealsStore = create<MealsState>()(
 
                         const mapped = mapMealRow(data);
                         set((state) => {
+                            state.mealRecords = state.mealRecords.filter((record) => record.id !== mapped.id);
                             state.mealRecords.push(mapped);
                         });
 
@@ -552,6 +553,7 @@ export const useMealsStore = create<MealsState>()(
 
                         const mapped = mapMealRow(data);
                         set((state) => {
+                            state.extraMealRecords = state.extraMealRecords.filter((record) => record.id !== mapped.id);
                             state.extraMealRecords.push(mapped);
                         });
 

@@ -28,7 +28,7 @@ interface CheckInState {
     realtimeMealQuantities: Record<string, number>;
     acknowledgedMealRecordIds: Set<string>;
     acknowledgedUndoRecordIds: Set<string>;
-    hydrate: (snapshot: CheckInSnapshot) => void;
+    hydrate: (snapshot: CheckInSnapshot, expectedTodayByGuest?: CheckInSnapshot['todayByGuest']) => boolean;
     searchGuests: (query: string) => CheckInGuestSummary[];
     optimisticMeal: (guestId: string, quantity: number, extra: boolean) => () => void;
     replaceMealCounts: (guestId: string, mealCount: number, extraMealCount: number) => void;
@@ -77,9 +77,12 @@ const initialState = {
 
 export const useCheckInStore = create<CheckInState>()((set, get) => ({
     ...initialState,
-    hydrate: (snapshot) => set((state) => {
-        if (state.generatedAt && snapshot.generatedAt < state.generatedAt) return state;
-        return {
+    hydrate: (snapshot, expectedTodayByGuest) => {
+        const current = get();
+        // A refresh started before a check-in/undo/live event must not erase it.
+        if (expectedTodayByGuest && current.todayByGuest !== expectedTodayByGuest) return false;
+        if (current.generatedAt && snapshot.generatedAt < current.generatedAt) return false;
+        set((state) => ({
             ...state,
             isReady: true,
             generatedAt: snapshot.generatedAt,
@@ -92,8 +95,9 @@ export const useCheckInStore = create<CheckInState>()((set, get) => ({
                 : createSearchIndex(snapshot.guests),
             todayByGuest: snapshot.todayByGuest,
             dailyNotes: snapshot.dailyNotes,
-        };
-    }),
+        }));
+        return true;
+    },
     searchGuests: (query) => searchWithIndex(query, get().searchIndex, {
         maxResults: 100,
         earlyTerminationThreshold: 20,
