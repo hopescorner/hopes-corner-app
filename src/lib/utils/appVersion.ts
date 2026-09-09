@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.24.5';
+export const APP_VERSION = '0.24.6';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.24.6',
+        date: 'September 9, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Holiday Test-Data Reset Completes',
+                description: 'The ticket-counter reset now clears test data and restarts at Ticket #1. If it ever fails again, the message on screen explains the real reason.',
+            },
+        ],
+    },
     {
         version: '0.24.5',
         date: 'September 9, 2026',

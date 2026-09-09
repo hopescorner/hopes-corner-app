@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.24.6] - 2026-09-09
+
+### Fixed
+
+- Holiday "Reset Test Data & Start at #1" now completes. The redeployed reset still failed, this time visibly: the database guard rejects unqualified wipes with "DELETE requires a WHERE clause". The rate-limits delete is now qualified (`where true`, same rows as before) in a new migration (`20260910000003_fix_holiday_reset_where_clause`), mirrored in `database/schema.sql`.
+- Reset failures now show the server's real reason in the on-screen message, not just in the console. The store returns the error with the result instead of null so staff see why a reset failed without opening devtools.
+
+### Tests
+
+- Extended the reset migration contract to pin the newest function definition (correct table, qualified wipe) and added store plus component coverage for the surfaced error message.
+
 ## [0.24.5] - 2026-09-09
 
 ### Fixed
