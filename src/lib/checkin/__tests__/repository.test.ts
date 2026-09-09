@@ -43,6 +43,7 @@ describe('createCheckInRepository', () => {
             p_quantity: 2,
             p_extra: false,
             p_idempotency_key: 'command-1',
+            p_picked_up_by_guest_id: null,
         });
         expect(result).toMatchObject({ guestId: 'guest-1', mealCount: 2, totalMeals: 2, recordId: 'meal-1' });
     });

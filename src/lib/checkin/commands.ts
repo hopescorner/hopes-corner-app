@@ -15,7 +15,9 @@ function isMealAddCommand(value: unknown): value is Extract<CheckInCommand, { ty
         && Number.isInteger(command.quantity)
         && Number(command.quantity) >= 1
         && Number(command.quantity) <= 2
-        && (command.extra === undefined || typeof command.extra === 'boolean');
+        && (command.extra === undefined || typeof command.extra === 'boolean')
+        && (command.pickedUpByGuestId === undefined
+            || (typeof command.pickedUpByGuestId === 'string' && UUID.test(command.pickedUpByGuestId)));
 }
 
 export async function createCommandResponse({

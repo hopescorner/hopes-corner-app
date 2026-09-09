@@ -88,7 +88,7 @@ export interface CheckInGuestHistory {
 }
 
 export type CheckInCommand =
-    | { type: 'meal.add'; guestId: string; quantity: number; extra?: boolean; idempotencyKey: string }
+    | { type: 'meal.add'; guestId: string; quantity: number; extra?: boolean; idempotencyKey: string; pickedUpByGuestId?: string }
     | { type: 'meal.undo'; guestId: string; recordId: string; idempotencyKey: string };
 
 export interface CheckInCommandResult {

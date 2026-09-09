@@ -883,6 +883,46 @@ describe('useMealsStore', () => {
                 expect(useMealsStore.getState().lunchBagRecords).toHaveLength(0);
             });
 
+            it('C4: 23505 recovery still grants the proxy picker a lunch bag', async () => {
+                // Another device already recorded gB's first meal: the insert
+                // hits the guest-unique index and recovers via increment.
+                mockSupabase.single
+                    .mockResolvedValueOnce({
+                        data: null,
+                        error: { code: '23505', message: 'duplicate key value violates unique constraint "meal_attendance_guest_unique"' },
+                    })
+                    .mockResolvedValueOnce({
+                        data: { id: 'm-b', guest_id: 'gB', quantity: 2, meal_type: 'guest', served_on: '2025-01-06' },
+                        error: null,
+                    })
+                    .mockResolvedValueOnce({
+                        data: { id: 'bag-gB', guest_id: 'gB', quantity: 1, meal_type: 'lunch_bag', served_on: '2025-01-06' },
+                        error: null,
+                    })
+                    .mockResolvedValueOnce({
+                        data: { id: 'bag-gA', guest_id: 'gA', quantity: 1, meal_type: 'lunch_bag', served_on: '2025-01-06' },
+                        error: null,
+                    });
+                mockSupabase.maybeSingle.mockResolvedValueOnce({
+                    data: { id: 'm-b', guest_id: 'gB', quantity: 1, meal_type: 'guest', served_on: '2025-01-06' },
+                    error: null,
+                });
+
+                // gA picked up for gB on the racing device.
+                await useMealsStore.getState().addMealRecord('gB', 1, 'gA');
+
+                // Both the recipient and the picker must be attempted — the
+                // shared dedup key keeps each to one bag.
+                const recoveredBagKeys = [...new Set(mockSupabase.insert.mock.calls
+                    .map(([payload]: any[]) => payload)
+                    .filter((payload: any) => payload?.meal_type === 'lunch_bag')
+                    .map((payload: any) => payload.deduplication_key as string))].sort();
+                expect(recoveredBagKeys).toEqual([
+                    'lunch_bag_auto_gA_2025-01-06',
+                    'lunch_bag_auto_gB_2025-01-06',
+                ]);
+            });
+
             it('gives a proxy picker only one lunch bag for the day, not one per role', async () => {
                 // g2 picks up for g1 and also has their own meal: the proxy bag
                 // and g2's own bag share a deduplication key, so g2 gets one bag.

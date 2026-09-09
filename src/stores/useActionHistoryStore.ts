@@ -77,8 +77,17 @@ export const useActionHistoryStore = create<ActionHistoryState>()(
                 try {
                     switch (action.type) {
                         case 'MEAL_ADDED': {
-                            const { deleteMealRecord } = useMealsStore.getState();
-                            await deleteMealRecord(action.data.recordId);
+                            const meals = useMealsStore.getState();
+                            // Snapshot check-ins reuse one guest-meal row per
+                            // guest per day, so consecutive taps share a
+                            // recordId. Undo removes only this tap's quantity
+                            // when the row holds more; otherwise it takes the
+                            // full delete path (which also retracts the bag).
+                            const undoQuantity = (action.data.quantity ?? action.data.count ?? null) as number | null;
+                            if (undoQuantity != null && await meals.decrementMealRecord(action.data.recordId, undoQuantity)) {
+                                break;
+                            }
+                            await meals.deleteMealRecord(action.data.recordId);
                             break;
                         }
                         case 'EXTRA_MEALS_ADDED': {

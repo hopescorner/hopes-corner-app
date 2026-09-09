@@ -235,6 +235,14 @@ interface MealsState {
 
     addMealRecord: (guestId: string, quantity?: number, pickedUpByGuestId?: string | null, serviceDate?: string) => Promise<MealRecord>;
     deleteMealRecord: (recordId: string) => Promise<void>;
+    /**
+     * Undo one snapshot tap against a shared guest-meal row. Returns true
+     * when the row was found (quantity decremented in place); false when
+     * the row holds no more than `quantity` (caller should take the full
+     * delete path so lunch-bag retraction still runs) or the row is
+     * unknown. Never throws for a missing row.
+     */
+    decrementMealRecord: (recordId: string, quantity: number) => Promise<boolean>;
     addRvMealRecord: (guestId: string, quantity?: number) => Promise<Partial<MealRecord>>;
     deleteRvMealRecord: (recordId: string) => Promise<void>;
     addExtraMealRecord: (guestId: string, quantity?: number) => Promise<Partial<MealRecord>>;
@@ -432,8 +440,13 @@ export const useMealsStore = create<MealsState>()(
                                         // Still attempt the guest's bag: the other device may
                                         // have recorded the meal without one (e.g. it came in
                                         // as an extra). Dedup key prevents double-bagging.
+                                        // The picker earns a bag too — same key as their
+                                        // normal bag, so a race never costs them a bag.
                                         if (await shouldAutoAddLunchBagsForDate(targetDate)) {
                                             await autoAddLunchBag(get, guestId, targetDate);
+                                            if (pickedUpByGuestId && pickedUpByGuestId !== guestId) {
+                                                await autoAddLunchBag(get, pickedUpByGuestId, targetDate, 'Auto-added for proxy pickup');
+                                            }
                                         }
                                         return recovered;
                                     }
@@ -463,6 +476,44 @@ export const useMealsStore = create<MealsState>()(
 
                     deleteMealRecord: (recordId: string) =>
                         deleteMealAndLunchBags(set, get, recordId, 'mealRecords'),
+
+                    decrementMealRecord: async (recordId: string, quantity: number) => {
+                        if (!recordId || !(quantity > 0)) return false;
+                        const supabase = createClient();
+                        const { data: row, error } = await supabase
+                            .from('meal_attendance')
+                            .select()
+                            .eq('id', recordId)
+                            .maybeSingle();
+
+                        if (error) {
+                            console.error('Failed to read meal record for undo:', error);
+                            throw new Error('Unable to undo meal');
+                        }
+                        if (!row || (row as any).meal_type !== 'guest') return false;
+                        const currentQuantity = (row as any).quantity || 1;
+                        if (currentQuantity <= quantity) return false;
+
+                        const { data: updated, error: updateError } = await supabase
+                            .from('meal_attendance')
+                            .update({ quantity: currentQuantity - quantity })
+                            .eq('id', recordId)
+                            .select()
+                            .single();
+
+                        if (updateError || !updated) {
+                            console.error('Failed to decrement meal record:', updateError);
+                            throw new Error('Unable to undo meal');
+                        }
+
+                        const next = mapMealRow(updated);
+                        set((state) => {
+                            const idx = state.mealRecords.findIndex((r) => r.id === recordId);
+                            if (idx !== -1) state.mealRecords[idx] = next;
+                            else state.mealRecords.push(next);
+                        });
+                        return true;
+                    },
 
                     // RV Meal Actions
                     addRvMealRecord: async (guestId: string, quantity = 1) => {

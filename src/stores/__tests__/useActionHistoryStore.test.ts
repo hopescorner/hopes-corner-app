@@ -6,6 +6,7 @@ import { useServicesStore } from '../useServicesStore';
 const mockMealsStore = {
     deleteMealRecord: vi.fn(),
     deleteExtraMealRecord: vi.fn(),
+    decrementMealRecord: vi.fn().mockResolvedValue(false),
     deleteHaircutRecord: vi.fn(),
     deleteHolidayRecord: vi.fn(),
 };

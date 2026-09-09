@@ -66,6 +66,7 @@ export function createCheckInRepository(client: Pick<SupabaseClient, 'rpc'>) {
                 p_quantity: command.quantity,
                 p_extra: command.extra === true,
                 p_idempotency_key: command.idempotencyKey,
+                p_picked_up_by_guest_id: command.pickedUpByGuestId ?? null,
             });
             if (error) throw new Error(error.message || 'Unable to record meal');
             const row = data && typeof data === 'object' ? data as Record<string, unknown> : {};

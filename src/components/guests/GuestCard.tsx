@@ -603,7 +603,7 @@ function PureGuestCard({
                     try {
                         const proxyRecord = await addMealRecord(proxy.id, count, guest.id);
                         if (proxyRecord?.id) {
-                            addAction('MEAL_ADDED', { recordId: proxyRecord.id, guestId: proxy.id, count });
+                            addAction('MEAL_ADDED', { recordId: proxyRecord.id, guestId: proxy.id, count, pickerId: guest.id });
                             proxySuccessCount++;
                         }
                     } catch {
@@ -1735,12 +1735,13 @@ function GuestCardImpl(props: GuestCardProps) {
     const replaceMealCounts = useCheckInStore((s) => s.replaceMealCounts);
     const acknowledgeMealRecord = useCheckInStore((s) => s.acknowledgeMealRecord);
     const applySnapshotUndo = useCheckInStore((s) => s.applyUndo);
-    const executeSnapshotMeal = useCallback((guestId: string, count = 1, extra = false) => {
+    const executeSnapshotMeal = useCallback((guestId: string, count = 1, extra = false, pickedUpByGuestId?: string | null) => {
         const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? `${guestId}-${Date.now()}-${Math.random()}`;
         return executeOptimisticMeal({
             guestId,
             quantity: count,
             extra,
+            pickedUpByGuestId: pickedUpByGuestId ?? undefined,
             optimisticMeal,
             replaceMealCounts,
             acknowledgeMealRecord,
@@ -1750,7 +1751,7 @@ function GuestCardImpl(props: GuestCardProps) {
     }, [optimisticMeal, replaceMealCounts, acknowledgeMealRecord]);
     const effectiveAddMealRecord = useCallback((guestId: string, count = 1, pickedUpByGuestId?: string | null, serviceDate?: string) => (
         snapshotReady
-            ? executeSnapshotMeal(guestId, count, false)
+            ? executeSnapshotMeal(guestId, count, false, pickedUpByGuestId)
             : pickedUpByGuestId !== undefined
                 ? addMealRecord(guestId, count, pickedUpByGuestId, serviceDate)
                 : addMealRecord(guestId, count)
@@ -1832,8 +1833,15 @@ function GuestCardImpl(props: GuestCardProps) {
         }))
     );
     const effectiveUndoAction = useCallback(async (actionId: string) => {
+        // Proxy pickups are stored under the recipient's guestId, so the
+        // picker's own card cannot find them via getActionsForGuestToday.
+        // Fall back to a lookup across recent history by action id.
+        const storeState = typeof (useActionHistoryStore as unknown as { getState?: unknown }).getState === 'function'
+            ? useActionHistoryStore.getState()
+            : undefined;
         const action = snapshotReady
-            ? getActionsForGuestToday(guest.id).find((entry) => entry.id === actionId)
+            ? (getActionsForGuestToday(guest.id).find((entry) => entry.id === actionId)
+                ?? storeState?.actionHistory.find((entry) => entry.id === actionId))
             : undefined;
         const success = await undoAction(actionId);
         if (success && action) {
@@ -1841,7 +1849,7 @@ function GuestCardImpl(props: GuestCardProps) {
                 type: action.type,
                 guestId: action.data.guestId,
                 recordId: action.data.recordId,
-                quantity: action.data.quantity,
+                quantity: action.data.quantity ?? action.data.count ?? 1,
             });
         }
         return success;

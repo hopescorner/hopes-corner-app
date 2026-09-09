@@ -129,7 +129,10 @@ describe('useCheckInStore', () => {
         });
     });
 
-    it('clears the base meal count after undo', () => {
+    it.each([
+        { quantity: 1, expectedMealCount: 1, expectedTotal: 2 },
+        { quantity: 2, expectedMealCount: 0, expectedTotal: 1 },
+    ])('decrements (not clears) the base meal count after undo: quantity $quantity', ({ quantity, expectedMealCount, expectedTotal }) => {
         useCheckInStore.getState().hydrate({
             ...snapshot,
             todayByGuest: {
@@ -150,11 +153,41 @@ describe('useCheckInStore', () => {
             type: 'MEAL_ADDED',
             guestId: 'guest-1',
             recordId: 'meal-1',
+            quantity,
         });
 
         expect(useCheckInStore.getState().todayByGuest['guest-1']).toMatchObject({
-            mealCount: 0,
+            mealCount: expectedMealCount,
             extraMealCount: 1,
+            totalMeals: expectedTotal,
+        });
+    });
+
+    it('defaults a quantity-less undo to a single tap', () => {
+        useCheckInStore.getState().hydrate({
+            ...snapshot,
+            todayByGuest: {
+                'guest-1': {
+                    mealCount: 2,
+                    extraMealCount: 0,
+                    totalMeals: 2,
+                    shower: null,
+                    laundry: null,
+                    bicycle: null,
+                    haircut: null,
+                    holiday: null,
+                },
+            },
+        });
+
+        useCheckInStore.getState().applyUndo({
+            type: 'MEAL_ADDED',
+            guestId: 'guest-1',
+            recordId: 'meal-1',
+        });
+
+        expect(useCheckInStore.getState().todayByGuest['guest-1']).toMatchObject({
+            mealCount: 1,
             totalMeals: 1,
         });
     });

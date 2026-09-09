@@ -37,6 +37,15 @@ export function setupLinkedGuestsStore(served = false) {
         deleteMealRecord: async (id) => {
             useMealsStore.setState((state) => ({ mealRecords: state.mealRecords.filter((row) => row.id !== id) }));
         },
+        decrementMealRecord: async (id, quantity) => {
+            const row = useMealsStore.getState().mealRecords.find((record) => record.id === id);
+            if (!row || (row.count || 1) <= quantity) return false;
+            useMealsStore.setState((state) => ({
+                mealRecords: state.mealRecords.map((record) =>
+                    record.id === id ? { ...record, count: record.count - quantity } : record),
+            }));
+            return true;
+        },
     });
     if (served) useActionHistoryStore.getState().addAction('MEAL_ADDED', { recordId: 'meal-primary', guestId: 'primary' });
 }

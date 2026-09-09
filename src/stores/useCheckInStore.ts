@@ -150,7 +150,9 @@ export const useCheckInStore = create<CheckInState>()((set, get) => ({
 
         switch (action.type) {
             case 'MEAL_ADDED':
-                next.mealCount = 0;
+                // Snapshot check-ins reuse one row per guest per day, so one
+                // undo removes only its own tap's quantity — never the whole day.
+                next.mealCount = Math.max(0, next.mealCount - (action.quantity ?? 1));
                 break;
             case 'EXTRA_MEALS_ADDED':
                 next.extraMealCount = Math.max(0, next.extraMealCount - (action.quantity ?? 1));

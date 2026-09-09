@@ -12,6 +12,7 @@ export async function executeOptimisticMeal({
     guestId,
     quantity,
     extra,
+    pickedUpByGuestId,
     optimisticMeal,
     replaceMealCounts,
     acknowledgeMealRecord,
@@ -21,6 +22,7 @@ export async function executeOptimisticMeal({
     guestId: string;
     quantity: number;
     extra: boolean;
+    pickedUpByGuestId?: string | null;
     optimisticMeal: (guestId: string, quantity: number, extra: boolean) => () => void;
     replaceMealCounts: (guestId: string, mealCount: number, extraMealCount: number) => void;
     acknowledgeMealRecord: (recordId: string) => void;
@@ -37,6 +39,7 @@ export async function executeOptimisticMeal({
                 guestId,
                 quantity,
                 extra,
+                pickedUpByGuestId: pickedUpByGuestId ?? undefined,
                 idempotencyKey,
             }),
         });
