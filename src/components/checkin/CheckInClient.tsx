@@ -180,6 +180,9 @@ export default function CheckInClient({
         if (initialSnapshot) {
             applySnapshot(initialSnapshot);
             void loadGuestProxiesFromSupabase();
+            // Same as the fetched-snapshot branch below: warning counts come
+            // from the snapshot, but the panel needs the full warning records.
+            void loadGuestWarningsFromSupabase();
             return;
         }
         if (v2Enabled) {
