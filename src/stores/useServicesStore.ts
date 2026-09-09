@@ -19,6 +19,7 @@ import {
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom, weekStartPacificDateString, nextWeekStartPacificDateString } from '@/lib/utils/date';
 import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES, MAX_LAUNDRY_LOADS_PER_WEEK, LAUNDRY_WEEKLY_COUNT_STATUSES, LAUNDRY_WEEKLY_VOID_STATUSES } from '@/lib/constants/constants';
+import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 
 const OPERATIONAL_WINDOW_DAYS = 45;
 
@@ -26,6 +27,27 @@ const getOperationalSince = () => {
     const d = new Date();
     d.setDate(d.getDate() - OPERATIONAL_WINDOW_DAYS);
     return d.toISOString();
+};
+
+// Client-side blocked-slot guard (defense in depth: the database triggers
+// and the shower RPC are authoritative, but failing fast here avoids a
+// wasted write and gives an instant, specific message).
+const throwIfSlotBlocked = (serviceType: 'shower' | 'laundry', slot: string | null | undefined, date: string) => {
+    if (!slot) return;
+    if (useBlockedSlotsStore.getState().isSlotBlocked(serviceType, slot, date)) {
+        throw new Error(`This ${serviceType} slot is blocked for ${date}. Please choose another time.`);
+    }
+};
+
+// Surface machine-readable DB rejections (SLOT_BLOCKED sentinel, ban guard)
+// as human-readable errors instead of generic save failures.
+const friendlyServiceError = (message: string, fallback: string) => {
+    if (message.includes('SLOT_BLOCKED')) {
+        const detail = message.split('SLOT_BLOCKED:')[1]?.trim();
+        return new Error(detail ? `${detail}. Please choose another time.` : 'This slot is blocked. Please choose another time.');
+    }
+    if (message.includes('banned from')) return new Error(message.split(' using ')[0]);
+    return new Error(fallback);
 };
 
 interface ShowerRecord {
@@ -129,7 +151,7 @@ interface ServicesState {
     addShowerWaitlist: (guestId: string, serviceDate?: string) => Promise<ShowerRecord | Partial<ShowerRecord>>;
     deleteShowerRecord: (recordId: string) => Promise<void>;
     addLaundryRecord: (guestId: string, washType: string, slotLabel?: string, bagNumber?: string, serviceDate?: string, initialStatus?: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
-    addLaundryWaitlist: (guestId: string, serviceDate?: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
+    addLaundryWaitlist: (guestId: string, washType?: string, serviceDate?: string) => Promise<LaundryRecord | Partial<LaundryRecord>>;
     deleteLaundryRecord: (recordId: string) => Promise<void>;
     updateLaundryStatus: (recordId: string, status: string) => Promise<boolean>;
     updateLaundryBagNumber: (recordId: string, bagNumber: string) => Promise<boolean>;
@@ -177,6 +199,8 @@ export const useServicesStore = create<ServicesState>()(
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
+                        throwIfSlotBlocked('shower', time, targetDate);
+
                         // ── Atomic slot-capacity-checked insert via RPC ──
                         // Uses pg_advisory_xact_lock inside the DB function to
                         // prevent race conditions when multiple staff book the same slot.
@@ -197,7 +221,7 @@ export const useServicesStore = create<ServicesState>()(
                                 if (msg.includes('full') || msg.includes('already has a shower reservation')) {
                                     throw new Error(msg);
                                 }
-                                throw new Error('Unable to book shower slot. Please try again.');
+                                throw friendlyServiceError(msg, 'Unable to book shower slot. Please try again.');
                             }
 
                             const mapped = mapShowerRow(data as any);
@@ -335,6 +359,12 @@ export const useServicesStore = create<ServicesState>()(
 
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
+                        const normalizedType = washType.toLowerCase();
+                        const resolvedStatus = initialStatus || (normalizedType === 'offsite' ? 'pending' : 'waiting');
+
+                        if (slotLabel && normalizedType === 'onsite') {
+                            throwIfSlotBlocked('laundry', slotLabel, targetDate);
+                        }
 
                         // ── Onsite slot capacity check ──
                         if (slotLabel && washType.toLowerCase() === 'onsite') {
@@ -388,12 +418,66 @@ export const useServicesStore = create<ServicesState>()(
 
                         const payload = {
                             guest_id: guestId,
-                            laundry_type: washType.toLowerCase(),
+                            laundry_type: normalizedType,
                             slot_label: slotLabel,
                             bag_number: bagNumber,
                             scheduled_for: targetDate,
-                            status: initialStatus || (washType.toLowerCase() === 'offsite' ? 'pending' : 'waiting'),
+                            status: resolvedStatus,
                         };
+
+                        // C7: a guest whose booking was cancelled (e.g. by End-of-Day)
+                        // must be re-bookable the same day. The laundry_one_per_day
+                        // unique index intentionally prevents a second row, so reuse
+                        // the voided row via UPDATE — mirroring the shower RPC's
+                        // cancelled/no-show reuse. The capacity/weekly triggers
+                        // re-fire on the UPDATE, so limits stay enforced.
+                        const { data: reusableRows, error: reuseLookupError } = await supabase
+                            .from('laundry_bookings')
+                            .select('id')
+                            .eq('guest_id', guestId)
+                            .eq('scheduled_for', targetDate)
+                            .in('status', ['cancelled', 'no_show']);
+
+                        const reusableId = !reuseLookupError && Array.isArray(reusableRows) && reusableRows.length > 0
+                            ? (reusableRows[0] as { id: string }).id
+                            : null;
+
+                        if (reusableId) {
+                            const { data: reused, error: reuseError } = await supabase
+                                .from('laundry_bookings')
+                                .update({
+                                    laundry_type: normalizedType,
+                                    slot_label: slotLabel,
+                                    bag_number: bagNumber,
+                                    status: resolvedStatus,
+                                })
+                                .eq('id', reusableId)
+                                .select()
+                                .single();
+
+                            if (reuseError) {
+                                const message = reuseError.message || '';
+                                if (message.includes('LAUNDRY_WEEKLY_LIMIT_REACHED')) {
+                                    throw new Error(
+                                        `Weekly laundry limit reached (${MAX_LAUNDRY_LOADS_PER_WEEK} loads). ` +
+                                        `This guest can be assigned laundry again on Monday.`
+                                    );
+                                }
+                                if (message.includes('already booked')) {
+                                    throw new Error('This laundry slot was just booked on another device. Please choose another time.');
+                                }
+                                console.error('Failed to re-book laundry record in Supabase:', reuseError);
+                                throw friendlyServiceError(message, 'Unable to save laundry record');
+                            }
+
+                            const remapped = mapLaundryRow(reused);
+                            set((state) => {
+                                const existingIndex = state.laundryRecords.findIndex((record) => record.id === remapped.id);
+                                if (existingIndex === -1) state.laundryRecords.push(remapped as any);
+                                else state.laundryRecords[existingIndex] = remapped as any;
+                            });
+                            return remapped;
+                        }
 
                         const { data, error } = await supabase
                             .from('laundry_bookings')
@@ -414,8 +498,11 @@ export const useServicesStore = create<ServicesState>()(
                             if (message.includes('already booked')) {
                                 throw new Error('This laundry slot was just booked on another device. Please choose another time.');
                             }
+                            if (error.code === '23505' || message.includes('laundry_one_per_day')) {
+                                throw new Error('This guest already has a laundry booking for this date.');
+                            }
                             console.error('Failed to add laundry record to Supabase:', error);
-                            throw new Error('Unable to save laundry record');
+                            throw friendlyServiceError(message, 'Unable to save laundry record');
                         }
 
                         const mapped = mapLaundryRow(data);
@@ -425,13 +512,14 @@ export const useServicesStore = create<ServicesState>()(
                         return mapped;
                     },
 
-                    addLaundryWaitlist: async (guestId: string, serviceDate?: string) => {
+                    addLaundryWaitlist: async (guestId: string, washType: string = 'onsite', serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
                         const payload = {
                             guest_id: guestId,
+                            laundry_type: washType.toLowerCase(),
                             scheduled_for: targetDate,
                             status: 'waitlisted',
                         };

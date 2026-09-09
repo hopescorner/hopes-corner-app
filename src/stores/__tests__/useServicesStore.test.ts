@@ -1068,7 +1068,11 @@ describe('useServicesStore', () => {
                 it('skips the weekly limit check inside addLaundryRecord when initialStatus is waitlisted', async () => {
                     mockSupabase.single.mockResolvedValueOnce({ data: { id: 'wl-2' }, error: null });
                     await useServicesStore.getState().addLaundryRecord('g1', 'onsite', null, '', undefined, 'waitlisted');
-                    expect(mockSupabase.in).not.toHaveBeenCalled();
+                    // The cancelled-row reuse lookup may still run, but the
+                    // weekly count statuses must never be queried.
+                    const weeklyStatusQueries = mockSupabase.in.mock.calls.filter(([, statuses]: any[]) =>
+                        Array.isArray(statuses) && statuses.includes('pending'));
+                    expect(weeklyStatusQueries).toHaveLength(0);
                 });
             });
 
