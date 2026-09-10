@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.25.1';
+export const APP_VERSION = '0.26.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.26.0',
+        date: 'September 10, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Weather on the Check-In Header',
+                description: 'The Check-In page now shows the current weather and temperature for Mountain View, CA next to the date, with a condition icon and the temperature in Fahrenheit.',
+            },
+        ],
+    },
     {
         version: '0.25.1',
         date: 'September 10, 2026',

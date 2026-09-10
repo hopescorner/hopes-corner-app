@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.26.0] - 2026-09-10
+
+### Added
+
+- Current weather is now shown on the Check-In header beside the date for Mountain View, CA: a condition icon, the temperature in Fahrenheit, and a condition label on wider screens. Data comes from Open-Meteo (no API key) through a new `/api/weather` route that caches for 15 minutes and hides the badge if weather cannot be loaded.
+
+### Tests
+
+- Added coverage for the weather route (Fahrenheit request, Mountain View coordinates, upstream failure) and the `WeatherBadge` (temperature/condition rendering and graceful unavailable state). Full Vitest suite passes (4124 tests).
+
 ## [0.25.1] - 2026-09-10
 
 ### Fixed

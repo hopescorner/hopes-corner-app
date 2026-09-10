@@ -47,6 +47,10 @@ const RealtimeSyncProvider = dynamic(
 const DuplicateGuestResolutionModal = dynamic(
     () => import('@/components/checkin/DuplicateGuestResolutionModal').then((module) => module.DuplicateGuestResolutionModal),
 );
+const WeatherBadge = dynamic(
+    () => import('@/components/checkin/WeatherBadge').then((module) => module.WeatherBadge),
+    { ssr: false },
+);
 
 // Threshold for disabling animations for better performance
 const LARGE_LIST_THRESHOLD = 20;
@@ -683,9 +687,12 @@ export default function CheckInClient({
                         className="text-2xl font-bold text-gray-900 select-none"
                         onClick={handleSecretTap}
                     >Check-In</h1>
-                    <p className="text-sm text-gray-500 hidden md:block">
-                        {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <p className="text-sm text-gray-500 hidden md:block">
+                            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                        <WeatherBadge />
+                    </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">
                     <LiveConnectionPill />
