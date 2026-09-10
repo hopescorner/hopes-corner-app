@@ -702,7 +702,7 @@ function PureGuestCard({
         setIsPending(true);
         try {
             const record = await addMealRecord(guest.id, count);
-            addAction('MEAL_ADDED', { recordId: record.id, guestId: guest.id });
+            addAction('MEAL_ADDED', { recordId: record.id, guestId: guest.id, count });
             toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${guest.preferredName || guest.firstName}`);
             triggerSuccessPulse('meal');
         } catch (error: any) {
@@ -1914,7 +1914,7 @@ function PureGuestCard({
                     setIsPending(true);
                     try {
                         const record = await addMealRecord(guestId, count);
-                        addAction('MEAL_ADDED', { recordId: record.id, guestId });
+                        addAction('MEAL_ADDED', { recordId: record.id, guestId, count });
                         toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${guest.preferredName || guest.firstName}`);
                         triggerSuccessPulse('meal');
                     } catch (error: any) {

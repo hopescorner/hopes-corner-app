@@ -76,7 +76,12 @@ export default function LinkedGuestsList({ guestId, className = '', mealStatusMa
             const success = await history.undoAction(actionId);
             if (success) {
                 if (action && useCheckInStore.getState().isReady) {
-                    useCheckInStore.getState().applyUndo({ type: 'MEAL_ADDED', guestId: linkedGuestId, recordId: action.data.recordId });
+                    useCheckInStore.getState().applyUndo({
+                        type: 'MEAL_ADDED',
+                        guestId: linkedGuestId,
+                        recordId: action.data.recordId,
+                        quantity: action.data.quantity ?? action.data.count ?? 1,
+                    });
                 }
                 toast.success('Meal undone');
             } else { toast.error('Failed to undo meal'); }

@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.25.0';
+export const APP_VERSION = '0.25.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.25.1',
+        date: 'September 10, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Undo Removes the Whole Meal Tap',
+                description: 'Logging 2 meals in one tap and then undoing now clears the count completely instead of leaving a stray "1" on the card. The tapped quantity is recorded with the action so undo knows exactly how much to remove.',
+            },
+        ],
+    },
     {
         version: '0.25.0',
         date: 'September 10, 2026',

@@ -432,6 +432,61 @@ describe('GuestCard Component', () => {
                 expect(mockAddAction).not.toHaveBeenCalled();
             });
         });
+
+        it('records the tapped quantity so undo removes the full tap', async () => {
+            render(<GuestCard guest={baseGuest} />);
+            const buttons = screen.getAllByRole('button');
+            const twoMealButton = buttons.find(btn => btn.textContent?.trim() === '2');
+            expect(twoMealButton).toBeDefined();
+
+            fireEvent.click(twoMealButton!);
+
+            await waitFor(() => {
+                expect(mockAddAction).toHaveBeenCalledWith('MEAL_ADDED', expect.objectContaining({
+                    guestId: 'g1',
+                    count: 2,
+                }));
+            });
+        });
+
+        it('applies the tapped quantity when undoing in snapshot mode', async () => {
+            snapshotReady = true;
+            mockGetActionsForGuestToday.mockReturnValueOnce([{
+                id: 'action-meal-2',
+                type: 'MEAL_ADDED',
+                data: { recordId: 'meal-2', guestId: 'g1', count: 2 },
+            }]);
+            const mealStatusMap = new Map([
+                ['g1', {
+                    hasMeal: true,
+                    mealRecord: { id: 'meal-2', count: 2 },
+                    mealCount: 2,
+                    extraMealCount: 0,
+                    totalMeals: 2,
+                }],
+            ]);
+            const actionStatusMap = new Map([
+                ['g1', { mealActionId: 'action-meal-2' }],
+            ]);
+            render(
+                <GuestCard
+                    guest={baseGuest}
+                    mealStatusMap={mealStatusMap}
+                    actionStatusMap={actionStatusMap}
+                />
+            );
+
+            fireEvent.click(screen.getByRole('button', { name: 'Undo meal' }));
+
+            await waitFor(() => {
+                expect(mockApplyUndo).toHaveBeenCalledWith(expect.objectContaining({
+                    type: 'MEAL_ADDED',
+                    guestId: 'g1',
+                    recordId: 'meal-2',
+                    quantity: 2,
+                }));
+            });
+        });
     });
 
     describe('Haircut Actions', () => {

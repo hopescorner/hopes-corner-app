@@ -579,7 +579,7 @@ export default function CheckInClient({
                     } else {
                         void addMealRecord(guest.id, count).then((record: any) => {
                             if (record) {
-                                addAction('MEAL_ADDED', { recordId: record.id, guestId: guest.id });
+                                addAction('MEAL_ADDED', { recordId: record.id, guestId: guest.id, count });
                                 toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${guest.preferredName || guest.firstName}`);
                             }
                         }).catch((err: any) => {

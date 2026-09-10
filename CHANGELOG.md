@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.25.1] - 2026-09-10
+
+### Fixed
+
+- Undoing a multi-meal tap now clears the whole tap. Logging 2 meals with one tap and then undoing left a stray "1" on the card: the action was recorded without its quantity, so the snapshot subtracted the default 1 while the database row was deleted, and the realtime delete was suppressed so nothing corrected it. The tapped quantity is now stored on the `MEAL_ADDED` action at every write path (desktop and mobile meal buttons, the mobile services sheet, the keyboard 1/2 shortcut, linked-guest pickups, and the undo tray), so undo removes exactly what was added.
+
+### Tests
+
+- Added `GuestCard` coverage pinning the tapped quantity on the recorded action and the quantity forwarded to the snapshot undo. Full Vitest suite passes (4118 tests).
+
 ## [0.25.0] - 2026-09-10
 
 ### Improved

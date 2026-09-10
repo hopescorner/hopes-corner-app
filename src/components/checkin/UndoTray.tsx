@@ -71,7 +71,7 @@ export function UndoTray() {
                         type: latestAction.type,
                         guestId: latestAction.data.guestId,
                         recordId: latestAction.data.recordId,
-                        quantity: latestAction.data.quantity,
+                        quantity: latestAction.data.quantity ?? latestAction.data.count,
                     });
                 }
                 toast.success(`${label} undone`);
