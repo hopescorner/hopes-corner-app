@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, memo, useCallback } from 'react';
+import { useState, useMemo, memo, useCallback, useRef, useEffect } from 'react';
 import { AGE_GROUPS, MAX_EXTRA_MEALS_PER_DAY, MAX_TOTAL_MEALS_PER_DAY } from '@/lib/constants/constants';
 import dynamic from 'next/dynamic';
 import {
@@ -317,6 +317,71 @@ function GuestWarningsPanel({ guestId, onManage }: { guestId: string; onManage?:
     );
 }
 
+/**
+ * Single, consistent undo affordance used everywhere on the card.
+ * Always meets the 44px minimum touch target.
+ */
+function UndoButton({
+    title,
+    label,
+    onClick,
+    disabled = false,
+    className,
+}: {
+    title: string;
+    label: string;
+    onClick: (event: React.MouseEvent) => void;
+    disabled?: boolean;
+    className?: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            title={title}
+            aria-label={label}
+            className={cn(
+                'flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-2.5 text-orange-700 transition-all hover:bg-orange-100 active:scale-95 touch-manipulation disabled:opacity-50',
+                className
+            )}
+        >
+            <RotateCcw size={16} aria-hidden="true" />
+        </button>
+    );
+}
+
+/**
+ * Consistent disabled state for a program action so staff see the reason inline
+ * instead of a control that is merely faded.
+ */
+function DisabledAction({
+    label,
+    reason,
+    title,
+    className,
+}: {
+    label: string;
+    reason: string;
+    title?: string;
+    className?: string;
+}) {
+    return (
+        <div
+            title={title}
+            role="note"
+            className={cn(
+                'flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-gray-300 bg-gray-100 px-3 text-gray-400 cursor-not-allowed select-none',
+                className
+            )}
+        >
+            <Ban size={15} aria-hidden="true" />
+            <span className="text-[11px] font-bold leading-tight">{label}</span>
+            <span className="text-[10px] font-semibold leading-tight">· {reason}</span>
+        </div>
+    );
+}
+
 function PureGuestCard({
     guest,
     isSelected = false,
@@ -370,6 +435,24 @@ function PureGuestCard({
     const [showReminderModal, setShowReminderModal] = useState(false);
     const [showHistoryModal, setShowHistoryModal] = useState(false);
     const [showMobileSheet, setShowMobileSheet] = useState(false);
+    const [pulses, setPulses] = useState<Record<string, number>>({});
+    const pulseTokenRef = useRef(0);
+
+    const triggerSuccessPulse = useCallback((...targets: string[]) => {
+        const token = ++pulseTokenRef.current;
+        const next: Record<string, number> = {};
+        targets.forEach((target, index) => {
+            next[target] = index * 140;
+        });
+        setPulses(next);
+        window.setTimeout(() => {
+            if (pulseTokenRef.current === token) setPulses({});
+        }, 700 + targets.length * 140);
+    }, []);
+
+    useEffect(() => () => {
+        pulseTokenRef.current += 1;
+    }, []);
 
     const warningBadgeCount = warningsCount ?? 0;
     const linkedBadgeCount = linkedGuestsCount ?? 0;
@@ -555,6 +638,8 @@ function PureGuestCard({
     const holidayAction = actionStatus.holidayActionId ? { id: actionStatus.holidayActionId } : undefined;
 
     const hasServiceToday = !!todayMeal || todayShower || todayLaundry || todayBicycle;
+    // Used for the at-a-glance served/needs-service card accent.
+    const hasAnyActivityToday = hasServiceToday || todayHaircut || todayHoliday;
     const banDetails = useMemo(() => getGuestBanDetails(guest), [guest]);
     const isBanned = banDetails.isBanned;
 
@@ -619,6 +704,7 @@ function PureGuestCard({
             const record = await addMealRecord(guest.id, count);
             addAction('MEAL_ADDED', { recordId: record.id, guestId: guest.id });
             toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${guest.preferredName || guest.firstName}`);
+            triggerSuccessPulse('meal');
         } catch (error: any) {
             toast.error(error.message || 'Failed to log meals');
         } finally {
@@ -637,6 +723,7 @@ function PureGuestCard({
                 if (record && record.id) {
                     addAction('SHOWER_BOOKED', { recordId: record.id, guestId: guest.id });
                     toast.success(`Shower booked for ${nextAvailableShowerSlot.label}`);
+                    triggerSuccessPulse('shower');
                 }
             } catch (error: any) {
                 toast.error(error.message || 'Failed to book shower');
@@ -650,6 +737,7 @@ function PureGuestCard({
                 if (record && record.id) {
                     addAction('SHOWER_BOOKED', { recordId: record.id, guestId: guest.id });
                     toast.success(`Added ${displayName} to shower waitlist`);
+                    triggerSuccessPulse('shower');
                 }
             } catch (error: any) {
                 toast.error(error.message || 'Failed to join waitlist');
@@ -672,6 +760,7 @@ function PureGuestCard({
                 if (record && record.id) {
                     addAction('LAUNDRY_BOOKED', { recordId: record.id, guestId: guest.id });
                     toast.success(`On-site laundry booked for ${nextAvailableLaundrySlot.label}`);
+                    triggerSuccessPulse('laundry');
                 }
             } catch (error: any) {
                 toast.error(error.message || 'Failed to book laundry');
@@ -732,6 +821,7 @@ function PureGuestCard({
             } else if (primarySuccess) {
                 toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${displayName}`);
             }
+            if (primarySuccess || proxySuccessCount > 0) triggerSuccessPulse('meal');
         } catch (error: any) {
             toast.error(error.message || 'Failed to check in');
         } finally {
@@ -755,6 +845,7 @@ function PureGuestCard({
             if (record && record.id) {
                 addAction('EXTRA_MEALS_ADDED', { recordId: record.id, guestId: guest.id });
                 toast.success(`Extra meal logged for ${guest.preferredName || guest.firstName}`);
+                triggerSuccessPulse('meal');
             }
         } catch (error: any) {
             toast.error(error.message || 'Failed to log extra meal');
@@ -888,12 +979,25 @@ function PureGuestCard({
     return (
         <div
             className={cn(
-                'group relative overflow-hidden transition-all duration-300 border bg-white',
+                'group relative overflow-hidden transition-all duration-300 border',
                 compact ? 'rounded-lg' : 'rounded-2xl',
-                isSelected ? 'ring-2 ring-emerald-500/50 border-emerald-400 shadow-lg' : 'border-gray-100 shadow-sm hover:border-emerald-200 hover:shadow-md',
-                isBanned ? 'border-red-200 bg-red-50/30' : ''
+                isBanned
+                    ? 'border-red-200 bg-red-50/30'
+                    : hasAnyActivityToday
+                        ? 'border-emerald-200 bg-emerald-50/40'
+                        : 'border-gray-100 bg-white',
+                isSelected ? 'ring-2 ring-emerald-500/50 border-emerald-400 shadow-lg' : 'shadow-sm hover:border-emerald-200 hover:shadow-md'
             )}
         >
+            {/* At-a-glance served / needs-service rail */}
+            <span
+                data-testid="service-rail"
+                aria-hidden="true"
+                className={cn(
+                    'pointer-events-none absolute inset-y-0 left-0 w-1.5',
+                    isBanned ? 'bg-red-400' : hasAnyActivityToday ? 'bg-emerald-500' : 'bg-slate-300/70'
+                )}
+            />
             <div
                 className={cn(
                     'cursor-pointer',
@@ -1033,22 +1137,37 @@ function PureGuestCard({
                                     return null;
                                 })()}
                                 {totalMeals > 0 && (
-                                    <span className={cn(
-                                        "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold",
-                                        isPending && "animate-success-pulse"
-                                    )}>
+                                    <span
+                                        className={cn(
+                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold",
+                                            pulses.meal !== undefined && "animate-success-pulse"
+                                        )}
+                                        style={pulses.meal !== undefined ? { animationDelay: `${pulses.meal}ms` } : undefined}
+                                    >
                                         <Check size={10} />
                                         {totalMeals} MEAL{totalMeals > 1 ? 'S' : ''}
                                     </span>
                                 )}
                                 {todayShower && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold">
+                                    <span
+                                        className={cn(
+                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold",
+                                            pulses.shower !== undefined && "animate-success-pulse"
+                                        )}
+                                        style={pulses.shower !== undefined ? { animationDelay: `${pulses.shower}ms` } : undefined}
+                                    >
                                         <ShowerHead size={10} />
                                         SHOWER{serviceStatus.showerRecord?.time ? ` @ ${serviceStatus.showerRecord.time}` : ''}
                                     </span>
                                 )}
                                 {todayLaundry && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold">
+                                    <span
+                                        className={cn(
+                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold",
+                                            pulses.laundry !== undefined && "animate-success-pulse"
+                                        )}
+                                        style={pulses.laundry !== undefined ? { animationDelay: `${pulses.laundry}ms` } : undefined}
+                                    >
                                         <WashingMachine size={10} />
                                         LAUNDRY{serviceStatus.laundryRecord?.time ? ` @ ${serviceStatus.laundryRecord.time}` : ''}
                                     </span>
@@ -1062,35 +1181,33 @@ function PureGuestCard({
                             </div>
                         </div>
 
-                        {/* Guest details */}
-                        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1.5 text-xs font-medium text-gray-600 md:mt-1.5">
-                            <span className="inline-flex items-center gap-1.5 md:gap-1 md:rounded-md md:border md:border-blue-100/50 md:bg-blue-50/60 md:px-2 md:py-0.5">
-                                <Home size={12} className="text-blue-500" />
+                        {/* Guest details — intentionally de-emphasized so service status reads first */}
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] font-normal text-gray-400">
+                            <span className="inline-flex items-center gap-1">
+                                <Home size={11} className="text-gray-300" aria-hidden="true" />
                                 {guest.housingStatus}
                             </span>
                             {guest.location && (
-                                <span className="inline-flex items-center gap-1.5 border-l border-gray-200 pl-2 md:gap-1 md:rounded-md md:border md:border-amber-100/50 md:bg-amber-50/60 md:px-2 md:py-0.5">
-                                    <MapPin size={12} className="text-amber-500" />
+                                <span className="inline-flex items-center gap-1">
+                                    <MapPin size={11} className="text-gray-300" aria-hidden="true" />
                                     {guest.location}
                                 </span>
                             )}
                             {guest.gender && (
                                 <span
                                     aria-label={`Gender: ${guest.gender}`}
-                                    className="inline-flex items-center gap-1 border-l border-gray-200 pl-2 text-purple-700 md:rounded-md md:border md:border-purple-100/50 md:bg-purple-50/60 md:px-2 md:py-0.5"
+                                    className="inline-flex items-center gap-1"
                                 >
-                                    <genderPresentation.Icon size={13} aria-hidden="true" />
+                                    <genderPresentation.Icon size={11} className="text-gray-300" aria-hidden="true" />
                                     <span>{genderPresentation.shortLabel}</span>
                                 </span>
                             )}
                             {ageRange && (
-                                <span className="border-l border-gray-200 pl-2 text-teal-700 md:rounded-md md:border md:border-teal-100/50 md:bg-teal-50/60 md:px-2 md:py-0.5">
-                                    {ageRange}
-                                </span>
+                                <span>{ageRange}</span>
                             )}
                             {lastVisitLabel && (
-                                <span className="inline-flex items-center gap-1.5 border-l border-gray-200 pl-2 text-[11px] text-gray-500 md:ml-0 md:gap-1 md:rounded-md md:border md:border-gray-100 md:bg-gray-50 md:px-2 md:py-0.5 md:text-[10px]" title={`Last visit: ${lastVisitDateStr}`}>
-                                    <Clock size={10} className="text-gray-400" />
+                                <span className="inline-flex items-center gap-1 text-[10px] text-gray-400" title={`Last visit: ${lastVisitDateStr}`}>
+                                    <Clock size={10} className="text-gray-300" aria-hidden="true" />
                                     Last visit: {lastVisitLabel}
                                 </span>
                             )}
@@ -1120,13 +1237,12 @@ function PureGuestCard({
                         <div className="contents md:hidden">
                             {!todayMeal ? (
                                 isBannedFromMeals ? (
-                                    <div
-                                        className="col-span-2 flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-red-100 px-1 text-red-600 opacity-70"
+                                    <DisabledAction
+                                        label="Meals"
+                                        reason="Banned"
                                         title="Banned from meals"
-                                    >
-                                        <Ban size={19} />
-                                        <span className="text-[11px] font-bold leading-none">Meals unavailable</span>
-                                    </div>
+                                        className="col-span-2 h-16 flex-col"
+                                    />
                                 ) : (
                                     [1, 2].map((count) => (
                                         <button
@@ -1191,7 +1307,12 @@ function PureGuestCard({
                     </button>
 
                     {/* Meal Buttons - hidden on mobile */}
-                    {!isBannedFromMeals && !compact && (
+                    {!compact && (
+                        isBannedFromMeals ? (
+                            <div className="hidden md:flex items-center">
+                                <DisabledAction label="Meals" reason="Banned" />
+                            </div>
+                        ) : (
                         <div className="hidden md:flex items-center gap-1">
                             {!todayMeal ? (
                                 <div className="flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
@@ -1218,14 +1339,12 @@ function PureGuestCard({
                                             )}
                                         </div>
                                         {mealAction && (
-                                            <button
-                                                onClick={(e) => handleUndo(e, mealAction.id, 'Check-in')}
-                                                disabled={isPending}
-                                                className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-2.5 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                            <UndoButton
                                                 title="Undo Check-in"
-                                            >
-                                                <RotateCcw size={16} />
-                                            </button>
+                                                label="Undo Check-in"
+                                                disabled={isPending}
+                                                onClick={(e) => handleUndo(e, mealAction.id, 'Check-in')}
+                                            />
                                         )}
                                     </div>
                                     {hasReachedMealLimit || hasReachedExtraMealLimit ? (
@@ -1237,14 +1356,12 @@ function PureGuestCard({
                                                 <span>Limit</span>
                                             </div>
                                             {extraMealAction && (
-                                                <button
-                                                    onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
-                                                    disabled={isPending}
-                                                    className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-2.5 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                                <UndoButton
                                                     title="Undo extra meal"
-                                                >
-                                                    <RotateCcw size={14} />
-                                                </button>
+                                                    label="Undo extra meal"
+                                                    disabled={isPending}
+                                                    onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
+                                                />
                                             )}
                                         </div>
                                     ) : (
@@ -1259,39 +1376,39 @@ function PureGuestCard({
                                                 <span>Extra</span>
                                             </button>
                                             {extraMealAction && (
-                                                <button
-                                                    onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
-                                                    disabled={isPending}
-                                                    className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-2.5 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 hover:bg-orange-200 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                                <UndoButton
                                                     title="Undo extra meal"
-                                                >
-                                                    <RotateCcw size={14} />
-                                                </button>
+                                                    label="Undo extra meal"
+                                                    disabled={isPending}
+                                                    onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
+                                                />
                                             )}
                                         </div>
                                     )}
                                 </div>
                             )}
                         </div>
+                        )
                     )}
 
                     {/* Quick Service Buttons - hidden on mobile */}
                     {!compact && (
                         <div className="hidden md:flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
                             {/* Shower */}
-                            {!isBannedFromShower && (
-                                todayShower ? (
-                                    <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm opacity-90">
-                                        <Check size={14} />
-                                        <ShowerHead size={15} />
+                            {isBannedFromShower ? (
+                                <DisabledAction label="Shower" reason="Banned" />
+                            ) : todayShower ? (
+                                    <div className="flex items-center gap-1">
+                                        <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
+                                            <Check size={14} />
+                                            <ShowerHead size={15} />
+                                        </div>
                                         {showerAction && (
-                                            <button
-                                                onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
-                                                className="ml-1 p-1.5 min-w-[28px] min-h-[28px] hover:bg-red-100 active:scale-90 rounded-md text-red-500 transition-all touch-manipulation flex items-center justify-center"
+                                            <UndoButton
                                                 title="Undo shower"
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
+                                                label="Undo shower"
+                                                onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
+                                            />
                                         )}
                                     </div>
                                 ) : (
@@ -1309,21 +1426,22 @@ function PureGuestCard({
                                         )}
                                     </button>
                                 )
-                            )}
+                            }
                             {/* Laundry */}
-                            {!isBannedFromLaundry && (
-                                todayLaundry ? (
-                                    <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm opacity-90">
-                                        <Check size={14} />
-                                        <WashingMachine size={15} />
+                            {isBannedFromLaundry ? (
+                                <DisabledAction label="Laundry" reason="Banned" />
+                            ) : todayLaundry ? (
+                                    <div className="flex items-center gap-1">
+                                        <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
+                                            <Check size={14} />
+                                            <WashingMachine size={15} />
+                                        </div>
                                         {laundryAction && (
-                                            <button
-                                                onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
-                                                className="ml-1 p-1.5 min-w-[28px] min-h-[28px] hover:bg-red-100 active:scale-90 rounded-md text-red-500 transition-all touch-manipulation flex items-center justify-center"
+                                            <UndoButton
                                                 title="Undo laundry"
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
+                                                label="Undo laundry"
+                                                onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
+                                            />
                                         )}
                                     </div>
                                 ) : (
@@ -1339,7 +1457,7 @@ function PureGuestCard({
                                         )}
                                     </button>
                                 )
-                            )}
+                            }
                         </div>
                     )}
 
@@ -1485,14 +1603,12 @@ function PureGuestCard({
                                         <>
                                             <Check size={20} className="text-emerald-500 mb-1.5" />
                                             {showerAction && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
-                                                    className="absolute top-1.5 right-1.5 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg active:scale-90 transition-all touch-manipulation"
+                                                <UndoButton
                                                     title="Undo shower"
-                                                >
-                                                    <RotateCcw size={14} />
-                                                </button>
+                                                    label="Undo shower"
+                                                    className="absolute top-1.5 right-1.5"
+                                                    onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
+                                                />
                                             )}
                                         </>
                                     ) : (
@@ -1511,7 +1627,7 @@ function PureGuestCard({
                                         </>
                                     )}
                                     <span className="text-xs font-bold">
-                                        {todayShower ? 'Shower Done' : nextAvailableShowerSlot ? `Shower (${nextAvailableShowerSlot.slotTime})` : 'Join Waitlist'}
+                                        {isBannedFromShower ? 'Shower · Banned' : todayShower ? 'Shower Done' : nextAvailableShowerSlot ? `Shower (${nextAvailableShowerSlot.slotTime})` : 'Join Waitlist'}
                                     </span>
                                 </div>
                                 <div
@@ -1538,14 +1654,12 @@ function PureGuestCard({
                                         <>
                                             <Check size={20} className="text-emerald-500 mb-1.5" />
                                             {laundryAction && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
-                                                    className="absolute top-1.5 right-1.5 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg active:scale-90 transition-all touch-manipulation"
+                                                <UndoButton
                                                     title="Undo laundry"
-                                                >
-                                                    <RotateCcw size={14} />
-                                                </button>
+                                                    label="Undo laundry"
+                                                    className="absolute top-1.5 right-1.5"
+                                                    onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
+                                                />
                                             )}
                                         </>
                                     ) : (
@@ -1564,7 +1678,7 @@ function PureGuestCard({
                                         </>
                                     )}
                                     <span className="text-xs font-bold">
-                                        {todayLaundry ? 'Laundry Done' : nextAvailableLaundrySlot ? `Laundry (${nextAvailableLaundrySlot.label.split(' - ')[0]})` : 'Laundry'}
+                                        {isBannedFromLaundry ? 'Laundry · Banned' : todayLaundry ? 'Laundry Done' : nextAvailableLaundrySlot ? `Laundry (${nextAvailableLaundrySlot.label.split(' - ')[0]})` : 'Laundry'}
                                     </span>
                                 </div>
                                 <button
@@ -1583,20 +1697,18 @@ function PureGuestCard({
                                         <>
                                             <Check size={20} className="text-emerald-500 mb-1.5" />
                                             {bicycleAction && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => handleUndo(e, bicycleAction.id, 'Bicycle booking')}
-                                                    className="absolute top-1.5 right-1.5 p-2 min-w-[36px] min-h-[36px] flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg active:scale-90 transition-all touch-manipulation"
+                                                <UndoButton
                                                     title="Undo bicycle"
-                                                >
-                                                    <RotateCcw size={14} />
-                                                </button>
+                                                    label="Undo bicycle"
+                                                    className="absolute top-1.5 right-1.5"
+                                                    onClick={(e) => handleUndo(e, bicycleAction.id, 'Bicycle booking')}
+                                                />
                                             )}
                                         </>
                                     ) : (
                                         <Bike size={20} className={isBannedFromBicycle ? "text-gray-400 mb-1.5" : "text-amber-500 mb-1.5"} />
                                     )}
-                                    <span className="text-xs font-bold text-gray-700">{todayBicycle ? 'Bicycle Done' : 'Bicycle'}</span>
+                                    <span className="text-xs font-bold text-gray-700">{isBannedFromBicycle ? 'Bicycle · Banned' : todayBicycle ? 'Bicycle Done' : 'Bicycle'}</span>
                                 </button>
                             </div>
 
@@ -1606,15 +1718,12 @@ function PureGuestCard({
                                     <div className="flex items-center justify-between mb-1.5">
                                         <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">Extra Meals</p>
                                         {extraMealAction && (
-                                            <button
-                                                onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
-                                                disabled={isPending}
-                                                className="flex items-center justify-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-lg bg-orange-100 border border-orange-200 text-orange-700 text-xs font-semibold hover:bg-orange-200 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                            <UndoButton
                                                 title="Undo extra meal"
-                                            >
-                                                <RotateCcw size={12} />
-                                                Undo
-                                            </button>
+                                                label="Undo extra meal"
+                                                disabled={isPending}
+                                                onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
+                                            />
                                         )}
                                     </div>
                                     {hasReachedMealLimit || hasReachedExtraMealLimit ? (
@@ -1652,13 +1761,12 @@ function PureGuestCard({
                                         <Check size={14} />
                                         Haircut
                                         {haircutAction && (
-                                            <button
-                                                onClick={(e) => handleUndo(e, haircutAction.id, 'Haircut')}
-                                                className="ml-1 p-1 min-w-[28px] min-h-[28px] hover:bg-red-100 rounded-md text-red-500 transition-all touch-manipulation flex items-center justify-center"
+                                            <UndoButton
                                                 title="Undo haircut"
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
+                                                label="Undo haircut"
+                                                className="ml-1"
+                                                onClick={(e) => handleUndo(e, haircutAction.id, 'Haircut')}
+                                            />
                                         )}
                                     </div>
                                 ) : (
@@ -1678,6 +1786,7 @@ function PureGuestCard({
                                         <button
                                             onClick={handleHaircutAdd}
                                             disabled={isPending || isBanned || hasHaircutForSelectedDate}
+                                            title={isBanned ? 'Banned from all programs' : undefined}
                                             className={cn(
                                                 "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation border border-transparent",
                                                 isBanned || hasHaircutForSelectedDate
@@ -1686,7 +1795,7 @@ function PureGuestCard({
                                             )}
                                         >
                                             <Scissors size={14} />
-                                            {hasHaircutForSelectedDate ? 'Haircut Done' : 'Haircut'}
+                                            {hasHaircutForSelectedDate ? 'Haircut Done' : isBanned ? 'Haircut · Banned' : 'Haircut'}
                                         </button>
                                     </div>
                                 )}
@@ -1696,19 +1805,19 @@ function PureGuestCard({
                                         <Check size={14} />
                                         Holiday
                                         {holidayAction && (
-                                            <button
-                                                onClick={(e) => handleUndo(e, holidayAction.id, 'Holiday visit')}
-                                                className="ml-1 p-1 min-w-[28px] min-h-[28px] hover:bg-red-100 rounded-md text-red-500 transition-all touch-manipulation flex items-center justify-center"
+                                            <UndoButton
                                                 title="Undo holiday visit"
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
+                                                label="Undo holiday visit"
+                                                className="ml-1"
+                                                onClick={(e) => handleUndo(e, holidayAction.id, 'Holiday visit')}
+                                            />
                                         )}
                                     </div>
                                 ) : (
                                     <button
                                         onClick={handleHolidayAdd}
                                         disabled={isPending || isBanned}
+                                        title={isBanned ? 'Banned from all programs' : undefined}
                                         className={cn(
                                             "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation border border-transparent",
                                             isBanned
@@ -1717,7 +1826,7 @@ function PureGuestCard({
                                         )}
                                     >
                                         <Gift size={14} />
-                                        Holiday Service
+                                        {isBanned ? 'Holiday · Banned' : 'Holiday Service'}
                                     </button>
                                 )}
 
@@ -1807,6 +1916,7 @@ function PureGuestCard({
                         const record = await addMealRecord(guestId, count);
                         addAction('MEAL_ADDED', { recordId: record.id, guestId });
                         toast.success(`${count} meal${count > 1 ? 's' : ''} logged for ${guest.preferredName || guest.firstName}`);
+                        triggerSuccessPulse('meal');
                     } catch (error: any) {
                         toast.error(error.message || 'Failed to log meals');
                     } finally {

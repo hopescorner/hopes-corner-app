@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.25.0] - 2026-09-10
+
+### Improved
+
+- Check-in guest cards now signal service state at a glance. A colored left edge and subtle card tint mark guests already served today (emerald) versus guests still needing service (slate), so staff can scan the list without reading every badge.
+- Demographics are de-emphasized on the card. Housing, location, gender, and age moved to a single smaller, lower-contrast line so meal and service status reads first.
+- Undo is now one consistent control everywhere on the card. The scattered tiny undo targets (28px on the shower and laundry pills) are replaced by a shared `UndoButton` that matches the same orange treatment and meets the 44px minimum touch target, including the expanded shower, laundry, bicycle, haircut, and holiday actions.
+- Banned program actions now render a clearly disabled control with the reason inline (`Meals · Banned`, `Shower · Banned`, and so on) instead of a hidden or faded button, so it is obvious why a service cannot be logged.
+- Successful meal, shower, and laundry actions now pulse the matching card badge using the existing `animate-success-pulse`, with a small stagger when more than one target is triggered, so staff see the tap register.
+
+### Tests
+
+- Full Vitest suite passes (4115 tests), including the `GuestCard` banned, undo, extra meal, and mobile action coverage.
+
 ## [0.24.9] - 2026-09-09
 
 ### Fixed

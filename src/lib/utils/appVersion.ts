@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.24.9';
+export const APP_VERSION = '0.25.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,32 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.25.0',
+        date: 'September 10, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Check-In Cards Read at a Glance',
+                description: 'Each guest card now has a colored edge and tint that shows whether the guest has been served today, so staff can scan the list without reading every badge. Name, housing, gender, and age details are quieter so service status stands out first.',
+            },
+            {
+                type: 'improvement',
+                title: 'One Consistent Undo Button',
+                description: 'Every undo on a guest card now uses the same orange control and meets the 44px minimum tap size, including the shower, laundry, and bicycle tiles where the old undo was only 28px.',
+            },
+            {
+                type: 'improvement',
+                title: 'Clearer Banned Actions',
+                description: 'When a guest is banned from a program, the action now shows a disabled control with the reason inline instead of a faded button, so it is obvious why a service cannot be logged.',
+            },
+            {
+                type: 'improvement',
+                title: 'Visible Success Feedback',
+                description: 'After a successful meal, shower, or laundry action, the matching card badge pulses so staff see the tap register even on a busy screen.',
+            },
+        ],
+    },
     {
         version: '0.24.9',
         date: 'September 9, 2026',
