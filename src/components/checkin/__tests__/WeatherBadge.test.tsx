@@ -40,4 +40,15 @@ describe('WeatherBadge', () => {
             expect(container.querySelector('[data-testid="weather-badge"]')).toBeNull();
         });
     });
+
+    it('renders immediately from server-provided weather without fetching', () => {
+        const fetchMock = vi.fn();
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(<WeatherBadge initialWeather={{ location: 'Mountain View, CA', temperatureF: 72.2, weatherCode: 3 }} />);
+
+        expect(screen.getByText('72°F')).toBeDefined();
+        expect(screen.getByText('Overcast')).toBeDefined();
+        expect(fetchMock).not.toHaveBeenCalled();
+    });
 });

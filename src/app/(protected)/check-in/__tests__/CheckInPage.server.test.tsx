@@ -6,6 +6,9 @@ const getSnapshot = vi.fn();
 vi.mock('@/lib/checkin/server', () => ({
     getCheckInRepository: () => ({ getSnapshot }),
 }));
+vi.mock('@/lib/weather/mountainView', () => ({
+    fetchMountainViewWeather: vi.fn(async () => null),
+}));
 vi.mock('@/lib/utils/date', () => ({ todayPacificDateString: () => '2026-07-19' }));
 vi.mock('@/components/checkin/CheckInClient', () => ({
     default: ({ initialSnapshot }: { initialSnapshot?: { directoryVersion: string } }) => (

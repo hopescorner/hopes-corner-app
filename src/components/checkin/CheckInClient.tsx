@@ -32,6 +32,7 @@ import { useCheckInStore } from '@/stores/useCheckInStore';
 import { hydrateLegacyStoresFromSnapshot, snapshotToMealStatusMap } from '@/lib/checkin/legacyAdapter';
 import type { CheckInSnapshot } from '@/types/checkin';
 import type { PotentialDuplicatePair } from '@/lib/utils/duplicateDetection';
+import type { MountainViewWeather } from '@/lib/weather/mountainView';
 
 const PenaltyKickGame = dynamic(
   () => import('@/components/checkin/PenaltyKickGame').then((m) => m.PenaltyKickGame),
@@ -61,9 +62,11 @@ type DuplicateCandidateIds = { firstGuestId: string; secondGuestId: string };
 
 export default function CheckInClient({
     initialSnapshot,
+    initialWeather = null,
     v2Enabled = true,
 }: {
     initialSnapshot?: CheckInSnapshot | null;
+    initialWeather?: MountainViewWeather | null;
     v2Enabled?: boolean;
 }) {
     const [searchQuery, setSearchQuery] = useState('');
@@ -691,7 +694,7 @@ export default function CheckInClient({
                         <p className="text-sm text-gray-500 hidden md:block">
                             {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                         </p>
-                        <WeatherBadge />
+                        <WeatherBadge initialWeather={initialWeather} />
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-start sm:justify-end gap-2">

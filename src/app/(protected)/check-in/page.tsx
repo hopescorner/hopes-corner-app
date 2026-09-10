@@ -1,17 +1,26 @@
 import CheckInClient from '@/components/checkin/CheckInClient';
 import { getCheckInRepository } from '@/lib/checkin/server';
 import { todayPacificDateString } from '@/lib/utils/date';
+import { fetchMountainViewWeather } from '@/lib/weather/mountainView';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CheckInPage() {
-    if (process.env.CHECKIN_V2_ENABLED === 'false') return <CheckInClient v2Enabled={false} />;
+    const weatherPromise = fetchMountainViewWeather();
 
-    let snapshot = null;
-    try {
-        snapshot = await getCheckInRepository().getSnapshot(todayPacificDateString());
-    } catch (error) {
-        console.error('[check-in] Server snapshot unavailable; using client fallback', error);
+    if (process.env.CHECKIN_V2_ENABLED === 'false') {
+        return <CheckInClient v2Enabled={false} initialWeather={await weatherPromise} />;
     }
-    return <CheckInClient initialSnapshot={snapshot} v2Enabled={snapshot !== null} />;
+
+    const [snapshot, weather] = await Promise.all([
+        getCheckInRepository()
+            .getSnapshot(todayPacificDateString())
+            .catch((error) => {
+                console.error('[check-in] Server snapshot unavailable; using client fallback', error);
+                return null;
+            }),
+        weatherPromise,
+    ]);
+
+    return <CheckInClient initialSnapshot={snapshot} initialWeather={weather} v2Enabled={snapshot !== null} />;
 }

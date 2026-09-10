@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.26.0';
+export const APP_VERSION = '0.26.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.26.1',
+        date: 'September 10, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Weather Badge Loads Reliably',
+                description: 'The Mountain View weather on the Check-In header now loads its data on the server and renders immediately, instead of waiting on a browser request that could hang on a loading placeholder.',
+            },
+        ],
+    },
     {
         version: '0.26.0',
         date: 'September 10, 2026',

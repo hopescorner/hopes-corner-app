@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.26.1] - 2026-09-10
+
+### Fixed
+
+- The Mountain View weather badge on the Check-In header now actually loads. It previously fetched from the browser and could stay stuck on the loading placeholder. Weather is now fetched on the server alongside the check-in snapshot and passed to the client through a shared `src/lib/weather/mountainView.ts` helper (4s timeout, cached 15 minutes), so the badge renders immediately. The client fetch remains only as a fallback and now times out instead of hanging, and the badge hides itself if weather is unavailable.
+
+### Tests
+
+- Added coverage for server-provided weather rendering without a client fetch, and mocked the weather helper in the check-in server page test. Full Vitest suite passes (4126 tests).
+
 ## [0.26.0] - 2026-09-10
 
 ### Added

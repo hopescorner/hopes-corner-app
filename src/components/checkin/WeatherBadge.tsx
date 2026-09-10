@@ -12,8 +12,10 @@ import {
     Sun,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import type { MountainViewWeather } from '@/lib/weather/mountainView';
 
 const WEATHER_LOCATION = 'Mountain View, CA';
+const CLIENT_FETCH_TIMEOUT_MS = 8000;
 
 export interface WeatherCondition {
     label: string;
@@ -44,12 +46,24 @@ interface WeatherData {
     weatherCode: number | null;
 }
 
-export function WeatherBadge({ className }: { className?: string }) {
-    const [weather, setWeather] = useState<WeatherData | null>(null);
+export function WeatherBadge({
+    initialWeather = null,
+    className,
+}: {
+    initialWeather?: MountainViewWeather | null;
+    className?: string;
+}) {
+    const [weather, setWeather] = useState<WeatherData | null>(() => (
+        initialWeather ? { temperatureF: initialWeather.temperatureF, weatherCode: initialWeather.weatherCode } : null
+    ));
     const [unavailable, setUnavailable] = useState(false);
 
     useEffect(() => {
+        // Weather was rendered on the server; no client round-trip needed.
+        if (initialWeather) return;
+
         const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), CLIENT_FETCH_TIMEOUT_MS);
 
         fetch('/api/weather', { signal: controller.signal })
             .then((response) => (response.ok ? response.json() : Promise.reject(new Error('Weather request failed'))))
@@ -61,11 +75,15 @@ export function WeatherBadge({ className }: { className?: string }) {
                 }
             })
             .catch(() => {
-                if (!controller.signal.aborted) setUnavailable(true);
-            });
+                setUnavailable(true);
+            })
+            .finally(() => clearTimeout(timer));
 
-        return () => controller.abort();
-    }, []);
+        return () => {
+            clearTimeout(timer);
+            controller.abort();
+        };
+    }, [initialWeather]);
 
     if (unavailable) return null;
 
