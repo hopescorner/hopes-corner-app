@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.26.1';
+export const APP_VERSION = '0.26.2';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.26.2',
+        date: 'September 12, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Shortcut Hints Hidden on Mobile',
+                description: 'The keyboard shortcut chips (1, 2, S, L, and the rest) no longer show on phones and tablets, where there is no physical keyboard to use them. The shortcut bar is now desktop-only.',
+            },
+        ],
+    },
     {
         version: '0.26.1',
         date: 'September 10, 2026',

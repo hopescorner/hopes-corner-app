@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.26.2] - 2026-09-12
+
+### Fixed
+
+- The keyboard shortcut chips (1, 2, S, L, and the rest) no longer show on phones and tablets, where there is no physical keyboard to use them. The `KeyboardShortcutsBar` is now desktop-only (`hidden sm:block`).
+
 ## [0.26.1] - 2026-09-10
 
 ### Fixed

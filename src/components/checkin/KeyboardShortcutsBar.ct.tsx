@@ -4,8 +4,7 @@ import { KeyboardShortcutsBar } from './KeyboardShortcutsBar';
 test.describe('KeyboardShortcutsBar', () => {
   test('shows only essentials by default', async ({ mount }) => {
     const component = await mount(<KeyboardShortcutsBar />);
-    // Scope to the desktop bar: the condensed mobile row also renders when
-    // component tests run without the global stylesheet.
+    // Scoped to the desktop bar (mobile row removed — no physical keyboard).
     const desktopBar = component.locator('#all-keyboard-shortcuts');
 
     await expect(desktopBar).toContainText('Ctrl+K');
@@ -53,16 +52,16 @@ test.describe('KeyboardShortcutsBar', () => {
   test('renders kbd elements for all shortcuts when expanded', async ({ mount }) => {
     const component = await mount(<KeyboardShortcutsBar />);
 
-    // Collapsed: 3 essentials (Ctrl+K, 1, 2, Esc = 4 kbd) + "?" = 5 desktop,
-    // plus 8 condensed mobile hints
+    // Collapsed: 3 essentials (Ctrl+K, 1, 2, Esc = 4 kbd) + "?" = 5 desktop.
+    // Mobile row removed — shortcuts require a physical keyboard.
     const collapsedKbds = await component.locator('kbd').count();
-    expect(collapsedKbds).toBe(13);
+    expect(collapsedKbds).toBe(5);
 
     await component.getByRole('button', { name: /All shortcuts/ }).click();
 
-    // Expanded: 12 desktop kbds + 8 mobile = 20
+    // Expanded: 11 shortcut kbds + "?" = 12
     const expandedKbds = await component.locator('kbd').count();
-    expect(expandedKbds).toBe(20);
+    expect(expandedKbds).toBe(12);
   });
 
   test('accepts custom className', async ({ mount }) => {

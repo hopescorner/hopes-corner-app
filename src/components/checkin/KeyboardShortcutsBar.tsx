@@ -32,17 +32,6 @@ const ALL_SHORTCUTS: ShortcutHint[] = [
     { keys: ['Esc'], label: 'Clear' },
 ];
 
-const MOBILE_SHORTCUTS: Array<{ key: string; label: string }> = [
-    { key: '1', label: 'Meal' },
-    { key: '2', label: 'Meals' },
-    { key: 'S', label: 'Shower' },
-    { key: 'L', label: 'Laundry' },
-    { key: 'B', label: 'Bike' },
-    { key: 'H', label: 'History' },
-    { key: 'U', label: 'Undo' },
-    { key: 'Esc', label: 'Clear' },
-];
-
 function KbdHint({ keys, label }: ShortcutHint) {
     return (
         <div className="flex items-center gap-1.5">
@@ -71,24 +60,11 @@ export function KeyboardShortcutsBar({ className = '' }: KeyboardShortcutsBarPro
     }, []);
 
     return (
-        <div className={className}>
-            {/* Condensed, horizontally scrollable hints for small screens */}
-            <div className="sm:hidden flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
-                {MOBILE_SHORTCUTS.map((shortcut) => (
-                    <div
-                        key={shortcut.key}
-                        className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border border-gray-200 bg-gray-50 shrink-0"
-                    >
-                        <kbd className="px-1 py-0.5 text-[10px] font-bold text-gray-500 bg-white rounded border border-gray-200">{shortcut.key}</kbd>
-                        <span className="text-[10px] font-medium text-gray-400">{shortcut.label}</span>
-                    </div>
-                ))}
-            </div>
-
-            {/* Full hint bar for larger screens: essentials by default, expandable via "?" */}
+        // Hidden on small/touch screens: keyboard shortcuts require a physical keyboard.
+        <div className={`${className} hidden sm:block`}>
             <div
                 id="all-keyboard-shortcuts"
-                className="hidden sm:flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500"
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500"
             >
                 {hints.map((hint, index) => (
                     <Fragment key={hint.label}>
