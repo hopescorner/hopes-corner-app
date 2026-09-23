@@ -34,7 +34,8 @@ import { useServicesStore } from "@/stores/useServicesStore";
 import { exportToCSV } from "@/lib/utils/csv";
 import { cn } from "@/lib/utils/cn";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import { getMealReportData, getMealReportYTDData } from "@/lib/utils/dashboardReportCache";
+import { getMealReportData, getMealReportYTDData, getMealReportDailyData } from "@/lib/utils/dashboardReportCache";
+import { DailyMealsWeatherTable } from "@/components/admin/DailyMealsWeatherTable";
 import { useShallow } from "zustand/react/shallow";
 
 const DAYS_OF_WEEK = [
@@ -223,6 +224,36 @@ export const MealReport = () => {
         if (!calculateMealData.length) return null;
         return calculateMealData[calculateMealData.length - 1];
     }, [calculateMealData]);
+
+    const dailyMealsWeatherRows = useMemo(() => {
+        return getMealReportDailyData({
+            ...meals,
+            ...services,
+            guests,
+        }, {
+            selectedYear,
+            selectedMonth,
+            selectedDays,
+            mealTypeFilters,
+        }).map((row) => {
+            const [y, m, d] = row.fullDate.split('-').map(Number);
+            const date = new Date(y, m - 1, d);
+            return {
+                fullDate: row.fullDate,
+                dateLabel: `${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} (${date.toLocaleDateString('en-US', { weekday: 'short' })})`,
+                meals: row.totalMeals,
+                uniqueGuests: row.uniqueGuests,
+            };
+        });
+    }, [
+        guests,
+        meals,
+        mealTypeFilters,
+        selectedDays,
+        selectedMonth,
+        selectedYear,
+        services,
+    ]);
 
     // Pie chart data for meal type breakdown
     const mealTypePieData = useMemo(() => {
@@ -450,6 +481,13 @@ export const MealReport = () => {
                     )}
                 </div>
             </div>
+
+            {/* Daily Meals & Weather */}
+            <DailyMealsWeatherTable
+                rows={dailyMealsWeatherRows}
+                title="Daily Meals & Weather"
+                subtitle={`${months[selectedMonth]} ${selectedYear} service days with Mountain View conditions`}
+            />
 
             {/* Pie Charts Section */}
             {currentMonthData && (

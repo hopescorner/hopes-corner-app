@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
     getMealReportData,
+    getMealReportDailyData,
     getMonthlyReportData,
     getMonthlySummaryDatasets,
     warmDashboardReportCache,
@@ -240,5 +241,77 @@ describe('dashboardReportCache', () => {
         expect(monthlyData.months[0].familyMeals).toBe(6);
         expect(ytdData.familyMeals).toBe(6);
         expect(ytdData.mealsExcludingLunchBags).toBe(34);
+    });
+});
+
+describe('getMealReportDailyData', () => {
+    it('groups service-day meals by date in ascending order', () => {
+        const rows = getMealReportDailyData(createInput(), {
+            selectedYear: 2025,
+            selectedMonth: 0,
+            selectedDays: [1, 3],
+            mealTypeFilters,
+        });
+
+        expect(rows.map((r) => r.fullDate)).toEqual([
+            '2025-01-06',
+            '2025-01-07',
+            '2025-01-08',
+            '2025-01-09',
+            '2025-01-10',
+            '2025-01-11',
+            '2025-01-12',
+            '2025-01-13',
+        ]);
+
+        const jan6 = rows.find((r) => r.fullDate === '2025-01-06');
+        expect(jan6?.totalMeals).toBe(3);
+        expect(jan6?.uniqueGuests).toBe(2);
+    });
+
+    it('counts off-site deliveries on their actual dates regardless of service weekdays', () => {
+        const rows = getMealReportDailyData(createInput(), {
+            selectedYear: 2025,
+            selectedMonth: 0,
+            selectedDays: [6],
+            mealTypeFilters,
+        });
+
+        // Onsite Mon/Wed meals are excluded, off-site rows remain on their dates.
+        expect(rows.map((r) => r.fullDate)).toEqual([
+            '2025-01-07',
+            '2025-01-09',
+            '2025-01-10',
+            '2025-01-11',
+            '2025-01-12',
+            '2025-01-13',
+        ]);
+    });
+
+    it('honors meal type filters per day', () => {
+        const rows = getMealReportDailyData(createInput(), {
+            selectedYear: 2025,
+            selectedMonth: 0,
+            selectedDays: [1, 3],
+            mealTypeFilters: { ...mealTypeFilters, guest: false, rv: false },
+        });
+
+        const jan6 = rows.find((r) => r.fullDate === '2025-01-06');
+        expect(jan6?.totalMeals).toBe(1);
+        expect(jan6?.uniqueGuests).toBe(1);
+        expect(rows.some((r) => r.fullDate === '2025-01-09')).toBe(false);
+        // Jan 8 only had a guest meal, so it drops out entirely.
+        expect(rows.some((r) => r.fullDate === '2025-01-08')).toBe(false);
+    });
+
+    it('excludes records from other months', () => {
+        const rows = getMealReportDailyData(createInput(), {
+            selectedYear: 2025,
+            selectedMonth: 0,
+            selectedDays: [1, 3, 5, 6],
+            mealTypeFilters,
+        });
+
+        expect(rows.some((r) => r.fullDate.startsWith('2025-02'))).toBe(false);
     });
 });

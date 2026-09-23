@@ -994,6 +994,83 @@ export const getMealReportYTDData = (
     };
 };
 
+export interface MealReportDailyRow {
+    /** Pacific calendar date (YYYY-MM-DD) - matches `daily_weather.date`. */
+    fullDate: string;
+    totalMeals: number;
+    uniqueGuests: number;
+}
+
+/**
+ * Per-service-day meal totals for a single month. Mirrors the counting rules
+ * of `getMealReportData`: onsite types (guest, extras, family) honor the
+ * selected service weekdays, while off-site deliveries (RV, day worker,
+ * shelter, united effort, lunch bags) count on their actual dates.
+ * Sorted ascending by date.
+ */
+export const getMealReportDailyData = (
+    input: DashboardReportCacheInput,
+    options: {
+        selectedYear: number;
+        selectedMonth: number;
+        selectedDays: number[];
+        mealTypeFilters: MealTypeFilters;
+    }
+): MealReportDailyRow[] => {
+    const { selectedYear, selectedMonth, selectedDays, mealTypeFilters } = options;
+    const familyMealsEnabled = mealTypeFilters.familyMeals !== false;
+    const refs = normalizeInput(input);
+    const byDate = new Map<string, { meals: number; guests: Set<string> }>();
+
+    const getDayEntry = (fullDate: string) => {
+        const existing = byDate.get(fullDate);
+        if (existing) return existing;
+        const created = { meals: 0, guests: new Set<string>() };
+        byDate.set(fullDate, created);
+        return created;
+    };
+
+    const addRecords = (
+        records: ReadonlyArray<MealRecordLike>,
+        enabled: boolean,
+        guestIdOf: (record: MealRecordLike) => string | null,
+        respectServiceDays: boolean
+    ) => {
+        if (!enabled) return;
+        records.forEach((record) => {
+            const parts = getDateParts(record.dateKey, record.date);
+            if (!parts || parts.year !== selectedYear || parts.month !== selectedMonth) return;
+            if (respectServiceDays && !selectedDays.includes(parts.dayOfWeek)) return;
+            const fullDate = dateKeyFor(parts.year, parts.month, parts.day);
+            const entry = getDayEntry(fullDate);
+            entry.meals += getRecordCount(record);
+            const guestId = normalizeGuestId(guestIdOf(record));
+            if (guestId) entry.guests.add(guestId);
+        });
+    };
+
+    const onsiteGuestIdOf = (record: MealRecordLike) => record.guestId ?? null;
+    const familyGuestIdOf = (record: MealRecordLike) => record.primaryGuestId || record.guestId || null;
+
+    addRecords(refs.mealRecords, mealTypeFilters.guest, onsiteGuestIdOf, true);
+    addRecords(refs.extraMealRecords, mealTypeFilters.extras, onsiteGuestIdOf, true);
+    addRecords(refs.rvMealRecords, mealTypeFilters.rv, onsiteGuestIdOf, false);
+    addRecords(refs.dayWorkerMealRecords, mealTypeFilters.dayWorker, onsiteGuestIdOf, false);
+    addRecords(refs.shelterMealRecords, mealTypeFilters.shelter, onsiteGuestIdOf, false);
+    addRecords(refs.unitedEffortMealRecords, mealTypeFilters.unitedEffort, onsiteGuestIdOf, false);
+    addRecords(refs.lunchBagRecords, mealTypeFilters.lunchBags, onsiteGuestIdOf, false);
+    addRecords(refs.familyMealRecords, familyMealsEnabled, familyGuestIdOf, true);
+
+    return Array.from(byDate.entries())
+        .filter(([, entry]) => entry.meals > 0 || entry.guests.size > 0)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([fullDate, entry]) => ({
+            fullDate,
+            totalMeals: entry.meals,
+            uniqueGuests: entry.guests.size,
+        }));
+};
+
 
 export const getMonthlyReportData = (
     input: DashboardReportCacheInput,

@@ -51,6 +51,7 @@ import { pacificDateStringFrom, todayPacificDateString } from '@/lib/utils/date'
 import { calculateDonationValue, deriveDonationDateKey, formatDonationCurrency } from '@/lib/utils/donationUtils';
 import { PeakTimesHeatmap } from './PeakTimesHeatmap';
 import { GuestRetentionChart } from './GuestRetentionChart';
+import { DailyMealsWeatherTable } from './DailyMealsWeatherTable';
 import {
     HOUSING_STATUSES,
     AGE_GROUPS,
@@ -975,6 +976,16 @@ export function AnalyticsSection() {
         };
     }, [dailyData, getWeatherForDate]);
 
+    const dailyMealsWeatherRows = useMemo(() => {
+        return dailyData
+            .filter((day) => day.meals > 0)
+            .map((day) => ({
+                fullDate: day.fullDate,
+                dateLabel: day.date,
+                meals: day.meals,
+            }));
+    }, [dailyData]);
+
     // Render Trends
     const renderTrends = () => (
         <div className="space-y-6">
@@ -1100,6 +1111,12 @@ export function AnalyticsSection() {
                     </div>
                 </div>
             )}
+
+            <DailyMealsWeatherTable
+                rows={dailyMealsWeatherRows}
+                title="Daily Meals & Weather"
+                subtitle="Meals served per service day with Mountain View conditions"
+            />
         </div>
     );
 
