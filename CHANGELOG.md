@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.27.1] - 2026-09-23
+
+### Fixed
+
+- Guests banned from a single program (e.g. showers only) can now be signed up for haircuts and holiday services. The check-in card blocked Haircut and Holiday whenever any ban was active; they are now blocked only by a blanket ban covering all programs (`isAllProgramsBanned`).
+- Hardened the `ensure_guest_not_banned()` guard so a ban covering all four flagged programs (meals, showers, laundry, bicycle) also blocks unflagged services (haircut, holiday, items) like a true blanket ban, while single-program bans still allow them.
+
+### Tests
+
+- Existing `banUtils` (6 tests) and `GuestCard` (98 tests) suites pass; `npm run lint` clean.
+
 ## [0.27.0] - 2026-09-22
 
 ### Added

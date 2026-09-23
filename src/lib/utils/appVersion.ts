@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.27.0';
+export const APP_VERSION = '0.27.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.27.1',
+        date: 'September 23, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Single-Program Bans No Longer Block Haircut and Holiday',
+                description: 'Guests banned from only one program (e.g. showers) can now be signed up for haircuts and holiday services. Those actions are blocked only by a blanket ban covering all programs.',
+            },
+        ],
+    },
     {
         version: '0.27.0',
         date: 'September 22, 2026',
