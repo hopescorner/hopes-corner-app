@@ -19,6 +19,13 @@ vi.mock('@/lib/weather/mountainView', () => ({
     backfillMountainViewWeather: vi.fn(),
 }));
 
+// POST creates a cookie-aware server client; next/headers has no request
+// scope in unit tests, so stub it. The mocked mountainView fns above only
+// pass the client through, so a dummy object suffices.
+vi.mock('@/lib/supabase/server', () => ({
+    createClient: vi.fn(async () => ({ __testServerClient: true })),
+}));
+
 describe('GET and POST /api/weather/daily', () => {
     afterEach(() => {
         vi.clearAllMocks();

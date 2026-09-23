@@ -13,19 +13,26 @@ export async function GET() {
 
     if (weather.tempHigh !== null && weather.tempHigh !== undefined && weather.tempLow !== null && weather.tempLow !== undefined) {
         try {
-            await saveDailyWeather({
-                date: weather.date || todayPacificDateString(),
-                location: weather.location,
-                tempHigh: weather.tempHigh,
-                tempLow: weather.tempLow,
-                weatherCode: weather.weatherCode,
-                condition: weather.condition || 'Clear',
-                conditionCategory: weather.conditionCategory || 'sunny',
-                precipitationSum: weather.precipitationSum ?? 0,
-                hasRain: weather.hasRain ?? false,
-            });
-        } catch {
-            // Non-blocking
+            // Use the server Supabase client (cookie-aware session); the
+            // browser client has no session in a route handler.
+            const { createClient } = await import('@/lib/supabase/server');
+            await saveDailyWeather(
+                {
+                    date: weather.date || todayPacificDateString(),
+                    location: weather.location,
+                    tempHigh: weather.tempHigh,
+                    tempLow: weather.tempLow,
+                    weatherCode: weather.weatherCode,
+                    condition: weather.condition || 'Clear',
+                    conditionCategory: weather.conditionCategory || 'sunny',
+                    precipitationSum: weather.precipitationSum ?? 0,
+                    hasRain: weather.hasRain ?? false,
+                },
+                await createClient()
+            );
+        } catch (error) {
+            // Non-blocking, but log so silent persistence failures are visible.
+            console.error('[weather] Failed to persist daily weather', error);
         }
     }
 

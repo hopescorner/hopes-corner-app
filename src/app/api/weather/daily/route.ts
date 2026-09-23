@@ -40,20 +40,25 @@ export async function POST(request: Request) {
             syncToday?: boolean;
         };
 
+        if (!syncToday && !(startDate && endDate)) {
+            return NextResponse.json(
+                { error: 'Provide syncToday or both startDate and endDate' },
+                { status: 400 }
+            );
+        }
+
+        // Server Supabase client (cookie-aware); the browser client has no
+        // session in a route handler.
+        const { createClient } = await import('@/lib/supabase/server');
+        const supabase = await createClient();
+
         if (syncToday) {
-            const saved = await fetchAndSaveTodayMountainViewWeather();
+            const saved = await fetchAndSaveTodayMountainViewWeather(supabase);
             return NextResponse.json({ success: true, weather: saved });
         }
 
-        if (startDate && endDate) {
-            const records = await backfillMountainViewWeather(startDate, endDate);
-            return NextResponse.json({ success: true, count: records.length, records });
-        }
-
-        return NextResponse.json(
-            { error: 'Provide syncToday or both startDate and endDate' },
-            { status: 400 }
-        );
+        const records = await backfillMountainViewWeather(startDate!, endDate!, supabase);
+        return NextResponse.json({ success: true, count: records.length, records });
     } catch (err: any) {
         return NextResponse.json(
             { error: err?.message || 'Failed to sync weather' },
