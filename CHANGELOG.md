@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.27.2] - 2026-09-23
+
+### Fixed
+
+- The check-in page now persists today's Mountain View weather to the `daily_weather` table on every load (idempotent upsert on date + location, overlapped with the snapshot query so it adds no latency). Previously the only automatic write lived in `GET /api/weather`, which the server-rendered badge never calls, so meal service days produced no rows.
+- The weather API routes (`GET /api/weather`, `POST /api/weather/daily`) now write through the cookie-aware server Supabase client instead of the browser client, which has no session in a route handler. Save failures are logged instead of silently swallowed, and the daily route validates its body before touching the database.
+
+### Tests
+
+- Added check-in server page coverage pinning the weather persist on full daily data and the skip when daily data is absent; daily route POST tests mock the server client. Weather suites pass (21 tests); `npm run lint` and `tsc --noEmit` clean.
+
 ## [0.27.1] - 2026-09-23
 
 ### Fixed

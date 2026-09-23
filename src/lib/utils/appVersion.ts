@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.27.1';
+export const APP_VERSION = '0.27.2';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.27.2',
+        date: 'September 23, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Daily Weather Now Saved on Service Days',
+                description: 'The check-in page now persists today’s Mountain View weather to the daily weather table on every load, so service days get attendance correlation data. Weather API routes also use the server database client instead of the browser client.',
+            },
+        ],
+    },
     {
         version: '0.27.1',
         date: 'September 23, 2026',
