@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.26.2';
+export const APP_VERSION = '0.27.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.27.0',
+        date: 'September 22, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Daily Weather Tracking & Attendance Correlation',
+                description: 'Mountain View daily weather (high and low temperatures, weather condition, rain, and precipitation) is now stored in the database. The analytics trends view displays weather badges on hover and highlights guest attendance correlations across sunny, cloudy, and rainy days.',
+            },
+        ],
+    },
     {
         version: '0.26.2',
         date: 'September 12, 2026',

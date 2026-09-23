@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.27.0] - 2026-09-22
+
+### Added
+
+- Mountain View daily weather is now stored in the database (`daily_weather` table) tracking daily high and low temperatures, condition categories (sunny, cloudy, rain, fog, snow), and precipitation.
+- Open-Meteo integration now persists daily high/low temperatures on fetch and supports historical backfills via the archive API.
+- Added `/api/weather/daily` endpoint to retrieve daily weather history and trigger date-range backfills.
+- Analytics Trends chart now shows Mountain View weather conditions, highs/lows, and precipitation in the chart tooltip for each service day.
+- Added a Weather & Guest Attendance Impact breakdown in the Analytics Trends view comparing average guest attendance on sunny, cloudy, and rainy days.
+
+### Tests
+
+- Added tests for Mountain View daily weather extraction, condition categorization, daily weather API endpoints, and `useWeatherStore` realtime sync. Full Vitest suite passes (4150 tests).
+
 ## [0.26.2] - 2026-09-12
 
 ### Fixed
