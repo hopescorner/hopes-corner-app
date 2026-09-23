@@ -594,3 +594,36 @@ export const mapDailyNoteRow = (row: DailyNoteRow) => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
+
+interface DailyWeatherRowInput {
+  id: string;
+  date: string;
+  location?: string | null;
+  temp_high: number | string;
+  temp_low: number | string;
+  temp_unit?: string | null;
+  weather_code?: number | null;
+  condition: string;
+  condition_category: 'sunny' | 'cloudy' | 'rain' | 'fog' | 'snow' | 'other';
+  precipitation_sum?: number | string | null;
+  has_rain?: boolean | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const mapDailyWeatherRow = (row: DailyWeatherRowInput) => ({
+  id: row.id,
+  date: row.date,
+  location: row.location || 'Mountain View, CA',
+  tempHigh: Number(row.temp_high),
+  tempLow: Number(row.temp_low),
+  tempUnit: row.temp_unit || 'F',
+  weatherCode: row.weather_code ?? null,
+  condition: row.condition,
+  conditionCategory: row.condition_category || 'other',
+  precipitationSum: Number(row.precipitation_sum) || 0,
+  hasRain: row.has_rain === true || Number(row.precipitation_sum) > 0,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+

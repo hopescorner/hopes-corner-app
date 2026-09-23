@@ -181,8 +181,12 @@ vi.mock("@/lib/supabase/client", () => ({
       select: vi.fn().mockReturnThis(),
       insert: vi.fn().mockReturnThis(),
       update: vi.fn().mockReturnThis(),
+      upsert: vi.fn().mockReturnThis(),
       delete: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
+      gte: vi.fn().mockReturnThis(),
+      lte: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
       single: vi.fn(),
     })),
     auth: {

@@ -33,13 +33,17 @@ import {
     MapPin,
     Home,
     UserCheck,
-    DollarSign
+    DollarSign,
+    CloudRain,
+    Sun,
+    Cloud
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useDailyNotesStore, DailyNote } from '@/stores/useDailyNotesStore';
+import { useWeatherStore } from '@/stores/useWeatherStore';
 import { useModalStore } from '@/stores/useModalStore';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
@@ -161,6 +165,13 @@ export function AnalyticsSection() {
         }))
     );
 
+    const { getWeatherForDate, ensureLoaded: loadDailyWeather } = useWeatherStore(
+        useShallow((s) => ({
+            getWeatherForDate: s.getWeatherForDate,
+            ensureLoaded: s.ensureLoaded,
+        }))
+    );
+
     const openNoteModal = useModalStore((s) => s.openNoteModal);
 
     const [isMounted, setIsMounted] = useState(false);
@@ -272,6 +283,10 @@ export function AnalyticsSection() {
 
         return { start: startStr, end: endStr, days: dayCount };
     }, [selectedPreset, customStartDate, customEndDate]);
+
+    useEffect(() => {
+        loadDailyWeather({ startDate: dateRange.start, endDate: dateRange.end });
+    }, [dateRange.start, dateRange.end, loadDailyWeather]);
 
     // Helper to check if date is in range
     const isInRange = useCallback((dateStr: string, start: string, end: string) => {
@@ -866,7 +881,7 @@ export function AnalyticsSection() {
         </div>
     );
 
-    // Custom tooltip for trends chart that shows notes
+    // Custom tooltip for trends chart that shows notes and weather
     const CustomChartTooltip = ({ active, payload, label }: {
         active?: boolean;
         payload?: Array<{ name: string; value: number; color: string; dataKey: string }>;
@@ -878,6 +893,7 @@ export function AnalyticsSection() {
         const dataPoint = dailyData.find(d => d.date === label);
         const fullDate = dataPoint?.fullDate;
         const dayNotes = fullDate ? getNotesForDateRange(fullDate, fullDate) : [];
+        const dayWeather = fullDate ? getWeatherForDate(fullDate) : null;
 
         return (
             <div className="bg-white p-4 border border-gray-200 shadow-xl rounded-xl z-50 text-sm min-w-[180px]">
@@ -885,6 +901,24 @@ export function AnalyticsSection() {
                     {label}
                     {dataPoint?.hasNote && <StickyNote size={12} className="text-amber-500" />}
                 </p>
+                {dayWeather && (
+                    <div className="flex items-center gap-1.5 text-xs text-sky-800 bg-sky-50 border border-sky-100 px-2.5 py-1.5 rounded-lg mb-2">
+                        {dayWeather.conditionCategory === 'rain' ? (
+                            <CloudRain size={13} className="text-sky-500 flex-shrink-0" />
+                        ) : dayWeather.conditionCategory === 'cloudy' ? (
+                            <Cloud size={13} className="text-sky-500 flex-shrink-0" />
+                        ) : (
+                            <Sun size={13} className="text-amber-500 flex-shrink-0" />
+                        )}
+                        <span className="font-semibold">{dayWeather.condition}</span>
+                        <span className="font-medium text-sky-600">
+                            {Math.round(dayWeather.tempHigh)}° / {Math.round(dayWeather.tempLow)}°F
+                        </span>
+                        {dayWeather.hasRain && dayWeather.precipitationSum > 0 && (
+                            <span className="text-blue-600 font-semibold">({dayWeather.precipitationSum}&quot; rain)</span>
+                        )}
+                    </div>
+                )}
                 {payload.map((entry) => (
                     <div key={entry.name} className="flex items-center gap-2 mb-1">
                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: entry.color }} />
@@ -906,6 +940,40 @@ export function AnalyticsSection() {
             </div>
         );
     };
+
+    const weatherImpact = useMemo(() => {
+        const stats: Record<'sunny' | 'cloudy' | 'rain', { totalMeals: number; serviceDays: number; dates: string[] }> = {
+            sunny: { totalMeals: 0, serviceDays: 0, dates: [] },
+            cloudy: { totalMeals: 0, serviceDays: 0, dates: [] },
+            rain: { totalMeals: 0, serviceDays: 0, dates: [] },
+        };
+
+        for (const day of dailyData) {
+            if (!day.fullDate || day.meals === 0) continue;
+            const w = getWeatherForDate(day.fullDate);
+            if (!w) continue;
+            const category = w.conditionCategory === 'sunny' ? 'sunny' : w.conditionCategory === 'cloudy' ? 'cloudy' : w.conditionCategory === 'rain' ? 'rain' : null;
+            if (category) {
+                stats[category].totalMeals += day.meals;
+                stats[category].serviceDays += 1;
+                stats[category].dates.push(day.fullDate);
+            }
+        }
+
+        const sunnyAvg = stats.sunny.serviceDays > 0 ? Math.round(stats.sunny.totalMeals / stats.sunny.serviceDays) : null;
+        const cloudyAvg = stats.cloudy.serviceDays > 0 ? Math.round(stats.cloudy.totalMeals / stats.cloudy.serviceDays) : null;
+        const rainAvg = stats.rain.serviceDays > 0 ? Math.round(stats.rain.totalMeals / stats.rain.serviceDays) : null;
+
+        const hasAnyWeatherData = stats.sunny.serviceDays > 0 || stats.cloudy.serviceDays > 0 || stats.rain.serviceDays > 0;
+
+        return {
+            stats,
+            sunnyAvg,
+            cloudyAvg,
+            rainAvg,
+            hasAnyWeatherData,
+        };
+    }, [dailyData, getWeatherForDate]);
 
     // Render Trends
     const renderTrends = () => (
@@ -975,6 +1043,63 @@ export function AnalyticsSection() {
                     )}
                 </div>
             </div>
+
+            {weatherImpact.hasAnyWeatherData && (
+                <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+                    <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <CloudRain size={16} className="text-sky-500" /> Weather &amp; Guest Attendance Impact
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-4">
+                        Average meal attendance in Mountain View, CA by weather condition during this period:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="p-4 rounded-xl border border-amber-100 bg-amber-50/50 flex flex-col justify-between">
+                            <div className="flex items-center gap-2 mb-2 text-amber-700">
+                                <Sun size={18} />
+                                <span className="font-bold text-sm">Sunny / Clear Days</span>
+                            </div>
+                            <div>
+                                <div className="text-2xl font-black text-amber-900">
+                                    {weatherImpact.sunnyAvg !== null ? `${weatherImpact.sunnyAvg} meals` : '—'}
+                                </div>
+                                <div className="text-xs text-amber-600 mt-1">
+                                    {weatherImpact.stats.sunny.serviceDays} service days recorded
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col justify-between">
+                            <div className="flex items-center gap-2 mb-2 text-slate-700">
+                                <Cloud size={18} />
+                                <span className="font-bold text-sm">Cloudy Days</span>
+                            </div>
+                            <div>
+                                <div className="text-2xl font-black text-slate-900">
+                                    {weatherImpact.cloudyAvg !== null ? `${weatherImpact.cloudyAvg} meals` : '—'}
+                                </div>
+                                <div className="text-xs text-slate-600 mt-1">
+                                    {weatherImpact.stats.cloudy.serviceDays} service days recorded
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/50 flex flex-col justify-between">
+                            <div className="flex items-center gap-2 mb-2 text-blue-700">
+                                <CloudRain size={18} />
+                                <span className="font-bold text-sm">Rainy Days</span>
+                            </div>
+                            <div>
+                                <div className="text-2xl font-black text-blue-900">
+                                    {weatherImpact.rainAvg !== null ? `${weatherImpact.rainAvg} meals` : '—'}
+                                </div>
+                                <div className="text-xs text-blue-600 mt-1">
+                                    {weatherImpact.stats.rain.serviceDays} service days recorded
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 

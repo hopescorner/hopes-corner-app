@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { mapDailyWeatherRow } from '../mappers';
 
 describe('mappers utilities', () => {
     describe('mapGuestRow', () => {
@@ -346,6 +347,56 @@ describe('mappers utilities', () => {
             };
 
             expect(mapped.type).toBe('haircut');
+        });
+    });
+
+    describe('mapDailyWeatherRow', () => {
+        it('maps snake_case daily weather row to camelCase DailyWeather', () => {
+            const row = {
+                id: 'weather-1',
+                date: '2026-09-22',
+                location: 'Mountain View, CA',
+                temp_high: '72.5',
+                temp_low: '55.0',
+                temp_unit: 'F',
+                weather_code: 3,
+                condition: 'Overcast',
+                condition_category: 'cloudy' as const,
+                precipitation_sum: '0.00',
+                has_rain: false,
+                created_at: '2026-09-22T10:00:00Z',
+                updated_at: '2026-09-22T10:00:00Z',
+            };
+
+            const mapped = mapDailyWeatherRow(row);
+            expect(mapped.id).toBe('weather-1');
+            expect(mapped.date).toBe('2026-09-22');
+            expect(mapped.location).toBe('Mountain View, CA');
+            expect(mapped.tempHigh).toBe(72.5);
+            expect(mapped.tempLow).toBe(55);
+            expect(mapped.tempUnit).toBe('F');
+            expect(mapped.weatherCode).toBe(3);
+            expect(mapped.condition).toBe('Overcast');
+            expect(mapped.conditionCategory).toBe('cloudy');
+            expect(mapped.precipitationSum).toBe(0);
+            expect(mapped.hasRain).toBe(false);
+        });
+
+        it('derives hasRain from precipitation_sum > 0', () => {
+            const row = {
+                id: 'weather-2',
+                date: '2026-09-23',
+                temp_high: 60,
+                temp_low: 50,
+                condition: 'Rain',
+                condition_category: 'rain' as const,
+                precipitation_sum: 0.45,
+                has_rain: false,
+            };
+
+            const mapped = mapDailyWeatherRow(row);
+            expect(mapped.hasRain).toBe(true);
+            expect(mapped.precipitationSum).toBe(0.45);
         });
     });
 });

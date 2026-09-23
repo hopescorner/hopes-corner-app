@@ -229,6 +229,40 @@ export interface DailyNoteRow {
     updated_at: string;
 }
 
+export type WeatherConditionCategory = 'sunny' | 'cloudy' | 'rain' | 'fog' | 'snow' | 'other';
+
+export interface DailyWeather {
+    id: string;
+    date: string;
+    location: string;
+    tempHigh: number;
+    tempLow: number;
+    tempUnit: string;
+    weatherCode: number | null;
+    condition: string;
+    conditionCategory: WeatherConditionCategory;
+    precipitationSum: number;
+    hasRain: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface DailyWeatherRow {
+    id: string;
+    date: string;
+    location: string;
+    temp_high: number | string;
+    temp_low: number | string;
+    temp_unit: string;
+    weather_code: number | null;
+    condition: string;
+    condition_category: WeatherConditionCategory;
+    precipitation_sum: number | string;
+    has_rain: boolean;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface GuestProxy {
     id: string;
     guest_id: string;

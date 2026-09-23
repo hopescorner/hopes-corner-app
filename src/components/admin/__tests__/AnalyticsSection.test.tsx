@@ -7,6 +7,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
+import { useWeatherStore } from '@/stores/useWeatherStore';
 import { useModalStore } from '@/stores/useModalStore';
 import { todayPacificDateString } from '@/lib/utils/date';
 
@@ -34,6 +35,19 @@ vi.mock('@/stores/useDailyNotesStore', () => ({
             isLoading: false,
             loadFromSupabase: vi.fn(),
             getNotesForDateRange: vi.fn(() => []),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
+}));
+
+vi.mock('@/stores/useWeatherStore', () => ({
+    useWeatherStore: vi.fn((selector) => {
+        const state = {
+            records: [],
+            weatherByDate: {},
+            isLoading: false,
+            ensureLoaded: vi.fn(),
+            getWeatherForDate: vi.fn(() => null),
         };
         return typeof selector === 'function' ? selector(state) : state;
     }),
@@ -1014,3 +1028,65 @@ describe('AnalyticsSection meal type filter affects Overview', () => {
         expect(mealsCard.querySelector('.text-3xl')?.textContent).toBe('0');
     });
 });
+
+describe('AnalyticsSection Weather Attendance Impact', () => {
+    const today = todayPacificDateString();
+
+    it('renders weather attendance impact section when weather data exists', () => {
+        vi.mocked(useMealsStore).mockImplementation((selector: any) => {
+            const state = {
+                mealRecords: [{ date: today, guestId: 'g1', count: 120 }],
+                rvMealRecords: [],
+                extraMealRecords: [],
+                dayWorkerMealRecords: [],
+                shelterMealRecords: [],
+                unitedEffortMealRecords: [],
+                lunchBagRecords: [],
+                holidayRecords: [],
+                haircutRecords: [],
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        vi.mocked(useWeatherStore).mockImplementation((selector: any) => {
+            const state = {
+                records: [],
+                weatherByDate: {
+                    [today]: {
+                        id: 'w-1',
+                        date: today,
+                        location: 'Mountain View, CA',
+                        tempHigh: 76,
+                        tempLow: 54,
+                        condition: 'Clear',
+                        conditionCategory: 'sunny',
+                        precipitationSum: 0,
+                        hasRain: false,
+                    },
+                },
+                isLoading: false,
+                ensureLoaded: vi.fn(),
+                getWeatherForDate: vi.fn((date) => (date === today ? {
+                    id: 'w-1',
+                    date: today,
+                    location: 'Mountain View, CA',
+                    tempHigh: 76,
+                    tempLow: 54,
+                    condition: 'Clear',
+                    conditionCategory: 'sunny',
+                    precipitationSum: 0,
+                    hasRain: false,
+                } : null)),
+            };
+            return typeof selector === 'function' ? selector(state) : state;
+        });
+
+        render(<AnalyticsSection />);
+        fireEvent.click(screen.getByText('Trends'));
+
+        expect(screen.getByText(/Weather & Guest Attendance Impact/i)).toBeDefined();
+        expect(screen.getByText('Sunny / Clear Days')).toBeDefined();
+        expect(screen.getByText('120 meals')).toBeDefined();
+    });
+});
+
