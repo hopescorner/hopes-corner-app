@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.28.0] - 2026-09-23
+
+### Added
+
+- New "Daily Meals & Weather" tables on the dashboard: the Meal Report tab shows per-service-day rows for the selected month (meals, unique guests, Mountain View condition with high/low and rain), and the Analytics tab shows the same daily pairing under the Weather Impact summary. Days without recorded weather show a dash with a note that rows appear as service days are saved.
+- Added `getMealReportDailyData()` to the dashboard report cache, mirroring the monthly report's counting rules (onsite meal types honor the selected service weekdays; off-site deliveries count on their actual dates).
+
+### Tests
+
+- Added coverage for daily grouping, weekday/type/month filtering, and the new table component (including newest-first ordering and empty state). Full Vitest suite passes (4162 tests); `npm run lint` clean.
+
 ## [0.27.2] - 2026-09-23
 
 ### Fixed

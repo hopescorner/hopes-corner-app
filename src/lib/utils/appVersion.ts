@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.27.2';
+export const APP_VERSION = '0.28.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.28.0',
+        date: 'September 23, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Daily Meals & Weather Tables on the Dashboard',
+                description: 'The Meal Report and Analytics tabs now show a per-service-day table pairing meals served with the recorded Mountain View weather (condition, high/low, rain) for that day.',
+            },
+        ],
+    },
     {
         version: '0.27.2',
         date: 'September 23, 2026',
