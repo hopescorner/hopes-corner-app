@@ -22,6 +22,7 @@ declare
   shower_ban boolean;
   laundry_ban boolean;
   has_program_specific boolean;
+  all_programs_banned boolean;
   normalized_service text;
   formatted_until text;
   service_label text;
@@ -66,6 +67,13 @@ begin
     or coalesce(meal_ban, false)
     or coalesce(shower_ban, false)
     or coalesce(laundry_ban, false);
+
+  -- Haircut/holiday/items have no per-program flags, so a ban covering all
+  -- four flagged programs must behave like a blanket ban for them.
+  all_programs_banned := coalesce(bicycle_ban, false)
+    and coalesce(meal_ban, false)
+    and coalesce(shower_ban, false)
+    and coalesce(laundry_ban, false);
 
   service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
   normalized_service := lower(trim(coalesce(service_label, '')));
@@ -120,6 +128,18 @@ begin
       end if;
       return new;
     else
+      -- Services without per-program flags (haircut, holiday, items, ...):
+      -- allow single-program bans, block only when all four are banned.
+      if all_programs_banned then
+        raise exception using
+          message = format(
+            'Guest %s is banned from services until %s',
+            coalesce(guest_name, new.guest_id::text),
+            formatted_until
+          ),
+          detail = coalesce(ban_reason, ''),
+          hint = 'Update the guest''s ban settings or wait until it expires.';
+      end if;
       return new;
     end if;
   end if;

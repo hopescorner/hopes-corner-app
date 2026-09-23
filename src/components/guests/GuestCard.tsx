@@ -642,6 +642,9 @@ function PureGuestCard({
     const hasAnyActivityToday = hasServiceToday || todayHaircut || todayHoliday;
     const banDetails = useMemo(() => getGuestBanDetails(guest), [guest]);
     const isBanned = banDetails.isBanned;
+    // Haircut/holiday have no per-program ban flags, so they are only blocked
+    // by a blanket ban (all programs), not by a single-program ban (e.g. showers).
+    const isBannedFromAllServices = banDetails.isAllProgramsBanned;
 
     // Check program-specific bans
     const isBannedFromMeals = banDetails.programs.find(p => p.key === 'meals')?.isBanned ?? false;
@@ -910,7 +913,7 @@ function PureGuestCard({
 
     const handleHaircutAdd = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (isPending || isBanned) return; // Blanket ban check
+        if (isPending || isBannedFromAllServices) return; // Blanket ban check
 
         const targetHaircutDate = haircutDate || today;
 
@@ -943,7 +946,7 @@ function PureGuestCard({
 
     const handleHolidayAdd = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (isPending || isBanned) return;
+        if (isPending || isBannedFromAllServices) return;
 
         setIsPending(true);
         try {
@@ -1781,21 +1784,21 @@ function PureGuestCard({
                                             onChange={(e) => setHaircutDate(e.target.value)}
                                             onClick={(e) => e.stopPropagation()}
                                             className="h-10 min-h-[40px] rounded-xl border border-gray-200 px-2.5 text-xs sm:text-sm text-gray-600 touch-manipulation"
-                                            disabled={isPending || isBanned || hasHaircutForSelectedDate}
+                                            disabled={isPending || isBannedFromAllServices || hasHaircutForSelectedDate}
                                         />
                                         <button
                                             onClick={handleHaircutAdd}
-                                            disabled={isPending || isBanned || hasHaircutForSelectedDate}
-                                            title={isBanned ? 'Banned from all programs' : undefined}
+                                            disabled={isPending || isBannedFromAllServices || hasHaircutForSelectedDate}
+                                            title={isBannedFromAllServices ? 'Banned from all programs' : undefined}
                                             className={cn(
                                                 "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation border border-transparent",
-                                                isBanned || hasHaircutForSelectedDate
+                                                isBannedFromAllServices || hasHaircutForSelectedDate
                                                     ? "text-gray-400 cursor-not-allowed"
                                                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
                                             )}
                                         >
                                             <Scissors size={14} />
-                                            {hasHaircutForSelectedDate ? 'Haircut Done' : isBanned ? 'Haircut · Banned' : 'Haircut'}
+                                            {hasHaircutForSelectedDate ? 'Haircut Done' : isBannedFromAllServices ? 'Haircut · Banned' : 'Haircut'}
                                         </button>
                                     </div>
                                 )}
@@ -1816,17 +1819,17 @@ function PureGuestCard({
                                 ) : (
                                     <button
                                         onClick={handleHolidayAdd}
-                                        disabled={isPending || isBanned}
-                                        title={isBanned ? 'Banned from all programs' : undefined}
+                                        disabled={isPending || isBannedFromAllServices}
+                                        title={isBannedFromAllServices ? 'Banned from all programs' : undefined}
                                         className={cn(
                                             "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation border border-transparent",
-                                            isBanned
+                                            isBannedFromAllServices
                                                 ? "text-gray-400 cursor-not-allowed"
                                                 : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
                                         )}
                                     >
                                         <Gift size={14} />
-                                        {isBanned ? 'Holiday · Banned' : 'Holiday Service'}
+                                        {isBannedFromAllServices ? 'Holiday · Banned' : 'Holiday Service'}
                                     </button>
                                 )}
 
