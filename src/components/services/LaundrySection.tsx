@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef, useDeferredValue, useSyncExternalStore } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp, GripVertical, AlertTriangle, CalendarDays } from 'lucide-react';
 import {
@@ -19,7 +19,11 @@ import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom, formatDateForDisplay } from '@/lib/utils/date';
-import { laundryBagRequired } from '@/lib/utils/laundryBag';
+import { useShallow } from 'zustand/react/shallow';
+import { useLaundryStatusChange, LAUNDRY_NEXT_ACTION } from './useLaundryStatusChange';
+import { useServiceViewState } from '@/hooks/useServiceViewState';
+import { useServiceScrollPosition } from '@/hooks/useServiceScrollPosition';
+import { useServiceClock } from '@/hooks/useServiceClock';
 import { generateLaundrySlots } from '@/lib/utils/serviceSlots';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
@@ -51,13 +55,12 @@ const OFFSITE_STATUS_COLUMNS = [
 /**
  * Formats time elapsed from an ISO timestamp to now
  */
-const formatTimeElapsed = (isoTimestamp: string | null): string | null => {
+const formatTimeElapsed = (isoTimestamp: string | null, nowMs: number): string | null => {
     if (!isoTimestamp) return null;
     try {
         const timestamp = new Date(isoTimestamp);
         if (isNaN(timestamp.getTime())) return null;
-        const now = new Date();
-        const diffMs = now.getTime() - timestamp.getTime();
+        const diffMs = nowMs - timestamp.getTime();
         if (diffMs < 0) return null;
         const diffMinutes = Math.floor(diffMs / (1000 * 60));
         const diffHours = Math.floor(diffMinutes / 60);
@@ -74,12 +77,19 @@ const formatTimeElapsed = (isoTimestamp: string | null): string | null => {
 };
 
 export function LaundrySection() {
-    const { laundryRecords, updateLaundryStatus, updateLaundryBagNumber, cancelMultipleLaundry, loadFromSupabase, addLaundryRecord, getLaundryWeeklyUsage } = useServicesStore();
-    const { guests } = useGuestsStore();
+    useServiceScrollPosition('laundry');
+    const { laundryRecords, updateLaundryStatus, cancelMultipleLaundry, addLaundryRecord, getLaundryWeeklyUsage } = useServicesStore(useShallow((s) => ({
+        laundryRecords: s.laundryRecords, updateLaundryStatus: s.updateLaundryStatus, cancelMultipleLaundry: s.cancelMultipleLaundry, addLaundryRecord: s.addLaundryRecord, getLaundryWeeklyUsage: s.getLaundryWeeklyUsage,
+    })));
+    const now = useServiceClock();
+    const { guests } = useGuestsStore(useShallow((s) => ({ guests: s.guests })));
     const { data: session } = useSession();
 
     const today = todayPacificDateString();
-    const [selectedDate, setSelectedDate] = useState(today);
+    const [selectedDate, setSelectedDate] = useServiceViewState('laundry-date', today);
+    const [search, setSearch] = useServiceViewState<string>('laundry-search', '');
+    const query = useDeferredValue(search.trim().toLowerCase());
+    const [showPickedUp, setShowPickedUp] = useServiceViewState<boolean>('laundry-picked-up', false);
     const [backfillGuestId, setBackfillGuestId] = useState('');
     const [backfillLaundryType, setBackfillLaundryType] = useState<'onsite' | 'offsite'>('onsite');
     const [backfillSlotLabel, setBackfillSlotLabel] = useState('');
@@ -110,7 +120,7 @@ export function LaundrySection() {
     // Sorted oldest-first so the most urgent items surface at the top
     const legacyLaundry = useMemo(() => {
         if (isViewingPast) return [];
-        const completedStatuses = new Set(['picked_up', 'returned', 'offsite_picked_up', 'cancelled']);
+        const completedStatuses = new Set(['picked_up', 'offsite_picked_up', 'cancelled']);
         return laundryRecords
             .filter(r => {
                 const recordDate = pacificDateStringFrom(r.date);
@@ -119,15 +129,32 @@ export function LaundrySection() {
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [laundryRecords, isViewingPast, today]);
 
-    const onsiteLaundry = activeLaundry.filter(r => r.laundryType === 'onsite' || !r.laundryType);
-    const offsiteLaundry = activeLaundry.filter(r => r.laundryType === 'offsite');
+    const guestMap = useMemo(() => new Map(guests.map((guest) => [guest.id, guest])), [guests]);
+    const matchesSearch = useCallback((record: any) => {
+        const guest = guestMap.get(record.guestId);
+        return !query || [guest?.name, guest?.preferredName, guest?.firstName, guest?.lastName, record.bagNumber].join(' ').toLowerCase().includes(query);
+    }, [guestMap, query]);
+    const groupedLaundry = useMemo(() => {
+        const groups: Record<string, any[]> = {};
+        for (const record of activeLaundry) {
+            if (!matchesSearch(record)) continue;
+            const type = record.laundryType === 'offsite' ? 'offsite' : 'onsite';
+            const status = type === 'offsite' && record.status === 'waiting' ? 'pending' : record.status;
+            (groups[`${type}:${status}`] ??= []).push(record);
+        }
+        for (const records of Object.values(groups)) records.sort((a, b) => (a.time || '').localeCompare(b.time || '') || (a.createdAt || '').localeCompare(b.createdAt || ''));
+        return groups;
+    }, [activeLaundry, matchesSearch]);
+    const visibleLegacyLaundry = useMemo(() => legacyLaundry.filter(matchesSearch), [legacyLaundry, matchesSearch]);
+    const onsiteLaundry = activeLaundry.filter(r => (r.laundryType === 'onsite' || !r.laundryType) && matchesSearch(r));
+    const offsiteLaundry = activeLaundry.filter(r => r.laundryType === 'offsite' && matchesSearch(r));
 
     const selectedDateLaundrySlots = useMemo(() => {
         const selectedDateObject = new Date(`${selectedDate}T12:00:00`);
         return generateLaundrySlots(selectedDateObject);
     }, [selectedDate]);
 
-const selectableGuests = useMemo(() => {
+    const selectableGuests = useMemo(() => {
         return (guests || [])
             .filter((guest) => guest?.id)
             .sort((firstGuest, secondGuest) => {
@@ -235,57 +262,16 @@ const selectableGuests = useMemo(() => {
     const sensors = useSensors(pointerSensor, touchSensor);
 
     // View mode state
-    const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+    const [viewPreference, setViewMode] = useServiceViewState<'kanban' | 'list' | 'auto'>('laundry-view', 'auto', ['kanban', 'list', 'auto']);
+    const portrait = useSyncExternalStore(subscribePortrait, getPortrait, () => false);
+    const viewMode = viewPreference === 'auto' ? (portrait ? 'list' : 'kanban') : viewPreference;
     const [showSlotManager, setShowSlotManager] = useState(false);
 
-    // Memoize guest lookup map for O(1) access
-    const guestMap = useMemo(() => {
-        const map = new Map();
-        (guests || []).forEach(g => map.set(g.id, g));
-        return map;
-    }, [guests]);
-
-    // Check if bag is required before moving from initial status.
-    // Shared helper keeps the kanban and list views in agreement; always
-    // evaluate the freshest store record (see handleStatusChange).
-    const requiresBagPrompt = useCallback((record: any, newStatus: string) =>
-        laundryBagRequired(record, newStatus), []);
-
-    // Handle status change with bag number validation
-    const handleStatusChange = useCallback(async (record: any, newStatus: string) => {
-        if (!record || isViewingPast) return;
-
-        // Always read the freshest record from the store to avoid stale closure data
-        // (e.g. bag number saved on the card but drag handler still has old reference)
-        const freshRecord = useServicesStore.getState().laundryRecords.find(
-            (r: any) => r.id === record.id
-        ) || record;
-
-        // Check if we need to prompt for bag number
-        if (requiresBagPrompt(freshRecord, newStatus)) {
-            const manualBag = window.prompt('A bag number is required before moving out of waiting. Enter one to continue.');
-            const trimmedBag = (manualBag || '').trim();
-            if (!trimmedBag) {
-                toast.error('Please enter a bag number to continue');
-                return;
-            }
-            try {
-                await updateLaundryBagNumber(record.id, trimmedBag);
-                toast.success('Bag number saved');
-            } catch {
-                toast.error('Failed to save bag number');
-                return;
-            }
-        }
-
-        try {
-            const ok = await updateLaundryStatus(record.id, newStatus);
-            if (ok) toast.success('Status updated');
-            else toast.error('Failed to update status');
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Failed to update status');
-        }
-    }, [requiresBagPrompt, updateLaundryBagNumber, updateLaundryStatus, isViewingPast]);
+    const { changeStatus, updatingIds, bagDialog } = useLaundryStatusChange(isViewingPast);
+    const handleStatusChange = useCallback((record: any, status: string) => {
+        const guest = guestMap.get(record.guestId);
+        return changeStatus(record, status, guest?.preferredName || guest?.name || 'Guest');
+    }, [changeStatus, guestMap]);
 
     // @dnd-kit drag handlers
     const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -318,14 +304,14 @@ const selectableGuests = useMemo(() => {
     }, [guestMap]);
 
     const handleBulkLegacyPickup = useCallback(async () => {
-        if (legacyLaundry.length === 0) return;
+        if (visibleLegacyLaundry.length === 0) return;
         const confirmed = window.confirm(
-            `Mark all ${legacyLaundry.length} previous-day laundry item${legacyLaundry.length > 1 ? 's' : ''} as picked up?`
+            `Mark all ${visibleLegacyLaundry.length} previous-day laundry item${visibleLegacyLaundry.length > 1 ? 's' : ''} as picked up?`
         );
         if (!confirmed) return;
         let successCount = 0;
         const failedNames: string[] = [];
-        for (const record of legacyLaundry) {
+        for (const record of visibleLegacyLaundry) {
             const isOnsite = record.laundryType === 'onsite' || !record.laundryType;
             try {
                 const ok = await updateLaundryStatus(record.id, isOnsite ? 'picked_up' : 'offsite_picked_up');
@@ -350,7 +336,7 @@ const selectableGuests = useMemo(() => {
         } else if (successCount === 0) {
             toast.error('Could not mark laundry as picked up. Please try again.');
         }
-    }, [legacyLaundry, updateLaundryStatus, getGuestNameDetails]);
+    }, [visibleLegacyLaundry, updateLaundryStatus, getGuestNameDetails]);
 
     return (
         <div className="space-y-8">
@@ -368,6 +354,74 @@ const selectableGuests = useMemo(() => {
                 </div>
             )}
 
+            <div className="sticky top-0 z-20 space-y-2 rounded-xl bg-white/95 p-2 shadow-sm">
+                <div className="flex items-center justify-between flex-wrap gap-4 bg-white/95 p-3 rounded-xl border border-gray-200">
+                    <div className="flex items-center gap-4 flex-wrap">
+                        {/* Date Picker for time travel */}
+                        <ServiceDatePicker
+                            selectedDate={selectedDate}
+                            onDateChange={setSelectedDate}
+                            isAdmin={isAdmin}
+                        />
+                        <div>
+                            <h2 className="text-xl font-black text-gray-900 flex items-center gap-3">
+                                <WashingMachine className="text-purple-600" />
+                                {viewMode === 'list' ? 'Laundry Overview' : 'On-site Laundry - Kanban Board'}
+                            </h2>
+                            <p className="text-sm text-gray-500 font-medium">
+                                {isViewingPast ? 'Historical view - status updates disabled' : 'Drag and drop cards between columns to update status'}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        {!isViewingPast && (
+                            <button
+                                onClick={() => setShowSlotManager(true)}
+                                className="min-h-11 min-w-11 flex items-center gap-2 px-3 py-1.5 bg-white text-gray-700 rounded-lg border hover:bg-gray-50 transition-colors text-sm font-medium"
+                            >
+                                <Settings className="w-4 h-4" />
+                                Manage Slots
+                            </button>
+                        )}
+                        <div className="flex bg-gray-100 p-1 rounded-lg">
+                            <button
+                                onClick={() => setViewMode('kanban')}
+                                className={cn(
+                                    "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
+                                    viewMode === 'kanban' ? "bg-white shadow text-purple-600" : "text-gray-500 hover:text-gray-700"
+                                )}
+                                title="Kanban View"
+                            >
+                                <LayoutGrid size={16} />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={cn(
+                                    "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
+                                    viewMode === 'list' ? "bg-white shadow text-purple-600" : "text-gray-500 hover:text-gray-700"
+                                )}
+                                title="List View"
+                            >
+                                <List size={16} />
+                            </button>
+                        </div>
+                        <span className="bg-gray-100 text-gray-700 font-bold px-3 py-1 rounded-full text-sm">
+                            {onsiteLaundry.length} total
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white/95 p-3">
+                    <label className="flex-1 min-w-48 text-sm font-medium text-gray-700">
+                        Find laundry
+                        <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Guest name or bag number" className="min-h-11 min-w-11 mt-1 w-full rounded-lg border border-gray-300 px-3 text-base" />
+                    </label>
+                    {viewMode === 'kanban' && <button type="button" aria-pressed={showPickedUp} onClick={() => setShowPickedUp(!showPickedUp)} className="min-h-11 min-w-11 rounded-lg border px-4 text-base font-medium">{showPickedUp ? 'Hide picked up' : 'Show picked up'}</button>}
+                    <button type="button" onClick={() => setViewMode('auto')} aria-pressed={viewPreference === 'auto'} className="min-h-11 min-w-11 rounded-lg border px-4 text-sm">Auto layout</button>
+                </div>
+
+            </div>
+
             {/* End Service Day Panel - Only show for today */}
             {!isViewingPast && (
                 <EndServiceDayPanel
@@ -381,7 +435,7 @@ const selectableGuests = useMemo(() => {
             )}
 
             {/* Legacy Laundry — Pending Pickup (always visible, prominent) */}
-            {!isViewingPast && legacyLaundry.length > 0 && (
+            {!isViewingPast && visibleLegacyLaundry.length > 0 && (
                 <div className="rounded-xl overflow-hidden border-2 border-red-300 shadow-md" data-testid="legacy-laundry-section">
                     {/* Prominent header */}
                     <div className="bg-gradient-to-r from-red-600 to-orange-500 px-5 py-4">
@@ -393,18 +447,18 @@ const selectableGuests = useMemo(() => {
                                 </div>
                                 <div>
                                     <h3 className="text-base font-black text-white tracking-tight">
-                                        Previous Day Laundry — Action Required ({legacyLaundry.length})
+                                        Previous Day Laundry — Action Required ({visibleLegacyLaundry.length})
                                     </h3>
                                     <p className="text-xs text-red-100 mt-0.5">
                                         These bookings are from previous days and still need to be picked up. They do not block today&apos;s slots.
                                     </p>
                                 </div>
                             </div>
-                            {isAdmin && legacyLaundry.length > 1 && (
+                            {isAdmin && visibleLegacyLaundry.length > 1 && (
                                 <button
                                     type="button"
                                     onClick={handleBulkLegacyPickup}
-                                    className="flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-xs font-bold rounded-lg border border-white/30 hover:bg-white/30 transition-colors whitespace-nowrap"
+                                    className="min-h-11 min-w-11 flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-xs font-bold rounded-lg border border-white/30 hover:bg-white/30 transition-colors whitespace-nowrap"
                                 >
                                     <CheckCircle size={14} />
                                     Mark All Picked Up
@@ -416,7 +470,7 @@ const selectableGuests = useMemo(() => {
                     {/* Cards */}
                     <div className="bg-red-50/60 px-4 py-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                            {legacyLaundry.map((record) => {
+                            {visibleLegacyLaundry.map((record) => {
                                 const { guest, primaryName, legalName, hasPreferred } = getGuestNameDetails(record.guestId);
                                 const recordDateObj = new Date(record.date);
                                 const todayObj = new Date(`${today}T12:00:00`);
@@ -441,7 +495,7 @@ const selectableGuests = useMemo(() => {
                                             <div className="flex items-center gap-2 min-w-0">
                                                 <div className="min-w-0">
                                                     <span
-                                                        className="font-bold text-sm text-gray-900 truncate block"
+                                                        className="font-bold text-sm text-gray-900 break-words block"
                                                         title={hasPreferred ? `${primaryName} (${legalName})` : legalName}
                                                     >
                                                         {primaryName}
@@ -452,7 +506,7 @@ const selectableGuests = useMemo(() => {
                                                 </div>
                                                 <CompactWaiverIndicator guestId={record.guestId} serviceType="laundry" />
                                             </div>
-                                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 whitespace-nowrap flex-shrink-0">
+                                            <span className="text-sm font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 whitespace-nowrap flex-shrink-0">
                                                 {statusLabel}
                                             </span>
                                         </div>
@@ -463,7 +517,7 @@ const selectableGuests = useMemo(() => {
                                             <span className="text-xs font-semibold text-gray-700">{recordDateStr}</span>
                                             <span
                                                 className={cn(
-                                                    "text-[10px] font-bold px-2 py-0.5 rounded-full",
+                                                    "text-sm font-bold px-2 py-0.5 rounded-full",
                                                     isStale
                                                         ? "bg-red-100 text-red-700"
                                                         : "bg-amber-100 text-amber-700"
@@ -484,8 +538,9 @@ const selectableGuests = useMemo(() => {
 
                                         {/* Action button */}
                                         <button
+                                            disabled={updatingIds.has(record.id)}
                                             onClick={() => handleStatusChange(record, isOnsite ? 'picked_up' : 'offsite_picked_up')}
-                                            className="mt-1 flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm"
+                                            className="min-h-11 min-w-11 mt-1 flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm"
                                         >
                                             <CheckCircle size={14} />
                                             Mark Picked Up
@@ -500,66 +555,10 @@ const selectableGuests = useMemo(() => {
 
             {/* On-site Laundry Kanban */}
             <div className="space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-4 flex-wrap">
-                        {/* Date Picker for time travel */}
-                        <ServiceDatePicker
-                            selectedDate={selectedDate}
-                            onDateChange={setSelectedDate}
-                            isAdmin={isAdmin}
-                        />
-                        <div>
-                            <h2 className="text-xl font-black text-gray-900 flex items-center gap-3">
-                                <WashingMachine className="text-purple-600" />
-                                {viewMode === 'list' ? 'Laundry Overview' : 'On-site Laundry - Kanban Board'}
-                            </h2>
-                            <p className="text-sm text-gray-500 font-medium">
-                                {isViewingPast ? 'Historical view - status updates disabled' : 'Drag and drop cards between columns to update status'}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {!isViewingPast && (
-                            <button
-                                onClick={() => setShowSlotManager(true)}
-                                className="flex items-center gap-2 px-3 py-1.5 bg-white text-gray-700 rounded-lg border hover:bg-gray-50 transition-colors text-sm font-medium"
-                            >
-                                <Settings className="w-4 h-4" />
-                                Manage Slots
-                            </button>
-                        )}
-                        <div className="flex bg-gray-100 p-1 rounded-lg">
-                            <button
-                                onClick={() => setViewMode('kanban')}
-                                className={cn(
-                                    "p-1.5 rounded-md transition-all",
-                                    viewMode === 'kanban' ? "bg-white shadow text-purple-600" : "text-gray-500 hover:text-gray-700"
-                                )}
-                                title="Kanban View"
-                            >
-                                <LayoutGrid size={16} />
-                            </button>
-                            <button
-                                onClick={() => setViewMode('list')}
-                                className={cn(
-                                    "p-1.5 rounded-md transition-all",
-                                    viewMode === 'list' ? "bg-white shadow text-purple-600" : "text-gray-500 hover:text-gray-700"
-                                )}
-                                title="List View"
-                            >
-                                <List size={16} />
-                            </button>
-                        </div>
-                        <span className="bg-gray-100 text-gray-700 font-bold px-3 py-1 rounded-full text-sm">
-                            {onsiteLaundry.length} total
-                        </span>
-                    </div>
-                </div>
-
                 <ServiceDayNote date={selectedDate} serviceType="laundry" />
 
                 {viewMode === 'list' ? (
-                    <CompactLaundryList readOnly={isViewingPast} />
+                    <CompactLaundryList viewDate={selectedDate} search={query} readOnly={isViewingPast} showOffsiteInitially />
                 ) : (
                     <DndContext
                         sensors={sensors}
@@ -568,18 +567,8 @@ const selectableGuests = useMemo(() => {
                         onDragEnd={handleDragEnd}
                     >
                     <div className="flex gap-4 overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide">
-                        {STATUS_COLUMNS.map((column) => {
-                            const columnRecords = onsiteLaundry.filter(r => r.status === column.id).sort((a, b) => {
-                                const parseSlot = (slot: string | null | undefined): number => {
-                                    if (!slot) return Number.POSITIVE_INFINITY;
-                                    const [start] = String(slot).split(' - ');
-                                    const [h, m] = String(start).split(':');
-                                    return parseInt(h, 10) * 60 + parseInt(m, 10);
-                                };
-                                const timeDiff = parseSlot(a.time) - parseSlot(b.time);
-                                if (timeDiff !== 0) return timeDiff;
-                                return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
-                            });
+                        {STATUS_COLUMNS.filter((column) => showPickedUp || isViewingPast || column.id !== 'picked_up').map((column) => {
+                            const columnRecords = groupedLaundry[`onsite:${column.id}`] || [];
                             const Icon = column.icon;
 
                             return (
@@ -617,13 +606,14 @@ const selectableGuests = useMemo(() => {
                                                     onStatusChange={(newStatus) => handleStatusChange(record, newStatus)}
                                                     columns={STATUS_COLUMNS}
                                                     readOnly={isViewingPast}
+                                                    isUpdating={updatingIds.has(record.id)} now={now}
                                                 />
                                             ))}
                                             {columnRecords.length === 0 && (
                                                 <div className="py-12 text-center">
                                                     <Icon size={32} className="mx-auto text-gray-200/50 mb-2" />
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No laundry</p>
-                                                    <p className="text-[9px] text-gray-300 mt-1">Drag cards here</p>
+                                                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No laundry</p>
+                                                    <p className="text-sm text-gray-300 mt-1">Drag cards here</p>
                                                 </div>
                                             )}
                                         </AnimatePresence>
@@ -636,11 +626,11 @@ const selectableGuests = useMemo(() => {
                     <DragOverlay>
                         {activeRecord ? (
                             <div className="bg-white rounded-lg border-2 border-blue-400 shadow-2xl p-3 opacity-90 w-56 rotate-2">
-                                <div className="font-medium text-xs text-gray-900">
+                                <div className="font-medium text-base text-gray-900">
                                     {getGuestNameDetails(activeRecord.guestId).primaryName}
                                 </div>
                                 {activeRecord.bagNumber && (
-                                    <div className="text-[10px] text-purple-600 mt-1">Bag #{activeRecord.bagNumber}</div>
+                                    <div className="text-sm text-purple-600 mt-1">Bag #{activeRecord.bagNumber}</div>
                                 )}
                             </div>
                         ) : null}
@@ -654,13 +644,13 @@ const selectableGuests = useMemo(() => {
                     <button
                         type="button"
                         onClick={() => setShowAddForm(!showAddForm)}
-                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="min-h-11 min-w-11 w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
                         aria-expanded={showAddForm}
                     >
                         <span className="flex items-center gap-2">
                             <WashingMachine size={16} className="text-purple-600" />
                             Add Laundry Record
-                            <span className="text-[11px] font-normal text-gray-400">
+                            <span className="text-sm font-normal text-gray-400">
                                 (saves to {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
                             </span>
                         </span>
@@ -674,7 +664,7 @@ const selectableGuests = useMemo(() => {
                                     <select
                                         value={backfillGuestId}
                                         onChange={(event) => setBackfillGuestId(event.target.value)}
-                                        className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                                        className="min-h-11 min-w-11 w-full p-2.5 rounded-lg border border-gray-200 bg-white text-base"
                                     >
                                         <option value="">Select guest</option>
                                         {selectableGuests.map((guest) => {
@@ -696,7 +686,7 @@ const selectableGuests = useMemo(() => {
                                             setBackfillLaundryType(laundryType);
                                             if (laundryType === 'offsite') setBackfillSlotLabel('');
                                         }}
-                                        className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                                        className="min-h-11 min-w-11 w-full p-2.5 rounded-lg border border-gray-200 bg-white text-base"
                                     >
                                         <option value="onsite">On-site</option>
                                         <option value="offsite">Off-site</option>
@@ -708,7 +698,7 @@ const selectableGuests = useMemo(() => {
                                         <select
                                             value={backfillSlotLabel}
                                             onChange={(event) => setBackfillSlotLabel(event.target.value)}
-                                            className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                                            className="min-h-11 min-w-11 w-full p-2.5 rounded-lg border border-gray-200 bg-white text-base"
                                         >
                                             <option value="">Select slot</option>
                                             {selectedDateLaundrySlots.map((slotLabel) => (
@@ -723,7 +713,7 @@ const selectableGuests = useMemo(() => {
                                         value={backfillBagNumber}
                                         onChange={(event) => setBackfillBagNumber(event.target.value)}
                                         placeholder="Bag number"
-                                        className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                                        className="min-h-11 min-w-11 w-full p-2.5 rounded-lg border border-gray-200 bg-white text-base"
                                     />
                                 </div>
                                 <div className="flex gap-2">
@@ -775,7 +765,7 @@ const selectableGuests = useMemo(() => {
             )}
 
             {/* Off-site Laundry Kanban */}
-            <div className="space-y-4">
+            {viewMode === 'kanban' && <div className="space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
                             <h2 className="text-xl font-black text-gray-900 flex items-center gap-3">
@@ -795,13 +785,8 @@ const selectableGuests = useMemo(() => {
                         onDragEnd={handleDragEnd}
                     >
                     <div className="flex gap-4 overflow-x-auto pb-6 -mx-4 px-4 scrollbar-hide">
-                        {OFFSITE_STATUS_COLUMNS.map((column) => {
-                            // For pending column, also include 'waiting' status for backwards compatibility
-                            const columnRecords = offsiteLaundry.filter(r =>
-                                column.id === 'pending'
-                                    ? (r.status === 'pending' || r.status === 'waiting')
-                                    : r.status === column.id
-                            ).sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+                        {OFFSITE_STATUS_COLUMNS.filter((column) => showPickedUp || isViewingPast || column.id !== 'offsite_picked_up').map((column) => {
+                            const columnRecords = groupedLaundry[`offsite:${column.id}`] || [];
                             const Icon = column.icon;
 
                             return (
@@ -809,7 +794,7 @@ const selectableGuests = useMemo(() => {
                                     key={column.id}
                                     columnId={column.id}
                                     className={cn(
-                                        "flex-shrink-0 w-56 lg:flex-1 lg:min-w-[200px] rounded-xl border-2 p-4 min-h-[400px] flex flex-col transition-colors",
+                                        "flex-shrink-0 w-64 xl:flex-1 xl:min-w-[240px] rounded-xl border-2 p-4 min-h-[400px] flex flex-col transition-colors",
                                         column.bg,
                                         column.border,
                                         activeId && activeRecord?.status !== column.id && "ring-2 ring-offset-2 ring-blue-200"
@@ -839,13 +824,14 @@ const selectableGuests = useMemo(() => {
                                                     columns={OFFSITE_STATUS_COLUMNS}
                                                     isOffsite
                                                     readOnly={isViewingPast}
+                                                    isUpdating={updatingIds.has(record.id)} now={now}
                                                 />
                                             ))}
                                             {columnRecords.length === 0 && (
                                                 <div className="py-12 text-center">
                                                     <Icon size={32} className="mx-auto text-gray-200/50 mb-2" />
-                                                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">No laundry</p>
-                                                    <p className="text-[9px] text-gray-300 mt-1">Drag cards here</p>
+                                                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No laundry</p>
+                                                    <p className="text-sm text-gray-300 mt-1">Drag cards here</p>
                                                 </div>
                                             )}
                                         </AnimatePresence>
@@ -857,11 +843,11 @@ const selectableGuests = useMemo(() => {
                     <DragOverlay>
                         {activeRecord ? (
                             <div className="bg-white rounded-lg border-2 border-blue-400 shadow-2xl p-3 opacity-90 w-56 rotate-2">
-                                <div className="font-medium text-xs text-gray-900">
+                                <div className="font-medium text-base text-gray-900">
                                     {getGuestNameDetails(activeRecord.guestId).primaryName}
                                 </div>
                                 {activeRecord.bagNumber && (
-                                    <div className="text-[10px] text-purple-600 mt-1">Bag #{activeRecord.bagNumber}</div>
+                                    <div className="text-sm text-purple-600 mt-1">Bag #{activeRecord.bagNumber}</div>
                                 )}
                             </div>
                         ) : null}
@@ -869,6 +855,8 @@ const selectableGuests = useMemo(() => {
                     </DndContext>
             </div>
 
+            }
+            {bagDialog}
             <SlotBlockModal
                 isOpen={showSlotManager}
                 onClose={() => setShowSlotManager(false)}
@@ -900,12 +888,14 @@ interface DraggableLaundryCardProps {
     columns: typeof STATUS_COLUMNS;
     isOffsite?: boolean;
     readOnly?: boolean;
+    isUpdating?: boolean;
+    now: number;
 }
 
-function DraggableLaundryCard({ record, guestDetails, isDragging, onStatusChange, columns, isOffsite = false, readOnly = false }: DraggableLaundryCardProps) {
+function DraggableLaundryCard({ record, guestDetails, isDragging, onStatusChange, columns, isOffsite = false, readOnly = false, isUpdating = false, now }: DraggableLaundryCardProps) {
     const { attributes, listeners, setNodeRef, transform } = useDraggable({
         id: record.id,
-        disabled: readOnly,
+        disabled: readOnly || isUpdating,
     });
 
     const style = transform
@@ -913,16 +903,17 @@ function DraggableLaundryCard({ record, guestDetails, isDragging, onStatusChange
         : undefined;
 
     return (
-        <div ref={setNodeRef} style={style} {...attributes}>
+        <div ref={setNodeRef} style={style}>
             <LaundryCard
                 record={record}
                 guestDetails={guestDetails}
                 isDragging={isDragging}
-                dragListeners={listeners}
+                dragListeners={{ ...attributes, ...listeners }}
                 onStatusChange={onStatusChange}
                 columns={columns}
                 isOffsite={isOffsite}
                 readOnly={readOnly}
+                isUpdating={isUpdating} now={now}
             />
         </div>
     );
@@ -937,20 +928,25 @@ interface LaundryCardProps {
     columns: typeof STATUS_COLUMNS;
     isOffsite?: boolean;
     readOnly?: boolean;
+    isUpdating?: boolean;
+    now: number;
 }
 
-function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatusChange, columns, isOffsite = false, readOnly = false }: LaundryCardProps) {
+function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatusChange, columns, isOffsite = false, readOnly = false, isUpdating = false, now }: LaundryCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
     const [isEditingBag, setIsEditingBag] = useState(false);
     const [bagValue, setBagValue] = useState(record.bagNumber || '');
-    const { updateLaundryBagNumber, deleteLaundryRecord } = useServicesStore();
+    const { updateLaundryBagNumber, deleteLaundryRecord } = useServicesStore(useShallow((s) => ({ updateLaundryBagNumber: s.updateLaundryBagNumber, deleteLaundryRecord: s.deleteLaundryRecord })));
 
     const isCompleted = record.status === 'picked_up' || record.status === 'offsite_picked_up';
+    const nextAction = LAUNDRY_NEXT_ACTION[isOffsite && record.status === 'waiting' ? 'pending' : record.status];
 
     const handleSaveBag = async () => {
         if (readOnly) return;
         try {
-            await updateLaundryBagNumber(record.id, bagValue);
+            if (await updateLaundryBagNumber(record.id, bagValue) === false) {
+                throw new Error('Failed to save bag number');
+            }
             setIsEditingBag(false);
             toast.success('Bag number saved');
         } catch {
@@ -970,10 +966,9 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
 
     return (
         <div
-            {...(!readOnly && dragListeners ? dragListeners : {})}
             className={cn(
                 "bg-white rounded-lg border-2 shadow-sm p-3 transition-all hover:shadow-md",
-                readOnly ? "cursor-default" : "cursor-grab active:cursor-grabbing",
+                "cursor-default",
                 isDragging && "opacity-50 scale-105",
                 isCompleted ? "border-emerald-200 hover:border-emerald-300" : "border-gray-200 hover:border-gray-300"
             )}
@@ -985,15 +980,15 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
             >
                 <div className="flex items-center justify-between gap-1.5 mb-2 min-h-[24px]">
                     {!readOnly && (
-                        <div
-                            className="flex-shrink-0 text-gray-300 hover:text-gray-500"
+                        <button type="button" {...dragListeners}
+                            className="min-h-11 min-w-11 flex-shrink-0 touch-none cursor-grab text-gray-500"
                             aria-label="Drag to reorder"
                         >
-                            <GripVertical size={14} />
-                        </div>
+                            <GripVertical size={20} />
+                        </button>
                     )}
                     <div className="flex-1 min-w-0">
-                        <div className="font-medium text-xs text-gray-900 leading-tight break-words line-clamp-2" title={guestDetails.hasPreferred ? `${guestDetails.preferredName} (${guestDetails.legalName})` : guestDetails.legalName}>
+                        <div className="font-semibold text-base text-gray-900 leading-tight break-words" title={guestDetails.hasPreferred ? `${guestDetails.preferredName} (${guestDetails.legalName})` : guestDetails.legalName}>
                             {guestDetails.primaryName}
                         </div>
                         <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -1008,7 +1003,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                         <button
                             type="button"
                             onClick={() => setIsExpanded(!isExpanded)}
-                            className="text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
+                            className="min-h-11 min-w-11 flex items-center justify-center text-gray-500 transition-colors flex-shrink-0"
                             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} laundry details`}
                         >
                             {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -1018,7 +1013,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
 
                 {/* Secondary info line */}
                 {(guestDetails.hasPreferred || (!isOffsite && record.time)) && (
-                    <div className="text-[9px] text-gray-500 mb-2 line-clamp-1">
+                    <div className="text-sm text-gray-600 mb-2 break-words">
                         {guestDetails.hasPreferred && guestDetails.legalName}
                         {guestDetails.hasPreferred && !isOffsite && record.time && ' • '}
                         {!isOffsite && record.time}
@@ -1042,28 +1037,29 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                     {/* Time tracking indicator */}
                     {!isCompleted && (record.createdAt || record.lastUpdated) && (
                         <div
-                            className="flex items-center gap-1.5 text-[10px] text-gray-500 bg-gray-50 rounded px-2 py-1 cursor-help"
-                            title={`Dropoff: ${record.createdAt ? formatTimeElapsed(record.createdAt) + ' ago' : 'N/A'}\nIn current status: ${record.lastUpdated ? formatTimeElapsed(record.lastUpdated) + ' ago' : 'N/A'}`}
+                            className="flex items-center gap-1.5 text-sm text-gray-500 bg-gray-50 rounded px-2 py-1 cursor-help"
+                            title={`Dropoff: ${record.createdAt ? formatTimeElapsed(record.createdAt, now) + ' ago' : 'N/A'}\nIn current status: ${record.lastUpdated ? formatTimeElapsed(record.lastUpdated, now) + ' ago' : 'N/A'}`}
                         >
                             <Timer size={10} className="text-gray-400 flex-shrink-0" />
                             <span>
                                 {record.lastUpdated && record.lastUpdated !== record.createdAt ? (
                                     <>
-                                        <span className="font-bold text-gray-700">{formatTimeElapsed(record.lastUpdated)}</span> in status
+                                        <span className="font-bold text-gray-700">{formatTimeElapsed(record.lastUpdated, now)}</span> in status
                                         <span className="text-gray-300 mx-1">•</span>
-                                        <span className="text-gray-400">Total: {formatTimeElapsed(record.createdAt) || '—'}</span>
+                                        <span className="text-gray-400">Total: {formatTimeElapsed(record.createdAt, now) || '—'}</span>
                                     </>
                                 ) : (
-                                    <span>{formatTimeElapsed(record.createdAt) || '—'}</span>
+                                    <span>{formatTimeElapsed(record.createdAt, now) || '—'}</span>
                                 )}
                             </span>
                         </div>
                     )}
 
+                    {!readOnly && nextAction && <button type="button" disabled={isUpdating} onClick={() => onStatusChange(nextAction.status)} className="min-h-11 min-w-11 w-full rounded-lg bg-purple-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">{isUpdating ? 'Saving…' : nextAction.label}</button>}
                     {isExpanded && (
                         <div className="pt-2 mt-2 border-t border-gray-100 space-y-2">
                             <div>
-                                <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                                <label className="block text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wide">
                                     Bag Number
                                 </label>
                                 {isEditingBag && !readOnly ? (
@@ -1073,10 +1069,10 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                                             value={bagValue}
                                             onChange={(e) => setBagValue(e.target.value)}
                                             placeholder="Enter bag number"
-                                            className="flex-1 border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+                                            className="min-h-11 min-w-11 flex-1 border border-gray-200 rounded px-2 py-1.5 text-base focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
                                             autoFocus
                                         />
-                                        <button onClick={handleSaveBag} className="px-2 py-1 bg-purple-600 text-white rounded text-[10px] font-bold">
+                                        <button onClick={handleSaveBag} className="min-h-11 min-w-11 px-2 py-1 bg-purple-600 text-white rounded text-sm font-bold">
                                             <Save size={12} />
                                         </button>
                                     </div>
@@ -1093,7 +1089,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                                                     setBagValue(record.bagNumber || '');
                                                     setIsEditingBag(true);
                                                 }}
-                                                className="text-[10px] text-blue-500 hover:underline"
+                                                className="min-h-11 min-w-11 text-sm text-blue-500 hover:underline"
                                             >
                                                 Edit
                                             </button>
@@ -1104,13 +1100,14 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
 
                             {!readOnly && (
                                 <div>
-                                    <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase tracking-wide">
+                                    <label className="block text-sm font-semibold text-gray-500 mb-1 uppercase tracking-wide">
                                         Status
                                     </label>
                                     <select
                                         value={record.status}
+                                        disabled={isUpdating}
                                         onChange={(e) => onStatusChange(e.target.value)}
-                                        className="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
+                                        className="min-h-11 min-w-11 w-full border border-gray-200 rounded px-2 py-1.5 text-base focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400"
                                     >
                                         {columns.map((col) => (
                                             <option key={col.id} value={col.id}>{col.title}</option>
@@ -1123,7 +1120,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                                 <button
                                     type="button"
                                     onClick={() => void handleDelete()}
-                                    className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded px-3 py-1.5 transition-colors"
+                                    className="min-h-11 min-w-11 w-full flex items-center justify-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 rounded px-3 py-1.5 transition-colors"
                                 >
                                     <Trash2 size={12} />
                                     Cancel Booking
@@ -1135,4 +1132,11 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
             </motion.div>
         </div>
     );
+}
+
+function getPortrait() { return window.matchMedia('(max-width: 1023px), (orientation: portrait)').matches; }
+function subscribePortrait(callback: () => void) {
+    const media = window.matchMedia('(max-width: 1023px), (orientation: portrait)');
+    media.addEventListener('change', callback);
+    return () => media.removeEventListener('change', callback);
 }

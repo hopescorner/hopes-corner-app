@@ -35,3 +35,24 @@ test.describe('ShowersSection', () => {
     await expect(payload).toContainText('"serviceDate":');
   });
 });
+
+test.describe('iPad showers', () => {
+  test.use({ viewport: { width: 768, height: 1024 }, hasTouch: true });
+
+  test('searches by legal name and keeps appointment minutes visible', async ({ mount, page }) => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const component = await mount(<ShowersSectionStory guests={guests} showerRecords={[
+      { id: 's1', guestId: 'g1', date: today, dateKey: today, status: 'booked', time: '09:30' },
+      { id: 's2', guestId: 'g2', date: today, dateKey: today, status: 'booked', time: '10:00' },
+    ]} />);
+    await component.getByRole('searchbox').fill('John Doe');
+    await expect(component.getByText('Johnny', { exact: true })).toBeVisible();
+    await expect(component.getByText('Jane Smith', { exact: true })).toHaveCount(0);
+    await expect(component.getByText('9:30', { exact: false })).toBeVisible();
+    const done = component.getByRole('button', { name: 'Complete shower', exact: true });
+    const box = await done.boundingBox();
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: '/tmp/hopes-showers-ipad-portrait.png', fullPage: true });
+  });
+});

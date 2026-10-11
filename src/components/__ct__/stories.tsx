@@ -735,8 +735,14 @@ export function LaundrySectionStory({
 
     useServicesStore.setState({
       laundryRecords: laundryRecords as any,
-      updateLaundryStatus: (async () => true) as any,
-      updateLaundryBagNumber: (async () => true) as any,
+      updateLaundryStatus: (async (id: string, status: string) => {
+        useServicesStore.setState((state) => ({ laundryRecords: state.laundryRecords.map((record) => record.id === id ? { ...record, status } : record) }));
+        return true;
+      }) as any,
+      updateLaundryBagNumber: (async (id: string, bagNumber: string) => {
+        useServicesStore.setState((state) => ({ laundryRecords: state.laundryRecords.map((record) => record.id === id ? { ...record, bagNumber } : record) }));
+        return true;
+      }) as any,
       cancelMultipleLaundry: (async () => true) as any,
       loadFromSupabase: (async () => undefined) as any,
       addLaundryRecord: (async (

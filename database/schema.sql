@@ -1630,7 +1630,7 @@ begin
       and scheduled_for = p_scheduled_for
     for update;
 
-    if v_existing_id is not null and v_existing_status not in ('cancelled', 'no_show') then
+    if v_existing_id is not null and v_existing_status not in ('cancelled', 'no_show', 'waitlisted') then
         raise exception 'This guest already has a shower reservation for this date.';
     end if;
 
@@ -1665,7 +1665,7 @@ end;
 $$;
 
 comment on function public.book_shower_slot(uuid, date, text, text) is
-'Atomically books a shower slot, reusing a cancelled/no-show reservation for the same guest and date. Rejects blocked slots with SLOT_BLOCKED.';
+'Atomically books a shower slot, reusing a waitlisted or cancelled/no-show reservation for the same guest and date. Rejects blocked slots with SLOT_BLOCKED.';
 
 -- SHOWER SLOT CAPACITY CONSTRAINT (safety-net trigger)
 -- Limits to 2 guests per slot, uses advisory lock for concurrency safety

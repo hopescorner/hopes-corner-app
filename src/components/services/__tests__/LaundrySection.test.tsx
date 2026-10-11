@@ -121,9 +121,9 @@ describe('LaundrySection Component', () => {
     });
 
     describe('Drag and Drop', () => {
-        it('renders cards with cursor-grab class for dragging', () => {
+        it('renders dedicated touch handles for dragging', () => {
             render(<LaundrySection />);
-            const grabCards = document.querySelectorAll('.cursor-grab');
+            const grabCards = document.querySelectorAll('button[aria-label="Drag to reorder"]');
             expect(grabCards.length).toBeGreaterThan(0);
         });
 
@@ -133,19 +133,11 @@ describe('LaundrySection Component', () => {
             expect(gripHandles.length).toBeGreaterThan(0);
         });
 
-        it('entire card is the drag target not just the grip icon', () => {
+        it('offers a dedicated touch drag handle beside card actions', () => {
             render(<LaundrySection />);
-            // The cursor-grab card should be the same element that has the drag listener
-            // (in @dnd-kit it attaches onPointerDown etc.)
-            const grabCards = document.querySelectorAll('.cursor-grab');
-            grabCards.forEach(card => {
-                // The grip icon should NOT have its own separate pointer-down handler
-                const grip = card.querySelector('[aria-label="Drag to reorder"]');
-                if (grip) {
-                    // Grip should just be a visual indicator, not the drag handle
-                    expect(grip.classList.contains('cursor-grab')).toBe(false);
-                }
-            });
+            const handles = screen.getAllByRole('button', { name: 'Drag to reorder' });
+            expect(handles.length).toBeGreaterThan(0);
+            expect(screen.getByRole('button', { name: 'Start washer' })).toBeEnabled();
         });
     });
 
@@ -310,7 +302,7 @@ describe('LaundrySection Component', () => {
             promptSpy.mockRestore();
         });
 
-        it('prompts for bag number when record has no bag number', async () => {
+        it('requests a bag number in a dialog when record has no bag number', async () => {
             const records = [
                 { id: 'l1', guestId: 'g1', status: 'waiting', time: '09:00-09:30', bagNumber: '', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T09:00:00Z' },
             ];
@@ -318,7 +310,6 @@ describe('LaundrySection Component', () => {
             mockUseServicesStore.mockReturnValue(storeData);
             mockUseServicesStore.getState.mockReturnValue(storeData);
 
-            const promptSpy = vi.spyOn(window, 'prompt').mockReturnValue('B77');
             render(<LaundrySection />);
 
             // Expand card and change status
@@ -328,12 +319,12 @@ describe('LaundrySection Component', () => {
             const dropdown = screen.getByDisplayValue('Waiting');
             fireEvent.change(dropdown, { target: { value: 'washer' } });
 
+            fireEvent.change(screen.getByLabelText('Bag number'), { target: { value: 'B77' } });
+            fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
             await waitFor(() => {
-                expect(promptSpy).toHaveBeenCalled();
                 expect(storeData.updateLaundryBagNumber).toHaveBeenCalledWith('l1', 'B77');
+                expect(storeData.updateLaundryStatus).toHaveBeenCalledWith('l1', 'washer');
             });
-
-            promptSpy.mockRestore();
         });
     });
 

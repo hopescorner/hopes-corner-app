@@ -98,12 +98,13 @@ describe('CompactLaundryList Component', () => {
         });
 
         it('calls updateLaundryStatus when advance button is clicked', async () => {
-            // Mock window.prompt to return a bag number (required for waiting → washer)
-            vi.spyOn(window, 'prompt').mockReturnValue('101');
+
             render(<CompactLaundryList />);
             // Click the first advance button (waiting → washer)
             const advanceButtons = screen.getAllByLabelText(/Advance to/);
             fireEvent.click(advanceButtons[0]);
+            fireEvent.change(screen.getByLabelText('Bag number'), { target: { value: '101' } });
+            fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
 
             await waitFor(() => {
                 expect(mockUpdateLaundryStatus).toHaveBeenCalled();
@@ -112,11 +113,12 @@ describe('CompactLaundryList Component', () => {
         });
 
         it('calls updateLaundryStatus when status dropdown is changed', async () => {
-            // Mock window.prompt to return a bag number (required for waiting → dryer)
-            vi.spyOn(window, 'prompt').mockReturnValue('102');
+
             render(<CompactLaundryList />);
             const statusDropdowns = screen.getAllByLabelText('Change laundry status');
             fireEvent.change(statusDropdowns[0], { target: { value: 'dryer' } });
+            fireEvent.change(screen.getByLabelText('Bag number'), { target: { value: '102' } });
+            fireEvent.click(screen.getByRole('button', { name: 'Save and continue' }));
 
             await waitFor(() => {
                 expect(mockUpdateLaundryStatus).toHaveBeenCalled();

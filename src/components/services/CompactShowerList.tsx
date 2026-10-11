@@ -16,15 +16,19 @@ interface Props {
     onGuestClick?: (guestId: string, recordId: string) => void;
     readOnly?: boolean;
     waitlistQueueMap?: Map<string, number>;
+    timeCues?: Map<string, string>;
+    onAssignSlot?: (guestId: string) => void;
 }
 
-const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, readOnly = false, queuePosition }: {
+const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, readOnly = false, queuePosition, timeCue, onAssignSlot }: {
     record: any;
     guestName: string;
     housingStatus?: string;
     onGuestClick?: (guestId: string, recordId: string) => void;
     readOnly?: boolean;
     queuePosition?: number;
+    timeCue?: string;
+    onAssignSlot?: (guestId: string) => void;
 }) => {
     const [isUpdating, setIsUpdating] = useState(false);
     const updateShowerStatus = useServicesStore((s) => s.updateShowerStatus);
@@ -77,25 +81,26 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
         >
             <div className="flex items-center gap-3 min-w-0">
                 <div className={cn(
-                    "w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm",
+                    "w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm",
                     record.status === 'done' ? 'bg-emerald-500' :
                     record.status === 'waitlisted' ? 'bg-amber-500' : 'bg-sky-500'
                 )}>
                     {queuePosition != null ? (
                         <span className="text-xs font-black">#{queuePosition}</span>
                     ) : record.status === 'waitlisted' ? <Clock size={14} /> : (
-                        record.time ? record.time.split(':')[0] : <User size={14} />
+                        <User size={20} />
                     )}
                 </div>
                 <div className="min-w-0">
-                    <h4 className="font-bold text-gray-900 text-sm truncate group-hover:text-sky-700 transition-colors">
+                    <h4 className="font-bold text-gray-900 text-base break-words group-hover:text-sky-700 transition-colors">
                         {guestName}
                     </h4>
                     <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-gray-500">
                         <HousingStatusBadge housingStatus={housingStatus} />
                         {record.time && (
-                            <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-[10px] font-medium">
-                                <Clock size={10} />
+                            <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-sm font-medium">
+                                <Clock size={16} />
+                                {timeCue && <span className="font-bold text-sky-700">{timeCue}</span>}
                                 {formatSlotLabel(record.time)}
                             </span>
                         )}
@@ -108,16 +113,17 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                 </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
                 <ReminderIndicator guestId={record.guestId} serviceType="shower" compact />
                 <CompactWaiverIndicator guestId={record.guestId} serviceType="shower" />
 
+                {!readOnly && record.status === 'waitlisted' && onAssignSlot && <button type="button" onClick={(event) => { event.stopPropagation(); onAssignSlot(record.guestId); }} className="min-h-11 rounded-lg bg-sky-600 px-4 text-sm font-bold text-white">Assign slot</button>}
                 {!readOnly && isActive && (
                     <>
                         <button
                             disabled={isUpdating}
                             onClick={(e) => handleStatusUpdate(e, 'done')}
-                            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors flex items-center gap-1 shadow-sm"
+                            className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors flex items-center gap-1 shadow-sm"
                             aria-label="Complete shower"
                         >
                             {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle size={10} />}
@@ -126,7 +132,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                         <button
                             disabled={isUpdating}
                             onClick={handleCancel}
-                            className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            className="min-h-11 min-w-11 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                             aria-label="Cancel shower"
                         >
                             <XCircle size={16} />
@@ -138,7 +144,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                     <button
                         disabled={isUpdating}
                         onClick={(e) => handleStatusUpdate(e, 'booked')}
-                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-600 transition-colors flex items-center gap-1"
+                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-600 transition-colors flex items-center gap-1"
                         aria-label="Reopen shower"
                     >
                         {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />}
@@ -152,7 +158,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                             <button
                                 disabled={isUpdating}
                                 onClick={(e) => handleStatusUpdate(e, 'booked')}
-                                className="px-2 py-1 rounded-lg text-[10px] font-bold bg-sky-50 text-sky-600 hover:bg-sky-100 transition-colors flex items-center gap-1"
+                                className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-sky-50 text-sky-600 hover:bg-sky-100 transition-colors flex items-center gap-1"
                                 aria-label="Undo cancellation"
                             >
                                 {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />}
@@ -162,7 +168,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                         <button
                             disabled={isUpdating}
                             onClick={(e) => handleStatusUpdate(e, 'done')}
-                            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                            className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors flex items-center gap-1"
                             aria-label="Complete cancelled shower"
                         >
                             {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle size={10} />}
@@ -172,7 +178,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                 )}
 
                 <span className={cn(
-                    "px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest",
+                    "px-2 py-0.5 rounded-full text-sm font-black uppercase tracking-widest",
                     record.status === 'done'
                         ? "bg-emerald-100 text-emerald-700"
                         : record.status === 'booked'
@@ -189,7 +195,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
 });
 ShowerListRow.displayName = "ShowerListRow";
 
-const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitlistQueueMap }: Props) => {
+const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitlistQueueMap, timeCues, onAssignSlot }: Props) => {
     const guests = useGuestsStore((s) => s.guests);
 
     const guestMap = useMemo(() => {
@@ -227,6 +233,8 @@ const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitl
                             onGuestClick={onGuestClick}
                             readOnly={readOnly}
                             queuePosition={waitlistQueueMap?.get(record.id)}
+                            timeCue={timeCues?.get(record.id)}
+                            onAssignSlot={onAssignSlot}
                         />
                     );
                 })}

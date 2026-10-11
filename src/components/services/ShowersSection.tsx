@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useDeferredValue, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShowerHead, Clock, CheckCircle, XCircle, ChevronRight, User, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
+import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
@@ -20,9 +23,13 @@ import { EndServiceDayPanel } from './EndServiceDayPanel';
 import { ServiceDatePicker } from './ServiceDatePicker';
 import { ServiceDayNote } from './ServiceDayNote';
 import { LayoutGrid, List, Settings, ChevronDown } from 'lucide-react';
+import { useServiceViewState } from '@/hooks/useServiceViewState';
+import { useServiceScrollPosition } from '@/hooks/useServiceScrollPosition';
+import { useServiceClock } from '@/hooks/useServiceClock';
 import { useSession } from 'next-auth/react';
 
 export function ShowersSection() {
+    useServiceScrollPosition('showers');
     const showerRecords = useServicesStore((s) => s.showerRecords);
     const cancelMultipleShowers = useServicesStore((s) => s.cancelMultipleShowers);
     const addShowerRecord = useServicesStore((s) => s.addShowerRecord);
@@ -31,10 +38,18 @@ export function ShowersSection() {
     const { data: session } = useSession();
 
     const today = todayPacificDateString();
-    const [selectedDate, setSelectedDate] = useState(today);
-    const [activeTab, setActiveTab] = useState<'active' | 'completed' | 'waitlist' | 'cancelled'>('active');
-    const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
-    const [selectedShower, setSelectedShower] = useState<any>(null);
+    const [selectedDate, setSelectedDate] = useServiceViewState('showers-date', today);
+    const [search, setSearch] = useServiceViewState<string>('showers-search', '');
+    const query = useDeferredValue(search.trim().toLowerCase());
+    const now = useServiceClock();
+    const guestMap = useMemo(() => new Map(guests.map((guest) => [guest.id, guest])), [guests]);
+    const [activeTab, setActiveTab] = useServiceViewState<'active' | 'completed' | 'waitlist' | 'cancelled'>('showers-filter', 'active', ['active', 'completed', 'waitlist', 'cancelled']);
+    const [viewMode, setViewMode] = useServiceViewState<'grid' | 'list'>('showers-view', 'list', ['grid', 'list']);
+    const [selectedShowerId, setSelectedShowerId] = useState<string | null>(null);
+    const selectedRecord = showerRecords.find((record) => record.id === selectedShowerId);
+    const selectedGuest = selectedRecord ? guestMap.get(selectedRecord.guestId) : undefined;
+    const [assignGuestId, setAssignGuestId] = useState<string | null>(null);
+    const blockedSlots = useBlockedSlotsStore((s) => s.blockedSlots);
     const [showSlotManager, setShowSlotManager] = useState(false);
     const [backfillGuestId, setBackfillGuestId] = useState('');
     const [backfillSlotTime, setBackfillSlotTime] = useState('');
@@ -67,9 +82,11 @@ export function ShowersSection() {
         return aCreated - bCreated;
     }, []);
 
-    const selectedDateRecords = useMemo(() => {
-        return showerRecords.filter((r) => getRecordDateKey(r) === selectedDate);
-    }, [showerRecords, selectedDate, getRecordDateKey]);
+    const selectedDateRecords = useMemo(() => showerRecords.filter((record) => getRecordDateKey(record) === selectedDate), [showerRecords, selectedDate, getRecordDateKey]);
+    const matchesSearch = useCallback((record: any) => {
+        const guest = guestMap.get(record.guestId);
+        return !query || [guest?.name, guest?.preferredName, guest?.firstName, guest?.lastName].join(' ').toLowerCase().includes(query);
+    }, [guestMap, query]);
 
     const activeShowers = useMemo(
         () => selectedDateRecords.filter((r) => r.status === 'booked' || r.status === 'awaiting').sort(sortByTime),
@@ -119,15 +136,27 @@ export function ShowersSection() {
     const currentList = useMemo(() => {
         switch (activeTab) {
             case 'active':
-                return activeShowers;
+                return activeShowers.filter(matchesSearch);
             case 'completed':
-                return completedShowers;
+                return completedShowers.filter(matchesSearch);
             case 'waitlist':
-                return waitlistedShowers;
+                return waitlistedShowers.filter(matchesSearch);
             case 'cancelled':
-                return cancelledShowers;
+                return cancelledShowers.filter(matchesSearch);
         }
-    }, [activeTab, activeShowers, completedShowers, waitlistedShowers, cancelledShowers]);
+    }, [activeTab, activeShowers, completedShowers, waitlistedShowers, cancelledShowers, matchesSearch]);
+
+    const timeCues = useMemo(() => {
+        const cues = new Map<string, string>();
+        if (isViewingPast) return cues;
+        const pacificTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Los_Angeles', hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+        const nextTime = activeShowers.find((record) => record.time && record.time > pacificTime)?.time;
+        for (const record of activeShowers) {
+            if (record.time === nextTime) cues.set(record.id, 'Next');
+            else if (record.time && record.time <= pacificTime) cues.set(record.id, 'Due');
+        }
+        return cues;
+    }, [activeShowers, isViewingPast, now]);
 
     // Build a map of waitlist record ID → queue position (1-based)
     const waitlistQueueMap = useMemo(() => {
@@ -150,11 +179,7 @@ export function ShowersSection() {
     };
 
     const handleGuestClick = (guestId: string, recordId: string) => {
-        const record = showerRecords.find(r => r.id === recordId);
-        const guest = guests.find(g => g.id === guestId);
-        if (record && guest) {
-            setSelectedShower({ record, guest });
-        }
+        if (guestMap.has(guestId)) setSelectedShowerId(recordId);
     };
 
     const handleAddShowerRecord = async () => {
@@ -235,13 +260,13 @@ export function ShowersSection() {
                     <button
                         type="button"
                         onClick={() => setShowAddForm(!showAddForm)}
-                        className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="min-h-11 min-w-11 w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-700 hover:bg-gray-50 transition-colors"
                         aria-expanded={showAddForm}
                     >
                         <span className="flex items-center gap-2">
                             <ShowerHead size={16} className="text-sky-600" />
                             Add Shower Record
-                            <span className="text-[11px] font-normal text-gray-400">
+                            <span className="text-sm font-normal text-gray-400">
                                 (saves to {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
                             </span>
                         </span>
@@ -255,7 +280,7 @@ export function ShowersSection() {
                                     <select
                                         value={backfillGuestId}
                                         onChange={(event) => setBackfillGuestId(event.target.value)}
-                                        className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                                        className="min-h-11 min-w-11 w-full p-2.5 rounded-lg border border-gray-200 bg-white text-base"
                                     >
                                         <option value="">Select guest</option>
                                         {selectableGuests.map((guest) => {
@@ -273,7 +298,7 @@ export function ShowersSection() {
                                     <select
                                         value={backfillSlotTime}
                                         onChange={(event) => setBackfillSlotTime(event.target.value)}
-                                        className="w-full p-2.5 rounded-lg border border-gray-200 bg-white text-sm"
+                                        className="min-h-11 min-w-11 w-full p-2.5 rounded-lg border border-gray-200 bg-white text-base"
                                     >
                                         <option value="">No slot time</option>
                                         {selectedDateSlots.map((slotTime) => (
@@ -339,7 +364,8 @@ export function ShowersSection() {
                 />
             )}
 
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="sticky top-0 z-20 space-y-2 rounded-xl bg-white/95 p-2 shadow-sm">
+            <div className="flex items-center justify-between flex-wrap gap-4 rounded-xl border border-gray-200 bg-white/95 p-3">
                 {/* Left side: Date picker + Tab Navigation */}
                 <div className="flex items-center gap-4 flex-wrap">
                     {/* Date Picker for time travel */}
@@ -356,14 +382,14 @@ export function ShowersSection() {
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={cn(
-                                    'px-6 py-2.5 rounded-xl text-sm font-black transition-all capitalize',
+                                    'min-h-11 px-4 py-2.5 rounded-xl text-sm font-black transition-all capitalize',
                                     activeTab === tab
                                         ? 'bg-white text-sky-600 shadow-sm'
                                         : 'text-gray-500 hover:text-gray-700'
                                 )}
                             >
                                 {tab}
-                                <span className="ml-2 text-[10px] opacity-60">
+                                <span className="ml-2 text-sm opacity-60">
                                     ({tab === 'active' ? activeShowers.length : tab === 'completed' ? completedShowers.length : tab === 'waitlist' ? waitlistedShowers.length : cancelledShowers.length})
                                 </span>
                             </button>
@@ -377,14 +403,14 @@ export function ShowersSection() {
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={cn(
-                                    'flex-shrink-0 px-4 py-2 rounded-xl text-sm font-black transition-all capitalize border',
+                                    'min-h-11 flex-shrink-0 px-4 py-2 rounded-xl text-sm font-black transition-all capitalize border',
                                     activeTab === tab
                                         ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
                                         : 'bg-white text-gray-500 border-gray-200'
                                 )}
                             >
                                 {tab}
-                                <span className="ml-1.5 text-[10px] opacity-75">
+                                <span className="ml-1.5 text-sm opacity-75">
                                     ({tab === 'active' ? activeShowers.length : tab === 'completed' ? completedShowers.length : tab === 'waitlist' ? waitlistedShowers.length : cancelledShowers.length})
                                 </span>
                             </button>
@@ -397,7 +423,7 @@ export function ShowersSection() {
                     {/* Manage Slots Button */}
                     <button
                         onClick={() => setShowSlotManager(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg border hover:bg-gray-50 transition-colors"
+                        className="min-h-11 min-w-11 flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg border hover:bg-gray-50 transition-colors"
                     >
                         <Settings className="w-4 h-4" />
                         Manage Slots
@@ -408,7 +434,7 @@ export function ShowersSection() {
                         <button
                             onClick={() => setViewMode('grid')}
                             className={cn(
-                                "p-1.5 rounded-md transition-all",
+                                "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
                                 viewMode === 'grid' ? "bg-white shadow text-sky-600" : "text-gray-500 hover:text-gray-700"
                             )}
                             title="Grid View"
@@ -418,7 +444,7 @@ export function ShowersSection() {
                         <button
                             onClick={() => setViewMode('list')}
                             className={cn(
-                                "p-1.5 rounded-md transition-all",
+                                "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
                                 viewMode === 'list' ? "bg-white shadow text-sky-600" : "text-gray-500 hover:text-gray-700"
                             )}
                             title="List View"
@@ -429,13 +455,22 @@ export function ShowersSection() {
                 </div>
             </div>
 
+            <label className="block rounded-xl border border-gray-200 bg-white/95 p-3 text-sm font-medium text-gray-700">
+                Find shower guest
+                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Guest name" className="min-h-11 min-w-11 mt-1 w-full rounded-lg border border-gray-300 px-3 text-base" />
+            </label>
+
+            </div>
+
             <ServiceDayNote date={selectedDate} serviceType="showers" />
 
             {/* Content */}
             {viewMode === 'list' ? (
                 <CompactShowerList
                     records={currentList}
+                    timeCues={timeCues}
                     onGuestClick={handleGuestClick}
+                    onAssignSlot={setAssignGuestId}
                     readOnly={isViewingPast}
                     waitlistQueueMap={activeTab === 'waitlist' ? waitlistQueueMap : undefined}
                 />
@@ -448,7 +483,9 @@ export function ShowersSection() {
                                 <ShowerListItem
                                     key={record.id}
                                     record={record}
-                                    guest={guests.find(g => g.id === record.guestId)}
+                                    guest={guestMap.get(record.guestId)}
+                                    timeCue={timeCues.get(record.id)}
+                                    onAssignSlot={() => setAssignGuestId(record.guestId)}
                                     onClick={() => handleGuestClick(record.guestId, record.id)}
                                     readOnly={isViewingPast}
                                     queuePosition={activeTab === 'waitlist' ? waitlistQueueMap.get(record.id) : undefined}
@@ -469,14 +506,29 @@ export function ShowersSection() {
             )}
 
             {/* Detail Modal */}
-            {selectedShower && (
+            {selectedRecord && selectedGuest && (
                 <ShowerDetailModal
-                    isOpen={!!selectedShower}
-                    onClose={() => setSelectedShower(null)}
-                    record={selectedShower.record}
-                    guest={selectedShower.guest}
+                    isOpen={true}
+                    onClose={() => setSelectedShowerId(null)}
+                    record={selectedRecord}
+                    guest={selectedGuest}
+                    readOnly={isViewingPast}
                 />
             )}
+
+            {assignGuestId && !isViewingPast && <ShowerSlotDialog
+                guestName={guestMap.get(assignGuestId)?.preferredName || guestMap.get(assignGuestId)?.name || 'Guest'}
+                slots={selectedDateSlots.map((time) => ({
+                    time,
+                    disabled: blockedSlots.some((slot) => slot.serviceType === 'shower' && slot.date === selectedDate && slot.slotTime === time) || selectedDateRecords.filter((record) => record.time === time && SHOWER_SLOT_OCCUPYING_STATUSES.has(record.status)).length >= MAX_GUESTS_PER_SHOWER_SLOT,
+                }))}
+                onClose={() => setAssignGuestId(null)}
+                onAssign={async (time) => {
+                    await addShowerRecord(assignGuestId, time, selectedDate);
+                    toast.success(`Shower assigned for ${formatSlotLabel(time)}`);
+                    setAssignGuestId(null);
+                }}
+            />}
 
             {/* Slot Manager Modal */}
             <SlotBlockModal
@@ -488,7 +540,7 @@ export function ShowersSection() {
     );
 }
 
-function ShowerListItem({ record, guest, onClick, readOnly = false, queuePosition }: { record: any, guest: any, onClick?: () => void, readOnly?: boolean, queuePosition?: number }) {
+function ShowerListItem({ record, guest, onClick, readOnly = false, queuePosition, timeCue, onAssignSlot }: { record: any, guest: any, onClick?: () => void, readOnly?: boolean, queuePosition?: number, timeCue?: string, onAssignSlot?: () => void }) {
     const [isUpdating, setIsUpdating] = useState(false);
     const updateShowerStatus = useServicesStore((s) => s.updateShowerStatus);
 
@@ -551,7 +603,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                         record.status === 'waitlisted' ? 'bg-amber-500' : 'bg-sky-500'
                     )}>
                         {queuePosition != null ? (
-                            <span className="text-sm font-black">#{queuePosition}</span>
+                            <span className="text-base font-black">#{queuePosition}</span>
                         ) : (
                             <User size={20} />
                         )}
@@ -563,8 +615,9 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                         )}>
                             {guest ? (guest.preferredName || guest.name) : 'Unknown Guest'}
                         </h4>
-                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-                            <Clock size={12} />
+                        <div className="flex items-center gap-1.5 text-sm font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+                            <Clock size={16} />
+                            {timeCue && <span className="font-bold text-sky-700">{timeCue}</span>}
                             {record.time ? formatSlotLabel(record.time) : (record.status === 'waitlisted' ? (queuePosition != null ? `Queue #${queuePosition}` : 'Waitlisted') : 'No time')}
                         </div>
                         <div className="mt-2 flex items-center gap-2 flex-wrap">
@@ -578,7 +631,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                         <CompactWaiverIndicator guestId={record.guestId} serviceType="shower" />
                     )}
                     <div className={cn(
-                        "px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                        "px-2.5 py-1 rounded-full text-sm font-black uppercase tracking-widest",
                         record.status === 'done' ? 'bg-emerald-50 text-emerald-600' : 
                         (record.status === 'cancelled' || record.status === 'no_show') ? 'bg-red-50 text-red-500' : 'bg-sky-50 text-sky-600'
                     )}>
@@ -587,13 +640,14 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                 </div>
             </div>
 
-            <div className="flex items-center gap-2 mt-auto">
+            <div className="flex flex-wrap items-center gap-3 mt-auto">
+                {!readOnly && record.status === 'waitlisted' && onAssignSlot && <button type="button" onClick={onAssignSlot} className="min-h-11 rounded-lg bg-sky-600 px-4 text-sm font-bold text-white">Assign slot</button>}
                 {record.status !== 'done' && record.status !== 'cancelled' && record.status !== 'no_show' && !readOnly && (
                     <>
                         <button
                             disabled={isUpdating}
                             onClick={() => handleStatusUpdate('done')}
-                            className="flex-1 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600 shadow-md shadow-emerald-200"
+                            className="min-h-11 min-w-11 flex-1 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600 shadow-md shadow-emerald-200"
                         >
                             {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
                                 <>
@@ -604,7 +658,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                         <button
                             disabled={isUpdating}
                             onClick={handleCancel}
-                            className="p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                            className="min-h-11 min-w-11 p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
                         >
                             <XCircle size={18} />
                         </button>
@@ -614,7 +668,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                     <button
                         disabled={isUpdating}
                         onClick={() => handleStatusUpdate('booked')}
-                        className="w-full py-2 rounded-xl bg-gray-50 text-gray-500 hover:bg-amber-50 hover:text-amber-600 text-xs font-black flex items-center justify-center gap-2 transition-all"
+                        className="min-h-11 min-w-11 w-full py-2 rounded-xl bg-gray-50 text-gray-500 hover:bg-amber-50 hover:text-amber-600 text-xs font-black flex items-center justify-center gap-2 transition-all"
                     >
                         {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
                             <>
@@ -629,7 +683,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                             <button
                                 disabled={isUpdating}
                                 onClick={() => handleStatusUpdate('booked')}
-                                className="flex-1 py-2 rounded-xl bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
+                                className="min-h-11 min-w-11 flex-1 py-2 rounded-xl bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
                                 aria-label="Undo cancellation"
                             >
                                 {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
@@ -642,7 +696,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                         <button
                             disabled={isUpdating}
                             onClick={() => handleStatusUpdate('done')}
-                            className="flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
+                            className="min-h-11 min-w-11 flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
                         >
                             {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
                                 <>
@@ -655,4 +709,50 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
             </div>
         </motion.div>
     );
+}
+
+function ShowerSlotDialog({ guestName, slots, onClose, onAssign }: {
+    guestName: string; slots: { time: string; disabled: boolean }[];
+    onClose: () => void; onAssign: (time: string) => Promise<void>;
+}) {
+    const dialog = useRef<HTMLDialogElement>(null);
+    const saving = useRef(false);
+    const [time, setTime] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
+    useEffect(() => {
+        const previousFocus = document.activeElement as HTMLElement | null;
+        if (typeof dialog.current?.showModal === 'function') dialog.current.showModal();
+        else dialog.current?.setAttribute('open', '');
+        return () => previousFocus?.focus();
+    }, []);
+    return createPortal(<dialog ref={dialog} role="dialog" aria-modal="true" aria-labelledby="assign-shower-title"
+        onCancel={(event) => { event.preventDefault(); if (!saving.current) onClose(); }}
+        className="fixed inset-x-4 top-[10dvh] bottom-auto m-auto w-auto max-w-md max-h-[70dvh] overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl backdrop:bg-black/50 z-[120]">
+        <form className="space-y-4" onSubmit={async (event) => {
+            event.preventDefault();
+            if (saving.current || !time) return;
+            if (slots.find((slot) => slot.time === time)?.disabled) { setError('This slot is no longer available. Choose another time.'); return; }
+            saving.current = true;
+            setBusy(true);
+            setError('');
+            try { await onAssign(time); }
+            catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to assign slot'); }
+            finally { saving.current = false; setBusy(false); }
+        }}>
+            <h2 id="assign-shower-title" className="text-xl font-bold">Assign shower slot</h2>
+            <p className="text-base">{guestName}</p>
+            <label className="block text-base">Shower time
+                <select autoFocus required disabled={busy} value={time} onChange={(event) => setTime(event.target.value)} className="mt-2 min-h-11 w-full rounded-lg border px-3 text-base">
+                    <option value="">Choose available time</option>
+                    {slots.map((slot) => <option key={slot.time} value={slot.time} disabled={slot.disabled}>{formatSlotLabel(slot.time)}{slot.disabled ? ' — Unavailable' : ''}</option>)}
+                </select>
+            </label>
+            {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+            <div className="flex flex-wrap justify-end gap-3">
+                <button type="button" disabled={busy} onClick={onClose} className="min-h-11 rounded-lg border px-4 text-base">Cancel</button>
+                <button type="submit" disabled={busy || !time} className="min-h-11 rounded-lg bg-sky-600 px-4 text-base font-bold text-white disabled:opacity-50">{busy ? 'Saving…' : 'Assign slot'}</button>
+            </div>
+        </form>
+    </dialog>, document.body);
 }

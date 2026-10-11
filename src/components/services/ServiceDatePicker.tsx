@@ -131,7 +131,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                 {/* Previous Day Button */}
                 <button
                     onClick={goToPreviousDay}
-                    className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+                    className="min-h-11 min-w-11 p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
                     title="Previous day"
                     aria-label="Previous day"
                 >
@@ -142,7 +142,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                 <button
                     onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                     className={cn(
-                        "flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all border",
+                        "min-h-11 flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all border",
                         isPast
                             ? "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100"
                             : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"
@@ -158,7 +158,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                     onClick={goToNextDay}
                     disabled={isToday}
                     className={cn(
-                        "p-2 rounded-lg transition-colors",
+                        "min-h-11 min-w-11 p-2 rounded-lg transition-colors",
                         isToday
                             ? "text-gray-300 cursor-not-allowed"
                             : "hover:bg-gray-100 text-gray-500 hover:text-gray-700"
@@ -173,7 +173,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                 {isPast && (
                     <button
                         onClick={goToToday}
-                        className="px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-sm font-bold transition-colors"
+                        className="min-h-11 min-w-11 px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-sm font-bold transition-colors"
                     >
                         Back to Today
                     </button>
@@ -182,12 +182,12 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
 
             {/* Calendar Dropdown */}
             {isCalendarOpen && (
-                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-50 w-72">
+                <div className="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-50 w-[352px] max-w-[calc(100vw-2rem)]">
                     {/* Month Navigation */}
                     <div className="flex items-center justify-between mb-4">
                         <button
                             onClick={goToPreviousMonth}
-                            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                            className="min-h-11 min-w-11 p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
                             title="Previous month"
                             aria-label="Previous month"
                         >
@@ -233,7 +233,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                                 }}
                                 disabled={day.isDisabled}
                                 className={cn(
-                                    "w-8 h-8 rounded-lg text-sm font-medium transition-all",
+                                    "w-11 h-11 shrink-0 rounded-lg text-sm font-medium transition-all",
                                     day.isDisabled && "text-gray-300 cursor-not-allowed",
                                     !day.isDisabled && day.date === selectedDate && "bg-emerald-500 text-white",
                                     !day.isDisabled && day.date === today && day.date !== selectedDate && "ring-2 ring-emerald-300",
@@ -250,7 +250,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                     <div className="mt-4 pt-3 border-t border-gray-100 flex gap-2">
                         <button
                             onClick={goToToday}
-                            className="flex-1 px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-sm font-bold transition-colors"
+                            className="min-h-11 min-w-11 flex-1 px-3 py-2 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-sm font-bold transition-colors"
                         >
                             Today
                         </button>
@@ -261,7 +261,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                                 onDateChange(pacificDateStringFrom(yesterday.toISOString()));
                                 setIsCalendarOpen(false);
                             }}
-                            className="flex-1 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-bold transition-colors"
+                            className="min-h-11 min-w-11 flex-1 px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-sm font-bold transition-colors"
                         >
                             Yesterday
                         </button>

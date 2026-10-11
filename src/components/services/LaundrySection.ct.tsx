@@ -37,3 +37,44 @@ test.describe('LaundrySection', () => {
     await expect(payload).toContainText('"serviceDate":');
   });
 });
+
+test.describe('iPad laundry workflows', () => {
+  test.use({ viewport: { width: 768, height: 1024 }, hasTouch: true });
+
+  test('portrait uses a list and landscape offers a board with large touch actions', async ({ mount, page }) => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const component = await mount(<LaundrySectionStory guests={guests} laundryRecords={[
+      { id: 'l1', guestId: 'g1', date: today, status: 'waiting', laundryType: 'onsite', time: '09:00', bagNumber: 'B12' },
+    ]} />);
+    await expect(component.getByText('Laundry Overview')).toBeVisible();
+    await expect(component.getByRole('button', { name: 'Advance to Washer' })).toBeVisible();
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const start = component.getByRole('button', { name: 'Start washer' });
+    await expect(start).toBeVisible();
+    await expect.poll(async () => (await start.boundingBox())?.height || 0).toBeGreaterThanOrEqual(44);
+    await start.click();
+    await expect(component.getByRole('button', { name: 'Move to dryer' })).toBeVisible();
+    await expect(component.getByRole('button', { name: 'Mark picked up', exact: true })).toHaveCount(0);
+    await page.screenshot({ path: '/tmp/hopes-laundry-ipad-landscape.png', fullPage: true });
+  });
+
+  test('bag dialog retains guest context and supports touch cancellation and save', async ({ mount, page }) => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const component = await mount(<LaundrySectionStory guests={guests} laundryRecords={[
+      { id: 'l1', guestId: 'g1', date: today, status: 'waiting', laundryType: 'onsite', time: '09:00' },
+    ]} />);
+    await component.getByRole('button', { name: 'Advance to Washer' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Bag number required' });
+    await expect(dialog.getByText('Johnny')).toBeVisible();
+    await expect(dialog.getByLabel('Bag number')).toBeFocused();
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(dialog).toHaveCount(0);
+    await component.getByRole('button', { name: 'Advance to Washer' }).click();
+    await dialog.getByLabel('Bag number').fill('B99');
+    await page.screenshot({ path: '/tmp/hopes-laundry-ipad-bag-dialog.png', fullPage: true });
+    await dialog.getByRole('button', { name: 'Save and continue' }).click();
+    await expect(dialog).toHaveCount(0);
+    await expect(component.getByText('Bag #B99')).toBeVisible();
+    await expect(component.getByRole('button', { name: 'Advance to Dryer' })).toBeVisible();
+  });
+});

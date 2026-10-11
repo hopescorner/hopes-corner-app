@@ -20,6 +20,7 @@ interface ShowerDetailModalProps {
     onClose: () => void;
     record: any;
     guest: any;
+    readOnly?: boolean;
 }
 
 // Items with cooldown limits - socks and underwear are unlimited/always available
@@ -34,7 +35,7 @@ const AMENITY_ITEMS = [
     { key: 'sweatpants', label: 'Sweatpants', icon: SweatpantsIcon, limit: '30 Days' },
 ];
 
-export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDetailModalProps) {
+export function ShowerDetailModal({ isOpen, onClose, record, guest, readOnly = false }: ShowerDetailModalProps) {
     const { fetchItemsForGuest, checkAvailability, giveItem, undoItem, distributedItems, isLoading } = useItemsStore();
     const { updateShowerStatus } = useServicesStore();
     const [localLoading, setLocalLoading] = useState<string | null>(null);
@@ -89,7 +90,7 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
 
     // Handle marking shower as done
     const handleMarkAsDone = async () => {
-        if (!record?.id) return;
+        if (!record?.id || readOnly || markingDone) return;
         setMarkingDone(true);
         try {
             const success = await updateShowerStatus(record.id, 'done');
@@ -124,7 +125,7 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
+                        className="min-h-11 min-w-11 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
                     >
                         <X size={24} />
                     </button>
@@ -152,12 +153,12 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                         </div>
                         
                         {/* Mark as Done Button - only show if not already done */}
-                        {record.status !== 'done' ? (
+                        {record.status !== 'done' && !readOnly ? (
                             <button
                                 onClick={handleMarkAsDone}
                                 disabled={markingDone}
                                 className={cn(
-                                    "w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl",
+                                    "min-h-11 w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl",
                                     "bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-bold text-sm",
                                     "transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                                 )}
@@ -172,7 +173,7 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                         ) : (
                             <div className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-50 border border-emerald-200">
                                 <CheckCircle size={16} className="text-emerald-600" />
-                                <span className="text-emerald-700 font-bold text-sm">Shower Completed</span>
+                                <span className="text-emerald-700 font-bold text-sm">{record.status === 'done' ? 'Shower Completed' : 'Historical view — status updates disabled'}</span>
                             </div>
                         )}
                         
@@ -225,18 +226,18 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                                         <span className={cn("font-bold text-sm", isAvailable ? "text-gray-900" : "text-gray-400")}>{item.label}</span>
 
                                         {!isAvailable && availability.daysRemaining !== undefined && (
-                                            <span className="text-[10px] font-bold text-amber-600 mt-1 flex items-center gap-1">
+                                            <span className="text-sm font-bold text-amber-600 mt-1 flex items-center gap-1">
                                                 <Clock size={10} /> {availability.daysRemaining}d left
                                             </span>
                                         )}
                                         {!isAvailable && availability.daysRemaining === undefined && (
-                                            <span className="text-[10px] text-gray-400 mt-1 font-medium">
+                                            <span className="text-sm text-gray-400 mt-1 font-medium">
                                                 Limit reached
                                             </span>
                                         )}
 
                                         {isAvailable && (
-                                            <span className="text-[10px] text-gray-400 mt-1 font-medium">
+                                            <span className="text-sm text-gray-400 mt-1 font-medium">
                                                 {item.limit}
                                             </span>
                                         )}
@@ -270,7 +271,7 @@ export function ShowerDetailModal({ isOpen, onClose, record, guest }: ShowerDeta
                                                     onClick={() => handleUndoItem(item.id, item.itemKey.replace('_', ' '))}
                                                     disabled={isUndoing || isLoading}
                                                     className={cn(
-                                                        "p-1.5 rounded-lg transition-all",
+                                                        "min-h-11 min-w-11 p-2 rounded-lg transition-all",
                                                         "text-amber-600 hover:bg-amber-50 hover:text-amber-700",
                                                         "disabled:opacity-50 disabled:cursor-not-allowed"
                                                     )}

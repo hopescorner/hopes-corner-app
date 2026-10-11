@@ -209,12 +209,12 @@ describe('CompactShowerList Component', () => {
     });
 
     describe('Time Display', () => {
-        it('shows hour number for records with time', () => {
+        it('shows the complete appointment time for records with time', () => {
             const records = [{ id: 'r1', guestId: 'g1', time: '09:30', status: 'booked' }];
             const { container } = render(<CompactShowerList records={records} />);
 
-            // Should show "09" from the time
-            expect(screen.getByText('09')).toBeDefined();
+            // Include the minutes so appointments in the same hour are distinct.
+            expect(screen.getByText('Slot 09:30')).toBeDefined();
         });
     });
 

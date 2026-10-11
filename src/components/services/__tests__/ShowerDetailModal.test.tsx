@@ -78,6 +78,11 @@ describe('ShowerDetailModal', () => {
         mockDistributedItems = [];
     });
 
+    it('does not allow completing a historical shower', () => {
+        render(<ShowerDetailModal isOpen onClose={() => {}} record={mockRecord} guest={mockGuest} readOnly />);
+        expect(screen.queryByRole('button', { name: 'Mark as Done' })).not.toBeInTheDocument();
+    });
+
     it('renders modal when open', () => {
         render(<ShowerDetailModal {...defaultProps} />);
         expect(screen.getByText('Johnny')).toBeDefined();

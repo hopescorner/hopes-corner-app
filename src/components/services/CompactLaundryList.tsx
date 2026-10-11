@@ -9,7 +9,8 @@ import { HousingStatusBadge } from '@/components/ui/HousingStatusBadge';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
 import { ReminderIndicator } from '@/components/ui/ReminderIndicator';
 import { cn } from '@/lib/utils/cn';
-import { laundryBagRequired } from '@/lib/utils/laundryBag';
+import { useShallow } from 'zustand/react/shallow';
+import { useLaundryStatusChange, LAUNDRY_NEXT_ACTION } from './useLaundryStatusChange';
 import toast from 'react-hot-toast';
 
 // Status Constants
@@ -30,6 +31,8 @@ interface CompactLaundryListProps {
     viewDate?: string | null;
     onGuestClick?: (guestId: string, recordId: string) => void;
     readOnly?: boolean;
+    search?: string;
+    showOffsiteInitially?: boolean;
 }
 
 interface LaundryBooking {
@@ -168,72 +171,32 @@ function getNextStatusLabel(nextStatus: string): string {
     return labels[nextStatus] || nextStatus;
 }
 
-// Shared status change hook
 function useStatusChange(recordId: string, readOnly: boolean) {
-    const [isUpdating, setIsUpdating] = useState(false);
-    const { updateLaundryStatus, updateLaundryBagNumber } = useServicesStore();
-
-    const handleStatusChange = useCallback(async (e: React.MouseEvent | React.ChangeEvent<HTMLSelectElement>, newStatus: string, currentRecord?: LaundryBooking) => {
-        if ('stopPropagation' in e) e.stopPropagation();
-        if (readOnly || isUpdating) return;
-
-        // Read the freshest record from the store: the row prop may predate
-        // a bag number just saved elsewhere (mirrors the kanban view). The
-        // guarded getState access keeps test doubles without it working.
-        const storeApi = useServicesStore as unknown as { getState?: () => { laundryRecords?: Array<{ id: string; bagNumber?: string; laundryType?: string; status?: string }> } };
-        const freshRecord = typeof storeApi.getState === 'function'
-            ? storeApi.getState().laundryRecords?.find((record) => record.id === recordId)
-            : undefined;
-        const effectiveRecord = freshRecord ?? currentRecord;
-
-        // Check if bag number is needed (moving out of waiting/pending without one)
-        if (laundryBagRequired(effectiveRecord, newStatus)) {
-            const manualBag = window.prompt('A bag number is required before moving out of waiting. Enter one to continue.');
-            const trimmedBag = (manualBag || '').trim();
-            if (!trimmedBag) {
-                toast.error('Please enter a bag number to continue');
-                return;
-            }
-            try {
-                await updateLaundryBagNumber(recordId, trimmedBag);
-                toast.success('Bag number saved');
-            } catch {
-                toast.error('Failed to save bag number');
-                return;
-            }
-        }
-
-        setIsUpdating(true);
-        try {
-            const ok = await updateLaundryStatus(recordId, newStatus);
-            if (ok) toast.success('Status updated');
-            else toast.error('Failed to update status');
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Failed to update status');
-        } finally {
-            setIsUpdating(false);
-        }
-    }, [recordId, readOnly, isUpdating, updateLaundryStatus, updateLaundryBagNumber]);
-
-    return { isUpdating, handleStatusChange };
+    const { changeStatus, updatingIds, bagDialog } = useLaundryStatusChange(readOnly);
+    const handleStatusChange = (event: React.MouseEvent | React.ChangeEvent<HTMLSelectElement>, status: string, record?: LaundryBooking) => {
+        event.stopPropagation();
+        if (record) void changeStatus(record, status, record.name);
+    };
+    return { isUpdating: updatingIds.has(recordId), handleStatusChange, bagDialog };
 }
 
-// Memoized active laundry row
 const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { booking: LaundryBooking; onGuestClick?: (guestId: string, recordId: string) => void; readOnly?: boolean }) => {
     const handleClick = useCallback(() => {
         onGuestClick?.(booking.guestId, booking.id);
     }, [onGuestClick, booking.guestId, booking.id]);
 
-    const { isUpdating, handleStatusChange } = useStatusChange(booking.id, readOnly);
+    const { isUpdating, handleStatusChange, bagDialog } = useStatusChange(booking.id, readOnly);
     const isOffsite = booking.laundryType === 'offsite';
     const nextStatus = getNextStatus(booking.status, isOffsite);
     const statusOptions = isOffsite ? OFFSITE_STATUS_OPTIONS : ONSITE_STATUS_OPTIONS;
 
     return (
+        <>
+        {bagDialog}
         <div
             onClick={handleClick}
             className={cn(
-                "px-4 py-2.5 flex items-center justify-between gap-3 transition-colors duration-75",
+                "px-4 py-3 flex flex-wrap items-center justify-between gap-3 transition-colors duration-75",
                 onGuestClick ? "hover:bg-purple-50 cursor-pointer active:bg-purple-100" : "hover:bg-gray-50"
             )}
         >
@@ -242,7 +205,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
                     {booking.timeLabel}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <span className="font-medium text-gray-900 text-sm truncate block">
+                    <span className="font-medium text-gray-900 text-base break-words block">
                         {booking.name}
                     </span>
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -253,7 +216,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
                     )}
                 </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
                 <ReminderIndicator guestId={booking.guestId} serviceType="laundry" compact />
                 <CompactWaiverIndicator guestId={booking.guestId} serviceType="laundry" />
 
@@ -261,11 +224,11 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
                     <button
                         disabled={isUpdating}
                         onClick={(e) => handleStatusChange(e, nextStatus, booking)}
-                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-purple-500 text-white hover:bg-purple-600 transition-colors flex items-center gap-1 shadow-sm"
+                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-purple-500 text-white hover:bg-purple-600 transition-colors flex items-center gap-1 shadow-sm"
                         aria-label={`Advance to ${getNextStatusLabel(nextStatus)}`}
                     >
                         {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <ChevronRight size={10} />}
-                        {getNextStatusLabel(nextStatus)}
+                        {LAUNDRY_NEXT_ACTION[isOffsite && booking.status === 'waiting' ? 'pending' : booking.status]?.label || getNextStatusLabel(nextStatus)}
                     </button>
                 )}
 
@@ -275,7 +238,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => handleStatusChange(e, e.target.value, booking)}
                         disabled={isUpdating}
-                        className="text-[10px] font-medium border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer"
+                        className="min-h-11 min-w-11 text-base font-medium border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer"
                         aria-label="Change laundry status"
                     >
                         {statusOptions.map((opt) => (
@@ -287,6 +250,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
                 {readOnly && <LaundryStatusBadge status={booking.status} />}
             </div>
         </div>
+        </>
     );
 });
 ActiveLaundryRow.displayName = "ActiveLaundryRow";
@@ -297,14 +261,16 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { book
         onGuestClick?.(booking.guestId, booking.id);
     }, [onGuestClick, booking.guestId, booking.id]);
 
-    const { isUpdating, handleStatusChange } = useStatusChange(booking.id, readOnly);
+    const { isUpdating, handleStatusChange, bagDialog } = useStatusChange(booking.id, readOnly);
     const statusOptions = ONSITE_STATUS_OPTIONS;
 
     return (
+        <>
+        {bagDialog}
         <div
             onClick={handleClick}
             className={cn(
-                "px-4 py-2.5 flex items-center justify-between gap-3 transition-colors duration-75",
+                "px-4 py-3 flex flex-wrap items-center justify-between gap-3 transition-colors duration-75",
                 onGuestClick ? "hover:bg-emerald-100 cursor-pointer active:bg-emerald-200" : "hover:bg-emerald-50"
             )}
         >
@@ -313,7 +279,7 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { book
                     {booking.timeLabel}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <span className="font-medium text-gray-700 text-sm truncate block">
+                    <span className="font-medium text-gray-700 text-base break-words block">
                         {booking.name}
                     </span>
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -324,14 +290,14 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { book
                     )}
                 </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
                 {!readOnly && (
                     <select
                         value={booking.status}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => handleStatusChange(e, e.target.value, booking)}
                         disabled={isUpdating}
-                        className="text-[10px] font-medium border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer"
+                        className="min-h-11 min-w-11 text-base font-medium border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer"
                         aria-label="Change laundry status"
                     >
                         {statusOptions.map((opt) => (
@@ -342,6 +308,7 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { book
                 {readOnly && <LaundryStatusBadge status={booking.status} />}
             </div>
         </div>
+        </>
     );
 });
 DoneLaundryRow.displayName = "DoneLaundryRow";
@@ -352,19 +319,21 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, readOnly = false }: { item:
         onGuestClick?.(item.guestId, item.id);
     }, [onGuestClick, item.guestId, item.id]);
 
-    const { isUpdating, handleStatusChange } = useStatusChange(item.id, readOnly);
+    const { isUpdating, handleStatusChange, bagDialog } = useStatusChange(item.id, readOnly);
     const nextStatus = getNextStatus(item.status, true);
 
     return (
+        <>
+        {bagDialog}
         <div
             onClick={handleClick}
             className={cn(
-                "px-4 py-2.5 flex items-center justify-between gap-3 transition-colors duration-75",
+                "px-4 py-3 flex flex-wrap items-center justify-between gap-3 transition-colors duration-75",
                 onGuestClick ? "hover:bg-blue-100 cursor-pointer active:bg-blue-200" : ""
             )}
         >
             <div className="min-w-0 flex-1">
-                <span className="font-medium text-blue-900 text-sm truncate block">
+                <span className="font-medium text-blue-900 text-base break-words block">
                     {item.name}
                 </span>
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -374,7 +343,7 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, readOnly = false }: { item:
                     <span className="text-xs text-blue-600">Bag #{item.bagNumber}</span>
                 )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
                 <ReminderIndicator guestId={item.guestId} serviceType="laundry" compact />
                 <CompactWaiverIndicator guestId={item.guestId} serviceType="laundry" />
 
@@ -382,11 +351,11 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, readOnly = false }: { item:
                     <button
                         disabled={isUpdating}
                         onClick={(e) => handleStatusChange(e, nextStatus, item)}
-                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-1 shadow-sm"
+                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-1 shadow-sm"
                         aria-label={`Advance to ${getNextStatusLabel(nextStatus)}`}
                     >
                         {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <ChevronRight size={10} />}
-                        {getNextStatusLabel(nextStatus)}
+                        {LAUNDRY_NEXT_ACTION[item.status === 'waiting' ? 'pending' : item.status]?.label || getNextStatusLabel(nextStatus)}
                     </button>
                 )}
 
@@ -396,7 +365,7 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, readOnly = false }: { item:
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => handleStatusChange(e, e.target.value, item)}
                         disabled={isUpdating}
-                        className="text-[10px] font-medium border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                        className="min-h-11 min-w-11 text-base font-medium border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
                         aria-label="Change laundry status"
                     >
                         {OFFSITE_STATUS_OPTIONS.map((opt) => (
@@ -408,6 +377,7 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, readOnly = false }: { item:
                 {readOnly && <LaundryStatusBadge status={item.status} />}
             </div>
         </div>
+        </>
     );
 });
 OffsiteActiveRow.displayName = "OffsiteActiveRow";
@@ -418,18 +388,20 @@ const OffsiteDoneRow = memo(({ item, onGuestClick, readOnly = false }: { item: L
         onGuestClick?.(item.guestId, item.id);
     }, [onGuestClick, item.guestId, item.id]);
 
-    const { isUpdating, handleStatusChange } = useStatusChange(item.id, readOnly);
+    const { isUpdating, handleStatusChange, bagDialog } = useStatusChange(item.id, readOnly);
 
     return (
+        <>
+        {bagDialog}
         <div
             onClick={handleClick}
             className={cn(
-                "px-4 py-2.5 flex items-center justify-between gap-3 bg-emerald-50/30 transition-colors duration-75",
+                "px-4 py-3 flex flex-wrap items-center justify-between gap-3 bg-emerald-50/30 transition-colors duration-75",
                 onGuestClick ? "hover:bg-emerald-100 cursor-pointer active:bg-emerald-200" : ""
             )}
         >
             <div className="min-w-0 flex-1">
-                <span className="font-medium text-emerald-900 text-sm truncate block">
+                <span className="font-medium text-emerald-900 text-base break-words block">
                     {item.name}
                 </span>
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -439,14 +411,14 @@ const OffsiteDoneRow = memo(({ item, onGuestClick, readOnly = false }: { item: L
                     <span className="text-xs text-emerald-600">Bag #{item.bagNumber}</span>
                 )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
                 {!readOnly && (
                     <select
                         value={item.status}
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => handleStatusChange(e, e.target.value, item)}
                         disabled={isUpdating}
-                        className="text-[10px] font-medium border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                        className="min-h-11 min-w-11 text-base font-medium border border-gray-200 rounded-lg px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer"
                         aria-label="Change laundry status"
                     >
                         {OFFSITE_STATUS_OPTIONS.map((opt) => (
@@ -457,6 +429,7 @@ const OffsiteDoneRow = memo(({ item, onGuestClick, readOnly = false }: { item: L
                 {readOnly && <LaundryStatusBadge status={item.status} />}
             </div>
         </div>
+        </>
     );
 });
 OffsiteDoneRow.displayName = "OffsiteDoneRow";
@@ -466,11 +439,11 @@ OffsiteDoneRow.displayName = "OffsiteDoneRow";
  * Shows guest name, time slot, and status in a compact format for quick reference
  * Can view today's laundry or travel back in time to see laundry from past dates
  */
-const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = false }: CompactLaundryListProps) => {
-    const { laundryRecords } = useServicesStore();
-    const { guests } = useGuestsStore();
+const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = false, search = '', showOffsiteInitially = false }: CompactLaundryListProps) => {
+    const { laundryRecords } = useServicesStore(useShallow((s) => ({ laundryRecords: s.laundryRecords })));
+    const { guests } = useGuestsStore(useShallow((s) => ({ guests: s.guests })));
 
-    const [showOffsite, setShowOffsite] = useState(false);
+    const [showOffsite, setShowOffsite] = useState(showOffsiteInitially);
     const [showDone, setShowDone] = useState(false);
 
     // Store in a ref so we don't recompute today's date on every render
@@ -482,9 +455,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
 
     // Create completed status set for efficient lookup
     const completedStatuses = useMemo(() => new Set<string>([
-        LAUNDRY_STATUS.DONE,
         LAUNDRY_STATUS.PICKED_UP,
-        LAUNDRY_STATUS.RETURNED,
         LAUNDRY_STATUS.OFFSITE_PICKED_UP,
     ]), []);
 
@@ -514,9 +485,11 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
     // Past active records are surfaced by the dedicated legacy section in LaundrySection.
     const targetDayRecords = useMemo(() => {
         return (laundryRecords || []).filter((record) => {
-            return pacificDateStringFrom(record.date) === displayDate;
+            const guest = guestMap.get(record.guestId);
+            const matches = !search || [guest?.name, guest?.preferredName, guest?.firstName, guest?.lastName, record.bagNumber].join(' ').toLowerCase().includes(search.toLowerCase());
+            return pacificDateStringFrom(record.date) === displayDate && matches;
         });
-    }, [laundryRecords, displayDate]);
+    }, [laundryRecords, displayDate, guestMap, search]);
 
     // Group laundry records by type and status
     const laundryData = useMemo(() => {
@@ -613,13 +586,13 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
             {/* Header */}
             <div className="bg-gradient-to-r from-purple-50 to-white px-4 py-3 border-b border-gray-100">
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
                         <WashingMachine size={18} className="text-purple-600" />
                         <h3 className="font-semibold text-gray-900 text-sm">
                             {isViewingPastDate ? `Laundry (${dateLabel})` : "All Laundry (Today)"}
                         </h3>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
                         <span className="text-xs text-gray-500 flex items-center gap-1">
                             <Eye size={12} /> Quick View
                         </span>
@@ -632,7 +605,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
 
             {/* On-site List */}
             {(laundryData.onsiteActive.length > 0 || laundryData.onsiteDone.length > 0) && (
-                <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
+                <div className="divide-y divide-gray-100 ">
                     {laundryData.onsiteActive.length === 0 && laundryData.onsiteDone.length > 0 && (
                         <div className="px-4 py-8 text-center">
                             <CheckCircle size={24} className="mx-auto text-emerald-400 mb-2" />
@@ -656,9 +629,9 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
                     <button
                         type="button"
                         onClick={toggleDone}
-                        className="w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
+                        className="min-h-11 min-w-11 w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-emerald-700 hover:bg-emerald-100 transition-colors"
                     >
-                        <span className="flex items-center gap-2">
+                        <span className="flex flex-wrap items-center gap-3">
                             <CheckCircle size={14} />
                             Done Laundry ({laundryData.onsiteDone.length})
                         </span>
@@ -686,9 +659,9 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
                     <button
                         type="button"
                         onClick={toggleOffsite}
-                        className="w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
+                        className="min-h-11 min-w-11 w-full px-4 py-2 flex items-center justify-between text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors"
                     >
-                        <span className="flex items-center gap-2">
+                        <span className="flex flex-wrap items-center gap-3">
                             <Truck size={14} />
                             Off-site ({laundryData.offsiteActive.length + laundryData.offsiteDone.length})
                         </span>
