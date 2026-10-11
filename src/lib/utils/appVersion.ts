@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.28.0';
+export const APP_VERSION = '0.29.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.29.0',
+        date: 'October 11, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Showers and Laundry Optimized for iPad',
+                description: 'Larger touch controls, guest and bag search, sticky service controls, remembered views and scroll positions, and automatic portrait list and landscape board layouts. Laundry has direct next-step buttons and an accessible bag-number dialog; showers show full appointment times and support assigning waitlisted guests to available slots.',
+            },
+            {
+                type: 'fix',
+                title: 'Reliable History and Pickup Tracking',
+                description: 'Laundry list and board views now show the same selected date. Returned off-site loads stay visible until pickup, and ready loads remain actionable. Open shower details reflect live changes, while historical shower status changes are disabled.',
+            },
+            {
+                type: 'performance',
+                title: 'Fewer Unnecessary Service Updates',
+                description: 'Laundry subscribes only to the data it needs and groups board records once per update. Shower cards use guest lookups, and visible elapsed times refresh each minute. Item cooldowns also count calendar days correctly across daylight saving changes.',
+            },
+        ],
+    },
     {
         version: '0.28.0',
         date: 'September 23, 2026',

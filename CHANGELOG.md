@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.29.0] - 2026-10-11
+
+### Added
+
+- Guest search on Showers and guest/bag search on Laundry, with sticky controls and remembered dates, filters, layouts, and scroll positions.
+- Direct laundry workflow buttons and a keyboard-accessible bag-number dialog with cancellation, validation, retry, and duplicate-submit protection.
+- Shower waitlist slot assignment using the existing atomic capacity-checked booking function; the migration reuses the waitlist reservation rather than creating a duplicate.
+
+### Improved
+
+- Larger iPad touch targets and readable appointment times, guest names, and action labels. Laundry automatically uses a list in portrait and a board in landscape, with an explicit layout override and picked-up columns hidden by default.
+- Ready-for-pickup loads stay actionable, drag handles keep scrolling and taps independent, and elapsed times refresh each minute while the page is visible.
+- Narrow laundry store subscriptions, grouped board records, and guest lookup maps reduce unnecessary work.
+
+### Fixed
+
+- Historical laundry list views now honor the selected service date.
+- Returned off-site loads from earlier days remain in the carryover list until picked up. Bulk carryover pickup applies to the visible search results.
+- Open shower details reflect current store data, and historical shower status updates are blocked.
+- Item cooldown day counts no longer gain an extra day when crossing a daylight saving change.
+- Holiday shopper QR rendering now uses server-signed tokens without importing server-only signing code into the Services browser bundle.
+
+### Tests
+
+- Added workflow regression tests, browser tests for iPad portrait/landscape touch layouts and bag entry, preference/clock/scroll tests, and database tests for waitlist promotion, capacity, and reservation reuse.
+
 ## [0.28.0] - 2026-09-23
 
 ### Added

@@ -71,4 +71,3 @@ $$;
 
 comment on function public.book_shower_slot(uuid, date, text, text) is
 'Atomically books a shower slot, reusing a waitlisted or cancelled/no-show reservation for the same guest and date. Rejects blocked slots with SLOT_BLOCKED.';
-
