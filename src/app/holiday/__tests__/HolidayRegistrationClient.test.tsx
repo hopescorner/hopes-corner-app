@@ -328,10 +328,13 @@ describe('HolidayRegistrationClient', () => {
             expect(screen.getByText('#88')).toBeDefined();
         });
 
-        expect(downloadTicketImage).toHaveBeenCalledWith(
-            expect.objectContaining({ ticketNumber: 88 }),
-            { auto: true }
-        );
+        // Confirmation renders before React necessarily runs the download effect.
+        await waitFor(() => {
+            expect(downloadTicketImage).toHaveBeenCalledWith(
+                expect.objectContaining({ ticketNumber: 88 }),
+                { auto: true }
+            );
+        });
 
         const saveImgBtn = screen.getByRole('button', { name: /Save \/ Download Image/i });
         fireEvent.click(saveImgBtn);
