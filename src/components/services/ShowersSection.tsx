@@ -244,11 +244,11 @@ export function ShowersSection() {
             {/* Historical Data Warning Banner */}
             {isViewingPast && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-amber-600" />
+                    <Clock className="w-5 h-5 text-amber-800" />
                     <div>
                         <p className="text-sm font-bold text-amber-800">Viewing Historical Data</p>
-                        <p className="text-xs text-amber-600">
-                            You are viewing shower records from {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}. 
+                        <p className="text-xs text-amber-800">
+                            You are viewing shower records from {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}.
                             Status updates are disabled in history view.
                         </p>
                     </div>
@@ -264,13 +264,13 @@ export function ShowersSection() {
                         aria-expanded={showAddForm}
                     >
                         <span className="flex items-center gap-2">
-                            <ShowerHead size={16} className="text-sky-600" />
+                            <ShowerHead size={16} className="text-sky-700" />
                             Add Shower Record
-                            <span className="text-sm font-normal text-gray-400">
+                            <span className="text-sm font-normal text-gray-600">
                                 (saves to {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
                             </span>
                         </span>
-                        <ChevronDown size={16} className={cn("text-gray-400 transition-transform", showAddForm && "rotate-180")} />
+                        <ChevronDown size={16} className={cn("text-gray-600 transition-transform", showAddForm && "rotate-180")} />
                     </button>
                     {showAddForm && (
                         <div className="px-4 pb-4 border-t border-gray-100">
@@ -315,8 +315,8 @@ export function ShowersSection() {
                                         className={cn(
                                             "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
                                             !backfillGuestId || isAddingBackfill
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : 'bg-sky-600 text-white hover:bg-sky-700'
+                                                ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
+                                                : 'bg-sky-700 text-white hover:bg-sky-700'
                                         )}
                                     >
                                         {isAddingBackfill ? 'Saving...' : 'Add Shower'}
@@ -327,8 +327,8 @@ export function ShowersSection() {
                                         className={cn(
                                             "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
                                             !backfillGuestId || isAddingBackfill
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
+                                                : 'bg-emerald-700 text-white hover:bg-emerald-800'
                                         )}
                                     >
                                         Add Done
@@ -339,8 +339,8 @@ export function ShowersSection() {
                                         className={cn(
                                             "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
                                             !backfillGuestId || isAddingBackfill
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : 'bg-amber-500 text-white hover:bg-amber-600'
+                                                ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
+                                                : 'bg-amber-700 text-white hover:bg-amber-800'
                                         )}
                                     >
                                         Add Waitlist
@@ -384,12 +384,12 @@ export function ShowersSection() {
                                 className={cn(
                                     'min-h-11 px-4 py-2.5 rounded-xl text-sm font-black transition-all capitalize',
                                     activeTab === tab
-                                        ? 'bg-white text-sky-600 shadow-sm'
+                                        ? 'bg-white text-sky-700 shadow-sm'
                                         : 'text-gray-500 hover:text-gray-700'
                                 )}
                             >
                                 {tab}
-                                <span className="ml-2 text-sm opacity-60">
+                                <span className="ml-2 text-sm">
                                     ({tab === 'active' ? activeShowers.length : tab === 'completed' ? completedShowers.length : tab === 'waitlist' ? waitlistedShowers.length : cancelledShowers.length})
                                 </span>
                             </button>
@@ -405,12 +405,12 @@ export function ShowersSection() {
                                 className={cn(
                                     'min-h-11 flex-shrink-0 px-4 py-2 rounded-xl text-sm font-black transition-all capitalize border',
                                     activeTab === tab
-                                        ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                                        ? 'bg-sky-700 text-white border-sky-600 shadow-sm'
                                         : 'bg-white text-gray-500 border-gray-200'
                                 )}
                             >
                                 {tab}
-                                <span className="ml-1.5 text-sm opacity-75">
+                                <span className="ml-1.5 text-sm">
                                     ({tab === 'active' ? activeShowers.length : tab === 'completed' ? completedShowers.length : tab === 'waitlist' ? waitlistedShowers.length : cancelledShowers.length})
                                 </span>
                             </button>
@@ -435,7 +435,7 @@ export function ShowersSection() {
                             onClick={() => setViewMode('grid')}
                             className={cn(
                                 "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
-                                viewMode === 'grid' ? "bg-white shadow text-sky-600" : "text-gray-500 hover:text-gray-700"
+                                viewMode === 'grid' ? "bg-white shadow text-sky-700" : "text-gray-500 hover:text-gray-700"
                             )}
                             title="Grid View"
                         >
@@ -445,7 +445,7 @@ export function ShowersSection() {
                             onClick={() => setViewMode('list')}
                             className={cn(
                                 "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
-                                viewMode === 'list' ? "bg-white shadow text-sky-600" : "text-gray-500 hover:text-gray-700"
+                                viewMode === 'list' ? "bg-white shadow text-sky-700" : "text-gray-500 hover:text-gray-700"
                             )}
                             title="List View"
                         >
@@ -498,7 +498,7 @@ export function ShowersSection() {
                                 className="col-span-full py-20 text-center"
                             >
                                 <ShowerHead size={48} className="mx-auto text-gray-200 mb-4" />
-                                <p className="text-gray-400 font-bold">No {activeTab} showers found</p>
+                                <p className="text-gray-600 font-bold">No {activeTab} showers found</p>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -581,9 +581,9 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
     return (
         <motion.div
             layout
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95 }}
+            initial={false}
+            animate={{ y: 0 }}
+            exit={{ scale: 0.95 }}
             className={cn(
                 "bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative",
                 onClick ? "cursor-pointer hover:border-sky-100" : ""
@@ -598,9 +598,9 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                 <div className="flex items-center gap-3">
                     <div className={cn(
                         "w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-sky-100",
-                        record.status === 'done' ? 'bg-emerald-500' : 
+                        record.status === 'done' ? 'bg-emerald-700' :
                         (record.status === 'cancelled' || record.status === 'no_show') ? 'bg-gray-400' :
-                        record.status === 'waitlisted' ? 'bg-amber-500' : 'bg-sky-500'
+                        record.status === 'waitlisted' ? 'bg-amber-700' : 'bg-sky-700'
                     )}>
                         {queuePosition != null ? (
                             <span className="text-base font-black">#{queuePosition}</span>
@@ -611,11 +611,11 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                     <div>
                         <h4 className={cn(
                             "font-black tracking-tight",
-                            (record.status === 'cancelled' || record.status === 'no_show') ? 'text-gray-400' : 'text-gray-900'
+                            (record.status === 'cancelled' || record.status === 'no_show') ? 'text-gray-600' : 'text-gray-900'
                         )}>
                             {guest ? (guest.preferredName || guest.name) : 'Unknown Guest'}
                         </h4>
-                        <div className="flex items-center gap-1.5 text-sm font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+                        <div className="flex items-center gap-1.5 text-sm font-bold text-gray-600 uppercase tracking-widest mt-0.5">
                             <Clock size={16} />
                             {timeCue && <span className="font-bold text-sky-700">{timeCue}</span>}
                             {record.time ? formatSlotLabel(record.time) : (record.status === 'waitlisted' ? (queuePosition != null ? `Queue #${queuePosition}` : 'Waitlisted') : 'No time')}
@@ -632,8 +632,8 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                     )}
                     <div className={cn(
                         "px-2.5 py-1 rounded-full text-sm font-black uppercase tracking-widest",
-                        record.status === 'done' ? 'bg-emerald-50 text-emerald-600' : 
-                        (record.status === 'cancelled' || record.status === 'no_show') ? 'bg-red-50 text-red-500' : 'bg-sky-50 text-sky-600'
+                        record.status === 'done' ? 'bg-emerald-50 text-emerald-700' :
+                        (record.status === 'cancelled' || record.status === 'no_show') ? 'bg-red-50 text-red-500' : 'bg-sky-50 text-sky-700'
                     )}>
                         {record.status.replace('_', ' ')}
                     </div>
@@ -641,13 +641,13 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
             </div>
 
             <div className="flex flex-wrap items-center gap-3 mt-auto">
-                {!readOnly && record.status === 'waitlisted' && onAssignSlot && <button type="button" onClick={onAssignSlot} className="min-h-11 rounded-lg bg-sky-600 px-4 text-sm font-bold text-white">Assign slot</button>}
+                {!readOnly && record.status === 'waitlisted' && onAssignSlot && <button type="button" onClick={onAssignSlot} className="min-h-11 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white">Assign slot</button>}
                 {record.status !== 'done' && record.status !== 'cancelled' && record.status !== 'no_show' && !readOnly && (
                     <>
                         <button
                             disabled={isUpdating}
                             onClick={() => handleStatusUpdate('done')}
-                            className="min-h-11 min-w-11 flex-1 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-500 text-white hover:bg-emerald-600 shadow-md shadow-emerald-200"
+                            className="min-h-11 min-w-11 flex-1 py-2 rounded-xl text-xs font-black transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-700 text-white hover:bg-emerald-800 shadow-md shadow-emerald-200"
                         >
                             {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
                                 <>
@@ -658,7 +658,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                         <button
                             disabled={isUpdating}
                             onClick={handleCancel}
-                            className="min-h-11 min-w-11 p-2 rounded-xl bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all"
+                            className="min-h-11 min-w-11 p-2 rounded-xl bg-gray-50 text-gray-600 hover:text-red-500 hover:bg-red-50 transition-all"
                         >
                             <XCircle size={18} />
                         </button>
@@ -668,7 +668,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                     <button
                         disabled={isUpdating}
                         onClick={() => handleStatusUpdate('booked')}
-                        className="min-h-11 min-w-11 w-full py-2 rounded-xl bg-gray-50 text-gray-500 hover:bg-amber-50 hover:text-amber-600 text-xs font-black flex items-center justify-center gap-2 transition-all"
+                        className="min-h-11 min-w-11 w-full py-2 rounded-xl bg-gray-50 text-gray-500 hover:bg-amber-50 hover:text-amber-800 text-xs font-black flex items-center justify-center gap-2 transition-all"
                     >
                         {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
                             <>
@@ -683,7 +683,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                             <button
                                 disabled={isUpdating}
                                 onClick={() => handleStatusUpdate('booked')}
-                                className="min-h-11 min-w-11 flex-1 py-2 rounded-xl bg-sky-50 text-sky-600 hover:bg-sky-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
+                                className="min-h-11 min-w-11 flex-1 py-2 rounded-xl bg-sky-50 text-sky-700 hover:bg-sky-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
                                 aria-label="Undo cancellation"
                             >
                                 {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
@@ -696,7 +696,7 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
                         <button
                             disabled={isUpdating}
                             onClick={() => handleStatusUpdate('done')}
-                            className="min-h-11 min-w-11 flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-600 hover:bg-emerald-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
+                            className="min-h-11 min-w-11 flex-1 py-2 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-black flex items-center justify-center gap-2 transition-all"
                         >
                             {isUpdating ? <Loader2 className="animate-spin" size={14} /> : (
                                 <>
@@ -751,7 +751,7 @@ function ShowerSlotDialog({ guestName, slots, onClose, onAssign }: {
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             <div className="flex flex-wrap justify-end gap-3">
                 <button type="button" disabled={busy} onClick={onClose} className="min-h-11 rounded-lg border px-4 text-base">Cancel</button>
-                <button type="submit" disabled={busy || !time} className="min-h-11 rounded-lg bg-sky-600 px-4 text-base font-bold text-white disabled:opacity-50">{busy ? 'Saving…' : 'Assign slot'}</button>
+                <button type="submit" disabled={busy || !time} className="min-h-11 rounded-lg bg-sky-700 px-4 text-base font-bold text-white disabled:cursor-not-allowed">{busy ? 'Saving…' : 'Assign slot'}</button>
             </div>
         </form>
     </dialog>, document.body);

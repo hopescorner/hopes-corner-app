@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useRef, useDeferredValue, useSyncExternalStore } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp, GripVertical, AlertTriangle, CalendarDays } from 'lucide-react';
 import {
     DndContext,
@@ -38,18 +38,18 @@ import { ServiceDayNote } from './ServiceDayNote';
 import { useSession } from 'next-auth/react';
 
 const STATUS_COLUMNS = [
-    { id: 'waiting', title: 'Waiting', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', badgeClass: 'bg-amber-100 text-amber-700' },
+    { id: 'waiting', title: 'Waiting', icon: Clock, color: 'text-amber-800', bg: 'bg-amber-50', border: 'border-amber-200', badgeClass: 'bg-amber-100 text-amber-700' },
     { id: 'washer', title: 'In Washer', icon: WashingMachine, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', badgeClass: 'bg-blue-100 text-blue-700' },
     { id: 'dryer', title: 'In Dryer', icon: Wind, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200', badgeClass: 'bg-purple-100 text-purple-700' },
-    { id: 'done', title: 'Ready', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', badgeClass: 'bg-emerald-100 text-emerald-700' },
+    { id: 'done', title: 'Ready', icon: Package, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', badgeClass: 'bg-emerald-100 text-emerald-700' },
     { id: 'picked_up', title: 'Picked Up', icon: CheckCircle, color: 'text-gray-500', bg: 'bg-gray-50', border: 'border-gray-200', badgeClass: 'bg-gray-100 text-gray-700' },
 ];
 
 const OFFSITE_STATUS_COLUMNS = [
-    { id: 'pending', title: 'Pending', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', badgeClass: 'bg-amber-100 text-amber-700' },
+    { id: 'pending', title: 'Pending', icon: Clock, color: 'text-amber-800', bg: 'bg-amber-50', border: 'border-amber-200', badgeClass: 'bg-amber-100 text-amber-700' },
     { id: 'transported', title: 'Transported', icon: Package, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-200', badgeClass: 'bg-blue-100 text-blue-700' },
     { id: 'returned', title: 'Returned', icon: CheckCircle, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-200', badgeClass: 'bg-purple-100 text-purple-700' },
-    { id: 'offsite_picked_up', title: 'Picked Up', icon: CheckCircle, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', badgeClass: 'bg-emerald-100 text-emerald-700' },
+    { id: 'offsite_picked_up', title: 'Picked Up', icon: CheckCircle, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', badgeClass: 'bg-emerald-100 text-emerald-700' },
 ];
 
 /**
@@ -111,7 +111,7 @@ export function LaundrySection() {
             // When viewing past, show all records from that specific date
             return laundryRecords.filter(r => pacificDateStringFrom(r.date) === selectedDate);
         }
-        
+
         // Current view: only today's records
         return laundryRecords.filter(r => pacificDateStringFrom(r.date) === today);
     }, [laundryRecords, selectedDate, isViewingPast, today]);
@@ -173,7 +173,7 @@ export function LaundrySection() {
 
     // Calculate pending on-site laundry for End Service Day (only 'waiting' status, only for today)
     const todaysRecords = laundryRecords.filter(r => pacificDateStringFrom(r.date) === today);
-    const pendingOnsiteLaundry = todaysRecords.filter(r => 
+    const pendingOnsiteLaundry = todaysRecords.filter(r =>
         (r.laundryType === 'onsite' || !r.laundryType) && r.status === 'waiting'
     );
 
@@ -343,11 +343,11 @@ export function LaundrySection() {
             {/* Historical Data Warning Banner */}
             {isViewingPast && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-amber-600" />
+                    <Clock className="w-5 h-5 text-amber-800" />
                     <div>
                         <p className="text-sm font-bold text-amber-800">Viewing Historical Data</p>
-                        <p className="text-xs text-amber-600">
-                            You are viewing laundry records from {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}. 
+                        <p className="text-xs text-amber-800">
+                            You are viewing laundry records from {new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}.
                             Status updates are disabled in history view.
                         </p>
                     </div>
@@ -513,7 +513,7 @@ export function LaundrySection() {
 
                                         {/* Date + days-ago badge */}
                                         <div className="flex items-center gap-2">
-                                            <CalendarDays size={13} className="text-gray-400 flex-shrink-0" />
+                                            <CalendarDays size={13} className="text-gray-600 flex-shrink-0" />
                                             <span className="text-xs font-semibold text-gray-700">{recordDateStr}</span>
                                             <span
                                                 className={cn(
@@ -540,7 +540,7 @@ export function LaundrySection() {
                                         <button
                                             disabled={updatingIds.has(record.id)}
                                             onClick={() => handleStatusChange(record, isOnsite ? 'picked_up' : 'offsite_picked_up')}
-                                            className="min-h-11 min-w-11 mt-1 flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors shadow-sm"
+                                            className="min-h-11 min-w-11 mt-1 flex items-center justify-center gap-2 w-full px-3 py-2.5 bg-emerald-700 text-white rounded-lg text-xs font-bold hover:bg-emerald-800 transition-colors shadow-sm"
                                         >
                                             <CheckCircle size={14} />
                                             Mark Picked Up
@@ -612,8 +612,8 @@ export function LaundrySection() {
                                             {columnRecords.length === 0 && (
                                                 <div className="py-12 text-center">
                                                     <Icon size={32} className="mx-auto text-gray-200/50 mb-2" />
-                                                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No laundry</p>
-                                                    <p className="text-sm text-gray-300 mt-1">Drag cards here</p>
+                                                    <p className="text-sm font-bold text-gray-600 uppercase tracking-widest">No laundry</p>
+                                                    <p className="text-sm text-gray-600 mt-1">Drag cards here</p>
                                                 </div>
                                             )}
                                         </AnimatePresence>
@@ -650,11 +650,11 @@ export function LaundrySection() {
                         <span className="flex items-center gap-2">
                             <WashingMachine size={16} className="text-purple-600" />
                             Add Laundry Record
-                            <span className="text-sm font-normal text-gray-400">
+                            <span className="text-sm font-normal text-gray-600">
                                 (saves to {new Date(`${selectedDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
                             </span>
                         </span>
-                        <ChevronDown size={16} className={cn("text-gray-400 transition-transform", showAddForm && "rotate-180")} />
+                        <ChevronDown size={16} className={cn("text-gray-600 transition-transform", showAddForm && "rotate-180")} />
                     </button>
                     {showAddForm && (
                         <div className="px-4 pb-4 border-t border-gray-100">
@@ -723,7 +723,7 @@ export function LaundrySection() {
                                         className={cn(
                                             "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
                                             !backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
                                                 : 'bg-indigo-600 text-white hover:bg-indigo-700'
                                         )}
                                     >
@@ -735,8 +735,8 @@ export function LaundrySection() {
                                         className={cn(
                                             "px-4 py-2.5 rounded-lg text-sm font-bold transition-colors",
                                             !backfillGuestId || isAddingBackfill || backfillWeeklyLimitReached || (backfillLaundryType === 'onsite' && !backfillSlotLabel)
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                                ? 'bg-gray-100 text-gray-600 cursor-not-allowed'
+                                                : 'bg-emerald-700 text-white hover:bg-emerald-800'
                                         )}
                                     >
                                         Add Completed
@@ -830,8 +830,8 @@ export function LaundrySection() {
                                             {columnRecords.length === 0 && (
                                                 <div className="py-12 text-center">
                                                     <Icon size={32} className="mx-auto text-gray-200/50 mb-2" />
-                                                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No laundry</p>
-                                                    <p className="text-sm text-gray-300 mt-1">Drag cards here</p>
+                                                    <p className="text-sm font-bold text-gray-600 uppercase tracking-widest">No laundry</p>
+                                                    <p className="text-sm text-gray-600 mt-1">Drag cards here</p>
                                                 </div>
                                             )}
                                         </AnimatePresence>
@@ -969,15 +969,11 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
             className={cn(
                 "bg-white rounded-lg border-2 shadow-sm p-3 transition-all hover:shadow-md",
                 "cursor-default",
-                isDragging && "opacity-50 scale-105",
+                isDragging && "ring-2 ring-purple-600 scale-105",
                 isCompleted ? "border-emerald-200 hover:border-emerald-300" : "border-gray-200 hover:border-gray-300"
             )}
         >
-            <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-            >
+            <div>
                 <div className="flex items-center justify-between gap-1.5 mb-2 min-h-[24px]">
                     {!readOnly && (
                         <button type="button" {...dragListeners}
@@ -1022,7 +1018,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
 
                 <div className="space-y-2">
                     {record.bagNumber && (
-                        <div className="flex items-start gap-1.5 text-xs text-gray-600 bg-purple-50 border border-purple-100 rounded px-2 py-1.5">
+                        <div className="flex items-start gap-1.5 text-sm text-gray-700 bg-purple-50 border border-purple-100 rounded px-2 py-1.5">
                             <Package size={12} className="text-purple-600 flex-shrink-0 mt-0.5" />
                             <span>Bag #{record.bagNumber}</span>
                         </div>
@@ -1040,13 +1036,13 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                             className="flex items-center gap-1.5 text-sm text-gray-500 bg-gray-50 rounded px-2 py-1 cursor-help"
                             title={`Dropoff: ${record.createdAt ? formatTimeElapsed(record.createdAt, now) + ' ago' : 'N/A'}\nIn current status: ${record.lastUpdated ? formatTimeElapsed(record.lastUpdated, now) + ' ago' : 'N/A'}`}
                         >
-                            <Timer size={10} className="text-gray-400 flex-shrink-0" />
+                            <Timer size={10} className="text-gray-600 flex-shrink-0" />
                             <span>
                                 {record.lastUpdated && record.lastUpdated !== record.createdAt ? (
                                     <>
                                         <span className="font-bold text-gray-700">{formatTimeElapsed(record.lastUpdated, now)}</span> in status
-                                        <span className="text-gray-300 mx-1">•</span>
-                                        <span className="text-gray-400">Total: {formatTimeElapsed(record.createdAt, now) || '—'}</span>
+                                        <span className="text-gray-600 mx-1">•</span>
+                                        <span className="text-gray-600">Total: {formatTimeElapsed(record.createdAt, now) || '—'}</span>
                                     </>
                                 ) : (
                                     <span>{formatTimeElapsed(record.createdAt, now) || '—'}</span>
@@ -1055,7 +1051,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                         </div>
                     )}
 
-                    {!readOnly && nextAction && <button type="button" disabled={isUpdating} onClick={() => onStatusChange(nextAction.status)} className="min-h-11 min-w-11 w-full rounded-lg bg-purple-600 px-3 py-2 text-sm font-bold text-white disabled:opacity-50">{isUpdating ? 'Saving…' : nextAction.label}</button>}
+                    {!readOnly && nextAction && <button type="button" disabled={isUpdating} onClick={() => onStatusChange(nextAction.status)} className="min-h-11 min-w-11 w-full rounded-lg bg-purple-600 px-3 py-2 text-sm font-bold text-white disabled:cursor-not-allowed">{isUpdating ? 'Saving…' : nextAction.label}</button>}
                     {isExpanded && (
                         <div className="pt-2 mt-2 border-t border-gray-100 space-y-2">
                             <div>
@@ -1078,7 +1074,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                                     </div>
                                 ) : (
                                     <div className="flex items-center justify-between">
-                                        <span className={cn("text-xs font-medium", record.bagNumber ? "text-gray-900" : "text-gray-300 italic")}>
+                                        <span className={cn("text-xs font-medium", record.bagNumber ? "text-gray-900" : "text-gray-600 italic")}>
                                             {record.bagNumber || 'No Bag #'}
                                         </span>
                                         {!readOnly && (
@@ -1089,7 +1085,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                                                     setBagValue(record.bagNumber || '');
                                                     setIsEditingBag(true);
                                                 }}
-                                                className="min-h-11 min-w-11 text-sm text-blue-500 hover:underline"
+                                                className="min-h-11 min-w-11 text-sm text-blue-700 hover:underline"
                                             >
                                                 Edit
                                             </button>
@@ -1129,7 +1125,7 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                         </div>
                     )}
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 }

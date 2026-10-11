@@ -224,7 +224,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
                     <button
                         disabled={isUpdating}
                         onClick={(e) => handleStatusChange(e, nextStatus, booking)}
-                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-purple-500 text-white hover:bg-purple-600 transition-colors flex items-center gap-1 shadow-sm"
+                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-purple-700 text-white hover:bg-purple-600 transition-colors flex items-center gap-1 shadow-sm"
                         aria-label={`Advance to ${getNextStatusLabel(nextStatus)}`}
                     >
                         {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <ChevronRight size={10} />}
@@ -275,7 +275,7 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { book
             )}
         >
             <div className="flex items-center gap-3 min-w-0 flex-1">
-                <span className="text-xs font-medium text-emerald-600 w-16 flex-shrink-0">
+                <span className="text-xs font-medium text-emerald-700 w-16 flex-shrink-0">
                     {booking.timeLabel}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -286,7 +286,7 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { book
                         <HousingStatusBadge housingStatus={booking.housingStatus} />
                     </div>
                     {booking.bagNumber && (
-                        <span className="text-xs text-emerald-600">Bag #{booking.bagNumber}</span>
+                        <span className="text-xs text-emerald-700">Bag #{booking.bagNumber}</span>
                     )}
                 </div>
             </div>
@@ -351,7 +351,7 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, readOnly = false }: { item:
                     <button
                         disabled={isUpdating}
                         onClick={(e) => handleStatusChange(e, nextStatus, item)}
-                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-blue-500 text-white hover:bg-blue-600 transition-colors flex items-center gap-1 shadow-sm"
+                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-blue-700 text-white hover:bg-blue-600 transition-colors flex items-center gap-1 shadow-sm"
                         aria-label={`Advance to ${getNextStatusLabel(nextStatus)}`}
                     >
                         {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <ChevronRight size={10} />}
@@ -408,7 +408,7 @@ const OffsiteDoneRow = memo(({ item, onGuestClick, readOnly = false }: { item: L
                     <HousingStatusBadge housingStatus={item.housingStatus} />
                 </div>
                 {item.bagNumber && (
-                    <span className="text-xs text-emerald-600">Bag #{item.bagNumber}</span>
+                    <span className="text-xs text-emerald-700">Bag #{item.bagNumber}</span>
                 )}
             </div>
             <div className="flex flex-wrap items-center gap-3">

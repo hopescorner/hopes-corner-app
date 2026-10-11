@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/experimental-ct-react';
 import { ShowersSectionStory } from '../__ct__/stories';
+import { expectReadableText } from '../__ct__/readableText';
 
 const guests = [
   { id: 'g1', firstName: 'John', lastName: 'Doe', preferredName: 'Johnny', name: 'John Doe' },
@@ -50,6 +51,10 @@ test.describe('iPad showers', () => {
     await expect(component.getByText('Jane Smith', { exact: true })).toHaveCount(0);
     await expect(component.getByText('9:30', { exact: false })).toBeVisible();
     const done = component.getByRole('button', { name: 'Complete shower', exact: true });
+    await expectReadableText(done);
+    await done.hover();
+    await expectReadableText(done);
+    await expectReadableText(component.getByText('Johnny', { exact: true }));
     const box = await done.boundingBox();
     expect(box!.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

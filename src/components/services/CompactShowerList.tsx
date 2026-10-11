@@ -82,8 +82,8 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
             <div className="flex items-center gap-3 min-w-0">
                 <div className={cn(
                     "w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm",
-                    record.status === 'done' ? 'bg-emerald-500' :
-                    record.status === 'waitlisted' ? 'bg-amber-500' : 'bg-sky-500'
+                    record.status === 'done' ? 'bg-emerald-700' :
+                    record.status === 'waitlisted' ? 'bg-amber-700' : 'bg-sky-700'
                 )}>
                     {queuePosition != null ? (
                         <span className="text-xs font-black">#{queuePosition}</span>
@@ -105,7 +105,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                             </span>
                         )}
                         {record.status === 'waitlisted' && (
-                            <span className="text-amber-600 font-medium flex items-center gap-1">
+                            <span className="text-amber-800 font-medium flex items-center gap-1">
                                 <AlertCircle size={10} /> {queuePosition != null ? `Queue #${queuePosition}` : 'Waitlisted'}
                             </span>
                         )}
@@ -117,13 +117,13 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                 <ReminderIndicator guestId={record.guestId} serviceType="shower" compact />
                 <CompactWaiverIndicator guestId={record.guestId} serviceType="shower" />
 
-                {!readOnly && record.status === 'waitlisted' && onAssignSlot && <button type="button" onClick={(event) => { event.stopPropagation(); onAssignSlot(record.guestId); }} className="min-h-11 rounded-lg bg-sky-600 px-4 text-sm font-bold text-white">Assign slot</button>}
+                {!readOnly && record.status === 'waitlisted' && onAssignSlot && <button type="button" onClick={(event) => { event.stopPropagation(); onAssignSlot(record.guestId); }} className="min-h-11 rounded-lg bg-sky-700 px-4 text-sm font-bold text-white">Assign slot</button>}
                 {!readOnly && isActive && (
                     <>
                         <button
                             disabled={isUpdating}
                             onClick={(e) => handleStatusUpdate(e, 'done')}
-                            className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-emerald-500 text-white hover:bg-emerald-600 transition-colors flex items-center gap-1 shadow-sm"
+                            className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-emerald-700 text-white hover:bg-emerald-800 transition-colors flex items-center gap-1 shadow-sm"
                             aria-label="Complete shower"
                         >
                             {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle size={10} />}
@@ -132,7 +132,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                         <button
                             disabled={isUpdating}
                             onClick={handleCancel}
-                            className="min-h-11 min-w-11 p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                            className="min-h-11 min-w-11 p-1 rounded-lg text-gray-600 hover:text-red-500 hover:bg-red-50 transition-colors"
                             aria-label="Cancel shower"
                         >
                             <XCircle size={16} />
@@ -144,7 +144,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                     <button
                         disabled={isUpdating}
                         onClick={(e) => handleStatusUpdate(e, 'booked')}
-                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-600 transition-colors flex items-center gap-1"
+                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-800 transition-colors flex items-center gap-1"
                         aria-label="Reopen shower"
                     >
                         {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />}
@@ -158,7 +158,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                             <button
                                 disabled={isUpdating}
                                 onClick={(e) => handleStatusUpdate(e, 'booked')}
-                                className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-sky-50 text-sky-600 hover:bg-sky-100 transition-colors flex items-center gap-1"
+                                className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 transition-colors flex items-center gap-1"
                                 aria-label="Undo cancellation"
                             >
                                 {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />}
@@ -168,7 +168,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                         <button
                             disabled={isUpdating}
                             onClick={(e) => handleStatusUpdate(e, 'done')}
-                            className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                            className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center gap-1"
                             aria-label="Complete cancelled shower"
                         >
                             {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <CheckCircle size={10} />}
@@ -210,7 +210,7 @@ const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitl
         return (
             <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
                 <div className="flex justify-center mb-2">
-                    <User size={24} className="text-gray-300" />
+                    <User size={24} className="text-gray-600" />
                 </div>
                 <p className="text-gray-500 font-medium">No showers in this list</p>
             </div>

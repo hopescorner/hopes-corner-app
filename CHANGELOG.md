@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.29.1] - 2026-10-11
+
+### Improved
+
+- Removed shower and laundry card fade-in effects so names, bag numbers, and actions stay fully opaque during updates.
+- Darkened service labels, empty states, and action buttons, including hover states. Status counts and saving buttons retain readable text instead of fading.
+- Added browser checks for at least 4.5:1 contrast on key service text and buttons, and for fully opaque laundry cards after a workflow step.
+
 ## [0.29.0] - 2026-10-11
 
 ### Added

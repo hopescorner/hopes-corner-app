@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.29.0';
+export const APP_VERSION = '0.29.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,15 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.29.1',
+        date: 'October 11, 2026',
+        highlights: [{
+            type: 'improvement',
+            title: 'Clearer Service Text and Buttons',
+            description: 'Shower and laundry cards stay fully visible when appearing or moving between steps. Darker labels and action buttons improve readability, with browser checks for text contrast.',
+        }],
+    },
     {
         version: '0.29.0',
         date: 'October 11, 2026',

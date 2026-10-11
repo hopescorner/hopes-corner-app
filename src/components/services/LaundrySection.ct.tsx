@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/experimental-ct-react';
 import { LaundrySectionStory } from '../__ct__/stories';
+import { expectReadableText } from '../__ct__/readableText';
 
 const guests = [
   { id: 'g1', firstName: 'John', lastName: 'Doe', preferredName: 'Johnny', name: 'John Doe' },
@@ -55,6 +56,10 @@ test.describe('iPad laundry workflows', () => {
     await start.click();
     await expect(component.getByRole('button', { name: 'Move to dryer' })).toBeVisible();
     await expect(component.getByRole('button', { name: 'Mark picked up', exact: true })).toHaveCount(0);
+    await expectReadableText(component.getByText('Johnny', { exact: true }).first());
+    await expectReadableText(component.getByText('John Doe • 09:00', { exact: true }).first());
+    await expectReadableText(component.getByText('Bag #B12', { exact: true }).first());
+    await expectReadableText(component.getByRole('button', { name: 'Move to dryer' }));
     await page.screenshot({ path: '/tmp/hopes-laundry-ipad-landscape.png', fullPage: true });
   });
 

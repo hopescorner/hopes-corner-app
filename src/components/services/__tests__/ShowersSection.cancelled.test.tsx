@@ -119,7 +119,7 @@ describe('ShowersSection Cancelled Tab', () => {
         
         const listViewButton = screen.getByTitle('List View');
         // List view button should have the active styling
-        expect(listViewButton.className).toContain('text-sky-600');
+        expect(listViewButton.className).toContain('text-sky-700');
     });
 
     it('displays correct count in cancelled tab', () => {
@@ -158,7 +158,7 @@ describe('ShowersSection Cancelled Tab', () => {
         fireEvent.click(cancelledTab);
         
         await waitFor(() => {
-            expect(cancelledTab.className).toContain('text-sky-600');
+            expect(cancelledTab.className).toContain('text-sky-700');
         });
     });
 

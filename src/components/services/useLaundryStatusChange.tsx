@@ -108,7 +108,7 @@ function BagNumberDialog({ name, bag, error, busy, onChange, onCancel, onSave }:
                 {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
                 <div className="flex flex-wrap justify-end gap-3">
                     <button type="button" disabled={busy} onClick={onCancel} className="min-h-11 rounded-lg border px-4 text-base">Cancel</button>
-                    <button type="submit" disabled={busy} className="min-h-11 rounded-lg bg-purple-600 px-4 text-base font-bold text-white disabled:opacity-50">{busy ? 'Saving…' : 'Save and continue'}</button>
+                    <button type="submit" disabled={busy} className="min-h-11 rounded-lg bg-purple-600 px-4 text-base font-bold text-white disabled:cursor-not-allowed">{busy ? 'Saving…' : 'Save and continue'}</button>
                 </div>
             </form>
         </dialog>, document.body,
