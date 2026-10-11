@@ -209,6 +209,21 @@ describe('useItemsStore', () => {
             expect(result.available).toBe(true);
         });
 
+        it('counts calendar days across the autumn daylight saving change', () => {
+            vi.useFakeTimers();
+            vi.stubEnv('TZ', 'America/Los_Angeles');
+            vi.setSystemTime(new Date(2026, 9, 11, 12));
+            try {
+                useItemsStore.setState({ distributedItems: [{ id: 'dst', guestId: 'g1', itemKey: 'sleeping_bag', distributedAt: new Date(2026, 9, 6, 12).toISOString(), createdAt: new Date(2026, 9, 6, 12).toISOString() }] });
+                const result = useItemsStore.getState().checkAvailability('g1', 'sleeping_bag');
+                expect(result.available).toBe(false);
+                expect(result.daysRemaining).toBe(25);
+            } finally {
+                vi.useRealTimers();
+                vi.unstubAllEnvs();
+            }
+        });
+
         it('calculates cooldown for sleeping_bag (30 days)', () => {
             const recently = new Date();
             recently.setDate(recently.getDate() - 5);

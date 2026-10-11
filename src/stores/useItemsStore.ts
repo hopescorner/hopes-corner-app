@@ -198,8 +198,10 @@ export const useItemsStore = create<ItemsState>()(
                 }
 
                 if (nextAvailable && now < nextAvailable) {
-                    const diffTime = Math.abs(nextAvailable.getTime() - now.getTime());
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    // Compare calendar days so a daylight saving change cannot add an extra day.
+                    const nextDay = Date.UTC(nextAvailable.getFullYear(), nextAvailable.getMonth(), nextAvailable.getDate());
+                    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+                    const diffDays = (nextDay - today) / (1000 * 60 * 60 * 24);
                     return { available: false, nextAvailable, daysRemaining: diffDays };
                 }
 
