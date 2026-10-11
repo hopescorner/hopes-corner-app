@@ -1,5 +1,4 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import QRCode from 'qrcode';
 import { HolidayAgeGroup } from '@/types/holiday';
 
 export interface HolidayShopperChild {
@@ -75,16 +74,4 @@ export function verifyHolidayShopperToken(
     } catch {
         return { valid: false, error: 'Failed to decode shopper payload' };
     }
-}
-
-export async function generateShopperQRCodeDataUrl(shopperUrl: string): Promise<string> {
-    return QRCode.toDataURL(shopperUrl, {
-        width: 320,
-        margin: 1.5,
-        color: {
-            dark: '#064e3b',
-            light: '#ffffff',
-        },
-        errorCorrectionLevel: 'M',
-    });
 }

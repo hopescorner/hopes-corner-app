@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { X, Copy, ExternalLink, ShoppingBag, Check } from 'lucide-react';
 import { HolidayRegistration } from '@/types/holiday';
-import { generateHolidayShopperToken, generateShopperQRCodeDataUrl } from '@/lib/holiday/shopperToken';
+import { generateShopperQRCodeDataUrl } from '@/lib/holiday/shopperQRCode';
 import toast from 'react-hot-toast';
 
 interface HolidayShopperQRModalProps {
@@ -22,20 +22,9 @@ export function HolidayShopperQRModal({
     const [copied, setCopied] = useState(false);
 
     const shopperUrl = useMemo(() => {
-        if (!registration) return '';
+        if (!registration?.shopperToken) return '';
         const origin = typeof window !== 'undefined' ? window.location.origin : '';
-        const token =
-            registration.shopperToken ||
-            generateHolidayShopperToken({
-                ticketNumber: registration.ticketNumber,
-                timeSlot: registration.timeSlot,
-                children: (registration.children || []).map((c) => ({
-                    id: c.id,
-                    age: c.age,
-                    ageGroup: c.ageGroup,
-                    gender: c.gender,
-                })),
-            });
+        const token = registration.shopperToken;
         return `${origin}/holiday/shopper?token=${encodeURIComponent(token)}`;
     }, [registration]);
 
@@ -110,7 +99,9 @@ export function HolidayShopperQRModal({
 
                     <div className="flex justify-center">
                         <div className="relative h-56 w-56 overflow-hidden rounded-2xl border-2 border-emerald-100 bg-white p-2 shadow-xs flex items-center justify-center">
-                            {qrCodeDataUrl ? (
+                            {!shopperUrl ? (
+                                <p role="alert" className="text-sm text-red-700">Reload registrations to get the shopper link.</p>
+                            ) : qrCodeDataUrl ? (
                                 <Image
                                     src={qrCodeDataUrl}
                                     alt={`Shopper QR Code for Ticket #${registration.ticketNumber}`}
@@ -129,6 +120,7 @@ export function HolidayShopperQRModal({
                         <button
                             type="button"
                             onClick={handleCopy}
+                            disabled={!shopperUrl}
                             className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors shadow-2xs"
                         >
                             {copied ? (

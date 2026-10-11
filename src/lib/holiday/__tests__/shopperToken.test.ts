@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
     generateHolidayShopperToken,
     verifyHolidayShopperToken,
-    generateShopperQRCodeDataUrl,
 } from '../shopperToken';
+import { generateShopperQRCodeDataUrl } from '../shopperQRCode';
 
 describe('shopperToken', () => {
     const mockPayload = {
