@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.31.0';
+export const APP_VERSION = '0.32.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.32.0',
+        date: 'October 12, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Supply Blocks Visible in Showers List',
+                description: 'The showers list now shows a gray icon with a red slash beside each guest name for every supply they cannot receive right now, with the days remaining in the tooltip. Staff can see what can still be handed out without opening the amenities panel.',
+            },
+        ],
+    },
     {
         version: '0.31.0',
         date: 'October 12, 2026',

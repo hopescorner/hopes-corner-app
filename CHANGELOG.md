@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.32.0] - 2026-10-12
+
+### Added
+
+- Showers list view shows ineligible supply icons beside each guest name: grayed-out amenity icons with a red slash and days-remaining tooltips, so staff can see which supplies can still be handed out without opening the amenities panel. Visible guests' item history loads in one query, and the shower amenities catalog is now shared between the list badges and the detail modal.
+
+### Tests
+
+- Added coverage for the ineligible-supply badges (cooldown rendering, multi-supply and per-guest isolation), list-view integration beside guest names with single bulk fetch, and the bulk item-history store fetch (merge, dedupe, error handling). Full Vitest suite passes (4214 tests); `npm run lint` clean and `npm run build` passes.
+
 ## [0.31.0] - 2026-10-12
 
 ### Added
