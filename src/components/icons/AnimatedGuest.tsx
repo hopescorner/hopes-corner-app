@@ -6,141 +6,207 @@ export default function AnimatedGuest({ className = '' }: { className?: string }
             className={`w-full h-full ${className}`}
             viewBox="0 0 200 200"
             xmlns="http://www.w3.org/2000/svg"
+            shapeRendering="crispEdges"
+            style={{ imageRendering: 'pixelated' }}
+            role="img"
+            aria-label="Blocky guest taking a bite of food"
         >
+            <title>Guest taking a bite of food</title>
             <style>
                 {`
-                    @keyframes eatMove {
-                        0%, 100% { transform: rotate(0deg); }
-                        40%, 60% { transform: rotate(-35deg) translate(0px, -15px); }
+                    .guest-bob {
+                        animation: guestBob 1.6s steps(1, end) infinite;
+                        transform-box: fill-box;
                     }
-                    @keyframes chew {
-                        0%, 100% { transform: scaleY(1); }
-                        45%, 55% { transform: scaleY(0.8); }
-                    }
-                    @keyframes foodDisappear {
-                        0%, 39% { opacity: 1; }
-                        40%, 100% { opacity: 0; }
+                    @keyframes guestBob {
+                        0%, 32% { transform: translateY(0); }
+                        38%, 62% { transform: translateY(-3px); }
+                        68%, 100% { transform: translateY(0); }
                     }
                     .eating-arm {
-                        animation: eatMove 2s ease-in-out infinite;
-                        transform-origin: 110px 145px;
+                        animation: eatSwing 1.6s steps(1, end) infinite;
+                        transform-box: fill-box;
+                        transform-origin: 50% 0%;
                     }
-                    .mouth {
-                        animation: chew 2s ease-in-out infinite;
-                        transform-origin: 100px 92px;
+                    @keyframes eatSwing {
+                        0%, 32% { transform: rotate(0deg); }
+                        38%, 62% { transform: rotate(-104deg); }
+                        68%, 100% { transform: rotate(0deg); }
                     }
-                    .food {
-                        animation: foodDisappear 2s ease-in-out infinite;
-                        transform-origin: 130px 130px;
+                    .mouth-closed { animation: mouthClosed 1.6s steps(1, end) infinite; }
+                    @keyframes mouthClosed {
+                        0%, 32% { opacity: 1; }
+                        38%, 62% { opacity: 0; }
+                        68%, 100% { opacity: 1; }
+                    }
+                    .mouth-open { animation: mouthOpen 1.6s steps(1, end) infinite; }
+                    @keyframes mouthOpen {
+                        0%, 32% { opacity: 0; }
+                        38%, 62% { opacity: 1; }
+                        68%, 100% { opacity: 0; }
+                    }
+                    .food-bite { animation: foodBite 1.6s steps(1, end) infinite; }
+                    @keyframes foodBite {
+                        0%, 32% { opacity: 1; }
+                        38%, 100% { opacity: 0; }
+                    }
+                    .crumb { animation: crumbPop 1.6s steps(1, end) infinite; transform-box: fill-box; }
+                    @keyframes crumbPop {
+                        0%, 32% { opacity: 0; transform: translateY(0); }
+                        38%, 62% { opacity: 1; transform: translateY(4px); }
+                        68%, 100% { opacity: 0; transform: translateY(4px); }
+                    }
+                    @media (prefers-reduced-motion: reduce) {
+                        .guest-bob, .eating-arm, .mouth-closed, .mouth-open,
+                        .food-bite, .crumb {
+                            animation: none;
+                        }
+                        .mouth-open, .crumb { opacity: 0; }
                     }
                 `}
             </style>
 
             <defs>
                 <clipPath id="guest-clip">
-                    <rect x="0" y="0" width="200" height="200" rx="32" />
+                    <rect x="0" y="0" width="200" height="200" />
                 </clipPath>
             </defs>
 
             <g clipPath="url(#guest-clip)">
-                {/* Background Base */}
-                <rect x="0" y="0" width="200" height="200" fill="#fffbeb" />
-
-                {/* Wallpaper Pattern */}
-                <g stroke="#fef3c7" strokeWidth="12">
-                    <line x1="20" y1="0" x2="20" y2="160" />
-                    <line x1="60" y1="0" x2="60" y2="160" />
-                    <line x1="100" y1="0" x2="100" y2="160" />
-                    <line x1="140" y1="0" x2="140" y2="160" />
-                    <line x1="180" y1="0" x2="180" y2="160" />
+                {/* Dirt-block wall with grass cap */}
+                <rect x="0" y="0" width="200" height="162" fill="#96613a" />
+                <rect x="0" y="0" width="200" height="16" fill="#65a30d" />
+                <rect x="0" y="0" width="200" height="4" fill="#84cc16" />
+                <g fill="#65a30d">
+                    <rect x="0" y="16" width="8" height="8" />
+                    <rect x="32" y="16" width="8" height="8" />
+                    <rect x="64" y="16" width="8" height="8" />
+                    <rect x="96" y="16" width="8" height="8" />
+                    <rect x="128" y="16" width="8" height="8" />
+                    <rect x="160" y="16" width="8" height="8" />
+                    <rect x="192" y="16" width="8" height="8" />
+                </g>
+                {/* Dirt speckle */}
+                <g fill="#7c4f2e">
+                    <rect x="14" y="40" width="6" height="6" />
+                    <rect x="52" y="60" width="6" height="6" />
+                    <rect x="90" y="36" width="6" height="6" />
+                    <rect x="112" y="96" width="6" height="6" />
+                    <rect x="30" y="110" width="6" height="6" />
+                    <rect x="70" y="130" width="6" height="6" />
+                    <rect x="150" y="120" width="6" height="6" />
+                    <rect x="180" y="60" width="6" height="6" />
+                </g>
+                <g fill="#ab7648">
+                    <rect x="34" y="52" width="6" height="6" />
+                    <rect x="72" y="80" width="6" height="6" />
+                    <rect x="100" y="130" width="6" height="6" />
+                    <rect x="132" y="60" width="6" height="6" />
+                    <rect x="166" y="100" width="6" height="6" />
+                    <rect x="10" y="88" width="6" height="6" />
                 </g>
 
-                {/* Painting */}
-                <rect x="25" y="30" width="50" height="60" fill="#e2e8f0" stroke="#b45309" strokeWidth="4" />
-                <circle cx="50" cy="55" r="14" fill="#10b981" />
-                <circle cx="40" cy="70" r="10" fill="#3b82f6" opacity="0.8" />
-                <circle cx="65" cy="70" r="8" fill="#f59e0b" opacity="0.8" />
+                {/* Creeper painting */}
+                <rect x="18" y="26" width="54" height="58" fill="#78350f" />
+                <rect x="23" y="31" width="44" height="48" fill="#22c55e" />
+                <rect x="30" y="44" width="10" height="10" fill="#14532d" />
+                <rect x="50" y="44" width="10" height="10" fill="#14532d" />
+                <rect x="38" y="56" width="14" height="14" fill="#14532d" />
+                <rect x="34" y="60" width="4" height="8" fill="#14532d" />
+                <rect x="52" y="60" width="4" height="8" fill="#14532d" />
 
-                {/* Window */}
-                <rect x="135" y="20" width="50" height="80" fill="#e0f2fe" stroke="#ffffff" strokeWidth="6" />
-                <line x1="160" y1="20" x2="160" y2="100" stroke="#ffffff" strokeWidth="4" />
-                <line x1="135" y1="60" x2="185" y2="60" stroke="#ffffff" strokeWidth="4" />
+                {/* Glass-pane window */}
+                <rect x="130" y="14" width="58" height="70" fill="#4b5563" />
+                <rect x="135" y="19" width="48" height="60" fill="#bfdbfe" />
+                <rect x="168" y="24" width="10" height="10" fill="#fde047" />
+                <rect x="140" y="32" width="14" height="6" fill="#ffffff" />
+                <rect x="156" y="19" width="4" height="60" fill="#f8fafc" />
+                <rect x="135" y="46" width="48" height="4" fill="#f8fafc" />
 
-                {/* Baseboard */}
-                <rect x="0" y="155" width="200" height="5" fill="#fcd34d" />
+                {/* Oak plank floor */}
+                <rect x="0" y="160" width="200" height="40" fill="#a06a35" />
+                <rect x="0" y="160" width="200" height="3" fill="#c08a4d" />
+                <rect x="0" y="176" width="200" height="2" fill="#7c4f2e" />
+                <rect x="40" y="163" width="2" height="13" fill="#7c4f2e" />
+                <rect x="100" y="163" width="2" height="13" fill="#7c4f2e" />
+                <rect x="160" y="163" width="2" height="13" fill="#7c4f2e" />
+                <rect x="70" y="178" width="2" height="22" fill="#7c4f2e" />
+                <rect x="130" y="178" width="2" height="22" fill="#7c4f2e" />
 
-                {/* Floor */}
-                <rect x="0" y="160" width="200" height="40" fill="#fef3c7" />
-                <line x1="0" y1="160" x2="200" y2="160" stroke="#f59e0b" strokeWidth="2" opacity="0.2" />
-                <line x1="0" y1="180" x2="200" y2="180" stroke="#f59e0b" strokeWidth="2" opacity="0.1" />
+                {/* Guest: head + torso + arms bob as one rigid voxel */}
+                <g className="guest-bob">
+                    {/* Neck + torso with cube side shade */}
+                    <rect x="92" y="94" width="16" height="8" fill="#cf9a6b" />
+                    <rect x="60" y="102" width="80" height="56" fill="#0ea5e9" />
+                    <rect x="126" y="102" width="14" height="56" fill="#0284c7" />
+                    <rect x="92" y="102" width="16" height="6" fill="#e0f2fe" />
+                    <rect x="98" y="116" width="4" height="4" fill="#075985" />
+                    <rect x="98" y="128" width="4" height="4" fill="#075985" />
 
-                <g transform="translate(10, 10)">
-                    {/* Body */}
-                    <rect x="60" y="104" width="80" height="76" fill="#0ea5e9" /> {/* Sky 500 Shirt */}
-
-                    {/* Head */}
-                    <rect x="76" y="56" width="48" height="48" fill="#fcd34d" /> {/* Face */}
-
-                    {/* Hair */}
-                    <rect x="72" y="48" width="56" height="16" fill="#78350f" />
-                    <rect x="72" y="64" width="8" height="24" fill="#78350f" />
-                    <rect x="120" y="64" width="8" height="24" fill="#78350f" />
-
-                    {/* Face details */}
-                    <rect x="86" y="72" width="6" height="6" fill="#4b5563" />
-                    <rect x="108" y="72" width="6" height="6" fill="#4b5563" />
-
-                    {/* Cheeks */}
-                    <rect x="80" y="82" width="6" height="6" fill="#fbbf24" opacity="0.5" />
-                    <rect x="114" y="82" width="6" height="6" fill="#fbbf24" opacity="0.5" />
-
-                    {/* Mouth animated wrapper */}
-                    <g className="mouth">
-                        <rect x="92" y="88" width="16" height="6" fill="#4b5563" />
-                        <rect x="94" y="90" width="12" height="4" fill="#dc2626" opacity="0.8" />
+                    {/* Head cube with block hair */}
+                    <rect x="72" y="46" width="56" height="48" fill="#eec39a" />
+                    <rect x="120" y="46" width="8" height="48" fill="#cf9a6b" />
+                    <rect x="72" y="36" width="56" height="10" fill="#4a2c17" />
+                    <rect x="72" y="46" width="8" height="24" fill="#4a2c17" />
+                    <rect x="120" y="46" width="8" height="24" fill="#4a2c17" />
+                    {/* Pixel eyes + cheeks */}
+                    <rect x="82" y="62" width="10" height="8" fill="#ffffff" />
+                    <rect x="108" y="62" width="10" height="8" fill="#ffffff" />
+                    <rect x="86" y="64" width="4" height="6" fill="#1d4ed8" />
+                    <rect x="112" y="64" width="4" height="6" fill="#1d4ed8" />
+                    <rect x="78" y="74" width="6" height="6" fill="#f9a8d4" opacity="0.8" />
+                    <rect x="116" y="74" width="6" height="6" fill="#f9a8d4" opacity="0.8" />
+                    {/* Two-frame chew: closed swaps with open exactly on the bite frames */}
+                    <rect className="mouth-closed" x="92" y="84" width="16" height="4" fill="#4b5563" />
+                    <g className="mouth-open">
+                        <rect x="92" y="82" width="16" height="8" fill="#4b5563" />
+                        <rect x="95" y="86" width="10" height="4" fill="#dc2626" />
                     </g>
 
-                    {/* Table */}
-                    <rect x="20" y="160" width="160" height="15" fill="#92400e" rx="0" />
-                    <rect x="40" y="175" width="10" height="15" fill="#78350f" />
-                    <rect x="150" y="175" width="10" height="15" fill="#78350f" />
+                    {/* Left arm: static block flush with torso, hand resting by the plate */}
+                    <rect x="46" y="102" width="16" height="34" fill="#0ea5e9" />
+                    <rect x="46" y="102" width="4" height="34" fill="#0284c7" />
+                    <rect x="46" y="136" width="16" height="14" fill="#eec39a" />
 
-                    {/* Plate */}
-                    <rect x="65" y="152" width="70" height="8" fill="#e5e7eb" rx="2" />
-                    <rect x="70" y="150" width="60" height="4" fill="#ffffff" />
-
-                    {/* Food on plate */}
-                    <rect x="80" y="146" width="16" height="8" fill="#b45309" />
-                    <rect x="105" y="146" width="10" height="8" fill="#10b981" />
-                    <rect x="115" y="148" width="8" height="6" fill="#10b981" opacity="0.8" />
-
-                    {/* Eating Arm wrapper */}
+                    {/* Right arm: ONE group pivoted at the shoulder (top center).
+                        Sleeve + hand + held food rotate together, so the joint
+                        never separates. Snaps up to the mouth on bite frames. */}
                     <g className="eating-arm">
-                        {/* Fork */}
-                        <g transform="translate(-2, 5)">
-                            <line x1="110" y1="120" x2="110" y2="140" stroke="#9ca3af" strokeWidth="4" strokeLinecap="square" />
-                            <rect x="102" y="112" width="16" height="8" fill="none" stroke="#9ca3af" strokeWidth="3" />
-                            <rect x="102" y="106" width="4" height="6" fill="#9ca3af" />
-                            <rect x="108" y="106" width="4" height="6" fill="#9ca3af" />
-                            <rect x="114" y="106" width="4" height="6" fill="#9ca3af" />
-
-                            {/* Food on Fork */}
-                            <rect x="104" y="100" width="10" height="8" fill="#b45309" className="food" />
-                        </g>
-
-                        {/* Arm */}
-                        <path d="M140 110 L140 145 L115 145" stroke="#0ea5e9" strokeWidth="16" strokeLinecap="square" strokeLinejoin="miter" fill="none" />
-                        <rect x="105" y="138" width="14" height="14" fill="#fcd34d" /> {/* Hand */}
+                        <rect x="136" y="102" width="16" height="34" fill="#0ea5e9" />
+                        <rect x="148" y="102" width="4" height="34" fill="#0284c7" />
+                        <rect x="136" y="136" width="16" height="14" fill="#eec39a" />
+                        <rect className="food-bite" x="136" y="130" width="16" height="12" fill="#7c2d12" />
+                        <rect className="food-bite" x="136" y="130" width="16" height="3" fill="#b45309" />
                     </g>
-
-                    {/* Other Arm holding knife or resting */}
-                    <path d="M60 110 L60 150 L80 150" stroke="#0ea5e9" strokeWidth="16" strokeLinecap="square" strokeLinejoin="miter" fill="none" />
-                    <rect x="80" y="143" width="14" height="14" fill="#fcd34d" />
                 </g>
+
+                {/* Oak slab table (foreground) */}
+                <rect x="16" y="158" width="168" height="12" fill="#7c4a21" />
+                <rect x="16" y="158" width="168" height="3" fill="#a16207" />
+                <rect x="28" y="170" width="12" height="22" fill="#5b3416" />
+                <rect x="160" y="170" width="12" height="22" fill="#5b3416" />
+
+                {/* Stone plate with pixel food */}
+                <rect x="62" y="150" width="76" height="8" fill="#e5e7eb" />
+                <rect x="68" y="150" width="64" height="3" fill="#f8fafc" />
+                <rect x="76" y="142" width="18" height="8" fill="#7c2d12" />
+                <rect x="76" y="142" width="18" height="2" fill="#b45309" />
+                <rect x="100" y="142" width="12" height="8" fill="#16a34a" />
+                <rect x="114" y="144" width="8" height="6" fill="#22c55e" />
+                {/* Fork standing in the plate as static table dressing */}
+                <rect x="81" y="118" width="6" height="20" fill="#9ca3af" />
+                <rect x="75" y="134" width="18" height="4" fill="#9ca3af" />
+                <rect x="75" y="138" width="4" height="8" fill="#9ca3af" />
+                <rect x="81" y="138" width="4" height="8" fill="#9ca3af" />
+                <rect x="87" y="138" width="4" height="8" fill="#9ca3af" />
+
+                {/* Crumbs that pop exactly on the bite frames */}
+                <rect className="crumb" x="86" y="94" width="4" height="4" fill="#b45309" />
+                <rect className="crumb" x="110" y="94" width="4" height="4" fill="#7c2d12" />
             </g>
 
-            {/* Border */}
-            <rect x="1" y="1" width="198" height="198" rx="31" fill="none" stroke="#e2e8f0" strokeWidth="2" />
+            {/* Crisp pixel frame instead of a rounded border */}
+            <rect x="2" y="2" width="196" height="196" fill="none" stroke="#1f2937" strokeWidth="4" />
         </svg>
     );
 }
