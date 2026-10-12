@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.36.0';
+export const APP_VERSION = '0.37.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.37.0',
+        date: 'October 12, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Shower Rows Fit Narrow Portrait Screens',
+                description: 'On phones and narrow portrait screens, each shower row now stacks the guest info above the action buttons, with the unavailable-supply icons on their own line under the name. Blocked supplies stay visible even on crowded rows instead of being squeezed off screen. Larger screens look the same as before.',
+            },
+        ],
+    },
     {
         version: '0.36.0',
         date: 'October 12, 2026',

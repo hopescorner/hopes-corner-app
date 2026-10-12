@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.37.0] - 2026-10-12
+
+### Improved
+
+- Shower list rows now stack guest info above the action buttons on phones and narrow portrait screens, with the unavailable-supply badges on their own line under the guest name. Blocked supplies stay visible even on crowded rows (reminders, waivers, long names) instead of being squeezed off screen, and rows never force sideways scrolling. Larger screens are unchanged.
+
+### Tests
+
+- Added portrait component coverage (badges on their own line at 390px for short and long names, crowded rows with reminder and waiver indicators, iPad portrait visibility, no horizontal overflow). Full Vitest suite passes (4251 tests); shower component suites pass (10/10); `npm run lint` clean.
+
 ## [0.36.0] - 2026-10-12
 
 ### Improved
