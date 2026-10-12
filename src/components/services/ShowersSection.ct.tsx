@@ -51,6 +51,11 @@ test.describe('iPad showers', () => {
     await expect(component.getByText('Jane Smith', { exact: true })).toHaveCount(0);
     await expect(component.getByText('9:30', { exact: false })).toBeVisible();
     const done = component.getByRole('button', { name: 'Complete shower', exact: true });
+    expect((await component.getByTestId('showers-toolbar').boundingBox())!.height).toBeLessThanOrEqual(250);
+    const end = component.getByRole('button', { name: /^End Showers/ });
+    expect((await end.boundingBox())!.y).toBeGreaterThan((await done.boundingBox())!.y);
+    await expectReadableText(component.getByText('booked', { exact: true }));
+    await expectReadableText(component.getByText('Unknown', { exact: true }));
     await expectReadableText(done);
     await done.hover();
     await expectReadableText(done);
@@ -58,6 +63,36 @@ test.describe('iPad showers', () => {
     const box = await done.boundingBox();
     expect(box!.height).toBeGreaterThanOrEqual(44);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await end.click();
+    const confirmation = component.getByRole('dialog', { name: 'End Shower Day?' });
+    await expectReadableText(confirmation.getByRole('heading'));
+    await expectReadableText(confirmation.getByRole('button', { name: 'End Service Day', exact: true }));
+    await confirmation.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(confirmation).toHaveCount(0);
     await page.screenshot({ path: '/tmp/hopes-showers-ipad-portrait.png', fullPage: true });
   });
+});
+
+test('empty states and disabled end-day controls stay readable', async ({ mount, page }) => {
+  const component = await mount(<ShowersSectionStory guests={guests} showerRecords={[]} />);
+  await expectReadableText(component.getByText('No showers in this list'));
+  const end = component.getByRole('button', { name: 'End Showers', exact: true });
+  await expect(end).toBeDisabled();
+  await expectReadableText(end);
+  await component.getByRole('button', { name: 'Toggle calendar' }).click();
+  await expectReadableText(component.getByText('Su', { exact: true }));
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test('status badges remain readable in every shower filter', async ({ mount }) => {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const component = await mount(<ShowersSectionStory guests={guests} showerRecords={
+    ['booked', 'done', 'waitlisted', 'cancelled', 'no_show'].map((status, index) => ({ id: `s${index}`, guestId: 'g1', date: today, dateKey: today, time: '09:30', status }))
+  } />);
+  for (const [filter, statuses] of [
+    ['active', ['booked']], ['completed', ['done']], ['waitlist', ['waitlisted']], ['cancelled', ['cancelled', 'no_show']],
+  ] as const) {
+    await component.getByRole('button', { name: new RegExp(`^${filter}`, 'i') }).click();
+    for (const status of statuses) await expectReadableText(component.getByText(status, { exact: true }));
+  }
 });

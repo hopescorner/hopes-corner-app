@@ -1,3 +1,4 @@
+import { Toaster } from 'react-hot-toast';
 import { test, expect } from '@playwright/experimental-ct-react';
 import { LaundrySectionStory } from '../__ct__/stories';
 import { expectReadableText } from '../__ct__/readableText';
@@ -48,6 +49,7 @@ test.describe('iPad laundry workflows', () => {
       { id: 'l1', guestId: 'g1', date: today, status: 'waiting', laundryType: 'onsite', time: '09:00', bagNumber: 'B12' },
     ]} />);
     await expect(component.getByText('Laundry Overview')).toBeVisible();
+    expect((await component.getByTestId('laundry-toolbar').boundingBox())!.height).toBeLessThanOrEqual(250);
     await expect(component.getByRole('button', { name: 'Advance to Washer' })).toBeVisible();
     await page.setViewportSize({ width: 1024, height: 768 });
     const start = component.getByRole('button', { name: 'Start washer' });
@@ -72,6 +74,9 @@ test.describe('iPad laundry workflows', () => {
     const dialog = page.getByRole('dialog', { name: 'Bag number required' });
     await expect(dialog.getByText('Johnny')).toBeVisible();
     await expect(dialog.getByLabel('Bag number')).toBeFocused();
+    await expectReadableText(dialog.getByRole('heading'));
+    await expectReadableText(dialog.getByRole('button', { name: 'Save and continue' }));
+    await expectReadableText(dialog.getByRole('button', { name: 'Cancel', exact: true }));
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await component.getByRole('button', { name: 'Advance to Washer' }).click();
@@ -82,4 +87,24 @@ test.describe('iPad laundry workflows', () => {
     await expect(component.getByText('Bag #B99')).toBeVisible();
     await expect(component.getByRole('button', { name: 'Advance to Dryer' })).toBeVisible();
   });
+});
+
+test('ready pickup filter includes carryover and Undo restores a picked-up load', async ({ mount, page }) => {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+  const component = await mount(<><Toaster /><LaundrySectionStory guests={guests} laundryRecords={[
+    { id: 'l1', guestId: 'g1', date: today, status: 'done', laundryType: 'onsite', time: '09:00', bagNumber: 'B12' },
+    { id: 'l2', guestId: 'g2', date: '2026-01-01', status: 'returned', laundryType: 'offsite', bagNumber: 'B42' },
+  ]} /></>);
+  const ready = component.getByRole('button', { name: 'Ready for pickup (2)' });
+  await ready.click();
+  await expectReadableText(ready);
+  await expect(component.getByText('Jane Smith', { exact: true })).toBeVisible();
+  const pickup = component.getByRole('button', { name: 'Mark picked up', exact: true }).last();
+  const end = component.getByRole('button', { name: /^End Laundry/ });
+  expect((await end.boundingBox())!.y).toBeGreaterThan((await pickup.boundingBox())!.y);
+  await pickup.click();
+  await expect(component.getByRole('button', { name: 'Ready for pickup (1)' })).toBeVisible();
+  await page.getByRole('button', { name: 'Undo', exact: true }).click();
+  await expect(component.getByRole('button', { name: 'Ready for pickup (2)' })).toBeVisible();
+  await expect(component.getByText('Bag #B12')).toBeVisible();
 });

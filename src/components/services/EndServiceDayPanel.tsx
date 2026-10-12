@@ -62,8 +62,8 @@ export function EndServiceDayPanel({
     return (
         <>
             <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={false}
+                animate={{ y: 0 }}
                 className="bg-gradient-to-r from-red-50 to-rose-50 border border-red-200/80 rounded-xl p-4 shadow-sm"
             >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -83,7 +83,7 @@ export function EndServiceDayPanel({
                             <button
                                 onClick={handleEndShowerClick}
                                 disabled={isEndingShowers || pendingShowerCount === 0}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-700 bg-white/90 border-2 border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                className="min-h-11 flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-700 bg-white/90 border-2 border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all disabled:cursor-not-allowed shadow-sm"
                             >
                                 {isEndingShowers ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -102,7 +102,7 @@ export function EndServiceDayPanel({
                             <button
                                 onClick={handleEndLaundryClick}
                                 disabled={isEndingLaundry || pendingLaundryCount === 0}
-                                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-700 bg-white/90 border-2 border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                                className="min-h-11 flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-700 bg-white/90 border-2 border-red-200 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all disabled:cursor-not-allowed shadow-sm"
                             >
                                 {isEndingLaundry ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -125,16 +125,17 @@ export function EndServiceDayPanel({
             <AnimatePresence>
                 {showConfirmDialog && (
                     <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
+                        initial={false}
+                        animate={{}}
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
                         onClick={() => setShowConfirmDialog(null)}
                     >
                         <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
+                            initial={false}
+                            animate={{ scale: 1 }}
                             exit={{ scale: 0.95, opacity: 0 }}
+                            role="dialog" aria-modal="true" aria-labelledby="end-service-title"
                             onClick={(e) => e.stopPropagation()}
                             className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
                         >
@@ -144,7 +145,7 @@ export function EndServiceDayPanel({
                                         <AlertTriangle className="w-6 h-6 text-red-600" />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-bold text-gray-900">
+                                        <h3 id="end-service-title" className="text-lg font-bold text-gray-900">
                                             End {showConfirmDialog === 'shower' ? 'Shower' : 'Laundry'} Day?
                                         </h3>
                                         <p className="text-sm text-gray-600">
@@ -168,13 +169,13 @@ export function EndServiceDayPanel({
                                 <div className="flex gap-3">
                                     <button
                                         onClick={() => setShowConfirmDialog(null)}
-                                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                                        className="min-h-11 flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={handleConfirm}
-                                        className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
+                                        className="min-h-11 flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors"
                                     >
                                         End Service Day
                                     </button>

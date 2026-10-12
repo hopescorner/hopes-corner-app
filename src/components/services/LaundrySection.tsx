@@ -89,6 +89,7 @@ export function LaundrySection() {
     const [selectedDate, setSelectedDate] = useServiceViewState('laundry-date', today);
     const [search, setSearch] = useServiceViewState<string>('laundry-search', '');
     const query = useDeferredValue(search.trim().toLowerCase());
+    const [readyOnly, setReadyOnly] = useServiceViewState<boolean>('laundry-ready', false);
     const [showPickedUp, setShowPickedUp] = useServiceViewState<boolean>('laundry-picked-up', false);
     const [backfillGuestId, setBackfillGuestId] = useState('');
     const [backfillLaundryType, setBackfillLaundryType] = useState<'onsite' | 'offsite'>('onsite');
@@ -130,10 +131,12 @@ export function LaundrySection() {
     }, [laundryRecords, isViewingPast, today]);
 
     const guestMap = useMemo(() => new Map(guests.map((guest) => [guest.id, guest])), [guests]);
+    const readyCount = [...activeLaundry, ...legacyLaundry].filter((record) => record.status === 'done' || record.status === 'returned').length;
     const matchesSearch = useCallback((record: any) => {
+        if (readyOnly && record.status !== 'done' && record.status !== 'returned') return false;
         const guest = guestMap.get(record.guestId);
         return !query || [guest?.name, guest?.preferredName, guest?.firstName, guest?.lastName, record.bagNumber].join(' ').toLowerCase().includes(query);
-    }, [guestMap, query]);
+    }, [guestMap, query, readyOnly]);
     const groupedLaundry = useMemo(() => {
         const groups: Record<string, any[]> = {};
         for (const record of activeLaundry) {
@@ -354,24 +357,25 @@ export function LaundrySection() {
                 </div>
             )}
 
-            <div className="sticky top-0 z-20 space-y-2 rounded-xl bg-white/95 p-2 shadow-sm">
-                <div className="flex items-center justify-between flex-wrap gap-4 bg-white/95 p-3 rounded-xl border border-gray-200">
-                    <div className="flex items-center gap-4 flex-wrap">
+            <div>
+                <h2 className="text-xl font-black text-gray-900 flex items-center gap-3">
+                    <WashingMachine className="text-purple-600" />
+                    {viewMode === 'list' ? 'Laundry Overview' : 'On-site Laundry - Kanban Board'}
+                </h2>
+                <p className="text-sm text-gray-600 font-medium">
+                    {isViewingPast ? 'Historical view - status updates disabled' : viewMode === 'list' ? 'Use the next-step buttons to update loads' : 'Drag and drop cards between columns to update status'}
+                </p>
+            </div>
+
+            <div data-testid="laundry-toolbar" className="sticky top-0 z-20 space-y-2 rounded-xl bg-white p-2 shadow-sm">
+                <div className="flex items-center justify-between flex-wrap gap-2 bg-white p-2 rounded-xl border border-gray-200">
+                    <div className="flex items-center gap-2 flex-wrap">
                         {/* Date Picker for time travel */}
                         <ServiceDatePicker
                             selectedDate={selectedDate}
                             onDateChange={setSelectedDate}
                             isAdmin={isAdmin}
                         />
-                        <div>
-                            <h2 className="text-xl font-black text-gray-900 flex items-center gap-3">
-                                <WashingMachine className="text-purple-600" />
-                                {viewMode === 'list' ? 'Laundry Overview' : 'On-site Laundry - Kanban Board'}
-                            </h2>
-                            <p className="text-sm text-gray-500 font-medium">
-                                {isViewingPast ? 'Historical view - status updates disabled' : 'Drag and drop cards between columns to update status'}
-                            </p>
-                        </div>
                     </div>
                     <div className="flex items-center gap-3">
                         {!isViewingPast && (
@@ -416,29 +420,18 @@ export function LaundrySection() {
                         Find laundry
                         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Guest name or bag number" className="min-h-11 min-w-11 mt-1 w-full rounded-lg border border-gray-300 px-3 text-base" />
                     </label>
+                    <button type="button" aria-pressed={readyOnly} onClick={() => setReadyOnly(!readyOnly)} className={cn("min-h-11 rounded-lg border px-3 text-sm font-bold", readyOnly ? "bg-emerald-700 text-white border-emerald-700" : "bg-emerald-50 text-emerald-800 border-emerald-200")}>Ready for pickup ({readyCount})</button>
                     {viewMode === 'kanban' && <button type="button" aria-pressed={showPickedUp} onClick={() => setShowPickedUp(!showPickedUp)} className="min-h-11 min-w-11 rounded-lg border px-4 text-base font-medium">{showPickedUp ? 'Hide picked up' : 'Show picked up'}</button>}
                     <button type="button" onClick={() => setViewMode('auto')} aria-pressed={viewPreference === 'auto'} className="min-h-11 min-w-11 rounded-lg border px-4 text-sm">Auto layout</button>
                 </div>
 
             </div>
 
-            {/* End Service Day Panel - Only show for today */}
-            {!isViewingPast && (
-                <EndServiceDayPanel
-                    showShower={false}
-                    showLaundry={true}
-                    pendingLaundryCount={pendingOnsiteLaundry.length}
-                    onEndShowerDay={async () => { }}
-                    onEndLaundryDay={handleEndLaundryDay}
-                    isAdmin={isAdmin}
-                />
-            )}
-
             {/* Legacy Laundry — Pending Pickup (always visible, prominent) */}
             {!isViewingPast && visibleLegacyLaundry.length > 0 && (
                 <div className="rounded-xl overflow-hidden border-2 border-red-300 shadow-md" data-testid="legacy-laundry-section">
                     {/* Prominent header */}
-                    <div className="bg-gradient-to-r from-red-600 to-orange-500 px-5 py-4">
+                    <div className="bg-red-800 px-5 py-4">
                         <div className="flex items-center justify-between gap-4 flex-wrap">
                             <div className="flex items-center gap-3">
                                 <div className="relative">
@@ -449,7 +442,7 @@ export function LaundrySection() {
                                     <h3 className="text-base font-black text-white tracking-tight">
                                         Previous Day Laundry — Action Required ({visibleLegacyLaundry.length})
                                     </h3>
-                                    <p className="text-xs text-red-100 mt-0.5">
+                                    <p className="text-sm text-white mt-0.5">
                                         These bookings are from previous days and still need to be picked up. They do not block today&apos;s slots.
                                     </p>
                                 </div>
@@ -458,7 +451,7 @@ export function LaundrySection() {
                                 <button
                                     type="button"
                                     onClick={handleBulkLegacyPickup}
-                                    className="min-h-11 min-w-11 flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm text-white text-xs font-bold rounded-lg border border-white/30 hover:bg-white/30 transition-colors whitespace-nowrap"
+                                    className="min-h-11 min-w-11 flex items-center gap-2 px-4 py-2 bg-white text-red-800 text-xs font-bold rounded-lg border border-white/30 hover:bg-red-100 transition-colors whitespace-nowrap"
                                 >
                                     <CheckCircle size={14} />
                                     Mark All Picked Up
@@ -558,7 +551,7 @@ export function LaundrySection() {
                 <ServiceDayNote date={selectedDate} serviceType="laundry" />
 
                 {viewMode === 'list' ? (
-                    <CompactLaundryList viewDate={selectedDate} search={query} readOnly={isViewingPast} showOffsiteInitially />
+                    <CompactLaundryList readyOnly={readyOnly} viewDate={selectedDate} search={query} readOnly={isViewingPast} showOffsiteInitially />
                 ) : (
                     <DndContext
                         sensors={sensors}
@@ -856,6 +849,18 @@ export function LaundrySection() {
             </div>
 
             }
+            {/* End Service Day Panel - Only show for today */}
+            {!isViewingPast && (
+                <EndServiceDayPanel
+                    showShower={false}
+                    showLaundry={true}
+                    pendingLaundryCount={pendingOnsiteLaundry.length}
+                    onEndShowerDay={async () => { }}
+                    onEndLaundryDay={handleEndLaundryDay}
+                    isAdmin={isAdmin}
+                />
+            )}
+
             {bagDialog}
             <SlotBlockModal
                 isOpen={showSlotManager}

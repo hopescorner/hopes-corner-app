@@ -1,3 +1,4 @@
+import toast from 'react-hot-toast';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -34,6 +35,7 @@ const laundry = [
 ];
 
 beforeEach(() => {
+    vi.clearAllMocks();
     sessionStorage.clear();
     services.current.setState({
         laundryRecords: laundry,
@@ -151,4 +153,80 @@ it('opens slot assignment for a waitlisted shower guest', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Assign slot' }));
     expect(screen.getByRole('dialog', { name: 'Assign shower slot' })).toBeVisible();
     expect(within(screen.getByRole('dialog')).getByText('Johnny')).toBeVisible();
+});
+
+it('filters ready loads across today and previous days, in list and board layouts', () => {
+    services.current.setState({ laundryRecords: [
+        ...laundry,
+        { ...laundry[0], id: 'l4', status: 'done', bagNumber: 'B44' },
+    ] });
+    render(<LaundrySection />);
+    const ready = screen.getByRole('button', { name: 'Ready for pickup (2)' });
+    fireEvent.click(ready);
+    expect(ready).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Alice Brown')).toBeVisible();
+    expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByTitle('List View'));
+    expect(screen.getByText('Bag #B44')).toBeVisible();
+    expect(screen.queryByText('Jane Smith')).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'B44' } });
+    expect(screen.queryByText('Alice Brown')).not.toBeInTheDocument();
+    expect(screen.getByText('Bag #B44')).toBeVisible();
+});
+
+function renderLastUndo() {
+    const renderer = vi.mocked(toast.success).mock.calls.at(-1)?.[0] as any;
+    expect(typeof renderer).toBe('function');
+    return render(renderer({ id: 'undo-toast' }));
+}
+
+it('undoes a laundry step while keeping its bag number', async () => {
+    const update = services.current.getState().updateLaundryStatus;
+    update.mockImplementation(async (id: string, status: string) => {
+        services.current.setState((state: any) => ({ laundryRecords: state.laundryRecords.map((r: any) => r.id === id ? { ...r, status } : r) }));
+        return true;
+    });
+    render(<LaundrySection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Move to dryer' }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    renderLastUndo();
+    fireEvent.click(screen.getByRole('button', { name: /Undo/ }));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith('l2', 'washer'));
+    expect(services.current.getState().laundryRecords.find((r: any) => r.id === 'l2').bagNumber).toBe('B42');
+});
+
+it('does not undo over a subsequent laundry status change', async () => {
+    render(<LaundrySection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Move to dryer' }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    renderLastUndo();
+    act(() => services.current.setState({ laundryRecords: laundry.map((r) => r.id === 'l2' ? { ...r, status: 'done' } : r) }));
+    fireEvent.click(screen.getByRole('button', { name: /Undo/ }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('changed')));
+    expect(services.current.getState().updateLaundryStatus).toHaveBeenCalledTimes(1);
+});
+
+it('allows retry after Undo fails and blocks repeated taps while saving', async () => {
+    let finishUndo: (value: boolean) => void = () => {};
+    const update = services.current.getState().updateLaundryStatus;
+    update.mockImplementation(async (id: string, status: string) => {
+        services.current.setState((state: any) => ({ laundryRecords: state.laundryRecords.map((r: any) => r.id === id ? { ...r, status } : r) }));
+        return true;
+    });
+    render(<LaundrySection />);
+    fireEvent.click(screen.getByRole('button', { name: 'Move to dryer' }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    renderLastUndo();
+    update.mockImplementationOnce(() => new Promise<boolean>((resolve) => { finishUndo = resolve; }));
+    const undo = screen.getByRole('button', { name: 'Undo' });
+    fireEvent.click(undo);
+    fireEvent.click(undo);
+    expect(undo).toBeDisabled();
+    expect(update).toHaveBeenCalledTimes(2);
+    await act(async () => finishUndo(false));
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Unable to undo'));
+    expect(undo).toBeEnabled();
+    fireEvent.click(undo);
+    await waitFor(() => expect(update).toHaveBeenCalledTimes(3));
+    expect(update).toHaveBeenLastCalledWith('l2', 'washer');
 });

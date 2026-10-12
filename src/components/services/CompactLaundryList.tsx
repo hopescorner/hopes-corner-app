@@ -33,6 +33,7 @@ interface CompactLaundryListProps {
     readOnly?: boolean;
     search?: string;
     showOffsiteInitially?: boolean;
+    readyOnly?: boolean;
 }
 
 interface LaundryBooking {
@@ -201,7 +202,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
             )}
         >
             <div className="flex items-center gap-3 min-w-0 flex-1">
-                <span className="text-xs font-medium text-gray-500 w-16 flex-shrink-0">
+                <span className="text-xs font-medium text-gray-600 w-16 flex-shrink-0">
                     {booking.timeLabel}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -439,7 +440,7 @@ OffsiteDoneRow.displayName = "OffsiteDoneRow";
  * Shows guest name, time slot, and status in a compact format for quick reference
  * Can view today's laundry or travel back in time to see laundry from past dates
  */
-const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = false, search = '', showOffsiteInitially = false }: CompactLaundryListProps) => {
+const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = false, search = '', showOffsiteInitially = false, readyOnly = false }: CompactLaundryListProps) => {
     const { laundryRecords } = useServicesStore(useShallow((s) => ({ laundryRecords: s.laundryRecords })));
     const { guests } = useGuestsStore(useShallow((s) => ({ guests: s.guests })));
 
@@ -487,9 +488,9 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
         return (laundryRecords || []).filter((record) => {
             const guest = guestMap.get(record.guestId);
             const matches = !search || [guest?.name, guest?.preferredName, guest?.firstName, guest?.lastName, record.bagNumber].join(' ').toLowerCase().includes(search.toLowerCase());
-            return pacificDateStringFrom(record.date) === displayDate && matches;
+            return pacificDateStringFrom(record.date) === displayDate && matches && (!readyOnly || record.status === 'done' || record.status === 'returned');
         });
-    }, [laundryRecords, displayDate, guestMap, search]);
+    }, [laundryRecords, displayDate, guestMap, search, readyOnly]);
 
     // Group laundry records by type and status
     const laundryData = useMemo(() => {
@@ -570,11 +571,11 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
                     <h3 className="font-semibold text-gray-900 text-sm">
                         Laundry {isViewingPastDate ? `(${dateLabel})` : "Today"}
                     </h3>
-                    <span className="text-xs text-gray-500 ml-auto flex items-center gap-1">
+                    <span className="text-xs text-gray-600 ml-auto flex items-center gap-1">
                         <Eye size={12} /> Quick View
                     </span>
                 </div>
-                <p className="text-sm text-gray-500 text-center py-4">
+                <p className="text-sm text-gray-600 text-center py-4">
                     No laundry bookings for {dateLabel.toLowerCase()}
                 </p>
             </div>
@@ -593,7 +594,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
                         </h3>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <span className="text-xs text-gray-600 flex items-center gap-1">
                             <Eye size={12} /> Quick View
                         </span>
                         <span className="text-xs font-medium bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
@@ -609,7 +610,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
                     {laundryData.onsiteActive.length === 0 && laundryData.onsiteDone.length > 0 && (
                         <div className="px-4 py-8 text-center">
                             <CheckCircle size={24} className="mx-auto text-emerald-400 mb-2" />
-                            <p className="text-sm text-gray-500">All on-site laundry completed</p>
+                            <p className="text-sm text-gray-600">All on-site laundry completed</p>
                         </div>
                     )}
                     {laundryData.onsiteActive.map((booking) => (
@@ -668,7 +669,7 @@ const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = fal
                         {showOffsite ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </button>
 
-                    {showOffsite && (
+                    {(showOffsite || readyOnly) && (
                         <div className="divide-y divide-blue-200/50">
                             {laundryData.offsiteActive.map((item) => (
                                 <OffsiteActiveRow

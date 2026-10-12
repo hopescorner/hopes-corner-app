@@ -30,7 +30,7 @@ export function useLaundryStatusChange(readOnly: boolean) {
     const [bag, setBag] = useState('');
     const [error, setError] = useState('');
 
-    const save = useCallback(async (record: Booking, status: string, bagNumber?: string) => {
+    const save = useCallback(async (record: Booking, status: string, bagNumber?: string, name = 'Guest') => {
         if (readOnly || busy.current.has(record.id)) return;
         busy.current.add(record.id);
         setUpdatingIds(new Set(busy.current));
@@ -42,7 +42,25 @@ export function useLaundryStatusChange(readOnly: boolean) {
             const ok = await updateLaundryStatus(record.id, status);
             if (!ok) throw new Error('Failed to update status');
             setPending(null);
-            toast.success('Status updated');
+            const previousStatus = record.status;
+            let undoing = false;
+            toast.success((notice) => <LaundryUndoNotice name={name} onUndo={async () => {
+                if (undoing || busy.current.has(record.id) || !previousStatus) return;
+                const current = useServicesStore.getState?.().laundryRecords?.find((item) => item.id === record.id);
+                if (!current || current.status !== status) {
+                    toast.error('This load has changed since that action. Check its current status.');
+                    toast.dismiss(notice.id);
+                    return;
+                }
+                undoing = true;
+                try {
+                    if (!await updateLaundryStatus(record.id, previousStatus)) throw new Error('Unable to undo. Please try again.');
+                    toast.dismiss(notice.id);
+                    toast.success('Laundry step restored');
+                } catch (cause) {
+                    toast.error(cause instanceof Error ? cause.message : 'Unable to undo. Please try again.');
+                } finally { undoing = false; }
+            }} />, { duration: 10000 });
         } catch (cause) {
             const message = cause instanceof Error ? cause.message : 'Failed to update status';
             setError(message);
@@ -62,7 +80,7 @@ export function useLaundryStatusChange(readOnly: boolean) {
             setPending({ record: fresh, status, name });
             return;
         }
-        await save(fresh, status);
+        await save(fresh, status, undefined, name);
     }, [readOnly, save]);
 
     const bagDialog = pending ? <BagNumberDialog
@@ -74,11 +92,22 @@ export function useLaundryStatusChange(readOnly: boolean) {
         onCancel={() => setPending(null)}
         onSave={() => {
             if (!bag.trim()) { setError('Enter a bag number to continue'); return; }
-            void save(pending.record, pending.status, bag.trim());
+            void save(pending.record, pending.status, bag.trim(), pending.name);
         }}
     /> : null;
 
     return { changeStatus, updatingIds, bagDialog };
+}
+
+function LaundryUndoNotice({ name, onUndo }: { name: string; onUndo: () => Promise<void> }) {
+    const [busy, setBusy] = useState(false);
+    return <div className="flex items-center gap-3 text-sm text-gray-900">
+        <span>{name}: laundry status updated</span>
+        <button type="button" disabled={busy} className="min-h-11 rounded-lg bg-purple-700 px-4 font-bold text-white disabled:cursor-wait"
+            onClick={async () => { setBusy(true); try { await onUndo(); } finally { setBusy(false); } }}>
+            {busy ? 'Undoing…' : 'Undo'}
+        </button>
+    </div>;
 }
 
 function BagNumberDialog({ name, bag, error, busy, onChange, onCancel, onSave }: {

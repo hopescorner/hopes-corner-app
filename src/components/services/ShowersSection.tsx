@@ -352,114 +352,69 @@ export function ShowersSection() {
                 </div>
             )}
 
-            {/* End Service Day Panel - Only show for today */}
-            {!isViewingPast && (
-                <EndServiceDayPanel
-                    showShower={true}
-                    showLaundry={false}
-                    pendingShowerCount={pendingShowers.length}
-                    onEndShowerDay={handleEndShowerDay}
-                    onEndLaundryDay={async () => { }}
-                    isAdmin={isAdmin}
-                />
-            )}
+            <div data-testid="showers-toolbar" className="sticky top-0 z-20 space-y-2 rounded-xl bg-white p-2 shadow-sm">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                    <ServiceDatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} isAdmin={isAdmin} />
+                    <div className="flex items-center gap-2">
+                        {/* Manage Slots Button */}
+                        <button
+                            onClick={() => setShowSlotManager(true)}
+                            className="min-h-11 min-w-11 flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg border hover:bg-gray-50 transition-colors"
+                        >
+                            <Settings className="w-4 h-4" />
+                            Manage Slots
+                        </button>
 
-            <div className="sticky top-0 z-20 space-y-2 rounded-xl bg-white/95 p-2 shadow-sm">
-            <div className="flex items-center justify-between flex-wrap gap-4 rounded-xl border border-gray-200 bg-white/95 p-3">
-                {/* Left side: Date picker + Tab Navigation */}
-                <div className="flex items-center gap-4 flex-wrap">
-                    {/* Date Picker for time travel */}
-                    <ServiceDatePicker
-                        selectedDate={selectedDate}
-                        onDateChange={setSelectedDate}
-                        isAdmin={isAdmin}
-                    />
-
-                    {/* Tab Navigation - Desktop */}
-                    <div className="hidden sm:flex p-1 bg-gray-100 rounded-2xl w-fit">
-                        {(['active', 'completed', 'waitlist', 'cancelled'] as const).map((tab) => (
+                        {/* View Toggle */}
+                        <div className="flex bg-gray-100 p-1 rounded-lg">
                             <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
+                                onClick={() => setViewMode('grid')}
                                 className={cn(
-                                    'min-h-11 px-4 py-2.5 rounded-xl text-sm font-black transition-all capitalize',
-                                    activeTab === tab
-                                        ? 'bg-white text-sky-700 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
+                                    viewMode === 'grid' ? "bg-white shadow text-sky-700" : "text-gray-500 hover:text-gray-700"
                                 )}
+                                title="Grid View"
                             >
-                                {tab}
-                                <span className="ml-2 text-sm">
-                                    ({tab === 'active' ? activeShowers.length : tab === 'completed' ? completedShowers.length : tab === 'waitlist' ? waitlistedShowers.length : cancelledShowers.length})
-                                </span>
+                                <LayoutGrid size={16} />
                             </button>
-                        ))}
-                    </div>
-
-                    {/* Tab Navigation - Mobile (horizontal scroll) */}
-                    <div className="sm:hidden flex overflow-x-auto gap-2 scrollbar-hide">
-                        {(['active', 'completed', 'waitlist', 'cancelled'] as const).map((tab) => (
                             <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
+                                onClick={() => setViewMode('list')}
                                 className={cn(
-                                    'min-h-11 flex-shrink-0 px-4 py-2 rounded-xl text-sm font-black transition-all capitalize border',
-                                    activeTab === tab
-                                        ? 'bg-sky-700 text-white border-sky-600 shadow-sm'
-                                        : 'bg-white text-gray-500 border-gray-200'
+                                    "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
+                                    viewMode === 'list' ? "bg-white shadow text-sky-700" : "text-gray-500 hover:text-gray-700"
                                 )}
+                                title="List View"
                             >
-                                {tab}
-                                <span className="ml-1.5 text-sm">
-                                    ({tab === 'active' ? activeShowers.length : tab === 'completed' ? completedShowers.length : tab === 'waitlist' ? waitlistedShowers.length : cancelledShowers.length})
-                                </span>
+                                <List size={16} />
                             </button>
-                        ))}
+                        </div>
+
                     </div>
                 </div>
-
-                {/* Right side actions */}
-                <div className="flex items-center gap-4">
-                    {/* Manage Slots Button */}
-                    <button
-                        onClick={() => setShowSlotManager(true)}
-                        className="min-h-11 min-w-11 flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg border hover:bg-gray-50 transition-colors"
-                    >
-                        <Settings className="w-4 h-4" />
-                        Manage Slots
-                    </button>
-
-                    {/* View Toggle */}
-                    <div className="flex bg-gray-100 p-1 rounded-lg">
+                <div className="flex gap-1 overflow-x-auto rounded-xl bg-gray-100 p-1">
+                    {(['active', 'completed', 'waitlist', 'cancelled'] as const).map((tab) => (
                         <button
-                            onClick={() => setViewMode('grid')}
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
                             className={cn(
-                                "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
-                                viewMode === 'grid' ? "bg-white shadow text-sky-700" : "text-gray-500 hover:text-gray-700"
+                                'min-h-11 flex-1 shrink-0 whitespace-nowrap px-3 py-2 rounded-xl text-sm font-bold transition-all capitalize',
+                                activeTab === tab
+                                    ? 'bg-white text-sky-700 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
                             )}
-                            title="Grid View"
                         >
-                            <LayoutGrid size={16} />
+                            {tab}
+                            <span className="ml-2 text-sm">
+                                ({tab === 'active' ? activeShowers.length : tab === 'completed' ? completedShowers.length : tab === 'waitlist' ? waitlistedShowers.length : cancelledShowers.length})
+                            </span>
                         </button>
-                        <button
-                            onClick={() => setViewMode('list')}
-                            className={cn(
-                                "min-h-11 min-w-11 flex items-center justify-center p-2 rounded-md transition-all",
-                                viewMode === 'list' ? "bg-white shadow text-sky-700" : "text-gray-500 hover:text-gray-700"
-                            )}
-                            title="List View"
-                        >
-                            <List size={16} />
-                        </button>
-                    </div>
+                    ))}
+
                 </div>
-            </div>
-
-            <label className="block rounded-xl border border-gray-200 bg-white/95 p-3 text-sm font-medium text-gray-700">
-                Find shower guest
-                <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Guest name" className="min-h-11 min-w-11 mt-1 w-full rounded-lg border border-gray-300 px-3 text-base" />
-            </label>
-
+                <label className="block text-sm font-medium text-gray-700">
+                    Find shower guest
+                    <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Guest name" className="min-h-11 mt-1 w-full rounded-lg border border-gray-300 px-3 text-base" />
+                </label>
             </div>
 
             <ServiceDayNote date={selectedDate} serviceType="showers" />
@@ -503,6 +458,18 @@ export function ShowersSection() {
                         )}
                     </AnimatePresence>
                 </div>
+            )}
+
+            {/* End Service Day Panel - Only show for today */}
+            {!isViewingPast && (
+                <EndServiceDayPanel
+                    showShower={true}
+                    showLaundry={false}
+                    pendingShowerCount={pendingShowers.length}
+                    onEndShowerDay={handleEndShowerDay}
+                    onEndLaundryDay={async () => { }}
+                    isAdmin={isAdmin}
+                />
             )}
 
             {/* Detail Modal */}

@@ -131,7 +131,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                 {/* Previous Day Button */}
                 <button
                     onClick={goToPreviousDay}
-                    className="min-h-11 min-w-11 p-2 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+                    className="min-h-11 min-w-11 p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-700 transition-colors"
                     title="Previous day"
                     aria-label="Previous day"
                 >
@@ -160,8 +160,8 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                     className={cn(
                         "min-h-11 min-w-11 p-2 rounded-lg transition-colors",
                         isToday
-                            ? "text-gray-300 cursor-not-allowed"
-                            : "hover:bg-gray-100 text-gray-500 hover:text-gray-700"
+                            ? "text-gray-600 cursor-not-allowed"
+                            : "hover:bg-gray-100 text-gray-600 hover:text-gray-700"
                     )}
                     title="Next day"
                     aria-label="Next day"
@@ -187,7 +187,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                     <div className="flex items-center justify-between mb-4">
                         <button
                             onClick={goToPreviousMonth}
-                            className="min-h-11 min-w-11 p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+                            className="min-h-11 min-w-11 p-1.5 rounded-lg hover:bg-gray-100 text-gray-600"
                             title="Previous month"
                             aria-label="Previous month"
                         >
@@ -201,8 +201,8 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                             className={cn(
                                 "p-1.5 rounded-lg",
                                 new Date(selectedDate + 'T12:00:00').getMonth() === new Date().getMonth()
-                                    ? "text-gray-300 cursor-not-allowed"
-                                    : "hover:bg-gray-100 text-gray-500"
+                                    ? "text-gray-600 cursor-not-allowed"
+                                    : "hover:bg-gray-100 text-gray-600"
                             )}
                             title="Next month"
                             aria-label="Next month"
@@ -214,7 +214,7 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                     {/* Day Headers */}
                     <div className="grid grid-cols-7 gap-1 mb-2">
                         {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(day => (
-                            <div key={day} className="text-center text-xs font-bold text-gray-400 py-1">
+                            <div key={day} className="text-center text-xs font-bold text-gray-600 py-1">
                                 {day}
                             </div>
                         ))}
@@ -234,11 +234,11 @@ export function ServiceDatePicker({ selectedDate, onDateChange, isAdmin }: Servi
                                 disabled={day.isDisabled}
                                 className={cn(
                                     "w-11 h-11 shrink-0 rounded-lg text-sm font-medium transition-all",
-                                    day.isDisabled && "text-gray-300 cursor-not-allowed",
+                                    day.isDisabled && "text-gray-600 cursor-not-allowed",
                                     !day.isDisabled && day.date === selectedDate && "bg-emerald-500 text-white",
                                     !day.isDisabled && day.date === today && day.date !== selectedDate && "ring-2 ring-emerald-300",
                                     !day.isDisabled && day.date !== selectedDate && "hover:bg-gray-100",
-                                    !day.isCurrentMonth && "text-gray-400"
+                                    !day.isCurrentMonth && "text-gray-600"
                                 )}
                             >
                                 {new Date(day.date + 'T12:00:00').getDate()}

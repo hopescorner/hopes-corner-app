@@ -95,7 +95,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                     <h4 className="font-bold text-gray-900 text-base break-words group-hover:text-sky-700 transition-colors">
                         {guestName}
                     </h4>
-                    <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-gray-500">
+                    <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-gray-600">
                         <HousingStatusBadge housingStatus={housingStatus} />
                         {record.time && (
                             <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-sm font-medium">
@@ -144,7 +144,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                     <button
                         disabled={isUpdating}
                         onClick={(e) => handleStatusUpdate(e, 'booked')}
-                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-gray-100 text-gray-500 hover:bg-amber-50 hover:text-amber-800 transition-colors flex items-center gap-1"
+                        className="min-h-11 min-w-11 px-2 py-1 rounded-lg text-sm font-bold bg-gray-100 text-gray-600 hover:bg-amber-50 hover:text-amber-800 transition-colors flex items-center gap-1"
                         aria-label="Reopen shower"
                     >
                         {isUpdating ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />}
@@ -184,7 +184,7 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                         : record.status === 'booked'
                             ? "bg-sky-100 text-sky-700"
                             : record.status === 'cancelled' || record.status === 'no_show'
-                                ? "bg-red-100 text-red-600"
+                                ? "bg-red-100 text-red-700"
                                 : "bg-amber-100 text-amber-700"
                 )}>
                     {record.status}
@@ -212,7 +212,7 @@ const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitl
                 <div className="flex justify-center mb-2">
                     <User size={24} className="text-gray-600" />
                 </div>
-                <p className="text-gray-500 font-medium">No showers in this list</p>
+                <p className="text-gray-600 font-medium">No showers in this list</p>
             </div>
         );
     }
