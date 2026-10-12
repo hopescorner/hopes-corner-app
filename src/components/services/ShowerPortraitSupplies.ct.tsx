@@ -44,12 +44,13 @@ async function expectBadgesOnOwnLineBelowName(component: any, page: any, guestNa
   // so they are never squeezed beside the name or hidden behind the actions.
   expect(badgeBox!.y).toBeGreaterThanOrEqual(nameBox!.y + nameBox!.height - 1);
   const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
   for (const key of ['jacket', 'sleeping_bag', 'tent']) {
     const other = component.getByTestId(`ineligible-supply-${key}`);
     await expect(other).toBeVisible();
     const otherBox = await other.boundingBox();
     expect(otherBox!.x).toBeGreaterThanOrEqual(0);
-    expect(otherBox!.x + otherBox!.width).toBeLessThanOrEqual(viewport.width + 1);
+    expect(otherBox!.x + otherBox!.width).toBeLessThanOrEqual(viewport!.width + 1);
   }
   // Row must not force horizontal scrolling.
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
@@ -103,8 +104,9 @@ test.describe('showers ipad portrait supply badges', () => {
     await expect(badge).toBeVisible();
     const badgeBox = await badge.boundingBox();
     const viewport = page.viewportSize();
+    expect(viewport).not.toBeNull();
     expect(badgeBox!.x).toBeGreaterThanOrEqual(0);
-    expect(badgeBox!.x + badgeBox!.width).toBeLessThanOrEqual(viewport.width + 1);
+    expect(badgeBox!.x + badgeBox!.width).toBeLessThanOrEqual(viewport!.width + 1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   });
 });
