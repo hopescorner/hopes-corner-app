@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.34.0] - 2026-10-12
+
+### Fixed
+
+- Guest Retention summary in dashboard Analytics Overview now counts unique new and returning guests across the selected span instead of summing per-month counts, so a guest active in multiple months counts once. Monthly bars are unchanged.
+
+### Tests
+
+- Existing `GuestRetentionChart` suite passes (6 tests); full Vitest suite passes (4242 tests); `npm run lint` clean.
+
 ## [0.33.0] - 2026-10-12
 
 ### Added

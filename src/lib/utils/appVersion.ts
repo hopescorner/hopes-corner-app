@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.33.0';
+export const APP_VERSION = '0.34.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.34.0',
+        date: 'October 12, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Unique Guest Retention Totals',
+                description: 'The Guest Retention summary in dashboard Analytics Overview now counts unique new and returning guests across the selected span instead of summing per-month counts, so a guest active in multiple months counts once. Monthly bars are unchanged.',
+            },
+        ],
+    },
     {
         version: '0.33.0',
         date: 'October 12, 2026',
