@@ -123,9 +123,11 @@ export function GuestRetentionChart({ isMounted = true }: Props) {
             months.push(monthKey(d));
         }
 
-        // Calculate new vs returning per month
-        let sumNew = 0;
-        let sumReturning = 0;
+        // Calculate new vs returning per month.
+        // Summary pills show UNIQUE guests per category across the whole span
+        // (a guest active in 3 months counts once, not 3 times).
+        const uniqueNew = new Set<string>();
+        const uniqueReturning = new Set<string>();
         const chartData = months.map(mk => {
             const active = monthActivity.get(mk) || new Set<string>();
             let newGuests = 0;
@@ -135,13 +137,12 @@ export function GuestRetentionChart({ isMounted = true }: Props) {
                 const firstMonth = guestFirstMonth.get(gid);
                 if (firstMonth && firstMonth === mk) {
                     newGuests++;
+                    uniqueNew.add(gid);
                 } else {
                     returningGuests++;
+                    uniqueReturning.add(gid);
                 }
             }
-
-            sumNew += newGuests;
-            sumReturning += returningGuests;
 
             return {
                 month: monthLabel(mk),
@@ -152,7 +153,7 @@ export function GuestRetentionChart({ isMounted = true }: Props) {
             };
         });
 
-        return { data: chartData, totalNew: sumNew, totalReturning: sumReturning };
+        return { data: chartData, totalNew: uniqueNew.size, totalReturning: uniqueReturning.size };
     }, [guests, mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, monthSpan]);
 
     const hasData = data.some(d => d.total > 0);
