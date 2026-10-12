@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.31.0] - 2026-10-12
+
+### Added
+
+- Donation search by donor or item with a match count, type filter chips, and expand-all / collapse-all donor groups. Copy Summary covers every donation type with day totals.
+- Donor name suggestions from past donations and a no-duplicate °F helper for temperatures.
+
+### Improved
+
+- Donations tab subscribes only to its own store slices, computes filter, grouping, and totals in one memo pass, and isolates form typing from list renders. Recent-item lookup precomputes timestamps.
+- Touch-visible edit/delete actions, keyboard-accessible expanders and delete dialog with Escape support, labeled inputs, sticky form on desktop, and trays-or-weight validation.
+
+### Tests
+
+- Replaced native-confirm delete tests with dialog confirm/cancel/Escape coverage; added search, type filter, validation, and °F regression tests plus full-summary clipboard tests.
+- Browser component checks for the donations tab pass (14/14), including the °F button, grouped totals, and date navigation.
+
 ## [0.30.0] - 2026-10-11
 
 ### Added

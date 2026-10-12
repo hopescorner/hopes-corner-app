@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.30.0';
+export const APP_VERSION = '0.31.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.31.0',
+        date: 'October 12, 2026',
+        highlights: [
+            {
+                type: 'performance',
+                title: 'Faster Donations Tab',
+                description: 'The donations tab subscribes only to the data it needs, filters and totals in a single pass, and keeps typing in the log form from re-rendering the list.',
+            },
+            {
+                type: 'feature',
+                title: 'Search and Filter Donations',
+                description: 'Find donations by donor or item, filter by type, and expand or collapse all donor groups. Copy Summary now includes every donation type with day totals.',
+            },
+            {
+                type: 'improvement',
+                title: 'Easier Donation Entry on Tablets',
+                description: 'Edit and delete actions stay visible on touch screens, expanders and dialogs work with keyboards, the form validates trays and weight, and donor names offer suggestions.',
+            },
+        ],
+    },
     {
         version: '0.30.0',
         date: 'October 11, 2026',
