@@ -18,7 +18,7 @@ describe('ShowerIneligibleSupplies', () => {
         expect(container.firstChild).toBeNull();
     });
 
-    it('shows gray icon with red slash for a supply on cooldown', () => {
+    it('shows prominent unavailable badge with bold red slash for a supply on cooldown', () => {
         const recent = new Date();
         recent.setDate(recent.getDate() - 5);
         useItemsStore.setState({
@@ -34,9 +34,12 @@ describe('ShowerIneligibleSupplies', () => {
         // Accessible label carries days remaining so staff know when it unlocks
         expect(badge.getAttribute('aria-label')).toMatch(/Jacket unavailable/i);
         expect(badge.getAttribute('aria-label')).toMatch(/10d left/);
-        // Gray icon + red strike line
-        expect(badge.querySelector('.text-gray-400')).not.toBeNull();
-        expect(badge.querySelector('.bg-red-500')).not.toBeNull();
+        // Prominent badge: larger tile, stronger contrast icon + bold strike line
+        expect(badge.querySelector('.text-gray-700')).not.toBeNull();
+        expect(badge.querySelector('.bg-red-600')).not.toBeNull();
+        expect(badge.className).toMatch(/w-8/);
+        expect(badge.className).toMatch(/h-8/);
+        expect(badge.className).toMatch(/border-red-300/);
     });
 
     it('shows multiple ineligible supplies and hides eligible ones', () => {

@@ -11,8 +11,8 @@ interface Props {
 }
 
 /**
- * Shows grayed-out supply icons with a red slash for every shower amenity
- * the guest is currently ineligible for (cooldown not yet expired).
+ * Shows prominent unavailable-supply badges with a bold red slash for every
+ * shower amenity the guest is currently ineligible for (cooldown not yet expired).
  * Renders nothing when the guest can receive everything, so staff can see
  * at a glance which supplies can still be handed out without opening the
  * amenities panel.
@@ -40,7 +40,7 @@ export function ShowerIneligibleSupplies({ guestId, className }: Props) {
 
     return (
         <span
-            className={cn('inline-flex items-center gap-1.5 flex-wrap', className)}
+            className={cn('inline-flex items-center gap-2 flex-wrap', className)}
             aria-label="Unavailable supplies"
             data-testid={`ineligible-supplies-${guestId}`}
         >
@@ -57,11 +57,11 @@ export function ShowerIneligibleSupplies({ guestId, className }: Props) {
                         aria-label={label}
                         title={label}
                         data-testid={`ineligible-supply-${item.key}`}
-                        className="relative inline-flex items-center justify-center w-6 h-6 rounded-md bg-gray-100 border border-gray-200"
+                        className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 border-2 border-red-300 shadow-sm"
                     >
-                        <Icon size={16} className="text-gray-400" aria-hidden="true" />
+                        <Icon size={20} className="text-gray-700" aria-hidden="true" />
                         <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                            <span className="block w-[140%] h-[2px] bg-red-500 -rotate-[30deg] rounded-full" />
+                            <span className="block w-[135%] h-[3px] bg-red-600 -rotate-[30deg] rounded-full shadow-[0_0_0_1px_white]" />
                         </span>
                     </span>
                 );
