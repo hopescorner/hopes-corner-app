@@ -454,7 +454,7 @@ function formDataFromRecord(record: DonationRecord | null): DonationFormData {
     return {
         type: (record.type || 'Protein') as DonationTypeEnum,
         itemName: record.itemName || (record as any).item_name || '',
-        trays: record.trays != null && record.trays !== '' ? String(record.trays) : '',
+        trays: record.trays != null ? String(record.trays) : '',
         weightLbs: record.weightLbs != null && (record as any).weightLbs !== ''
             ? String(record.weightLbs)
             : ((record as any).weight_lbs != null ? String((record as any).weight_lbs) : ''),
@@ -945,7 +945,7 @@ export const DonationsSection = () => {
     // (e.g. unit-test mocks).
     const handleCopySummary = useCallback(async () => {
         const fullFormatter = formatDonationsClipboardText as unknown as
-            | ((records: DonationRecord[], totals: typeof totals) => string)
+            | ((records: DonationRecord[], summaryTotals: typeof totals) => string)
             | undefined;
         const legacyFormatter = formatProteinAndCarbsClipboardText as unknown as
             | ((records: DonationRecord[]) => string)
