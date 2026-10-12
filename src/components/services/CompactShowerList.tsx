@@ -78,11 +78,11 @@ const ShowerListRow = memo(({ record, guestId, guestName, housingStatus, onGuest
         <div
             onClick={() => onGuestClick?.(record.guestId, record.id)}
             className={cn(
-                "group flex items-center justify-between p-3 transition-colors",
+                "group flex flex-col gap-2 p-3 transition-colors sm:flex-row sm:items-center sm:justify-between sm:gap-3",
                 onGuestClick ? "cursor-pointer hover:bg-sky-50" : ""
             )}
         >
-            <div className="flex items-center gap-3 min-w-0">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
                 <div className={cn(
                     "w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm",
                     record.status === 'done' ? 'bg-emerald-700' :
@@ -94,12 +94,12 @@ const ShowerListRow = memo(({ record, guestId, guestName, housingStatus, onGuest
                         <User size={20} />
                     )}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="font-bold text-gray-900 text-base break-words group-hover:text-sky-700 transition-colors">
+                        <h4 className="min-w-0 font-bold text-gray-900 text-base break-words group-hover:text-sky-700 transition-colors">
                             {guestName}
                         </h4>
-                        {guestId && <ShowerIneligibleSupplies guestId={guestId} />}
+                        {guestId && <ShowerIneligibleSupplies guestId={guestId} className="basis-full sm:basis-auto" />}
                     </div>
                     <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-gray-600">
                         <HousingStatusBadge housingStatus={housingStatus} />
@@ -119,7 +119,7 @@ const ShowerListRow = memo(({ record, guestId, guestName, housingStatus, onGuest
                 </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 pl-14 sm:shrink-0 sm:gap-3 sm:pl-0">
                 <ReminderIndicator guestId={record.guestId} serviceType="shower" compact />
                 <CompactWaiverIndicator guestId={record.guestId} serviceType="shower" />
 

@@ -28,6 +28,7 @@ import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useRemindersStore } from '@/stores/useRemindersStore';
+import { useItemsStore } from '@/stores/useItemsStore';
 import { useWaiverStore } from '@/stores/useWaiverStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 // The mock for next-auth/react is resolved via Vite alias in playwright-ct.config.ts
@@ -634,12 +635,29 @@ interface ShowersSectionStoryProps {
     preferredName?: string;
     name?: string;
   }>;
+  distributedItems?: Array<{
+    id: string;
+    guestId: string;
+    itemKey: string;
+    distributedAt: string;
+    createdAt?: string;
+  }>;
+  reminders?: Array<{
+    id: string;
+    guestId: string;
+    message: string;
+    appliesTo: Array<'shower' | 'laundry' | 'bicycle' | 'all'>;
+  }>;
+  waiverNeededGuestIds?: string[];
 }
 
 export function ShowersSectionStory({
   role = 'admin',
   showerRecords = [],
   guests = [],
+  distributedItems = [],
+  reminders = [],
+  waiverNeededGuestIds = [],
 }: ShowersSectionStoryProps) {
   const [lastAddPayload, setLastAddPayload] = React.useState('');
 
@@ -651,6 +669,18 @@ export function ShowersSectionStory({
 
     useGuestsStore.setState({
       guests: guests as any,
+    });
+
+    // Seed item history so per-guest supply badges render deterministically.
+    // Stub the bulk fetch so mounting never hits Supabase in CT.
+    useItemsStore.setState({
+      distributedItems: distributedItems.map((item) => ({
+        ...item,
+        createdAt: item.createdAt ?? item.distributedAt,
+      })) as any,
+      isLoading: false,
+      error: null,
+      fetchItemsForGuests: (async () => {}) as any,
     });
 
     useServicesStore.setState({
@@ -672,18 +702,23 @@ export function ShowersSectionStory({
     });
 
     useRemindersStore.setState({
-      reminders: [],
-      getRemindersForService: (() => []) as any,
-      hasActiveReminder: (() => false) as any,
+      reminders: reminders.map((r) => ({
+        ...r,
+        createdBy: 'ct',
+        dismissedAt: null,
+        dismissedBy: null,
+      })) as any,
+      isLoaded: true,
+      dismissReminder: (async () => true) as any,
     });
 
     useWaiverStore.setState({
       waiverVersion: 0,
-      guestNeedsWaiverReminder: (async () => false) as any,
+      guestNeedsWaiverReminder: (async (guestId: string) => waiverNeededGuestIds.includes(guestId)) as any,
       hasActiveWaiver: (async () => false) as any,
       dismissWaiver: (async () => true) as any,
     });
-  }, [guests, role, showerRecords]);
+  }, [guests, role, showerRecords, distributedItems, reminders, waiverNeededGuestIds]);
 
   return (
     <>
