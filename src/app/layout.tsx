@@ -1,21 +1,25 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Outfit } from 'next/font/google';
+import localFont from 'next/font/local';
 import { Toaster } from 'react-hot-toast';
 import { ServiceWorkerRegistration } from '@/components/pwa/ServiceWorkerRegistration';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import './globals.css';
 
-const inter = Inter({
+// Self-hosted (was next/font/google): the CI deploy build runs outside
+// Vercel infra where the Google Fonts fetch fails under Turbopack, so the
+// latin variable files live in src/app/fonts and need no network at build.
+const inter = localFont({
+  src: './fonts/inter-latin.woff2',
   variable: '--font-inter',
-  subsets: ['latin'],
+  weight: '100 900',
   display: 'swap',
 });
 
-const outfit = Outfit({
+const outfit = localFont({
+  src: './fonts/outfit-latin.woff2',
   variable: '--font-outfit',
-  subsets: ['latin'],
+  weight: '100 900',
   display: 'swap',
-  weight: ['500', '600', '700'],
 });
 
 export const metadata: Metadata = {

@@ -4,10 +4,9 @@ import React from 'react';
 import ProtectedLayout from '../(protected)/layout';
 import BaseLayout from '../layout';
 
-// Mock next/font/google
-vi.mock('next/font/google', () => ({
-    Inter: () => ({ variable: 'inter' }),
-    Outfit: () => ({ variable: 'outfit' }),
+// Mock next/font/local (self-hosted woff2)
+vi.mock('next/font/local', () => ({
+    default: () => ({ variable: 'mock-font' }),
 }));
 
 // Mock next/navigation
