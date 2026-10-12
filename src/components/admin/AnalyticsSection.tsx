@@ -935,8 +935,13 @@ export function AnalyticsSection() {
                     <div className="flex items-start gap-1.5 text-xs text-gray-700 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-lg mb-2">
                         <Newspaper size={13} className="text-gray-500 flex-shrink-0 mt-0.5" />
                         <ol className="flex flex-col gap-0.5">
-                            {dayHeadlines.map((item) => (
-                                <li key={item.rank} className="line-clamp-2">
+                            {dayHeadlines
+                                .filter(
+                                    (item, index, arr) =>
+                                        arr.findIndex((other) => other.rank === item.rank) === index
+                                )
+                                .map((item) => (
+                                    <li key={item.id ?? item.rank} className="line-clamp-2">
                                     <span className="font-bold text-gray-400">{item.rank}. </span>
                                     <span className="font-semibold">{item.headline}</span>
                                     <span className="text-gray-400"> — {item.source}</span>

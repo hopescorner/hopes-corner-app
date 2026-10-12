@@ -70,13 +70,58 @@ export const useHeadlinesStore = create<HeadlinesState>()(
                         const mapped = ((data || []) as unknown[])
                             .map((row: any) => mapDailyHeadlineRow(row))
                             .sort(byRank);
+                        // De-duplicate rows that can arrive twice (persisted cache +
+                        // fresh fetch, or overlapping range loads). Keep the first
+                        // occurrence per id, falling back to date+rank.
+                        const seen = new Set<string>();
+                        const deduped: typeof mapped = [];
+                        for (const item of mapped) {
+                            const key = item.id
+                                ? `id:${item.id}`
+                                : `day-rank:${item.date}:${item.rank}:${item.headline}`;
+                            if (seen.has(key)) continue;
+                            seen.add(key);
+                            deduped.push(item);
+                        }
+                        // Fresh groups keyed by date; each day replaced wholesale so
+                        // repeat loads never append onto the previous list.
+                        const freshGroups: Record<string, DailyHeadline[]> = {};
+                        for (const item of deduped) {
+                            (freshGroups[item.date] ||= []).push(item);
+                        }
+                        for (const day of Object.keys(freshGroups)) {
+                            freshGroups[day].sort(byRank);
+                        }
                         set((state) => {
-                            state.records = mapped;
-                            const map: Record<string, DailyHeadline[]> = { ...state.headlineByDate };
-                            for (const item of mapped) {
-                                map[item.date] = [...(map[item.date] || []), item].sort(byRank);
+                            if (!startDate && !endDate) {
+                                // Full load: replace everything.
+                                state.records = deduped;
+                                state.headlineByDate = freshGroups;
+                            } else {
+                                // Ranged load: replace only the fetched dates,
+                                // preserving cached days outside the range.
+                                const fetchedDates = new Set(Object.keys(freshGroups));
+                                // Also clear fetched dates that came back empty
+                                // (all rows deleted) when the range is a single day.
+                                if (deduped.length === 0 && startDate && startDate === endDate) {
+                                    fetchedDates.add(startDate);
+                                }
+                                state.records = [
+                                    ...state.records.filter((r) => !fetchedDates.has(r.date)),
+                                    ...deduped,
+                                ];
+                                const map: Record<string, DailyHeadline[]> = {
+                                    ...state.headlineByDate,
+                                };
+                                for (const day of fetchedDates) {
+                                    if (freshGroups[day]) {
+                                        map[day] = freshGroups[day];
+                                    } else {
+                                        delete map[day];
+                                    }
+                                }
+                                state.headlineByDate = map;
                             }
-                            state.headlineByDate = map;
                             state.isLoaded = true;
                         });
                     } catch (error) {

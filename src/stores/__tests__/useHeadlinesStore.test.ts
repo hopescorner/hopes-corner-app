@@ -69,6 +69,28 @@ describe('useHeadlinesStore', () => {
             expect(state.records).toHaveLength(2);
             expect(state.headlineByDate['2026-10-11']?.map((h) => h.rank)).toEqual([1, 2]);
         });
+
+        it('never duplicates a day list on repeated ranged loads', async () => {
+            const mockRows = [
+                { id: 'h-1', date: '2026-10-12', rank: 1, headline: 'Flooding risk in low areas', source: 'CBS' },
+                { id: 'h-2', date: '2026-10-12', rank: 2, headline: 'Search resumes near park', source: 'SFGATE' },
+            ];
+
+            const chain: any = {};
+            chain.order = vi.fn().mockReturnValue(chain);
+            chain.gte = vi.fn().mockReturnValue(chain);
+            chain.lte = vi.fn().mockResolvedValue({ data: mockRows, error: null });
+            mockSelect.mockReturnValue(chain);
+
+            const range = { startDate: '2026-10-01', endDate: '2026-10-12' };
+            await useHeadlinesStore.getState().ensureLoaded(range);
+            await useHeadlinesStore.getState().ensureLoaded(range);
+
+            const state = useHeadlinesStore.getState();
+            expect(state.records).toHaveLength(2);
+            expect(state.headlineByDate['2026-10-12']).toHaveLength(2);
+            expect(state.headlineByDate['2026-10-12']?.map((h) => h.rank)).toEqual([1, 2]);
+        });
     });
 
     describe('getHeadlinesForDate', () => {
