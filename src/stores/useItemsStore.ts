@@ -21,6 +21,7 @@ interface ItemsState {
 
     // Actions
     fetchItemsForGuest: (guestId: string) => Promise<void>;
+    fetchItemsForGuests: (guestIds: string[]) => Promise<void>;
     giveItem: (guestId: string, itemKey: string) => Promise<DistributedItem | null>;
     undoItem: (itemId: string) => Promise<boolean>;
     checkAvailability: (guestId: string, itemKey: string) => { available: boolean; nextAvailable?: Date; daysRemaining?: number };
@@ -64,6 +65,42 @@ export const useItemsStore = create<ItemsState>()(
                         // To allow multi-guest viewing, we filter out existing items for this guest and add new ones.
                         state.distributedItems = [
                             ...state.distributedItems.filter(i => i.guestId !== guestId),
+                            ...mappedItems
+                        ];
+                        state.isLoading = false;
+                    });
+                } catch (err: any) {
+                    console.error('Error fetching distributed items:', err);
+                    set({ isLoading: false, error: err.message });
+                }
+            },
+
+            fetchItemsForGuests: async (guestIds: string[]) => {
+                const uniqueIds = [...new Set((guestIds || []).filter(Boolean))];
+                if (uniqueIds.length === 0) return;
+                set({ isLoading: true, error: null });
+                const supabase = createClient();
+                try {
+                    const { data, error } = await supabase
+                        .from('items_distributed')
+                        .select('*')
+                        .in('guest_id', uniqueIds)
+                        .order('distributed_at', { ascending: false });
+
+                    if (error) throw error;
+
+                    const mappedItems = ((data as any[]) || []).map((item: any) => ({
+                        id: item.id,
+                        guestId: item.guest_id,
+                        itemKey: item.item_key,
+                        distributedAt: item.distributed_at,
+                        createdAt: item.created_at,
+                    }));
+
+                    set((state) => {
+                        const wanted = new Set(uniqueIds);
+                        state.distributedItems = [
+                            ...state.distributedItems.filter(i => !wanted.has(i.guestId)),
                             ...mappedItems
                         ];
                         state.isLoading = false;

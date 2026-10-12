@@ -1,9 +1,11 @@
 'use client';
 
-import React, { memo, useMemo, useState, useCallback } from "react";
+import React, { memo, useMemo, useState, useCallback, useEffect } from "react";
 import { User, Clock, CheckCircle, AlertCircle, XCircle, RotateCcw, Loader2 } from "lucide-react";
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
+import { useItemsStore } from '@/stores/useItemsStore';
+import { ShowerIneligibleSupplies } from './ShowerIneligibleSupplies';
 import { HousingStatusBadge } from '@/components/ui/HousingStatusBadge';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
 import { ReminderIndicator } from '@/components/ui/ReminderIndicator';
@@ -20,8 +22,9 @@ interface Props {
     onAssignSlot?: (guestId: string) => void;
 }
 
-const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, readOnly = false, queuePosition, timeCue, onAssignSlot }: {
+const ShowerListRow = memo(({ record, guestId, guestName, housingStatus, onGuestClick, readOnly = false, queuePosition, timeCue, onAssignSlot }: {
     record: any;
+    guestId?: string;
     guestName: string;
     housingStatus?: string;
     onGuestClick?: (guestId: string, recordId: string) => void;
@@ -92,9 +95,12 @@ const ShowerListRow = memo(({ record, guestName, housingStatus, onGuestClick, re
                     )}
                 </div>
                 <div className="min-w-0">
-                    <h4 className="font-bold text-gray-900 text-base break-words group-hover:text-sky-700 transition-colors">
-                        {guestName}
-                    </h4>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="font-bold text-gray-900 text-base break-words group-hover:text-sky-700 transition-colors">
+                            {guestName}
+                        </h4>
+                        {guestId && <ShowerIneligibleSupplies guestId={guestId} />}
+                    </div>
                     <div className="mt-1 flex items-center gap-2 flex-wrap text-xs text-gray-600">
                         <HousingStatusBadge housingStatus={housingStatus} />
                         {record.time && (
@@ -197,6 +203,7 @@ ShowerListRow.displayName = "ShowerListRow";
 
 const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitlistQueueMap, timeCues, onAssignSlot }: Props) => {
     const guests = useGuestsStore((s) => s.guests);
+    const fetchItemsForGuests = useItemsStore((s) => s.fetchItemsForGuests);
 
     const guestMap = useMemo(() => {
         const map = new Map<string, (typeof guests)[number]>();
@@ -205,6 +212,21 @@ const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitl
         }
         return map;
     }, [guests]);
+
+    const visibleGuestIdsKey = useMemo(() => {
+        const ids = new Set<string>();
+        for (const record of records || []) {
+            if (record?.guestId) ids.add(record.guestId);
+        }
+        return [...ids].sort().join(',');
+    }, [records]);
+
+    useEffect(() => {
+        if (typeof fetchItemsForGuests !== 'function' || !visibleGuestIdsKey) return;
+        const ids = visibleGuestIdsKey.split(',').filter(Boolean);
+        if (ids.length === 0) return;
+        void fetchItemsForGuests(ids);
+    }, [visibleGuestIdsKey, fetchItemsForGuests]);
 
     if (records.length === 0) {
         return (
@@ -228,6 +250,7 @@ const CompactShowerList = memo(({ records, onGuestClick, readOnly = false, waitl
                         <ShowerListRow
                             key={record.id}
                             record={record}
+                            guestId={record.guestId}
                             guestName={guestName}
                             housingStatus={guest?.housingStatus}
                             onGuestClick={onGuestClick}

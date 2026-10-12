@@ -1,11 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, Shirt, Package, Tent, Footprints, AlertCircle, CheckCircle, Loader2, Clock, Undo2, Check } from 'lucide-react';
-import { JacketIcon } from '@/components/icons/JacketIcon';
-import { SleepingBagIcon } from '@/components/icons/SleepingBagIcon';
-import { SweatpantsIcon } from '@/components/icons/SweatpantsIcon';
-import { BackpackIcon } from '@/components/icons/BackpackIcon';
+import { X, Package, AlertCircle, CheckCircle, Loader2, Clock, Undo2, Check } from 'lucide-react';
+import { SHOWER_AMENITY_ITEMS as AMENITY_ITEMS } from './showerAmenityItems';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WaiverBadge } from '@/components/ui/WaiverBadge';
 import { ServiceCardReminder } from '@/components/ui/ReminderIndicator';
@@ -22,18 +19,6 @@ interface ShowerDetailModalProps {
     guest: any;
     readOnly?: boolean;
 }
-
-// Items with cooldown limits - socks and underwear are unlimited/always available
-// so they are not shown here (guests can get them anytime without tracking)
-const AMENITY_ITEMS = [
-    { key: 'tshirt', label: 'T-Shirt', icon: Shirt, limit: 'Weekly (Mon)' },
-    { key: 'jacket', label: 'Jacket', icon: JacketIcon, limit: '15 Days', size: 36, strokeWidth: 1.0 },
-    { key: 'tent', label: 'Tent', icon: Tent, limit: '30 Days' },
-    { key: 'sleeping_bag', label: 'Sleeping Bag', icon: SleepingBagIcon, limit: '30 Days' },
-    { key: 'backpack', label: 'Backpack', icon: BackpackIcon, limit: '30 Days', size: 36, strokeWidth: 1.0 },
-    { key: 'flipflops', label: 'Flip Flops', icon: Footprints, limit: '30 Days' },
-    { key: 'sweatpants', label: 'Sweatpants', icon: SweatpantsIcon, limit: '30 Days' },
-];
 
 export function ShowerDetailModal({ isOpen, onClose, record, guest, readOnly = false }: ShowerDetailModalProps) {
     const { fetchItemsForGuest, checkAvailability, giveItem, undoItem, distributedItems, isLoading } = useItemsStore();
