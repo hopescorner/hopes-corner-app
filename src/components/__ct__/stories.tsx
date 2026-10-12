@@ -516,6 +516,8 @@ export function DonationsSectionStory({
 }: DonationsSectionStoryProps) {
   useEffect(() => {
     useDonationsStore.setState({
+      isLoaded: true,
+      isLoading: false,
       donationRecords: donationRecords as any,
       addDonation: (async (d: any) => {
         const newRecord = {

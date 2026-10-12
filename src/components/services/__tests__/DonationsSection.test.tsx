@@ -7,6 +7,8 @@ import { DonationRecord } from '@/stores/useDonationsStore';
 // Mock the stores
 const mockDonationsStore = {
     donationRecords: [] as DonationRecord[],
+    isLoaded: true,
+    isLoading: false,
     addDonation: vi.fn().mockResolvedValue({ id: 'd-new' }),
     updateDonation: vi.fn().mockResolvedValue(true),
     deleteDonation: vi.fn().mockResolvedValue(true),
@@ -44,6 +46,7 @@ vi.mock('@/lib/utils/donationUtils', () => ({
     deriveDonationDateKey: (record: any) => record.dateKey || '2024-01-15',
     formatDonationCurrency: (value: number) => `$${value.toFixed(2)}`,
     formatProteinAndCarbsClipboardText: () => 'Mock clipboard text',
+    formatDonationsClipboardText: () => 'Mock clipboard text',
     DENSITY_SERVINGS: { light: 10, medium: 20, high: 30 }
 }));
 
@@ -636,12 +639,10 @@ describe('DonationsSection Component', () => {
     });
 
     describe('Edit/Delete Operations', () => {
-        it('calls deleteDonation when delete button is clicked and confirmed', async () => {
+        it('opens a dialog and calls deleteDonation on confirm', async () => {
             mockDonationsStore.donationRecords = [
                 createDonationRecord({ id: 'test-id-1', itemName: 'Test Item' })
             ];
-
-            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
             await act(async () => {
                 render(<DonationsSection />);
@@ -653,18 +654,20 @@ describe('DonationsSection Component', () => {
                 fireEvent.click(deleteButton);
             });
 
-            expect(confirmSpy).toHaveBeenCalledWith('Delete this record?');
-            expect(mockDonationsStore.deleteDonation).toHaveBeenCalledWith('test-id-1');
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+            expect(screen.getByText('Delete donation?')).toBeInTheDocument();
 
-            confirmSpy.mockRestore();
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
+            });
+
+            expect(mockDonationsStore.deleteDonation).toHaveBeenCalledWith('test-id-1');
         });
 
-        it('does not delete when confirmation is cancelled', async () => {
+        it('does not delete when the dialog is cancelled', async () => {
             mockDonationsStore.donationRecords = [
                 createDonationRecord({ id: 'test-id-1', itemName: 'Test Item' })
             ];
-
-            const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
             await act(async () => {
                 render(<DonationsSection />);
@@ -674,11 +677,39 @@ describe('DonationsSection Component', () => {
 
             await act(async () => {
                 fireEvent.click(deleteButton);
+            });
+
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
             });
 
             expect(mockDonationsStore.deleteDonation).not.toHaveBeenCalled();
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        });
 
-            confirmSpy.mockRestore();
+        it('closes the delete dialog with the Escape key', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ id: 'test-id-1', itemName: 'Test Item' })
+            ];
+
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Delete entry'));
+            });
+
+            expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+            await act(async () => {
+                fireEvent.keyDown(window, { key: 'Escape' });
+            });
+
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            expect(mockDonationsStore.deleteDonation).not.toHaveBeenCalled();
         });
 
         it('populates form when edit button is clicked', async () => {
@@ -875,6 +906,135 @@ describe('DonationsSection Component', () => {
 
             expect(screen.getByText('3')).toBeInTheDocument();
             expect(screen.getByText('unique items')).toBeInTheDocument();
+        });
+    });
+
+    describe('Search and Type Filters', () => {
+        it('filters the list by donor search and shows a match count', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ id: '1', itemName: 'Chicken', donor: 'Waymo' }),
+                createDonationRecord({ id: '2', itemName: 'Rice', donor: 'LinkedIn' }),
+            ];
+
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            const search = screen.getByLabelText('Search donations');
+            await act(async () => {
+                fireEvent.change(search, { target: { value: 'waymo' } });
+            });
+
+            expect(screen.getByText('Showing 1 of 2 records')).toBeInTheDocument();
+            expect(screen.getAllByText('Chicken').length).toBeGreaterThanOrEqual(1);
+            expect(screen.queryByRole('heading', { name: 'Rice' })).not.toBeInTheDocument();
+        });
+
+        it('shows an empty-filter state with a clear action', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ id: '1', itemName: 'Chicken', donor: 'Waymo' }),
+            ];
+
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.change(screen.getByLabelText('Search donations'), { target: { value: 'no-such-donor' } });
+            });
+
+            expect(screen.getByText('No donations match these filters')).toBeInTheDocument();
+
+            const clearButtons = screen.getAllByRole('button', { name: 'Clear filters' });
+            await act(async () => {
+                fireEvent.click(clearButtons[clearButtons.length - 1]);
+            });
+
+            expect(screen.getAllByText('Chicken').length).toBeGreaterThanOrEqual(1);
+        });
+
+        it('filters the list by donation type', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ id: '1', itemName: 'Chicken', type: 'Protein' }),
+                createDonationRecord({ id: '2', itemName: 'Rice', type: 'Carbs' }),
+            ];
+
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Carbs' }));
+            });
+
+            expect(screen.queryByRole('heading', { name: 'Chicken' })).not.toBeInTheDocument();
+            expect(screen.getAllByText('Rice').length).toBeGreaterThanOrEqual(1);
+        });
+
+        it('donor group headers expose aria-expanded for keyboard users', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ id: '1', itemName: 'Chicken', donor: 'Waymo' }),
+            ];
+
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            const toggle = screen.getByLabelText('Collapse donor group');
+            expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+            await act(async () => {
+                fireEvent.click(toggle);
+            });
+
+            expect(screen.getByLabelText('Expand donor group')).toHaveAttribute('aria-expanded', 'false');
+        });
+    });
+
+    describe('Form Validation', () => {
+        it('blocks submit when both trays and weight are empty', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.change(screen.getByPlaceholderText('e.g. Chicken breast'), { target: { value: 'Test Food' } });
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: /Save Record/ }));
+            });
+
+            expect(screen.getByRole('alert')).toBeInTheDocument();
+            expect(mockDonationsStore.addDonation).not.toHaveBeenCalled();
+        });
+
+        it('blocks submit when trays are negative', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.change(screen.getByPlaceholderText('e.g. Chicken breast'), { target: { value: 'Test Food' } });
+                fireEvent.change(screen.getByPlaceholderText('0'), { target: { value: '-2' } });
+                fireEvent.change(screen.getByPlaceholderText('0.0'), { target: { value: '5' } });
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: /Save Record/ }));
+            });
+
+            expect(screen.getByRole('alert')).toBeInTheDocument();
+            expect(mockDonationsStore.addDonation).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('appendFahrenheit', () => {
+        it('appends the symbol once and never duplicates it', async () => {
+            const { appendFahrenheit } = await import('../DonationsSection');
+            expect(appendFahrenheit('165')).toBe('165°F');
+            expect(appendFahrenheit('165°F')).toBe('165°F');
+            expect(appendFahrenheit('')).toBe('');
         });
     });
 });

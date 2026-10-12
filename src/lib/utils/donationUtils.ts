@@ -133,3 +133,59 @@ export const formatProteinAndCarbsClipboardText = (consolidatedActivity: any[] =
     }
     return lines.join("\n");
 };
+
+/**
+ * Full donations summary for copy/share. Unlike
+ * formatProteinAndCarbsClipboardText (which intentionally covers only
+ * Protein / Veggie Protein / Carbs), this includes every donation type
+ * plus day totals so nothing is silently dropped.
+ */
+export const formatDonationsClipboardText = (
+    records: any[] = [],
+    totals?: { totalWeight?: number; totalTrays?: number; totalServings?: number; donationValue?: number },
+) => {
+    const lines: string[] = ["Donations", ""];
+    if (totals && (totals.totalWeight || totals.totalTrays || totals.totalServings)) {
+        const parts: string[] = [];
+        if (totals.totalWeight) parts.push(`${Number(totals.totalWeight).toFixed(1)} lbs`);
+        if (totals.totalTrays) parts.push(`${totals.totalTrays} trays`);
+        if (totals.totalServings) parts.push(`~${totals.totalServings} servings`);
+        if (parts.length > 0) {
+            lines.push(`Total: ${parts.join(", ")}`);
+            lines.push("");
+        }
+    }
+
+    const byType = new Map<string, any[]>();
+    for (const record of records || []) {
+        const type = record?.type || "Other";
+        if (!byType.has(type)) byType.set(type, []);
+        byType.get(type)!.push(record);
+    }
+
+    const orderedTypes = Array.from(byType.keys()).sort((a, b) => a.localeCompare(b));
+    if (orderedTypes.length === 0) {
+        lines.push("None");
+        return lines.join("\n");
+    }
+
+    for (const type of orderedTypes) {
+        lines.push(type);
+        const entries = [...byType.get(type)!].sort(
+            (a, b) => (Number(b.servings) || 0) - (Number(a.servings) || 0)
+                || String(a.itemName || "").localeCompare(String(b.itemName || "")),
+        );
+        for (const entry of entries) {
+            const trays = Number(entry.trays || 0);
+            const servings = Number(entry.servings || 0);
+            const weight = Number(entry.weightLbs ?? entry.weight_lbs ?? 0);
+            const traysText = `${trays} ${trays === 1 ? "tray" : "trays"}`;
+            const servingsText = `${servings} ${servings === 1 ? "serving" : "servings"}`;
+            const weightText = Number.isFinite(weight) && weight > 0 ? `, ${weight.toFixed(1)} lbs` : "";
+            const donorText = entry.donor ? ` (${entry.donor})` : "";
+            lines.push(`${entry.itemName || "Unnamed item"}: ${traysText}, ${servingsText}${weightText}${donorText}`);
+        }
+        lines.push("");
+    }
+    return lines.join("\n").trimEnd();
+};

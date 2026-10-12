@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateDonationLineItemValue, calculateDonationValue, calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, DENSITY_SERVINGS, MINIMAL_TYPES } from '../donationUtils';
+import { calculateDonationLineItemValue, calculateDonationValue, calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, formatDonationsClipboardText, DENSITY_SERVINGS, MINIMAL_TYPES } from '../donationUtils';
 
 describe('donationUtils', () => {
     describe('calculateDonationValue', () => {
@@ -312,6 +312,31 @@ describe('donationUtils', () => {
             ];
             const text = formatProteinAndCarbsClipboardText(activity);
             expect(text).toContain('Test: 0 trays, 25 servings');
+        });
+    });
+
+    describe('formatDonationsClipboardText', () => {
+        it('includes every donation type instead of silently dropping them', () => {
+            const activity = [
+                { type: 'Protein', itemName: 'Chicken', trays: 2, servings: 40, weightLbs: 10, donor: 'Waymo' },
+                { type: 'Pastries', itemName: 'Donuts', trays: 2, servings: 20, weightLbs: 4, donor: 'Bakery' },
+            ];
+            const text = formatDonationsClipboardText(activity);
+            expect(text).toContain('Chicken');
+            expect(text).toContain('Donuts');
+            expect(text).toContain('Pastries');
+        });
+
+        it('summarizes day totals when provided', () => {
+            const text = formatDonationsClipboardText(
+                [{ type: 'Protein', itemName: 'Chicken', trays: 2, servings: 40, weightLbs: 10 }],
+                { totalWeight: 10, totalTrays: 2, totalServings: 40 },
+            );
+            expect(text).toContain('Total: 10.0 lbs, 2 trays, ~40 servings');
+        });
+
+        it('returns None for empty input', () => {
+            expect(formatDonationsClipboardText([])).toContain('None');
         });
     });
 });
