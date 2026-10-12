@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.38.0] - 2026-10-12
+
+### Fixed
+
+- Bay Area headlines in the Daily Meals & Weather table no longer duplicate and double with each reload. The headlines store now de-duplicates by id and replaces each day's ranked list on load instead of appending copies, and both the table and the Analytics chart tooltip collapse any leftover duplicate ranks at render time.
+
+### Added
+
+- Daily Meals & Weather rows now show a Day column with the full weekday name and a Federal holiday column with a pill for US federal holidays (Columbus Day, Thanksgiving, Labor Day, and the rest, with "(observed)" labels when a fixed holiday falls on a weekend).
+
+### Tests
+
+- Added federal-holiday coverage (fixed dates, weekday rules, weekend-observed labels, weekday names), a store regression test proving repeated ranged loads never duplicate a day list, and table tests for the new columns plus render-time dedup of a doubled list. Full Vitest suite passes (4259 tests); `npm run lint` clean.
+
 ## [0.37.0] - 2026-10-12
 
 ### Improved

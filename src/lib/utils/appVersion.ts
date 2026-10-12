@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.37.0';
+export const APP_VERSION = '0.38.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.38.0',
+        date: 'October 12, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Bay Area Headlines No Longer Double Up',
+                description: 'The Daily Meals & Weather table sometimes showed each headline twice, growing with every reload. Repeat loads now replace each day\u2019s list instead of stacking copies, and the table collapses any leftover duplicates so each of the top 5 stories appears once.',
+            },
+            {
+                type: 'feature',
+                title: 'Day and Federal Holiday Columns in Daily Meals Table',
+                description: 'Each service-day row now shows the full weekday name and a federal holiday pill (for example Columbus Day on Oct 12) with observed-day labels when a holiday falls on a weekend, making it easier to spot holiday effects on attendance.',
+            },
+        ],
+    },
     {
         version: '0.37.0',
         date: 'October 12, 2026',
