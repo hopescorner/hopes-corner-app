@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.34.0';
+export const APP_VERSION = '0.35.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.35.0',
+        date: 'October 12, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Laundry Bag Numbers in List View',
+                description: 'Laundry list rows now let staff add or edit the bag number inline with Add/Edit, Save, and Cancel controls, matching the kanban card Edit field. The editor starts from the latest saved value so bags entered on another device are never wiped.',
+            },
+        ],
+    },
     {
         version: '0.34.0',
         date: 'October 12, 2026',

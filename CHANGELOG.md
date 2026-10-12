@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.35.0] - 2026-10-12
+
+### Added
+
+- Laundry list rows now support adding and editing bag numbers inline (Add/Edit with Save/Cancel), matching the kanban card Edit field. The editor seeds from the latest saved value so bags entered elsewhere are preserved; historical (read-only) views still show bags without edit controls.
+
+### Tests
+
+- Added list-view bag-editor coverage (Add visibility, save path, fresh-store seeding, Edit state, read-only hiding, row-click isolation). Full Vitest suite passes (4249 tests); `npm run lint` clean.
+
 ## [0.34.0] - 2026-10-12
 
 ### Fixed
