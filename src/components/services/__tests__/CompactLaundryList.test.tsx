@@ -162,6 +162,74 @@ describe('CompactLaundryList Component', () => {
         });
     });
 
+    describe('List-view bag-number editing', () => {
+        it('shows an Add button when a load has no bag number', () => {
+            render(<CompactLaundryList />);
+            const addButtons = screen.getAllByLabelText(/Add bag number for/);
+            expect(addButtons.length).toBeGreaterThan(0);
+            expect(screen.getAllByText('No Bag #').length).toBeGreaterThan(0);
+        });
+
+        it('saves a bag number from the list row', async () => {
+            render(<CompactLaundryList />);
+            fireEvent.click(screen.getAllByLabelText(/Add bag number for/)[0]);
+            const input = screen.getByLabelText(/Bag number for/);
+            fireEvent.change(input, { target: { value: 'B12' } });
+            fireEvent.click(screen.getByLabelText(/Save bag number for/));
+
+            await waitFor(() => {
+                expect(mockUpdateLaundryBagNumber).toHaveBeenCalledWith('l1', 'B12');
+            });
+        });
+
+        it('seeds the editor from the freshest store value, not a stale row prop', async () => {
+            const { useServicesStore } = await import('@/stores/useServicesStore');
+            (useServicesStore as any).getState.mockReturnValue({
+                laundryRecords: [
+                    { id: 'l1', guestId: 'g1', status: 'waiting', laundryType: 'onsite', bagNumber: 'B99' },
+                    { id: 'l2', guestId: 'g2', status: 'washer', laundryType: 'onsite', bagNumber: undefined },
+                ],
+            });
+            render(<CompactLaundryList />);
+            fireEvent.click(screen.getAllByLabelText(/Add bag number for/)[0]);
+            expect((screen.getByLabelText(/Bag number for/) as HTMLInputElement).value).toBe('B99');
+        });
+
+        it('shows an Edit button and saved bag when a load already has one', async () => {
+            const { useServicesStore } = await import('@/stores/useServicesStore');
+            const bagged = [
+                { id: 'l1', guestId: 'g1', time: '09:00-09:30', status: 'waiting', laundryType: 'onsite', date: '2026-01-08', createdAt: '2026-01-08T09:00:00Z', bagNumber: 'B7' },
+                { id: 'l2', guestId: 'g2', time: '10:00-10:30', status: 'washer', laundryType: 'onsite', date: '2026-01-08', createdAt: '2026-01-08T10:00:00Z', bagNumber: undefined },
+            ];
+            (useServicesStore as any).mockReturnValue({
+                laundryRecords: bagged,
+                updateLaundryStatus: mockUpdateLaundryStatus,
+                updateLaundryBagNumber: mockUpdateLaundryBagNumber,
+            });
+            (useServicesStore as any).getState.mockReturnValue({
+                laundryRecords: bagged,
+                updateLaundryStatus: mockUpdateLaundryStatus,
+                updateLaundryBagNumber: mockUpdateLaundryBagNumber,
+            });
+            render(<CompactLaundryList />);
+            expect(screen.getByText('Bag #B7')).toBeDefined();
+            expect(screen.getByLabelText('Edit bag number for Johnny')).toBeDefined();
+        });
+
+        it('hides Add/Edit controls when readOnly', () => {
+            render(<CompactLaundryList readOnly />);
+            expect(screen.queryByLabelText(/Add bag number for/)).toBeNull();
+            expect(screen.queryByLabelText(/Edit bag number for/)).toBeNull();
+        });
+
+        it('does not trigger row click when editing a bag number', () => {
+            const onGuestClick = vi.fn();
+            render(<CompactLaundryList onGuestClick={onGuestClick} />);
+            fireEvent.click(screen.getAllByLabelText(/Add bag number for/)[0]);
+            expect(onGuestClick).not.toHaveBeenCalled();
+        });
+    });
+
     describe('View Date', () => {        it('handles viewDate prop', () => {
             render(<CompactLaundryList viewDate="2026-01-08" />);
             // Component should render

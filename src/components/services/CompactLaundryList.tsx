@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, memo } from "react";
-import { WashingMachine, Clock, CheckCircle, Package, Wind, Truck, ChevronDown, ChevronUp, Eye, ChevronRight, Loader2 } from "lucide-react";
+import { WashingMachine, Clock, CheckCircle, Package, Wind, Truck, ChevronDown, ChevronUp, Eye, ChevronRight, Loader2, Pencil, Save, X } from "lucide-react";
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { todayPacificDateString, pacificDateStringFrom, formatPacificTimeString } from '@/lib/utils/date';
@@ -133,6 +133,112 @@ const LaundryStatusBadge = memo(({ status }: { status: string }) => {
 });
 LaundryStatusBadge.displayName = "LaundryStatusBadge";
 
+// Inline bag-number editor for list rows (mirrors the kanban card Edit field).
+// Display mode shows the saved bag (or "No Bag #") with an Add/Edit button;
+// editing mode shows an input with Save/Cancel. Reads the freshest store
+// value when opening so a bag saved elsewhere isn't wiped on Save.
+const LaundryBagEditor = memo(({ booking, readOnly = false, displayClassName = "text-purple-600" }: { booking: LaundryBooking; readOnly?: boolean; displayClassName?: string }) => {
+    const { updateLaundryBagNumber } = useServicesStore(useShallow((s) => ({ updateLaundryBagNumber: s.updateLaundryBagNumber })));
+    const [isEditing, setIsEditing] = useState(false);
+    const [bagValue, setBagValue] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const openEditor = useCallback((event: React.MouseEvent) => {
+        event.stopPropagation();
+        const fresh = useServicesStore.getState?.().laundryRecords?.find((r) => r.id === booking.id);
+        setBagValue(fresh?.bagNumber ?? booking.bagNumber ?? '');
+        setIsEditing(true);
+    }, [booking.bagNumber, booking.id]);
+
+    const closeEditor = useCallback((event: React.MouseEvent) => {
+        event.stopPropagation();
+        setIsEditing(false);
+    }, []);
+
+    const handleSave = useCallback(async (event: React.FormEvent | React.MouseEvent) => {
+        event.stopPropagation();
+        event.preventDefault();
+        if (isSaving) return;
+        setIsSaving(true);
+        try {
+            if (await updateLaundryBagNumber(booking.id, bagValue) === false) {
+                throw new Error('Failed to save bag number');
+            }
+            setIsEditing(false);
+            toast.success('Bag number saved');
+        } catch {
+            toast.error('Failed to save bag number');
+        } finally {
+            setIsSaving(false);
+        }
+    }, [bagValue, booking.id, isSaving, updateLaundryBagNumber]);
+
+    if (readOnly) {
+        if (!booking.bagNumber) return null;
+        return (
+            <span className={cn("text-xs", displayClassName)}>Bag #{booking.bagNumber}</span>
+        );
+    }
+
+    if (isEditing) {
+        return (
+            <form
+                onSubmit={handleSave}
+                onClick={(e) => e.stopPropagation()}
+                className="mt-1 flex items-center gap-1.5"
+            >
+                <input
+                    type="text"
+                    value={bagValue}
+                    onChange={(e) => setBagValue(e.target.value)}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="Bag #"
+                    aria-label={`Bag number for ${booking.name}`}
+                    autoFocus
+                    disabled={isSaving}
+                    className="min-h-11 w-28 rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                />
+                <button
+                    type="submit"
+                    disabled={isSaving}
+                    onClick={handleSave}
+                    aria-label={`Save bag number for ${booking.name}`}
+                    className="min-h-11 min-w-11 flex items-center justify-center rounded-lg bg-purple-700 px-2 text-white hover:bg-purple-600 disabled:cursor-wait"
+                >
+                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                </button>
+                <button
+                    type="button"
+                    disabled={isSaving}
+                    onClick={closeEditor}
+                    aria-label={`Cancel editing bag number for ${booking.name}`}
+                    className="min-h-11 min-w-11 flex items-center justify-center rounded-lg border border-gray-300 px-2 text-gray-600 hover:bg-gray-100"
+                >
+                    <X size={14} />
+                </button>
+            </form>
+        );
+    }
+
+    return (
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <span className={cn("text-xs", booking.bagNumber ? displayClassName : "italic text-gray-500")}>
+                {booking.bagNumber ? `Bag #${booking.bagNumber}` : 'No Bag #'}
+            </span>
+            <button
+                type="button"
+                onClick={openEditor}
+                aria-label={`${booking.bagNumber ? 'Edit' : 'Add'} bag number for ${booking.name}`}
+                className="min-h-11 min-w-11 inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-xs font-bold text-purple-700 hover:bg-purple-50 hover:underline"
+            >
+                <Pencil size={12} />
+                {booking.bagNumber ? 'Edit' : 'Add'}
+            </button>
+        </span>
+    );
+});
+LaundryBagEditor.displayName = "LaundryBagEditor";
+
 // Status flow definitions for quick-advance buttons
 const ONSITE_STATUS_FLOW: string[] = ['waiting', 'washer', 'dryer', 'done', 'picked_up'];
 const OFFSITE_STATUS_FLOW: string[] = ['pending', 'transported', 'returned', 'offsite_picked_up'];
@@ -212,9 +318,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
                         <HousingStatusBadge housingStatus={booking.housingStatus} />
                     </div>
-                    {booking.bagNumber && (
-                        <span className="text-xs text-purple-600">Bag #{booking.bagNumber}</span>
-                    )}
+                    <LaundryBagEditor booking={booking} readOnly={readOnly} displayClassName="text-purple-600" />
                 </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -286,9 +390,7 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { book
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
                         <HousingStatusBadge housingStatus={booking.housingStatus} />
                     </div>
-                    {booking.bagNumber && (
-                        <span className="text-xs text-emerald-700">Bag #{booking.bagNumber}</span>
-                    )}
+                    <LaundryBagEditor booking={booking} readOnly={readOnly} displayClassName="text-emerald-700" />
                 </div>
             </div>
             <div className="flex flex-wrap items-center gap-3">
@@ -340,9 +442,7 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, readOnly = false }: { item:
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
                     <HousingStatusBadge housingStatus={item.housingStatus} />
                 </div>
-                {item.bagNumber && (
-                    <span className="text-xs text-blue-600">Bag #{item.bagNumber}</span>
-                )}
+                <LaundryBagEditor booking={item} readOnly={readOnly} displayClassName="text-blue-600" />
             </div>
             <div className="flex flex-wrap items-center gap-3">
                 <ReminderIndicator guestId={item.guestId} serviceType="laundry" compact />
@@ -408,9 +508,7 @@ const OffsiteDoneRow = memo(({ item, onGuestClick, readOnly = false }: { item: L
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
                     <HousingStatusBadge housingStatus={item.housingStatus} />
                 </div>
-                {item.bagNumber && (
-                    <span className="text-xs text-emerald-700">Bag #{item.bagNumber}</span>
-                )}
+                <LaundryBagEditor booking={item} readOnly={readOnly} displayClassName="text-emerald-700" />
             </div>
             <div className="flex flex-wrap items-center gap-3">
                 {!readOnly && (
@@ -436,8 +534,10 @@ const OffsiteDoneRow = memo(({ item, onGuestClick, readOnly = false }: { item: L
 OffsiteDoneRow.displayName = "OffsiteDoneRow";
 
 /**
- * CompactLaundryList - A simplified read-only view of laundry bookings for a specific date
- * Shows guest name, time slot, and status in a compact format for quick reference
+ * CompactLaundryList - A compact list view of laundry bookings for a specific date
+ * Shows guest name, time slot, bag number, and status for quick reference.
+ * Bag numbers can be added or edited inline (matching the kanban card Edit
+ * field); status changes still go through the shared bag-number gate.
  * Can view today's laundry or travel back in time to see laundry from past dates
  */
 const CompactLaundryList = memo(({ viewDate = null, onGuestClick, readOnly = false, search = '', showOffsiteInitially = false, readyOnly = false }: CompactLaundryListProps) => {
