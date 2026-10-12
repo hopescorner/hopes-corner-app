@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.38.0';
+export const APP_VERSION = '0.38.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.38.1',
+        date: 'October 12, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Unavailable Supply Badges Appear Without a Tab Switch',
+                description: 'Shower rows now show unavailable-supply badges as soon as item history loads instead of waiting for staff to switch tabs. The badges recompute automatically when the history fetch resolves.',
+            },
+        ],
+    },
     {
         version: '0.38.0',
         date: 'October 12, 2026',

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.38.1] - 2026-10-12
+
+### Fixed
+
+- Shower rows now show unavailable-supply badges automatically once item history loads instead of staying blank until staff switch tabs. The badge component recomputes eligibility when the history fetch resolves.
+- Fixed a nullable-viewport type error in the shower portrait component tests that failed the production type check during Vercel builds.
+
+### Tests
+
+- Added a regression test proving badges appear when history arrives after mount (fails on the old code). Shower suites pass; `npm run lint` clean and `tsc --noEmit` clean.
+
 ## [0.38.0] - 2026-10-12
 
 ### Fixed
