@@ -19,6 +19,11 @@ interface Props {
  */
 export function ShowerIneligibleSupplies({ guestId, className }: Props) {
     const checkAvailability = useItemsStore((s) => s.checkAvailability);
+    // Subscribe to the underlying history: the availability function
+    // reference never changes, so without this the badges compute once on
+    // mount (while history is still loading) and never update when the
+    // fetch resolves.
+    const distributedItems = useItemsStore((s) => s.distributedItems);
 
     const ineligible = useMemo(() => {
         if (typeof checkAvailability !== 'function' || !guestId) return [];
@@ -34,7 +39,7 @@ export function ShowerIneligibleSupplies({ guestId, className }: Props) {
             result.push({ item, daysRemaining: availability?.daysRemaining });
         }
         return result;
-    }, [checkAvailability, guestId]);
+    }, [checkAvailability, guestId, distributedItems]);
 
     if (ineligible.length === 0) return null;
 

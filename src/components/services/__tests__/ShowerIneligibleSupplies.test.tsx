@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import React from 'react';
 import { ShowerIneligibleSupplies } from '../ShowerIneligibleSupplies';
 import { useItemsStore } from '@/stores/useItemsStore';
@@ -75,5 +75,25 @@ describe('ShowerIneligibleSupplies', () => {
 
         const { container } = render(<ShowerIneligibleSupplies guestId="g1" />);
         expect(container.firstChild).toBeNull();
+    });
+
+    it('shows badges automatically when item history loads after mount', () => {
+        // Reproduces the field report: rows mount before fetchItemsForGuests
+        // resolves, so badges must appear on their own once history arrives
+        // instead of waiting for a tab switch to remount the list.
+        render(<ShowerIneligibleSupplies guestId="g1" />);
+        expect(screen.queryByTestId('ineligible-supply-jacket')).toBeNull();
+
+        const recent = new Date();
+        recent.setDate(recent.getDate() - 5);
+        act(() => {
+            useItemsStore.setState({
+                distributedItems: [
+                    { id: 'i1', guestId: 'g1', itemKey: 'jacket', distributedAt: recent.toISOString(), createdAt: recent.toISOString() },
+                ],
+            });
+        });
+
+        expect(screen.getByTestId('ineligible-supply-jacket')).toBeDefined();
     });
 });
