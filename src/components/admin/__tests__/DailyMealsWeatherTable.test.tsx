@@ -1,7 +1,8 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { DailyMealsWeatherTable } from '../DailyMealsWeatherTable';
 import { useWeatherStore } from '@/stores/useWeatherStore';
+import { useHeadlinesStore } from '@/stores/useHeadlinesStore';
 
 const rows = [
     { fullDate: '2026-09-21', dateLabel: 'Sep 21 (Mon)', meals: 120, uniqueGuests: 95 },
@@ -22,9 +23,31 @@ const sunnyDay = {
     hasRain: false,
 };
 
+const headlineItems = [
+    {
+        id: 'h-1',
+        date: '2026-09-23',
+        rank: 1,
+        headline: 'Sharks win in overtime to take the series',
+        source: 'Bay Area News Group',
+        url: 'https://news.google.com/rss/articles/x',
+        publishedAt: null,
+    },
+    {
+        id: 'h-2',
+        date: '2026-09-23',
+        rank: 2,
+        headline: 'ICE surge expected in Bay Area after Central Valley arrests',
+        source: 'KQED',
+        url: null,
+        publishedAt: null,
+    },
+];
+
 describe('DailyMealsWeatherTable', () => {
     beforeEach(() => {
         useWeatherStore.setState({ records: [], weatherByDate: {}, isLoaded: false, isLoading: false });
+        useHeadlinesStore.setState({ records: [], headlineByDate: {}, isLoaded: false, isLoading: false });
     });
 
     it('renders service days newest-first with meal counts', () => {
@@ -58,5 +81,55 @@ describe('DailyMealsWeatherTable', () => {
         render(<DailyMealsWeatherTable rows={[]} title="Daily Meals & Weather" />);
 
         expect(screen.getByText('No meal service days in this period.')).toBeDefined();
+    });
+
+    it('shows the recorded Bay Area headlines in rank order', () => {
+        useHeadlinesStore.setState({
+            records: headlineItems,
+            headlineByDate: { '2026-09-23': headlineItems },
+            isLoaded: true,
+        });
+
+        render(<DailyMealsWeatherTable rows={rows} title="Daily Meals & Weather" />);
+
+        expect(screen.getByText('Top 5 Bay Area headlines')).toBeDefined();
+        const link = screen.getByText('Sharks win in overtime to take the series');
+        expect(link.getAttribute('href')).toBe('https://news.google.com/rss/articles/x');
+        // The policy story below the sports result is preserved.
+        expect(screen.getByText('ICE surge expected in Bay Area after Central Valley arrests')).toBeDefined();
+        expect(screen.getByText('— KQED')).toBeDefined();
+    });
+
+    it('lets staff record missing headlines inline', async () => {
+        const saved = [
+            { ...headlineItems[0], id: 'h-3', date: '2026-09-21' },
+            { ...headlineItems[1], id: 'h-4', date: '2026-09-21', rank: 2 },
+        ];
+        const saveHeadlines = vi.fn(async () => saved);
+        useHeadlinesStore.setState({ saveHeadlines } as any);
+
+        render(<DailyMealsWeatherTable rows={rows} title="Daily Meals & Weather" />);
+
+        fireEvent.click(screen.getByLabelText('Record headlines for 2026-09-21'));
+        fireEvent.change(screen.getByLabelText('Headline 1 for 2026-09-21'), {
+            target: { value: 'Sharks win in overtime to take the series' },
+        });
+        fireEvent.change(screen.getByLabelText('Headline 1 source for 2026-09-21'), {
+            target: { value: 'Bay Area News Group' },
+        });
+        fireEvent.change(screen.getByLabelText('Headline 2 for 2026-09-21'), {
+            target: { value: 'ICE surge expected in Bay Area after Central Valley arrests' },
+        });
+        fireEvent.click(screen.getByText('Save'));
+
+        await waitFor(() => {
+            expect(saveHeadlines).toHaveBeenCalledWith(
+                '2026-09-21',
+                expect.arrayContaining([
+                    expect.objectContaining({ headline: 'Sharks win in overtime to take the series' }),
+                    expect.objectContaining({ headline: 'ICE surge expected in Bay Area after Central Valley arrests' }),
+                ])
+            );
+        });
     });
 });

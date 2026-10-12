@@ -10,6 +10,10 @@ vi.mock('@/lib/weather/mountainView', () => ({
     fetchMountainViewWeather: vi.fn(async () => null),
     saveDailyWeather: vi.fn(async () => null),
 }));
+vi.mock('@/lib/headlines/bayArea', () => ({
+    fetchBayAreaTopHeadlines: vi.fn(async () => null),
+    saveDailyHeadlines: vi.fn(async () => null),
+}));
 // persistCheckInDayWeather creates a cookie-aware server client, which has
 // no request scope in unit tests.
 vi.mock('@/lib/supabase/server', () => ({
@@ -74,6 +78,26 @@ describe('check-in server page', () => {
         render(await CheckInPage());
 
         expect(mountainView.saveDailyWeather).not.toHaveBeenCalled();
+    });
+
+    it('persists the top Bay Area headlines for the service day', async () => {
+        const bayArea = await import('@/lib/headlines/bayArea');
+        vi.mocked(bayArea.fetchBayAreaTopHeadlines).mockResolvedValueOnce({
+            date: '2026-07-19',
+            items: [
+                { headline: 'Sharks win in overtime', source: 'Bay Area News Group', url: null, publishedAt: null },
+                { headline: 'ICE surge expected in Bay Area', source: 'KQED', url: null, publishedAt: null },
+            ],
+        });
+        getSnapshot.mockResolvedValue({ directoryVersion: 'directory-v2' });
+
+        render(await CheckInPage());
+
+        expect(bayArea.saveDailyHeadlines).toHaveBeenCalledWith(
+            '2026-07-19',
+            expect.arrayContaining([expect.objectContaining({ headline: 'ICE surge expected in Bay Area' })]),
+            expect.anything()
+        );
     });
 });
 

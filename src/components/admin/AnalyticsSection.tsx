@@ -36,7 +36,8 @@ import {
     DollarSign,
     CloudRain,
     Sun,
-    Cloud
+    Cloud,
+    Newspaper
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
@@ -44,6 +45,7 @@ import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useDailyNotesStore, DailyNote } from '@/stores/useDailyNotesStore';
 import { useWeatherStore } from '@/stores/useWeatherStore';
+import { useHeadlinesStore } from '@/stores/useHeadlinesStore';
 import { useModalStore } from '@/stores/useModalStore';
 import { cn } from '@/lib/utils/cn';
 import { useShallow } from 'zustand/react/shallow';
@@ -173,6 +175,13 @@ export function AnalyticsSection() {
         }))
     );
 
+    const { getHeadlinesForDate, ensureLoaded: loadDailyHeadlines } = useHeadlinesStore(
+        useShallow((s) => ({
+            getHeadlinesForDate: s.getHeadlinesForDate,
+            ensureLoaded: s.ensureLoaded,
+        }))
+    );
+
     const openNoteModal = useModalStore((s) => s.openNoteModal);
 
     const [isMounted, setIsMounted] = useState(false);
@@ -287,7 +296,8 @@ export function AnalyticsSection() {
 
     useEffect(() => {
         loadDailyWeather({ startDate: dateRange.start, endDate: dateRange.end });
-    }, [dateRange.start, dateRange.end, loadDailyWeather]);
+        loadDailyHeadlines({ startDate: dateRange.start, endDate: dateRange.end });
+    }, [dateRange.start, dateRange.end, loadDailyWeather, loadDailyHeadlines]);
 
     // Helper to check if date is in range
     const isInRange = useCallback((dateStr: string, start: string, end: string) => {
@@ -895,6 +905,7 @@ export function AnalyticsSection() {
         const fullDate = dataPoint?.fullDate;
         const dayNotes = fullDate ? getNotesForDateRange(fullDate, fullDate) : [];
         const dayWeather = fullDate ? getWeatherForDate(fullDate) : null;
+        const dayHeadlines = fullDate ? getHeadlinesForDate(fullDate) : [];
 
         return (
             <div className="bg-white p-4 border border-gray-200 shadow-xl rounded-xl z-50 text-sm min-w-[180px]">
@@ -918,6 +929,20 @@ export function AnalyticsSection() {
                         {dayWeather.hasRain && dayWeather.precipitationSum > 0 && (
                             <span className="text-blue-600 font-semibold">({dayWeather.precipitationSum}&quot; rain)</span>
                         )}
+                    </div>
+                )}
+                {dayHeadlines.length > 0 && (
+                    <div className="flex items-start gap-1.5 text-xs text-gray-700 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-lg mb-2">
+                        <Newspaper size={13} className="text-gray-500 flex-shrink-0 mt-0.5" />
+                        <ol className="flex flex-col gap-0.5">
+                            {dayHeadlines.map((item) => (
+                                <li key={item.rank} className="line-clamp-2">
+                                    <span className="font-bold text-gray-400">{item.rank}. </span>
+                                    <span className="font-semibold">{item.headline}</span>
+                                    <span className="text-gray-400"> — {item.source}</span>
+                                </li>
+                            ))}
+                        </ol>
                     </div>
                 )}
                 {payload.map((entry) => (

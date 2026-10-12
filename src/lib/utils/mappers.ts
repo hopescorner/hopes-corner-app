@@ -627,3 +627,27 @@ export const mapDailyWeatherRow = (row: DailyWeatherRowInput) => ({
   updatedAt: row.updated_at,
 });
 
+interface DailyHeadlineRowInput {
+  id: string;
+  date: string;
+  rank?: number | null;
+  headline: string;
+  source?: string | null;
+  url?: string | null;
+  published_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export const mapDailyHeadlineRow = (row: DailyHeadlineRowInput) => ({
+  id: row.id,
+  date: row.date,
+  rank: typeof row.rank === 'number' ? row.rank : 1,
+  headline: row.headline,
+  source: row.source || 'Bay Area News',
+  url: row.url ?? null,
+  publishedAt: row.published_at ?? null,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+});
+

@@ -8,6 +8,7 @@ import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useDonationsStore } from '@/stores/useDonationsStore';
 import { useDailyNotesStore } from '@/stores/useDailyNotesStore';
 import { useWeatherStore } from '@/stores/useWeatherStore';
+import { useHeadlinesStore } from '@/stores/useHeadlinesStore';
 import { useModalStore } from '@/stores/useModalStore';
 import { todayPacificDateString } from '@/lib/utils/date';
 
@@ -48,6 +49,20 @@ vi.mock('@/stores/useWeatherStore', () => ({
             isLoading: false,
             ensureLoaded: vi.fn(),
             getWeatherForDate: vi.fn(() => null),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
+}));
+
+vi.mock('@/stores/useHeadlinesStore', () => ({
+    useHeadlinesStore: vi.fn((selector) => {
+        const state = {
+            records: [],
+            headlineByDate: {},
+            isLoading: false,
+            ensureLoaded: vi.fn(),
+            getHeadlinesForDate: vi.fn(() => []),
+            saveHeadlines: vi.fn(),
         };
         return typeof selector === 'function' ? selector(state) : state;
     }),

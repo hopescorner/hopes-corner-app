@@ -486,7 +486,7 @@ export const MealReport = () => {
             <DailyMealsWeatherTable
                 rows={dailyMealsWeatherRows}
                 title="Daily Meals & Weather"
-                subtitle={`${months[selectedMonth]} ${selectedYear} service days with Mountain View conditions`}
+                subtitle={`${months[selectedMonth]} ${selectedYear} service days with Mountain View conditions and top Bay Area headlines`}
             />
 
             {/* Pie Charts Section */}

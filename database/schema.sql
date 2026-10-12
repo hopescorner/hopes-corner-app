@@ -1987,6 +1987,47 @@ create policy "Authenticated users can manage daily weather"
   with check (true);
 
 -- ============================================
+-- 9c. DAILY HEADLINES
+-- ============================================
+
+create table if not exists public.daily_headlines (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  rank smallint not null check (rank between 1 and 5),
+  headline text not null,
+  source text not null default 'Bay Area News',
+  url text,
+  published_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint daily_headlines_unique_date_rank unique (date, rank)
+);
+
+comment on table public.daily_headlines is 'Stores the top Bay Area news headlines per day (ranks 1-5) to correlate major news events with guest attendance.';
+
+drop trigger if exists trg_daily_headlines_updated_at on public.daily_headlines;
+create trigger trg_daily_headlines_updated_at
+before update on public.daily_headlines
+for each row execute function public.touch_updated_at();
+
+create index if not exists daily_headlines_date_idx on public.daily_headlines (date desc);
+
+alter table public.daily_headlines enable row level security;
+
+drop policy if exists "Anyone can view daily headlines" on public.daily_headlines;
+create policy "Anyone can view daily headlines"
+  on public.daily_headlines for select
+  to authenticated, anon
+  using (true);
+
+drop policy if exists "Authenticated users can manage daily headlines" on public.daily_headlines;
+create policy "Authenticated users can manage daily headlines"
+  on public.daily_headlines for all
+  to authenticated, anon
+  using (true)
+  with check (true);
+
+-- ============================================
 -- 10. ENABLE REALTIME FOR TABLES
 -- Required for Supabase Realtime subscriptions (cross-device sync)
 -- Note: If tables are already in the publication, these will error safely
@@ -2008,6 +2049,13 @@ begin
     where pubname = 'supabase_realtime' and tablename = 'daily_weather'
   ) then
     alter publication supabase_realtime add table public.daily_weather;
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'daily_headlines'
+  ) then
+    alter publication supabase_realtime add table public.daily_headlines;
   end if;
   
   if not exists (

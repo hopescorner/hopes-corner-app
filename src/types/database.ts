@@ -263,6 +263,30 @@ export interface DailyWeatherRow {
     updated_at?: string;
 }
 
+export interface DailyHeadline {
+    id: string;
+    date: string;
+    rank: number;
+    headline: string;
+    source: string;
+    url: string | null;
+    publishedAt: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface DailyHeadlineRow {
+    id: string;
+    date: string;
+    rank: number;
+    headline: string;
+    source: string;
+    url: string | null;
+    published_at: string | null;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface GuestProxy {
     id: string;
     guest_id: string;
