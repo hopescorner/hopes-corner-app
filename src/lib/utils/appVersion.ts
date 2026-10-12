@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.32.0';
+export const APP_VERSION = '0.33.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.33.0',
+        date: 'October 12, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Top 5 Bay Area Headlines Per Service Day',
+                description: 'Each service day now records the top 5 Bay Area news stories with outlet and link, so a big sports result at number one no longer hides policy stories like ICE activity or SNAP benefit changes further down. The Analytics trends table and chart tooltips show the ranked list beside weather, and staff can correct all five inline.',
+            },
+        ],
+    },
     {
         version: '0.32.0',
         date: 'October 12, 2026',

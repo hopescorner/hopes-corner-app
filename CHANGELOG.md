@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.33.0] - 2026-10-12
+
+### Added
+
+- Top 5 Bay Area headlines recorded per service day with outlet and link, captured automatically when the check-in page loads. A sports win at rank 1 no longer hides policy stories (e.g. ICE activity, SNAP benefit changes) further down the list. The Analytics Trends table has a ranked headlines column beside weather, chart hover tooltips show the day's list, and staff can record or correct all five inline. Manual entries and sync live under `daily_headlines` with realtime updates.
+
+### Tests
+
+- Added coverage for the RSS top-5 parser (rank order, outlet fallback, entities), ranked upsert with stale-rank pruning, headlines store (grouping, save, realtime merge), API routes (GET ordering, sync-today, manual save), inline table edit, and check-in auto-capture. Full Vitest suite passes (4241 tests); `npm run lint` clean and `npm run build` passes.
+
 ## [0.32.0] - 2026-10-12
 
 ### Added
