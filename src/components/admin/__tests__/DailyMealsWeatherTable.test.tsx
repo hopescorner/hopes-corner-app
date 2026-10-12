@@ -100,6 +100,37 @@ describe('DailyMealsWeatherTable', () => {
         expect(screen.getByText('— KQED')).toBeDefined();
     });
 
+    it('collapses a doubled day list instead of rendering duplicates', () => {
+        const doubled = [...headlineItems, ...headlineItems];
+        useHeadlinesStore.setState({
+            records: doubled,
+            headlineByDate: { '2026-09-23': doubled },
+            isLoaded: true,
+        });
+
+        render(<DailyMealsWeatherTable rows={rows} title="Daily Meals & Weather" />);
+
+        expect(screen.getAllByText('Sharks win in overtime to take the series')).toHaveLength(1);
+        expect(screen.getAllByText('ICE surge expected in Bay Area after Central Valley arrests')).toHaveLength(1);
+    });
+
+    it('shows the weekday and federal holiday for each service day', () => {
+        useHeadlinesStore.setState({ records: [], headlineByDate: {}, isLoaded: true });
+        const holidayRows = [
+            { fullDate: '2026-10-12', dateLabel: 'Oct 12 (Mon)', meals: 580 },
+            { fullDate: '2026-10-13', dateLabel: 'Oct 13 (Tue)', meals: 400 },
+        ];
+
+        render(<DailyMealsWeatherTable rows={holidayRows} title="Daily Meals & Weather" />);
+
+        expect(screen.getByText('Day')).toBeDefined();
+        expect(screen.getByText('Federal holiday')).toBeDefined();
+        expect(screen.getByText('Monday')).toBeDefined();
+        expect(screen.getByText('Tuesday')).toBeDefined();
+        // Oct 12 2026 is Columbus Day; an ordinary Tuesday shows a dash.
+        expect(screen.getByText('Columbus Day')).toBeDefined();
+    });
+
     it('lets staff record missing headlines inline', async () => {
         const saved = [
             { ...headlineItems[0], id: 'h-3', date: '2026-09-21' },

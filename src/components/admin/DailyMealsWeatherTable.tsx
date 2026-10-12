@@ -5,6 +5,7 @@ import { CalendarDays, Check, Cloud, CloudFog, CloudRain, CloudSnow, CloudSun, N
 import { useWeatherStore } from '@/stores/useWeatherStore';
 import { useHeadlinesStore } from '@/stores/useHeadlinesStore';
 import { MAX_HEADLINES_PER_DAY } from '@/lib/headlines/bayArea';
+import { getFederalHoliday, getWeekdayName } from '@/lib/utils/federalHolidays';
 import type { DailyHeadline, DailyWeather, WeatherConditionCategory } from '@/types/database';
 import { cn } from '@/lib/utils/cn';
 
@@ -56,6 +57,21 @@ function HeadlineCell({ fullDate, headlines }: { fullDate: string; headlines: Da
     const [editing, setEditing] = useState(false);
     const [drafts, setDrafts] = useState<Array<{ headline: string; source: string }>>([]);
     const [saving, setSaving] = useState(false);
+
+    // Defensive de-duplication: stale persisted caches (pre-fix) may hold a
+    // day's list twice. Collapse to one entry per rank so the table never
+    // renders doubled headlines even before the next store reload.
+    const uniqueHeadlines = useMemo(() => {
+        const seenRanks = new Set<number>();
+        const seenIds = new Set<string>();
+        return headlines.filter((item) => {
+            if (item.id && seenIds.has(item.id)) return false;
+            if (seenRanks.has(item.rank)) return false;
+            if (item.id) seenIds.add(item.id);
+            seenRanks.add(item.rank);
+            return true;
+        });
+    }, [headlines]);
 
     const startEditing = () => {
         setDrafts(
@@ -131,8 +147,8 @@ function HeadlineCell({ fullDate, headlines }: { fullDate: string; headlines: Da
             <Newspaper size={14} className="mt-0.5 flex-shrink-0 text-gray-400" aria-hidden="true" />
             {headlines.length > 0 ? (
                 <ol className="flex flex-col gap-0.5">
-                    {headlines.map((item) => (
-                        <li key={item.rank} className="line-clamp-2">
+                    {uniqueHeadlines.map((item) => (
+                        <li key={item.id ?? item.rank} className="line-clamp-2">
                             <span className="font-bold text-gray-400">{item.rank}. </span>
                             {item.url ? (
                                 <a
@@ -202,7 +218,7 @@ export function DailyMealsWeatherTable({ rows, title, subtitle }: DailyMealsWeat
                 <p className="text-sm text-gray-400 mt-4">No meal service days in this period.</p>
             ) : (
                 <>
-                    <div className="mt-4 max-h-96 overflow-y-auto rounded-xl border border-gray-100">
+                    <div className="mt-4 max-h-96 overflow-auto rounded-xl border border-gray-100">
                         <table className="w-full text-sm">
                             <thead className="sticky top-0 bg-gray-50">
                                 <tr className="text-left text-xs uppercase tracking-wider text-gray-500">
@@ -211,9 +227,11 @@ export function DailyMealsWeatherTable({ rows, title, subtitle }: DailyMealsWeat
                                             <CalendarDays size={13} /> Date
                                         </span>
                                     </th>
+                                    <th className="px-4 py-2.5 font-bold">Day</th>
                                     <th className="px-4 py-2.5 font-bold text-right">Meals</th>
                                     {showGuests && <th className="px-4 py-2.5 font-bold text-right">Guests</th>}
                                     <th className="px-4 py-2.5 font-bold">Weather · Mountain View</th>
+                                    <th className="px-4 py-2.5 font-bold">Federal holiday</th>
                                     <th className="px-4 py-2.5 font-bold">Top 5 Bay Area headlines</th>
                                 </tr>
                             </thead>
@@ -222,6 +240,9 @@ export function DailyMealsWeatherTable({ rows, title, subtitle }: DailyMealsWeat
                                     <tr key={row.fullDate} className="border-t border-gray-100 hover:bg-gray-50/60">
                                         <td className="px-4 py-2.5 font-semibold text-gray-900 whitespace-nowrap">
                                             {row.dateLabel || row.fullDate}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-gray-600 whitespace-nowrap text-xs font-medium">
+                                            {getWeekdayName(row.fullDate) ?? '—'}
                                         </td>
                                         <td className="px-4 py-2.5 text-right font-bold text-gray-900 tabular-nums">
                                             {row.meals.toLocaleString()}
@@ -233,6 +254,18 @@ export function DailyMealsWeatherTable({ rows, title, subtitle }: DailyMealsWeat
                                         )}
                                         <td className="px-4 py-2.5">
                                             <WeatherCell weather={weatherByDate[row.fullDate] || null} />
+                                        </td>
+                                        <td className="px-4 py-2.5 text-xs whitespace-nowrap">
+                                            {(() => {
+                                                const holiday = getFederalHoliday(row.fullDate);
+                                                return holiday ? (
+                                                    <span className="inline-flex items-center rounded-full bg-violet-50 border border-violet-200 px-2 py-0.5 font-semibold text-violet-700">
+                                                        {holiday}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-gray-300">—</span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-4 py-2.5">
                                             <HeadlineCell
