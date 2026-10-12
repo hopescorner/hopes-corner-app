@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.35.0';
+export const APP_VERSION = '0.36.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.36.0',
+        date: 'October 12, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Bolder Unavailable Supply Badges in Showers List',
+                description: 'Unavailable supply icons beside each guest name in the showers list are now larger with a red-tinted tile, darker icon, thicker red slash, and stronger border, so blocked supplies are easier to spot without opening the amenities panel.',
+            },
+        ],
+    },
     {
         version: '0.35.0',
         date: 'October 12, 2026',

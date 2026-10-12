@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.36.0] - 2026-10-12
+
+### Improved
+
+- Shower list rows now show larger, higher-contrast unavailable-supply badges beside each guest name: red-tinted tiles with a stronger border, darker icons, and a thicker red slash, so blocked supplies are easier to spot without opening the amenities panel.
+
+### Tests
+
+- Updated `ShowerIneligibleSupplies` coverage for the bolder badge styling (size, border, icon contrast, slash). Full Vitest suite passes (4250 tests); `npm run lint` clean.
+
 ## [0.35.0] - 2026-10-12
 
 ### Added
