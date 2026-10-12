@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.30.0] - 2026-10-11
+
+### Added
+
+- Ten-second Undo for individual laundry status changes in board, list, and previous-day pickup workflows. Undo retains the bag number, checks the current status, blocks repeated taps while saving, and allows retry after a failed save.
+- Ready-for-pickup count and remembered filter covering today's ready loads and previous-day carryover, combined with guest/bag search in both layouts.
+
+### Improved
+
+- Compact service toolbars fit date, layout, and slot controls on one row at iPad portrait widths, with shower filters and search below. Laundry headings no longer occupy sticky control space.
+- End Service Day appears below the working lists in Showers and Laundry while retaining its confirmation step.
+- Darker cancelled shower badges, calendar labels, and supporting text. End-day controls stay opaque, including disabled states.
+
+### Tests
+
+- Added pickup filtering and Undo regression coverage, including subsequent status changes, failed saves, repeated taps, and bag retention.
+- Browser checks cover portrait toolbar height, close-day placement, pickup and Undo, all shower status badges, empty states, bag and close-day dialogs, calendar labels, and disabled controls.
+
 ## [0.29.1] - 2026-10-11
 
 ### Improved

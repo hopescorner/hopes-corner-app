@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.29.1';
+export const APP_VERSION = '0.30.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.30.0',
+        date: 'October 11, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'More Room for Service Work on iPad',
+                description: 'Compact controls leave more room for guests in portrait. End Service Day now appears below the working lists.',
+            },
+            {
+                type: 'feature',
+                title: 'Laundry Pickup Filter and Undo',
+                description: 'Find ready loads from today and earlier days with the pickup count and filter. Undo individual laundry step changes for 10 seconds, keeping bag numbers intact. Undo checks that the load still has the status from that action.',
+            },
+            {
+                type: 'improvement',
+                title: 'Broader Readability Checks',
+                description: 'Status badges, empty states, dialogs, calendar labels, and disabled close-day controls have expanded browser contrast checks and darker text where needed.',
+            },
+        ],
+    },
     {
         version: '0.29.1',
         date: 'October 11, 2026',
