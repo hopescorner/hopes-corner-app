@@ -303,6 +303,33 @@ describe('useGuestsStore', () => {
             expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(0);
         });
 
+        it('unenrolls (instead of deleting) a single-member household with meal history', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'solo' })],
+                guestFamilies: [
+                    { id: 'family-solo', primaryGuestId: 'solo', enrolledInFamilyMeal: true, createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
+                ],
+                guestFamilyMembers: [
+                    { id: 'm-1', familyId: 'family-solo', guestId: 'solo', createdAt: '' },
+                ],
+            } as any);
+
+            // First select (history count) reports meals; later selects use the default chain.
+            mockSupabase.select.mockImplementationOnce(() => ({
+                eq: vi.fn().mockResolvedValue({ count: 3, error: null }),
+            }));
+
+            const result = await useGuestsStore.getState().removeGuestFromFamily('solo');
+
+            expect(result).toBe(true);
+            // Household and member link survive; only enrollment flips off.
+            expect(useGuestsStore.getState().guestFamilies).toHaveLength(1);
+            expect(useGuestsStore.getState().guestFamilies[0].enrolledInFamilyMeal).toBe(false);
+            expect(useGuestsStore.getState().guestFamilies[0].primaryGuestId).toBe('solo');
+            expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(1);
+            expect(mockSupabase.delete).not.toHaveBeenCalled();
+        });
+
         it('removes only the member row when a non-primary member leaves a family', async () => {
             useGuestsStore.setState({
                 guests: [createMockGuest({ id: 'bob' }), createMockGuest({ id: 'charlie' })],
@@ -458,6 +485,36 @@ describe('useGuestsStore', () => {
             const detail = useGuestsStore.getState().getFamilyDetail('family-a');
             expect(detail?.memberCount).toBe(2);
             expect(detail?.dependentCount).toBe(1);
+        });
+    });
+
+    describe('setFamilyEnrollment', () => {        it('applies the requested flag and keeps the household primary on a partial echo', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'alice' })],
+                guestFamilies: [
+                    { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true, createdAt: '2025-01-01T00:00:00Z', updatedAt: '2025-01-01T00:00:00Z' },
+                ],
+                guestFamilyMembers: [],
+            } as any);
+
+            // Echo carries no household fields at all.
+            mockSupabase.single.mockResolvedValueOnce({ data: { id: 'family-a' }, error: null });
+
+            const result = await useGuestsStore.getState().setFamilyEnrollment('family-a', false);
+
+            expect(result).toBe(true);
+            expect(useGuestsStore.getState().guestFamilies).toHaveLength(1);
+            expect(useGuestsStore.getState().guestFamilies[0].primaryGuestId).toBe('alice');
+            expect(useGuestsStore.getState().guestFamilies[0].enrolledInFamilyMeal).toBe(false);
+        });
+
+        it('counts recorded meals for a household', async () => {
+            mockSupabase.select.mockImplementation(() => ({
+                eq: vi.fn().mockResolvedValue({ count: 7, error: null }),
+            }));
+
+            await expect(useGuestsStore.getState().countHouseholdMeals('family-a')).resolves.toBe(7);
+            expect(mockSupabase.from).toHaveBeenCalledWith('family_meal_distributions');
         });
     });
 
@@ -666,6 +723,31 @@ describe('useGuestsStore', () => {
                 mockSupabase.single.mockResolvedValueOnce({ data: { id: 'u1', notes: 'New' }, error: null });
                 await useGuestsStore.getState().updateGuest('u1', { notes: 'New' });
                 expect(useGuestsStore.getState().guests[0].id).toBe('u1'); // Mapped behavior
+            });
+
+            it('keeps the original id and links when the DB echo comes back mismatched', async () => {
+                useGuestsStore.setState({
+                    guests: [createMockGuest({ id: 'u1', guestId: 'G001', notes: 'Old' })],
+                    guestFamilies: [
+                        { id: 'family-u', primaryGuestId: 'u1', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                    ],
+                    guestFamilyMembers: [
+                        { id: 'm-u', familyId: 'family-u', guestId: 'u1', createdAt: '' },
+                    ],
+                });
+                mockSupabase.single.mockResolvedValueOnce({ data: { id: 'WRONG-ID', external_id: 'G999' }, error: null });
+                const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+                const result = await useGuestsStore.getState().updateGuest('u1', { notes: 'New' });
+
+                expect(result).toBe(true);
+                expect(useGuestsStore.getState().guests[0].id).toBe('u1');
+                expect(useGuestsStore.getState().guests[0].guestId).toBe('G001');
+                expect(useGuestsStore.getState().guests[0].notes).toBe('New');
+                // Household links still resolve to the same guest.
+                expect(useGuestsStore.getState().getDependentsForPrimary('u1')).toEqual([]);
+                expect(useGuestsStore.getState().getFamilyRole('u1')).toBe('primary');
+                spy.mockRestore();
             });
         });
 

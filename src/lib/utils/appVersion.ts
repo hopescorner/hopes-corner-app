@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.42.0';
+export const APP_VERSION = '0.43.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,27 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.43.0',
+        date: 'October 13, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Unenrolling a Household Keeps Its Members and Meal History',
+                description: 'Unchecking enrollment for a primary household member no longer deletes the household. The household stays with all its members and meal history and is simply unenrolled, so editing one guest can never wipe out a whole family.',
+            },
+            {
+                type: 'fix',
+                title: 'Failed Enrollment Saves Are Reported Instead of Silent',
+                description: 'If the household enrollment step fails while saving, the window now shows the real error instead of reporting success. Moving a primary with recorded meal history is also checked before anything saves, so a failed move never leaves half-saved changes behind.',
+            },
+            {
+                type: 'improvement',
+                title: 'Guest and Enrollment Updates Survive Surprising Server Responses',
+                description: 'Profile and enrollment saves now reconcile against local data instead of trusting the server echo blindly, so a guest or household can never silently change identity or lose its primary after saving.',
+            },
+        ],
+    },
     {
         version: '0.42.0',
         date: 'October 13, 2026',

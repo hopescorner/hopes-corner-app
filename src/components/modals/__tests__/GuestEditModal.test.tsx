@@ -26,6 +26,7 @@ describe('GuestEditModal Household Transitions', () => {
     const mockAddGuestToFamily = vi.fn().mockResolvedValue({ id: 'member-1' });
     const mockSetFamilyEnrollment = vi.fn().mockResolvedValue(true);
     const mockRemoveGuestFromFamily = vi.fn().mockResolvedValue(true);
+    const mockCountHouseholdMeals = vi.fn().mockResolvedValue(0);
     const mockOnClose = vi.fn();
 
     const sampleGuest = {
@@ -60,6 +61,7 @@ describe('GuestEditModal Household Transitions', () => {
             addGuestToFamily: mockAddGuestToFamily,
             setFamilyEnrollment: mockSetFamilyEnrollment,
             removeGuestFromFamily: mockRemoveGuestFromFamily,
+            countHouseholdMeals: mockCountHouseholdMeals,
         });
     });
 
@@ -105,6 +107,42 @@ describe('GuestEditModal Household Transitions', () => {
         });
     });
 
+    it('unenrolling a primary with dependents keeps the household and just unenrolls it', async () => {
+        (useGuestsStore as any).mockReturnValue({
+            updateGuest: mockUpdateGuest,
+            guests: [
+                sampleGuest,
+                { id: 'child', name: 'Kid Smith', firstName: 'Kid', lastName: 'Smith' },
+            ],
+            guestFamilies: [
+                { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true },
+            ],
+            guestFamilyMembers: [
+                { id: 'm-a', familyId: 'family-a', guestId: 'alice' },
+                { id: 'm-a2', familyId: 'family-a', guestId: 'child' },
+            ],
+            createFamilyForPrimary: mockCreateFamilyForPrimary,
+            addGuestToFamily: mockAddGuestToFamily,
+            setFamilyEnrollment: mockSetFamilyEnrollment,
+            removeGuestFromFamily: mockRemoveGuestFromFamily,
+            countHouseholdMeals: mockCountHouseholdMeals,
+        });
+
+        render(<GuestEditModal guest={sampleGuest} onClose={mockOnClose} />);
+
+        // Uncheck family meal enrollment
+        fireEvent.click(screen.getByLabelText(/Enroll household in Family Meal Program/i));
+        fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+        await waitFor(() => {
+            expect(mockUpdateGuest).toHaveBeenCalled();
+            // Household is preserved: unenrolled, not removed.
+            expect(mockSetFamilyEnrollment).toHaveBeenCalledWith('family-a', false);
+            expect(mockRemoveGuestFromFamily).not.toHaveBeenCalled();
+            expect(mockOnClose).toHaveBeenCalled();
+        });
+    });
+
     it('blocks moving a primary with dependents into another household', async () => {
         (useGuestsStore as any).mockReturnValue({
             updateGuest: mockUpdateGuest,
@@ -126,6 +164,7 @@ describe('GuestEditModal Household Transitions', () => {
             addGuestToFamily: mockAddGuestToFamily,
             setFamilyEnrollment: mockSetFamilyEnrollment,
             removeGuestFromFamily: mockRemoveGuestFromFamily,
+            countHouseholdMeals: mockCountHouseholdMeals,
         });
         const { default: toast } = await import('react-hot-toast');
 

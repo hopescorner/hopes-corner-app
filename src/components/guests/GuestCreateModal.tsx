@@ -355,6 +355,11 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
                                                 ))}
                                             </select>
                                         )}
+                                        {familyMode === 'member' && familyOptions.length === 0 && (
+                                            <p className="text-xs font-semibold text-teal-800 bg-teal-100/60 rounded-xl px-3 py-2">
+                                                No enrolled households yet. To start one, use New Household Primary instead — then add members to it.
+                                            </p>
+                                        )}
                                     </div>
                                 )}
                             </div>

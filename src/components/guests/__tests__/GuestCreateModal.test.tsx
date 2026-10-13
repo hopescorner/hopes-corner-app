@@ -350,4 +350,13 @@ describe('GuestCreateModal Component', () => {
             expect(input.value).toBe('Van Der Berg');
         });
     });
+
+    describe('Family Meal Program', () => {
+        it('guides staff to start a household when none exist', () => {
+            render(<GuestCreateModal onClose={mockOnClose} />);
+            fireEvent.click(screen.getByText(/Enroll in Family Meal Program/i));
+            fireEvent.click(screen.getByRole('button', { name: /Add to Existing Family/i }));
+            expect(screen.getByText(/No enrolled households yet/i)).toBeDefined();
+        });
+    });
 });

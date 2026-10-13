@@ -187,6 +187,8 @@ interface GuestsState {
     createFamilyForPrimary: (primaryGuestId: string, enrolled?: boolean) => Promise<GuestFamily>;
     addGuestToFamily: (familyId: string, guestId: string) => Promise<GuestFamilyMember>;
     setFamilyEnrollment: (familyId: string, enrolled: boolean) => Promise<boolean>;
+    /** Recorded family-meal count for a household (0 when unknown). Used to validate moves before saving. */
+    countHouseholdMeals: (familyId: string) => Promise<number>;
     removeGuestFromFamily: (guestId: string) => Promise<boolean>;
     fetchGuestById: (id: string) => Promise<Guest | null>;
 
@@ -404,11 +406,22 @@ export const useGuestsStore = create<GuestsState>()(
                         return false;
                     }
 
-                    const mapped = mapGuestRow(data);
+                    const mapped = mapGuestRow(data) as Guest;
+                    // The update succeeded server-side; the echo only refreshes
+                    // local state. If it comes back for a different id, ignore
+                    // it entirely — every household, proxy, and warning link
+                    // keys off the guest id, and the optimistic state already
+                    // holds the intended values.
+                    const reconciled = !mapped || (mapped as any).id !== id
+                        ? ({ ...target, ...updates } as any)
+                        : ({ ...(mapped as any), id, guestId: (mapped as any)?.guestId || target.guestId } as any);
+                    if (!mapped || (mapped as any).id !== id) {
+                        console.error('Guest update returned a mismatched id; keeping local state.', { id, echo: (mapped as any)?.id });
+                    }
                     set((state) => {
                         const index = state.guests.findIndex((g) => g.id === id);
                         if (index !== -1) {
-                            state.guests[index] = mapped as any;
+                            state.guests[index] = reconciled;
                         }
                     });
                     clearSearchIndexCache();
@@ -1312,6 +1325,20 @@ export const useGuestsStore = create<GuestsState>()(
                     return true;
                 },
 
+                countHouseholdMeals: async (familyId) => {
+                    const supabase = createClient();
+                    try {
+                        const { count } = await supabase
+                            .from('family_meal_distributions')
+                            .select('id', { count: 'exact', head: true })
+                            .eq('family_id', familyId);
+                        return count || 0;
+                    } catch (error) {
+                        console.error('Failed to count household meals:', error);
+                        return 0;
+                    }
+                },
+
                 setFamilyEnrollment: async (familyId, enrolled) => {
                     const supabase = createClient();
                     const { data, error } = await supabase
@@ -1327,10 +1354,22 @@ export const useGuestsStore = create<GuestsState>()(
                     }
 
                     const mapped = mapGuestFamilyRow(data);
+                    // The update only flips the enrollment flag, so reconcile
+                    // against current state: a surprising echo must never drop
+                    // the household's primary or rewrite its enrollment.
+                    const current = get().guestFamilies.find((f) => f.id === familyId);
+                    const reconciled = {
+                        ...(mapped as any),
+                        id: familyId,
+                        primaryGuestId: (mapped as any)?.primaryGuestId || current?.primaryGuestId,
+                        enrolledInFamilyMeal: enrolled,
+                        createdAt: (mapped as any)?.createdAt || current?.createdAt,
+                        updatedAt: (mapped as any)?.updatedAt || current?.updatedAt,
+                    };
                     set((state) => {
                         const idx = state.guestFamilies.findIndex((f) => f.id === familyId);
-                        if (idx === -1) state.guestFamilies.push(mapped as any);
-                        else state.guestFamilies[idx] = mapped as any;
+                        if (idx === -1) state.guestFamilies.push(reconciled);
+                        else state.guestFamilies[idx] = reconciled;
                     });
                     return true;
                 },

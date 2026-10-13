@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.43.0] - 2026-10-13
+
+### Fixed
+
+- Unchecking enrollment for a primary household member no longer deletes the household. The household stays with all its members and meal history and is simply unenrolled, so editing one guest can never wipe out a whole family.
+- If the household enrollment step fails while saving, the window now shows the real error instead of reporting success. Moving a primary with recorded meal history is checked before anything saves, so a failed move never leaves half-saved changes behind.
+
+### Improved
+
+- Profile and enrollment saves now reconcile against local data instead of trusting the server echo blindly, so a guest or household can never silently change identity or lose its primary after saving.
+- The new-guest form now explains what to do when no enrolled households exist yet (start a New Household Primary first).
+
+### Tests
+
+- Added coverage for unenrolling primaries with dependents, history-preserving unenroll, echo reconciliation, pre-save history checks, surfaced enrollment failures, and the empty-household guidance. Full Vitest suite passes (4290 tests); `npm run lint` clean and `tsc --noEmit` clean.
+
 ## [0.42.0] - 2026-10-13
 
 ### Added

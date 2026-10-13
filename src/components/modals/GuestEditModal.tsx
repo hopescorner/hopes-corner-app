@@ -34,6 +34,7 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
         addGuestToFamily,
         setFamilyEnrollment,
         removeGuestFromFamily,
+        countHouseholdMeals,
     } = useGuestsStore();
     const currentMembership = useMemo(
         () => (guestFamilyMembers || []).find((member) => member.guestId === guest.id),
@@ -116,8 +117,10 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
             return;
         }
         // A primary with dependents cannot hop households: the move would
-        // strand the dependents. Validate before saving anything so a failed
-        // move never leaves half-saved name changes behind.
+        // strand the dependents. A single-member primary with recorded meal
+        // history cannot move either: the history belongs to the old
+        // household. Validate before saving anything so a failed move never
+        // leaves half-saved name changes behind.
         if (familyEnrolled && familyMode === 'member') {
             const ownPrimaryFamily = (guestFamilies || []).find((f) => f.primaryGuestId === guest.id);
             if (ownPrimaryFamily && ownPrimaryFamily.id !== selectedFamilyId) {
@@ -134,6 +137,11 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                         .slice(0, 5)
                         .join(', ');
                     toast.error(`${guest.preferredName || guest.name} heads a household with ${dependents.length} dependent${dependents.length === 1 ? '' : 's'}${names ? ` (${names})` : ''}. Delete the dependents first before moving to another household.`);
+                    return;
+                }
+                const historyCount = await countHouseholdMeals(ownPrimaryFamily.id);
+                if (historyCount > 0) {
+                    toast.error(`${guest.preferredName || guest.name} heads a household with recorded family meals. Resolve that meal history before moving them to another household.`);
                     return;
                 }
             }
@@ -163,7 +171,9 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                         await removeGuestFromFamily(guest.id);
                     }
                     await addGuestToFamily(selectedFamilyId, guest.id);
-                    await setFamilyEnrollment(selectedFamilyId, true);
+                    if (!await setFamilyEnrollment(selectedFamilyId, true)) {
+                        throw new Error('Household enrollment did not save. Please try again.');
+                    }
                 } else {
                     if (currentMembership && currentFamily?.primaryGuestId !== guest.id) {
                         await removeGuestFromFamily(guest.id);
@@ -172,10 +182,29 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                         ? currentFamily
                         : await createFamilyForPrimary(guest.id, true);
                     if (!family?.id) throw new Error('Unable to create family household');
-                    await setFamilyEnrollment(family.id, true);
+                    if (!await setFamilyEnrollment(family.id, true)) {
+                        throw new Error('Household enrollment did not save. Please try again.');
+                    }
                 }
             } else if (currentFamily || currentMembership) {
-                await removeGuestFromFamily(guest.id);
+                // Unchecking enrollment never deletes people: a primary keeps
+                // its household (just unenrolled) so dependents and meal
+                // history survive, while a member simply leaves the household.
+                const primaryHousehold = currentFamily && currentFamily.primaryGuestId === guest.id ? currentFamily : null;
+                if (primaryHousehold) {
+                    const dependents = (guestFamilyMembers || []).filter(
+                        (m) => m.familyId === primaryHousehold.id && m.guestId !== guest.id,
+                    );
+                    if (dependents.length > 0) {
+                        if (!await setFamilyEnrollment(primaryHousehold.id, false)) {
+                            throw new Error('Household enrollment did not save. Please try again.');
+                        }
+                    } else {
+                        await removeGuestFromFamily(guest.id);
+                    }
+                } else {
+                    await removeGuestFromFamily(guest.id);
+                }
             }
             toast.success('Guest updated');
             onClose();
