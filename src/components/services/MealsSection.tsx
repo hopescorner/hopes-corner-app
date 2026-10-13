@@ -203,8 +203,12 @@ export function MealsSection() {
             .filter((family) => showUnenrolledFamilies || family.enrolledInFamilyMeal)
             .map((family) => {
                 const memberships = familyMembersByFamilyId.get(family.id) || [];
-                const memberGuests = memberships
-                    .map((member) => guestMap.get(member.guestId))
+                // The primary always counts toward the household, even when its
+                // member row is missing (older data, failed writes).
+                const memberIdSet = new Set(memberships.map((member) => member.guestId));
+                if (family.primaryGuestId) memberIdSet.add(family.primaryGuestId);
+                const memberGuests = [...memberIdSet]
+                    .map((guestId) => guestMap.get(guestId))
                     .filter(Boolean) as (typeof guests)[number][];
                 const primaryGuest = guestMap.get(family.primaryGuestId) || memberGuests[0];
                 const memberNames = memberGuests.map(getGuestDisplayName);
@@ -216,7 +220,7 @@ export function MealsSection() {
                     family,
                     primaryGuest,
                     memberGuests,
-                    memberCount: Math.max(1, memberships.length),
+                    memberCount: Math.max(1, memberIdSet.size),
                     memberNames,
                     existingRecord: familyMealRecordByFamilyId.get(family.id),
                     searchableText,

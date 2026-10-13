@@ -2,12 +2,12 @@
 
 import { useState, useMemo, useDeferredValue, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { 
-    X, 
-    AlertTriangle, 
-    Loader2, 
-    Search, 
-    User, 
+import {
+    X,
+    AlertTriangle,
+    Loader2,
+    Search,
+    User,
     ArrowRight,
     Utensils,
     ShowerHead,
@@ -18,7 +18,9 @@ import {
     Package,
     Bell,
     ShieldAlert,
-    Link2
+    Link2,
+    Users,
+    Home
 } from 'lucide-react';
 import { useGuestsStore, Guest, GuestRecordCounts } from '@/stores/useGuestsStore';
 import { flexibleNameSearch } from '@/lib/utils/flexibleNameSearch';
@@ -36,16 +38,36 @@ export function GuestDeleteWithTransferModal({
     onClose,
     onDeleted 
 }: GuestDeleteWithTransferModalProps) {
-    const { guests, checkGuestHasRecords, deleteGuestWithTransfer } = useGuestsStore();
-    
+    const { guests, guestFamilies, guestFamilyMembers, checkGuestHasRecords, deleteGuestWithTransfer, getDependentsForPrimary, getFamilyForGuest } = useGuestsStore();
+
     const [isLoading, setIsLoading] = useState(true);
     const [isPending, setIsPending] = useState(false);
     const [recordCounts, setRecordCounts] = useState<GuestRecordCounts | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTransferGuest, setSelectedTransferGuest] = useState<Guest | null>(null);
     const [showConfirmation, setShowConfirmation] = useState(false);
-    
+
     const deferredSearchQuery = useDeferredValue(searchQuery);
+
+    // Household state: a primary with dependents can never be deleted until
+    // the dependents are gone. This is evaluated from local store data so the
+    // block appears instantly, even before record counts finish loading.
+    const dependents = useMemo(
+        () => getDependentsForPrimary(guest.id),
+        [getDependentsForPrimary, guest.id, guestFamilies, guestFamilyMembers, guests],
+    );
+    const householdFamily = useMemo(
+        () => getFamilyForGuest(guest.id),
+        [getFamilyForGuest, guest.id, guestFamilies, guestFamilyMembers],
+    );
+    const isPrimaryWithDependents = dependents.length > 0;
+    const isHouseholdMember = !isPrimaryWithDependents && Boolean(householdFamily) &&
+        (guestFamilyMembers || []).some((m) => m.guestId === guest.id);
+    const householdPrimaryName = useMemo(() => {
+        if (!householdFamily) return '';
+        const primary = guests.find((g) => g.id === householdFamily.primaryGuestId);
+        return primary ? (primary.preferredName || primary.name) : '';
+    }, [householdFamily, guests]);
 
     // Load record counts on mount
     useEffect(() => {
@@ -77,6 +99,10 @@ export function GuestDeleteWithTransferModal({
     const hasRecords = recordCounts && recordCounts.total > 0;
 
     const handleDelete = async () => {
+        if (isPrimaryWithDependents) {
+            toast.error(`Delete ${dependents.map((d) => d.preferredName || d.name).join(', ')} first, then delete ${guest.preferredName || guest.name}.`);
+            return;
+        }
         if (hasRecords && !selectedTransferGuest) {
             toast.error('Please select a guest to transfer records to');
             return;
@@ -112,9 +138,10 @@ export function GuestDeleteWithTransferModal({
 
     const renderRecordSummary = () => {
         if (!recordCounts) return null;
-        
+
         const items = [
             { key: 'meals', label: 'Meals', count: recordCounts.meals, icon: Utensils },
+            { key: 'familyMeals', label: 'Family Meals', count: recordCounts.familyMeals || 0, icon: Users },
             { key: 'showers', label: 'Showers', count: recordCounts.showers, icon: ShowerHead },
             { key: 'laundry', label: 'Laundry', count: recordCounts.laundry, icon: WashingMachine },
             { key: 'haircuts', label: 'Haircuts', count: recordCounts.haircuts, icon: Scissors },
@@ -179,6 +206,26 @@ export function GuestDeleteWithTransferModal({
 
                 {/* Content */}
                 <div className="p-6">
+                    {/* Household block takes precedence over everything else */}
+                    {isPrimaryWithDependents && (
+                        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-4" role="alert">
+                            <p className="text-sm font-bold text-red-800 mb-1 flex items-center gap-2">
+                                <Home size={15} />
+                                Cannot delete a primary household member with dependents
+                            </p>
+                            <p className="text-sm text-red-700">
+                                <strong>{guest.preferredName || guest.name}</strong> heads a household with {dependents.length} dependent{dependents.length !== 1 ? 's' : ''}. Delete the dependents first, then return to delete {guest.preferredName || guest.name}.
+                            </p>
+                            <ul className="mt-2 space-y-1">
+                                {dependents.map((d) => (
+                                    <li key={d.id} className="flex items-center gap-2 text-sm font-semibold text-red-800 bg-red-100/60 px-3 py-1.5 rounded-lg">
+                                        <User size={14} />
+                                        {d.preferredName || d.name}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     {isLoading ? (
                         <div className="flex items-center justify-center py-8">
                             <Loader2 size={32} className="animate-spin text-gray-400" />
@@ -188,8 +235,17 @@ export function GuestDeleteWithTransferModal({
                             {/* Record Summary */}
                             {renderRecordSummary()}
 
+                            {/* Household member context (non-blocking) */}
+                            {!isPrimaryWithDependents && isHouseholdMember && householdPrimaryName && (
+                                <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 mb-4">
+                                    <p className="text-sm text-teal-800">
+                                        <strong>Household member:</strong> {guest.preferredName || guest.name} belongs to {householdPrimaryName}&apos;s household. Deleting them removes them from the household; the household and its meal history are kept.
+                                    </p>
+                                </div>
+                            )}
+
                             {/* Transfer Section */}
-                            {hasRecords && (
+                            {hasRecords && !isPrimaryWithDependents && (
                                 <div className="space-y-4">
                                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                                         <p className="text-sm text-blue-800">
@@ -277,7 +333,7 @@ export function GuestDeleteWithTransferModal({
                             )}
 
                             {/* No Records - Simple Delete */}
-                            {!hasRecords && (
+                            {!hasRecords && !isPrimaryWithDependents && (
                                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
                                     <p className="text-sm text-gray-600">
                                         This guest has no historical records. You can delete them directly.
@@ -315,8 +371,9 @@ export function GuestDeleteWithTransferModal({
                     <button
                         onClick={handleDelete}
                         disabled={
-                            isPending || 
-                            isLoading || 
+                            isPending ||
+                            isLoading ||
+                            isPrimaryWithDependents ||
                             (!!hasRecords && !selectedTransferGuest) ||
                             (!!hasRecords && !!selectedTransferGuest && !showConfirmation)
                         }

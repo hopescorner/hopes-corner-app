@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.41.0';
+export const APP_VERSION = '0.42.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,22 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.42.0',
+        date: 'October 13, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Primary Household Members Cannot Be Deleted Before Their Dependents',
+                description: 'Deleting a guest who heads a family household with dependents is now blocked. The delete window names each dependent and asks staff to delete them first, and the block holds even when transferring records, so dependents are never orphaned or handed to an unrelated guest.',
+            },
+            {
+                type: 'improvement',
+                title: 'Sturdier Family Meal Program Linking',
+                description: 'Household linking now validates every step: moving a primary with dependents or meal history is refused with a clear reason, unenrolling a household with meal history keeps the history instead of deleting it, duplicate links are cleaned up instead of rejected by the database, and household sizes always count the primary. Family meal history also counts in the delete check so it is transferred instead of lost.',
+            },
+        ],
+    },
     {
         version: '0.41.0',
         date: 'October 13, 2026',

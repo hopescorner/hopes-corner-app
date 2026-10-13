@@ -44,17 +44,27 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
         [guestFamilies, currentMembership?.familyId, guest.id],
     );
     const familyOptions = useMemo(() => {
+        const memberCountByFamily = new Map<string, number>();
+        for (const member of guestFamilyMembers || []) {
+            memberCountByFamily.set(member.familyId, (memberCountByFamily.get(member.familyId) || 0) + 1);
+        }
+        // A guest cannot join their own primary household as a "member".
+        const ownPrimaryFamilyId = (guestFamilies || []).find((family) => family.primaryGuestId === guest.id)?.id;
         return (guestFamilies || [])
-            .filter((family) => family.enrolledInFamilyMeal || family.id === currentFamily?.id)
+            .filter((family) => (family.enrolledInFamilyMeal || family.id === currentFamily?.id) && family.id !== ownPrimaryFamilyId)
             .map((family) => {
                 const primaryGuest = guests.find((candidate) => candidate.id === family.primaryGuestId);
                 const name = primaryGuest
                     ? (primaryGuest.preferredName || primaryGuest.name || `${primaryGuest.firstName || ''} ${primaryGuest.lastName || ''}`.trim())
                     : 'Unknown Primary';
-                return { id: family.id, name };
+                const memberIds = new Set(
+                    (guestFamilyMembers || []).filter((m) => m.familyId === family.id).map((m) => m.guestId),
+                );
+                if (family.primaryGuestId) memberIds.add(family.primaryGuestId);
+                return { id: family.id, name: `${name} (${memberIds.size} member${memberIds.size === 1 ? '' : 's'})` };
             })
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [guestFamilies, guests, currentFamily?.id]);
+    }, [guestFamilies, guests, guestFamilyMembers, currentFamily?.id, guest.id]);
     const [isPending, setIsPending] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [familyEnrolled, setFamilyEnrolled] = useState(currentFamily?.enrolledInFamilyMeal === true);
@@ -62,6 +72,13 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
         currentFamily && currentFamily.primaryGuestId !== guest.id ? 'member' : 'primary'
     );
     const [selectedFamilyId, setSelectedFamilyId] = useState(currentFamily?.id || '');
+    const currentHouseholdDependents = useMemo(() => {
+        if (!currentFamily || currentFamily.primaryGuestId !== guest.id) return [];
+        return (guestFamilyMembers || [])
+            .filter((member) => member.familyId === currentFamily.id && member.guestId !== guest.id)
+            .map((member) => guests.find((candidate) => candidate.id === member.guestId))
+            .filter(Boolean) as typeof guests;
+    }, [currentFamily, guestFamilyMembers, guests, guest.id]);
     const [formData, setFormData] = useState({
         firstName: guest.firstName || '',
         lastName: guest.lastName || '',
@@ -97,6 +114,33 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
         if (familyEnrolled && familyMode === 'member' && !selectedFamilyId) {
             toast.error('Please select a family household');
             return;
+        }
+        // A primary with dependents cannot hop households: the move would
+        // strand the dependents. Validate before saving anything so a failed
+        // move never leaves half-saved name changes behind.
+        if (familyEnrolled && familyMode === 'member') {
+            const ownPrimaryFamily = (guestFamilies || []).find((f) => f.primaryGuestId === guest.id);
+            if (ownPrimaryFamily && ownPrimaryFamily.id !== selectedFamilyId) {
+                const dependents = (guestFamilyMembers || []).filter(
+                    (m) => m.familyId === ownPrimaryFamily.id && m.guestId !== guest.id,
+                );
+                if (dependents.length > 0) {
+                    const names = dependents
+                        .map((m) => {
+                            const g = guests.find((candidate) => candidate.id === m.guestId);
+                            return g ? (g.preferredName || g.name) : null;
+                        })
+                        .filter(Boolean)
+                        .slice(0, 5)
+                        .join(', ');
+                    toast.error(`${guest.preferredName || guest.name} heads a household with ${dependents.length} dependent${dependents.length === 1 ? '' : 's'}${names ? ` (${names})` : ''}. Delete the dependents first before moving to another household.`);
+                    return;
+                }
+            }
+            if (!(guestFamilies || []).some((f) => f.id === selectedFamilyId)) {
+                toast.error('The selected household no longer exists. Please choose another household.');
+                return;
+            }
         }
 
         setIsPending(true);
@@ -327,6 +371,11 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                                             <option key={family.id} value={family.id}>{family.name} Household</option>
                                         ))}
                                     </select>
+                                )}
+                                {familyMode === 'primary' && currentHouseholdDependents.length > 0 && (
+                                    <p className="text-xs font-semibold text-teal-800 bg-teal-100/60 rounded-xl px-3 py-2">
+                                        Heads a household with {currentHouseholdDependents.length} dependent{currentHouseholdDependents.length === 1 ? '' : 's'}: {currentHouseholdDependents.map((d) => d.preferredName || d.name).slice(0, 5).join(', ')}. The primary cannot be moved or deleted until the dependents are removed.
+                                    </p>
                                 )}
                             </div>
                         )}

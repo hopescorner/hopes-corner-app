@@ -106,7 +106,29 @@ export interface GuestRecordCounts {
     reminders: number;
     warnings: number;
     proxies: number;
+    /** Meal distributions recorded for the household this guest heads. Counted in `total` so history is preserved via transfer. */
+    familyMeals: number;
+    /**
+     * Household links (primary ownership + member row). Reported for context only —
+     * membership alone never forces a transfer since it is removed automatically on delete.
+     */
+    familyLinks: number;
     total: number;
+}
+
+/**
+ * Error message thrown when a household primary with dependents is moved,
+ * unlinked, or deleted. Callers surface `message` directly to staff.
+ */
+export function primaryHasDependentsMessage(primaryName: string, dependentNames: string[]): string {
+    const list = dependentNames.slice(0, 5).join(', ');
+    const more = dependentNames.length > 5 ? ` and ${dependentNames.length - 5} more` : '';
+    return `${primaryName} heads a household with ${dependentNames.length} dependent${dependentNames.length === 1 ? '' : 's'} (${list}${more}). Delete the dependents first, then delete ${primaryName}.`;
+}
+
+function displayNameOf(guest: Guest | undefined | null): string {
+    if (!guest) return 'Unknown Guest';
+    return guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
 }
 
 interface GuestsState {
@@ -145,6 +167,23 @@ interface GuestsState {
     getFamilyMembers: (familyId: string) => Guest[];
     getEnrolledFamilies: () => GuestFamily[];
     getFamilyMemberCount: (familyId: string) => number;
+    /** 'primary' when the guest heads a household, 'member' when they are a dependent, null when in no household. */
+    getFamilyRole: (guestId: string) => 'primary' | 'member' | null;
+    /** Dependents of a household primary (members excluding the primary itself). Empty for non-primaries. */
+    getDependentsForPrimary: (primaryGuestId: string) => Guest[];
+    /** True when the guest heads a household that still has dependents. */
+    isPrimaryWithDependents: (guestId: string) => boolean;
+    /**
+     * Robust household snapshot: primary guest, all members (primary included
+     * even when its member row is missing), and dependent count.
+     */
+    getFamilyDetail: (familyId: string) => {
+        family: GuestFamily;
+        primaryGuest: Guest | undefined;
+        members: Guest[];
+        memberCount: number;
+        dependentCount: number;
+    } | null;
     createFamilyForPrimary: (primaryGuestId: string, enrolled?: boolean) => Promise<GuestFamily>;
     addGuestToFamily: (familyId: string, guestId: string) => Promise<GuestFamilyMember>;
     setFamilyEnrollment: (familyId: string, enrolled: boolean) => Promise<boolean>;
@@ -293,6 +332,18 @@ export const useGuestsStore = create<GuestsState>()(
                     }
 
                     const mapped = mapGuestRow(data);
+                    if (guestData.familyId) {
+                        const targetFamily = get().guestFamilies.find((f) => f.id === guestData.familyId);
+                        if (!targetFamily) {
+                            // Guest row was already created; keep it but report the bad link
+                            // instead of failing silently so staff can retry the household step.
+                            set((state) => {
+                                state.guests.push(mapped as any);
+                            });
+                            clearSearchIndexCache();
+                            throw new Error('Guest created, but the selected household no longer exists. Please add them to a household from Edit Guest.');
+                        }
+                    }
                     set((state) => {
                         state.guests.push(mapped as any);
                     });
@@ -367,6 +418,13 @@ export const useGuestsStore = create<GuestsState>()(
                 removeGuest: async (id) => {
                     const supabase = createClient();
 
+                    const dependents = get().getDependentsForPrimary(id);
+                    if (dependents.length > 0) {
+                        const primary = get().guests.find((g) => g.id === id);
+                        toast.error(primaryHasDependentsMessage(displayNameOf(primary), dependents.map(displayNameOf)));
+                        return;
+                    }
+
                     set((state) => {
                         state.guests = state.guests.filter((g) => g.id !== id);
                         state.guestProxies = state.guestProxies.filter(p => p.guestId !== id && p.proxyId !== id);
@@ -391,8 +449,10 @@ export const useGuestsStore = create<GuestsState>()(
 
                 checkGuestHasRecords: async (guestId) => {
                     const supabase = createClient();
-                    
-                    // Query all related tables in parallel
+
+                    // Query all related tables in parallel, plus the household rows
+                    // needed to count family-meal history (household distributions
+                    // belong to the primary's family, not to any single member).
                     const [
                         mealsResult,
                         showersResult,
@@ -404,6 +464,8 @@ export const useGuestsStore = create<GuestsState>()(
                         remindersResult,
                         warningsResult,
                         proxiesResult,
+                        primaryFamilyResult,
+                        memberRowResult,
                     ] = await Promise.all([
                         supabase.from('meal_attendance').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
                         supabase.from('shower_reservations').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
@@ -414,10 +476,34 @@ export const useGuestsStore = create<GuestsState>()(
                         supabase.from('items_distributed').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
                         supabase.from('guest_reminders').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
                         supabase.from('guest_warnings').select('id', { count: 'exact', head: true }).eq('guest_id', guestId),
-                        supabase.from('guest_proxies').select('id', { count: 'exact', head: true }).or(`guest_id.eq.${guestId},proxy_id.eq.${guestId}`)
+                        supabase.from('guest_proxies').select('id', { count: 'exact', head: true }).or(`guest_id.eq.${guestId},proxy_id.eq.${guestId}`),
+                        supabase.from('guest_families').select('id').eq('primary_guest_id', guestId).maybeSingle(),
+                        supabase.from('guest_family_members').select('family_id').eq('guest_id', guestId).maybeSingle(),
                     ]);
 
-                    const counts = {
+                    const primaryFamilyId =
+                        (primaryFamilyResult as any)?.data?.id
+                        || get().guestFamilies.find((f) => f.primaryGuestId === guestId)?.id
+                        || null;
+                    const hasMemberRow = Boolean(
+                        (memberRowResult as any)?.data?.family_id
+                        || get().guestFamilyMembers.some((m) => m.guestId === guestId),
+                    );
+
+                    let familyMeals = 0;
+                    if (primaryFamilyId) {
+                        try {
+                            const { count } = await supabase
+                                .from('family_meal_distributions')
+                                .select('id', { count: 'exact', head: true })
+                                .eq('family_id', primaryFamilyId);
+                            familyMeals = count || 0;
+                        } catch (error) {
+                            console.error('Failed to count family meal records:', error);
+                        }
+                    }
+
+                    const counts: GuestRecordCounts = {
                         meals: mealsResult.count || 0,
                         showers: showersResult.count || 0,
                         laundry: laundryResult.count || 0,
@@ -428,20 +514,76 @@ export const useGuestsStore = create<GuestsState>()(
                         reminders: remindersResult.count || 0,
                         warnings: warningsResult.count || 0,
                         proxies: proxiesResult.count || 0,
+                        familyMeals,
+                        familyLinks: (primaryFamilyId ? 1 : 0) + (hasMemberRow ? 1 : 0),
                         total: 0
                     };
-                    counts.total = counts.meals + counts.showers + counts.laundry + 
+                    // Household links are excluded from the total: membership alone
+                    // never forces a transfer since it is removed automatically on
+                    // delete. Family meal history IS included so it is preserved.
+                    counts.total = counts.meals + counts.showers + counts.laundry +
                                    counts.haircuts + counts.holidays + counts.bicycleRepairs + counts.itemsDistributed +
-                                   counts.reminders + counts.warnings + counts.proxies;
-                    
+                                   counts.reminders + counts.warnings + counts.proxies + counts.familyMeals;
+
                     return counts;
                 },
 
                 transferGuestRecords: async (fromGuestId, toGuestId) => {
                     const supabase = createClient();
-                    
+
+                    if (fromGuestId === toGuestId) {
+                        toast.error('Cannot transfer records to the same guest.');
+                        return false;
+                    }
+
+                    const targetExists = get().guests.some((g) => g.id === toGuestId);
+                    if (!targetExists) {
+                        try {
+                            const fetched = await get().fetchGuestById(toGuestId);
+                            if (!fetched) {
+                                toast.error('Transfer target guest no longer exists.');
+                                return false;
+                            }
+                        } catch {
+                            toast.error('Transfer target guest no longer exists.');
+                            return false;
+                        }
+                    }
+
+                    // Household transfers are validated up front: moving a primary
+                    // with dependents (or merging two household heads) would orphan
+                    // dependents or silently drop meal history, so refuse with a
+                    // message that tells staff exactly how to resolve it.
                     try {
-                        // Transfer all records from one guest to another
+                        const sourceFamily = get().guestFamilies.find((f) => f.primaryGuestId === fromGuestId);
+                        if (sourceFamily) {
+                            const dependents = get().getDependentsForPrimary(fromGuestId);
+                            if (dependents.length > 0) {
+                                const source = get().guests.find((g) => g.id === fromGuestId);
+                                toast.error(primaryHasDependentsMessage(
+                                    displayNameOf(source),
+                                    dependents.map(displayNameOf),
+                                ));
+                                return false;
+                            }
+                        }
+                        const targetPrimaryFamily = get().guestFamilies.find((f) => f.primaryGuestId === toGuestId);
+                        const targetMembership = get().guestFamilyMembers.find((m) => m.guestId === toGuestId);
+                        if (sourceFamily && (targetPrimaryFamily || targetMembership)) {
+                            toast.error('Both guests belong to households. Merge the households manually first (move or remove members), then retry the transfer.');
+                            return false;
+                        }
+                    } catch (error) {
+                        console.error('Failed to validate household transfer:', error);
+                        toast.error('Could not verify household state. Please try again.');
+                        return false;
+                    }
+
+                    try {
+                        // Transfer all records from one guest to another.
+                        // Household membership is handled separately below so a
+                        // duplicate link never violates the one-household-per-guest
+                        // rule; meal history follows the household, not the member.
                         const updates = await Promise.all([
                             supabase.from('meal_attendance').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
                             supabase.from('shower_reservations').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
@@ -454,8 +596,6 @@ export const useGuestsStore = create<GuestsState>()(
                             supabase.from('guest_warnings').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
                             supabase.from('guest_proxies').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
                             supabase.from('guest_proxies').update({ proxy_id: toGuestId }).eq('proxy_id', fromGuestId),
-                            supabase.from('guest_families').update({ primary_guest_id: toGuestId }).eq('primary_guest_id', fromGuestId),
-                            supabase.from('guest_family_members').update({ guest_id: toGuestId }).eq('guest_id', fromGuestId),
                             // Also update meal pickups where this guest picked up meals for others
                             supabase.from('meal_attendance').update({ picked_up_by_guest_id: toGuestId }).eq('picked_up_by_guest_id', fromGuestId)
                         ]);
@@ -470,6 +610,73 @@ export const useGuestsStore = create<GuestsState>()(
                             return false;
                         }
 
+                        // Household links last: at this point the source is either a
+                        // single-member primary (safe to re-head) or a plain member.
+                        const sourceFamily = get().guestFamilies.find((f) => f.primaryGuestId === fromGuestId);
+                        if (sourceFamily) {
+                            const { error } = await supabase
+                                .from('guest_families')
+                                .update({ primary_guest_id: toGuestId })
+                                .eq('id', sourceFamily.id);
+                            if (error) {
+                                console.error('Failed to transfer household ownership:', error);
+                                toast.error(`Could not transfer household: ${error.message || 'The database rejected the transfer'}`);
+                                return false;
+                            }
+                            const memberRow = get().guestFamilyMembers.find(
+                                (m) => m.familyId === sourceFamily.id && m.guestId === fromGuestId,
+                            );
+                            if (memberRow) {
+                                const targetHasRow = get().guestFamilyMembers.some((m) => m.guestId === toGuestId);
+                                if (targetHasRow) {
+                                    await supabase.from('guest_family_members').delete().eq('id', memberRow.id);
+                                } else {
+                                    await supabase.from('guest_family_members').update({ guest_id: toGuestId }).eq('id', memberRow.id);
+                                }
+                            }
+                            set((state) => {
+                                const family = state.guestFamilies.find((f) => f.id === sourceFamily.id);
+                                if (family) family.primaryGuestId = toGuestId;
+                                const row = state.guestFamilyMembers.find(
+                                    (m) => m.familyId === sourceFamily.id && m.guestId === fromGuestId,
+                                );
+                                if (row) {
+                                    if (state.guestFamilyMembers.some((m) => m.guestId === toGuestId && m !== row)) {
+                                        state.guestFamilyMembers = state.guestFamilyMembers.filter((m) => m !== row);
+                                    } else {
+                                        row.guestId = toGuestId;
+                                    }
+                                }
+                            });
+                        } else {
+                            const sourceMembership = get().guestFamilyMembers.find((m) => m.guestId === fromGuestId);
+                            if (sourceMembership) {
+                                const targetHasRow = get().guestFamilyMembers.some((m) => m.guestId === toGuestId);
+                                if (targetHasRow) {
+                                    // Duplicate link: drop the source row instead of
+                                    // violating the one-household-per-guest rule.
+                                    await supabase.from('guest_family_members').delete().eq('guest_id', fromGuestId);
+                                    set((state) => {
+                                        state.guestFamilyMembers = state.guestFamilyMembers.filter((m) => m.guestId !== fromGuestId);
+                                    });
+                                } else {
+                                    const { error } = await supabase
+                                        .from('guest_family_members')
+                                        .update({ guest_id: toGuestId })
+                                        .eq('guest_id', fromGuestId);
+                                    if (error) {
+                                        console.error('Failed to transfer household membership:', error);
+                                        toast.error(`Could not transfer household membership: ${error.message || 'The database rejected the transfer'}`);
+                                        return false;
+                                    }
+                                    set((state) => {
+                                        const row = state.guestFamilyMembers.find((m) => m.guestId === fromGuestId);
+                                        if (row) row.guestId = toGuestId;
+                                    });
+                                }
+                            }
+                        }
+
                         return true;
                     } catch (error) {
                         console.error('Failed to transfer guest records:', error);
@@ -481,8 +688,18 @@ export const useGuestsStore = create<GuestsState>()(
 
                 deleteGuestWithTransfer: async (guestId, transferToGuestId) => {
                     const supabase = createClient();
-                    
+
                     try {
+                        // A household primary with dependents can never be deleted
+                        // directly — not even with a transfer target, since the
+                        // transfer would orphan the dependents or hand them to an
+                        // unrelated guest. Staff must delete the dependents first.
+                        const dependents = get().getDependentsForPrimary(guestId);
+                        if (dependents.length > 0) {
+                            const primary = get().guests.find((g) => g.id === guestId);
+                            toast.error(primaryHasDependentsMessage(displayNameOf(primary), dependents.map(displayNameOf)));
+                            return false;
+                        }
                         // If a transfer target is provided, transfer records first
                         if (transferToGuestId) {
                             const transferSuccess = await get().transferGuestRecords(guestId, transferToGuestId);
@@ -816,18 +1033,25 @@ export const useGuestsStore = create<GuestsState>()(
                     const { guestFamilies, guestFamilyMembers } = get();
                     const membership = guestFamilyMembers.find((m) => m.guestId === guestId);
                     if (membership) {
-                        return guestFamilies.find((f) => f.id === membership.familyId) || null;
+                        const byMembership = guestFamilies.find((f) => f.id === membership.familyId);
+                        if (byMembership) return byMembership;
+                        // Stale member row pointing at a deleted household: fall
+                        // through to the primary lookup instead of returning null.
                     }
                     return guestFamilies.find((f) => f.primaryGuestId === guestId) || null;
                 },
 
                 getFamilyMembers: (familyId) => {
-                    const { guests, guestFamilyMembers } = get();
+                    const { guests, guestFamilies, guestFamilyMembers } = get();
                     const memberIds = new Set(
                         guestFamilyMembers
                             .filter((m) => m.familyId === familyId)
                             .map((m) => m.guestId)
                     );
+                    // The primary is always part of the household, even when its
+                    // member row is missing (older data, failed writes).
+                    const family = guestFamilies.find((f) => f.id === familyId);
+                    if (family?.primaryGuestId) memberIds.add(family.primaryGuestId);
                     return guests.filter((g) => g && memberIds.has(g.id));
                 },
 
@@ -836,7 +1060,51 @@ export const useGuestsStore = create<GuestsState>()(
                 },
 
                 getFamilyMemberCount: (familyId) => {
-                    return get().guestFamilyMembers.filter((m) => m.familyId === familyId).length;
+                    const { guestFamilies, guestFamilyMembers } = get();
+                    const memberIds = new Set(
+                        guestFamilyMembers.filter((m) => m.familyId === familyId).map((m) => m.guestId)
+                    );
+                    const family = guestFamilies.find((f) => f.id === familyId);
+                    if (family?.primaryGuestId) memberIds.add(family.primaryGuestId);
+                    return memberIds.size;
+                },
+
+                getFamilyRole: (guestId) => {
+                    const { guestFamilies, guestFamilyMembers } = get();
+                    if (guestFamilies.some((f) => f.primaryGuestId === guestId)) return 'primary';
+                    if (guestFamilyMembers.some((m) => m.guestId === guestId)) return 'member';
+                    return null;
+                },
+
+                getDependentsForPrimary: (primaryGuestId) => {
+                    const { guests, guestFamilies, guestFamilyMembers } = get();
+                    const family = guestFamilies.find((f) => f.primaryGuestId === primaryGuestId);
+                    if (!family) return [];
+                    const memberIds = new Set(
+                        guestFamilyMembers
+                            .filter((m) => m.familyId === family.id && m.guestId !== primaryGuestId)
+                            .map((m) => m.guestId)
+                    );
+                    return guests.filter((g) => g && memberIds.has(g.id));
+                },
+
+                isPrimaryWithDependents: (guestId) => {
+                    return get().getDependentsForPrimary(guestId).length > 0;
+                },
+
+                getFamilyDetail: (familyId) => {
+                    const { guests, guestFamilies } = get();
+                    const family = guestFamilies.find((f) => f.id === familyId);
+                    if (!family) return null;
+                    const members = get().getFamilyMembers(familyId);
+                    const primaryGuest = guests.find((g) => g.id === family.primaryGuestId);
+                    return {
+                        family,
+                        primaryGuest,
+                        members,
+                        memberCount: members.length > 0 ? members.length : 1,
+                        dependentCount: members.filter((m) => m.id !== family.primaryGuestId).length,
+                    };
                 },
 
                 createFamilyForPrimary: async (primaryGuestId, enrolled = false) => {
@@ -851,6 +1119,17 @@ export const useGuestsStore = create<GuestsState>()(
                         return get().guestFamilies.find((f) => f.id === existing.id) || existing;
                     }
 
+                    // A guest can only head one household and cannot head one
+                    // while living as a dependent in another.
+                    const strayMembership = get().guestFamilyMembers.find((m) => m.guestId === primaryGuestId);
+                    if (strayMembership) {
+                        const hostFamily = get().guestFamilies.find((f) => f.id === strayMembership.familyId);
+                        const hostPrimary = hostFamily ? get().guests.find((g) => g.id === hostFamily.primaryGuestId) : undefined;
+                        throw new Error(
+                            `${displayNameOf(get().guests.find((g) => g.id === primaryGuestId))} is already a member of ${displayNameOf(hostPrimary)}'s household. Remove them from that household first.`,
+                        );
+                    }
+
                     const supabase = createClient();
                     const { data, error } = await supabase
                         .from('guest_families')
@@ -859,6 +1138,31 @@ export const useGuestsStore = create<GuestsState>()(
                         .single();
 
                     if (error) {
+                        // Another device may have created the household first:
+                        // recover by loading the winner instead of failing.
+                        if ((error as any)?.code === '23505') {
+                            const { data: winner } = await supabase
+                                .from('guest_families')
+                                .select()
+                                .eq('primary_guest_id', primaryGuestId)
+                                .maybeSingle();
+                            if (winner) {
+                                const mappedWinner = mapGuestFamilyRow(winner);
+                                set((state) => {
+                                    if (!state.guestFamilies.some((f) => f.id === (mappedWinner as any).id)) {
+                                        state.guestFamilies.push(mappedWinner as any);
+                                    }
+                                });
+                                if (!get().guestFamilyMembers.some((m) => m.familyId === (mappedWinner as any).id && m.guestId === primaryGuestId)) {
+                                    try {
+                                        await get().addGuestToFamily((mappedWinner as any).id, primaryGuestId);
+                                    } catch {
+                                        // Member row will be repaired on next load; household itself exists.
+                                    }
+                                }
+                                return get().guestFamilies.find((f) => f.id === (mappedWinner as any).id) || (mappedWinner as any);
+                            }
+                        }
                         console.error('Failed to create guest family in Supabase:', error);
                         throw new Error('Unable to create family.');
                     }
@@ -872,9 +1176,46 @@ export const useGuestsStore = create<GuestsState>()(
                 },
 
                 addGuestToFamily: async (familyId, guestId) => {
-                    const { guestFamilies } = get();
+                    const { guestFamilies, guests } = get();
+                    const targetFamily = guestFamilies.find((f) => f.id === familyId);
+                    if (!targetFamily) {
+                        throw new Error('The selected household no longer exists. Please choose another household.');
+                    }
+                    const guest = guests.find((g) => g.id === guestId);
+                    if (!guest) {
+                        throw new Error('Guest not found. Please reload and try again.');
+                    }
+
+                    const currentMembership = get().guestFamilyMembers.find((m) => m.guestId === guestId);
+                    if (currentMembership?.familyId === familyId) {
+                        const same = get().guestFamilyMembers.find((m) => m.familyId === familyId && m.guestId === guestId);
+                        if (same) return same;
+                    }
+
+                    // Moving a household primary would strand its dependents and
+                    // drop its meal history, so refuse with actionable guidance.
                     const oldPrimaryFamily = guestFamilies.find((f) => f.primaryGuestId === guestId && f.id !== familyId);
                     if (oldPrimaryFamily) {
+                        const dependents = get().getDependentsForPrimary(guestId);
+                        if (dependents.length > 0) {
+                            throw new Error(primaryHasDependentsMessage(displayNameOf(guest), dependents.map(displayNameOf)));
+                        }
+                        const supabaseForHistory = createClient();
+                        let historyCount = 0;
+                        try {
+                            const { count } = await supabaseForHistory
+                                .from('family_meal_distributions')
+                                .select('id', { count: 'exact', head: true })
+                                .eq('family_id', oldPrimaryFamily.id);
+                            historyCount = count || 0;
+                        } catch (error) {
+                            console.error('Failed to check household meal history:', error);
+                        }
+                        if (historyCount > 0) {
+                            throw new Error(
+                                `${displayNameOf(guest)} heads a household with recorded family meals. Transfer or resolve that meal history before moving them to another household.`,
+                            );
+                        }
                         await get().removeGuestFromFamily(guestId);
                     }
 
@@ -904,11 +1245,35 @@ export const useGuestsStore = create<GuestsState>()(
                 },
 
                 removeGuestFromFamily: async (guestId) => {
-                    const { guestFamilies, guestFamilyMembers } = get();
+                    const { guestFamilies, guestFamilyMembers, guests } = get();
                     const supabase = createClient();
 
                     const primaryFamily = guestFamilies.find((f) => f.primaryGuestId === guestId);
                     if (primaryFamily) {
+                        // Deleting the household row cascades to every member and
+                        // all of its meal history, so a primary with dependents is
+                        // never removed implicitly — staff delete dependents first.
+                        const dependents = get().getDependentsForPrimary(guestId);
+                        if (dependents.length > 0) {
+                            throw new Error(primaryHasDependentsMessage(
+                                displayNameOf(guests.find((g) => g.id === guestId)),
+                                dependents.map(displayNameOf),
+                            ));
+                        }
+                        // A single-member household with recorded meals is
+                        // unenrolled instead of deleted so history survives.
+                        try {
+                            const { count } = await supabase
+                                .from('family_meal_distributions')
+                                .select('id', { count: 'exact', head: true })
+                                .eq('family_id', primaryFamily.id);
+                            if ((count || 0) > 0) {
+                                await get().setFamilyEnrollment(primaryFamily.id, false);
+                                return true;
+                            }
+                        } catch (error) {
+                            console.error('Failed to check household meal history:', error);
+                        }
                         const { error } = await supabase
                             .from('guest_families')
                             .delete()

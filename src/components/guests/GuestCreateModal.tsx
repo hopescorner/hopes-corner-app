@@ -29,7 +29,7 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
     const [duplicateMatches, setDuplicateMatches] = useState<any[]>([]);
     const prefersReducedMotion = useReducedMotion();
 
-    const { guests, guestFamilies, addGuest } = useGuestsStore();
+    const { guests, guestFamilies, guestFamilyMembers, addGuest } = useGuestsStore();
 
     const nameParts = useMemo(() => initialName.trim().split(/\s+/), [initialName]);
     const initialFirstName = nameParts[0] || '';
@@ -90,6 +90,10 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
                 toast.error('Please select a family household');
                 return;
             }
+            if (formData.enrollInFamilyMeal && familyMode === 'member' && !(guestFamilies || []).some((f) => f.id === formData.familyId)) {
+                toast.error('The selected household no longer exists. Please choose another household.');
+                return;
+            }
 
             const guest = await addGuest({
                 ...formData,
@@ -114,10 +118,14 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
                 const name = primaryGuest
                     ? (primaryGuest.preferredName || primaryGuest.name || `${primaryGuest.firstName || ''} ${primaryGuest.lastName || ''}`.trim())
                     : 'Unknown Primary';
-                return { id: family.id, name };
+                const memberIds = new Set(
+                    (guestFamilyMembers || []).filter((m) => m.familyId === family.id).map((m) => m.guestId),
+                );
+                if (family.primaryGuestId) memberIds.add(family.primaryGuestId);
+                return { id: family.id, name: `${name} (${memberIds.size} member${memberIds.size === 1 ? '' : 's'})` };
             })
             .sort((a, b) => a.name.localeCompare(b.name));
-    }, [guestFamilies, guests]);
+    }, [guestFamilies, guests, guestFamilyMembers]);
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">

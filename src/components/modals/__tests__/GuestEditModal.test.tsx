@@ -104,4 +104,48 @@ describe('GuestEditModal Household Transitions', () => {
             expect(mockOnClose).toHaveBeenCalled();
         });
     });
+
+    it('blocks moving a primary with dependents into another household', async () => {
+        (useGuestsStore as any).mockReturnValue({
+            updateGuest: mockUpdateGuest,
+            guests: [
+                sampleGuest,
+                { id: 'bob', name: 'Bob Jones', firstName: 'Bob', lastName: 'Jones' },
+                { id: 'child', name: 'Kid Smith', firstName: 'Kid', lastName: 'Smith' },
+            ],
+            guestFamilies: [
+                { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true },
+                { id: 'family-b', primaryGuestId: 'bob', enrolledInFamilyMeal: true },
+            ],
+            guestFamilyMembers: [
+                { id: 'm-a', familyId: 'family-a', guestId: 'alice' },
+                { id: 'm-a2', familyId: 'family-a', guestId: 'child' },
+                { id: 'm-b', familyId: 'family-b', guestId: 'bob' },
+            ],
+            createFamilyForPrimary: mockCreateFamilyForPrimary,
+            addGuestToFamily: mockAddGuestToFamily,
+            setFamilyEnrollment: mockSetFamilyEnrollment,
+            removeGuestFromFamily: mockRemoveGuestFromFamily,
+        });
+        const { default: toast } = await import('react-hot-toast');
+
+        render(<GuestEditModal guest={sampleGuest} onClose={mockOnClose} />);
+
+        // Dependents are disclosed on the primary panel.
+        expect(screen.getByText(/Heads a household with 1 dependent/i)).toBeInTheDocument();
+
+        // Attempt the move anyway.
+        fireEvent.click(screen.getByRole('button', { name: /Member of Existing Family/i }));
+        fireEvent.change(screen.getByLabelText(/Family household/i), { target: { value: 'family-b' } });
+        fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+        await waitFor(() => {
+            expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/dependent/i));
+        });
+        // Nothing is saved: neither the guest update nor any household change.
+        expect(mockUpdateGuest).not.toHaveBeenCalled();
+        expect(mockRemoveGuestFromFamily).not.toHaveBeenCalled();
+        expect(mockAddGuestToFamily).not.toHaveBeenCalled();
+        expect(mockOnClose).not.toHaveBeenCalled();
+    });
 });

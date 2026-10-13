@@ -261,7 +261,7 @@ describe('useGuestsStore', () => {
             expect(useGuestsStore.getState().getFamilyMembers('family-1')).toHaveLength(1);
         });
 
-        it('removes family household when primary guest is removed from family', async () => {
+        it('blocks removing a primary household member with dependents', async () => {
             useGuestsStore.setState({
                 guests: [createMockGuest({ id: 'alice' }), createMockGuest({ id: 'child' })],
                 guestFamilies: [
@@ -273,9 +273,30 @@ describe('useGuestsStore', () => {
                 ],
             } as any);
 
+            await expect(useGuestsStore.getState().removeGuestFromFamily('alice')).rejects.toThrow(/dependent/i);
+
+            // Nothing is removed: the household survives intact.
+            expect(useGuestsStore.getState().guestFamilies).toHaveLength(1);
+            expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(2);
+        });
+
+        it('removes a single-member primary household with no history', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'solo' })],
+                guestFamilies: [
+                    { id: 'family-solo', primaryGuestId: 'solo', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                ],
+                guestFamilyMembers: [
+                    { id: 'm-1', familyId: 'family-solo', guestId: 'solo', createdAt: '' },
+                ],
+            } as any);
+
+            mockSupabase.select.mockImplementation(() => ({
+                eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
+            }));
             mockSupabase.eq.mockResolvedValueOnce({ error: null });
 
-            const result = await useGuestsStore.getState().removeGuestFromFamily('alice');
+            const result = await useGuestsStore.getState().removeGuestFromFamily('solo');
 
             expect(result).toBe(true);
             expect(useGuestsStore.getState().guestFamilies).toHaveLength(0);
@@ -334,6 +355,109 @@ describe('useGuestsStore', () => {
             expect(useGuestsStore.getState().guestFamilies[0].id).toBe('family-b');
             expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(2);
             expect(useGuestsStore.getState().guestFamilyMembers.map((m) => m.guestId)).toEqual(['bob', 'alice']);
+        });
+
+        it('blocks moving a primary with dependents into another household', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'alice' }), createMockGuest({ id: 'bob' }), createMockGuest({ id: 'child' })],
+                guestFamilies: [
+                    { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                    { id: 'family-b', primaryGuestId: 'bob', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                ],
+                guestFamilyMembers: [
+                    { id: 'm-a', familyId: 'family-a', guestId: 'alice', createdAt: '' },
+                    { id: 'm-a2', familyId: 'family-a', guestId: 'child', createdAt: '' },
+                    { id: 'm-b', familyId: 'family-b', guestId: 'bob', createdAt: '' },
+                ],
+            } as any);
+
+            await expect(useGuestsStore.getState().addGuestToFamily('family-b', 'alice')).rejects.toThrow(/dependent/i);
+
+            expect(useGuestsStore.getState().guestFamilies).toHaveLength(2);
+            expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(3);
+        });
+
+        it('rejects adding a guest to a household that no longer exists', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'g1' })],
+                guestFamilies: [],
+                guestFamilyMembers: [],
+            } as any);
+
+            await expect(useGuestsStore.getState().addGuestToFamily('missing-family', 'g1')).rejects.toThrow(/no longer exists/i);
+        });
+
+        it('rejects creating a primary household for a guest already living in another household', async () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'bob' }), createMockGuest({ id: 'dependent' })],
+                guestFamilies: [
+                    { id: 'family-b', primaryGuestId: 'bob', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                ],
+                guestFamilyMembers: [
+                    { id: 'm-b', familyId: 'family-b', guestId: 'bob', createdAt: '' },
+                    { id: 'm-d', familyId: 'family-b', guestId: 'dependent', createdAt: '' },
+                ],
+            } as any);
+
+            await expect(useGuestsStore.getState().createFamilyForPrimary('dependent', true)).rejects.toThrow(/already a member/i);
+        });
+    });
+
+    describe('household lookups', () => {
+        it('reports primary vs member vs no-household roles', () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'alice' }), createMockGuest({ id: 'child' }), createMockGuest({ id: 'stranger' })],
+                guestFamilies: [
+                    { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                ],
+                guestFamilyMembers: [
+                    { id: 'm-1', familyId: 'family-a', guestId: 'alice', createdAt: '' },
+                    { id: 'm-2', familyId: 'family-a', guestId: 'child', createdAt: '' },
+                ],
+            } as any);
+
+            expect(useGuestsStore.getState().getFamilyRole('alice')).toBe('primary');
+            expect(useGuestsStore.getState().getFamilyRole('child')).toBe('member');
+            expect(useGuestsStore.getState().getFamilyRole('stranger')).toBeNull();
+        });
+
+        it('lists only dependents for a primary, excluding the primary itself', () => {
+            const child = createMockGuest({ id: 'child', firstName: 'Kid' });
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'alice' }), child],
+                guestFamilies: [
+                    { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                ],
+                guestFamilyMembers: [
+                    { id: 'm-1', familyId: 'family-a', guestId: 'alice', createdAt: '' },
+                    { id: 'm-2', familyId: 'family-a', guestId: 'child', createdAt: '' },
+                ],
+            } as any);
+
+            const dependents = useGuestsStore.getState().getDependentsForPrimary('alice');
+            expect(dependents.map((d) => d.id)).toEqual(['child']);
+            expect(useGuestsStore.getState().isPrimaryWithDependents('alice')).toBe(true);
+            expect(useGuestsStore.getState().isPrimaryWithDependents('child')).toBe(false);
+            expect(useGuestsStore.getState().getDependentsForPrimary('child')).toEqual([]);
+        });
+
+        it('counts the primary toward household size even when its member row is missing', () => {
+            useGuestsStore.setState({
+                guests: [createMockGuest({ id: 'alice' }), createMockGuest({ id: 'child' })],
+                guestFamilies: [
+                    { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                ],
+                // Primary member row missing (older data / failed write).
+                guestFamilyMembers: [
+                    { id: 'm-2', familyId: 'family-a', guestId: 'child', createdAt: '' },
+                ],
+            } as any);
+
+            expect(useGuestsStore.getState().getFamilyMemberCount('family-a')).toBe(2);
+            expect(useGuestsStore.getState().getFamilyMembers('family-a').map((g) => g.id).sort()).toEqual(['alice', 'child']);
+            const detail = useGuestsStore.getState().getFamilyDetail('family-a');
+            expect(detail?.memberCount).toBe(2);
+            expect(detail?.dependentCount).toBe(1);
         });
     });
 
@@ -576,15 +700,26 @@ describe('useGuestsStore', () => {
         });
 
         describe('checkGuestHasRecords', () => {
+            // Family lookups chain `.select().eq().maybeSingle()` while the
+            // historical tables use `.select().eq()` head counts. The mock
+            // below supports both shapes.
+            const mockFamilyAwareSelect = (countValue: number | null) => {
+                mockSupabase.select.mockImplementation(() => ({
+                    eq: vi.fn().mockReturnValue({
+                        count: countValue,
+                        error: null,
+                        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                    or: vi.fn().mockResolvedValue({ count: countValue, error: null }),
+                }));
+            };
+
             it('returns zero counts when guest has no records', async () => {
                 // Mock all select calls to return count: 0
-                mockSupabase.select.mockImplementation(() => ({
-                    eq: vi.fn().mockResolvedValue({ count: 0, error: null }),
-                    or: vi.fn().mockResolvedValue({ count: 0, error: null }),
-                }));
+                mockFamilyAwareSelect(0);
 
                 const result = await useGuestsStore.getState().checkGuestHasRecords('g1');
-                
+
                 expect(result.total).toBe(0);
                 expect(result.meals).toBe(0);
                 expect(result.showers).toBe(0);
@@ -596,6 +731,8 @@ describe('useGuestsStore', () => {
                 expect(result.reminders).toBe(0);
                 expect(result.warnings).toBe(0);
                 expect(result.proxies).toBe(0);
+                expect(result.familyMeals).toBe(0);
+                expect(result.familyLinks).toBe(0);
             });
 
             it('returns correct counts when guest has records', async () => {
@@ -603,8 +740,12 @@ describe('useGuestsStore', () => {
                 let callCount = 0;
                 const counts = [5, 2, 3, 1, 1, 2, 4, 2, 1, 3];
                 mockSupabase.select.mockImplementation(() => ({
-                    eq: vi.fn().mockResolvedValue({ count: counts[callCount++], error: null }),
-                    or: vi.fn().mockResolvedValue({ count: counts[callCount++], error: null }),
+                    eq: vi.fn().mockReturnValue({
+                        count: counts[callCount++ % counts.length],
+                        error: null,
+                        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+                    }),
+                    or: vi.fn().mockResolvedValue({ count: counts[callCount++ % counts.length], error: null }),
                 }));
 
                 const result = await useGuestsStore.getState().checkGuestHasRecords('g1');
@@ -619,21 +760,70 @@ describe('useGuestsStore', () => {
                     result.itemsDistributed +
                     result.reminders +
                     result.warnings +
-                    result.proxies
+                    result.proxies +
+                    result.familyMeals
                 );
                 expect(result.meals).toBe(5);
                 expect(result.showers).toBeGreaterThan(0);
             });
 
             it('handles null counts gracefully', async () => {
-                mockSupabase.select.mockImplementation(() => ({
-                    eq: vi.fn().mockResolvedValue({ count: null, error: null }),
-                    or: vi.fn().mockResolvedValue({ count: null, error: null }),
-                }));
+                mockFamilyAwareSelect(null);
 
                 const result = await useGuestsStore.getState().checkGuestHasRecords('g1');
-                
+
                 expect(result.total).toBe(0);
+            });
+
+            it('counts family meal history for a household primary', async () => {
+                useGuestsStore.setState({
+                    guests: [createMockGuest({ id: 'primary-1' })],
+                    guestFamilies: [
+                        { id: 'family-1', primaryGuestId: 'primary-1', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                    ],
+                    guestFamilyMembers: [
+                        { id: 'm-1', familyId: 'family-1', guestId: 'primary-1', createdAt: '' },
+                    ],
+                } as any);
+
+                mockSupabase.select.mockImplementation(() => {
+                    // Family lookups resolve to the primary household. The only
+                    // `family_id` equality query is the distributions count.
+                    return {
+                        eq: vi.fn().mockImplementation((...eqArgs: any[]) => {
+                            if (String(eqArgs[0]).includes('primary_guest_id')) {
+                                return {
+                                    maybeSingle: vi.fn().mockResolvedValue({
+                                        data: { id: 'family-1', primary_guest_id: 'primary-1' },
+                                        error: null,
+                                    }),
+                                };
+                            }
+                            if (String(eqArgs[0]) === 'family_id') {
+                                return { count: 4, error: null };
+                            }
+                            if (String(eqArgs[0]) === 'guest_id') {
+                                return {
+                                    count: 0,
+                                    error: null,
+                                    maybeSingle: vi.fn().mockResolvedValue({
+                                        data: { family_id: 'family-1' },
+                                        error: null,
+                                    }),
+                                };
+                            }
+                            return { count: 0, error: null };
+                        }),
+                        or: vi.fn().mockResolvedValue({ count: 0, error: null }),
+                    };
+                });
+
+                const result = await useGuestsStore.getState().checkGuestHasRecords('primary-1');
+
+                expect(result.familyMeals).toBe(4);
+                expect(result.familyLinks).toBe(2);
+                // Family meal history forces the transfer flow like any other record.
+                expect(result.total).toBe(4);
             });
         });
 
@@ -667,9 +857,47 @@ describe('useGuestsStore', () => {
                 const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
                 const result = await useGuestsStore.getState().transferGuestRecords('from-guest', 'to-guest');
-                
+
                 expect(result).toBe(false);
                 spy.mockRestore();
+            });
+
+            it('refuses to transfer a primary with dependents', async () => {
+                useGuestsStore.setState({
+                    guests: [createMockGuest({ id: 'alice' }), createMockGuest({ id: 'child' }), createMockGuest({ id: 'target' })],
+                    guestFamilies: [
+                        { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                    ],
+                    guestFamilyMembers: [
+                        { id: 'm-1', familyId: 'family-a', guestId: 'alice', createdAt: '' },
+                        { id: 'm-2', familyId: 'family-a', guestId: 'child', createdAt: '' },
+                    ],
+                } as any);
+
+                const result = await useGuestsStore.getState().transferGuestRecords('alice', 'target');
+
+                expect(result).toBe(false);
+                expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/dependent/i));
+                expect(mockSupabase.update).not.toHaveBeenCalled();
+            });
+
+            it('refuses to merge two household primaries', async () => {
+                useGuestsStore.setState({
+                    guests: [createMockGuest({ id: 'alice' }), createMockGuest({ id: 'bob' })],
+                    guestFamilies: [
+                        { id: 'family-a', primaryGuestId: 'alice', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                        { id: 'family-b', primaryGuestId: 'bob', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                    ],
+                    guestFamilyMembers: [
+                        { id: 'm-a', familyId: 'family-a', guestId: 'alice', createdAt: '' },
+                        { id: 'm-b', familyId: 'family-b', guestId: 'bob', createdAt: '' },
+                    ],
+                } as any);
+
+                const result = await useGuestsStore.getState().transferGuestRecords('alice', 'bob');
+
+                expect(result).toBe(false);
+                expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/household/i));
             });
         });
 
@@ -747,7 +975,7 @@ describe('useGuestsStore', () => {
             });
 
             it('removes guest proxies and warnings on delete', async () => {
-                useGuestsStore.setState({ 
+                useGuestsStore.setState({
                     guests: [createMockGuest({ id: 'del-1' })],
                     guestProxies: [{ id: 'p1', guestId: 'del-1', proxyId: 'other', createdAt: '' }],
                     warnings: [{ id: 'w1', guestId: 'del-1', message: 'M', severity: 1, active: true, createdAt: '', updatedAt: '' }]
@@ -756,9 +984,35 @@ describe('useGuestsStore', () => {
                 mockSupabase.or.mockResolvedValue({ error: null });
 
                 await useGuestsStore.getState().deleteGuestWithTransfer('del-1');
-                
+
                 expect(useGuestsStore.getState().guestProxies).toHaveLength(0);
                 expect(useGuestsStore.getState().warnings).toHaveLength(0);
+            });
+
+            it('blocks deleting a primary household member with dependents, even with a transfer target', async () => {
+                useGuestsStore.setState({
+                    guests: [
+                        createMockGuest({ id: 'del-1', firstName: 'Primary' }),
+                        createMockGuest({ id: 'child-1', firstName: 'Dependent' }),
+                        createMockGuest({ id: 'target-1', firstName: 'Target' }),
+                    ],
+                    guestFamilies: [
+                        { id: 'family-a', primaryGuestId: 'del-1', enrolledInFamilyMeal: true, createdAt: '', updatedAt: '' },
+                    ],
+                    guestFamilyMembers: [
+                        { id: 'm-1', familyId: 'family-a', guestId: 'del-1', createdAt: '' },
+                        { id: 'm-2', familyId: 'family-a', guestId: 'child-1', createdAt: '' },
+                    ],
+                });
+
+                const result = await useGuestsStore.getState().deleteGuestWithTransfer('del-1', 'target-1');
+
+                expect(result).toBe(false);
+                expect(toast.error).toHaveBeenCalledWith(expect.stringMatching(/dependent/i));
+                // Nobody is deleted and the household survives intact.
+                expect(useGuestsStore.getState().guests).toHaveLength(3);
+                expect(useGuestsStore.getState().guestFamilies).toHaveLength(1);
+                expect(useGuestsStore.getState().guestFamilyMembers).toHaveLength(2);
             });
         });
     });

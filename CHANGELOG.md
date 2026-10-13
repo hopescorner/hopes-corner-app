@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.42.0] - 2026-10-13
+
+### Added
+
+- Deleting a primary household member with dependents is now blocked. The delete window names each dependent and asks staff to delete them first, and the block holds even when transferring records, so dependents are never orphaned or handed to an unrelated guest.
+
+### Improved
+
+- Household linking in the Family Meal Program is now sturdier: moving a primary with dependents or recorded meal history is refused with a clear reason, unenrolling a household with meal history keeps the history instead of deleting it, duplicate household links are cleaned up instead of failing, and household sizes always count the primary. Family meal history also counts in the delete check so it is transferred instead of lost.
+
+### Tests
+
+- Added coverage for the primary-with-dependents delete block (store guard, delete dialog, edit-form move), household role and dependent lookups, history-preserving unenroll, transfer refusal for household heads, and family-meal counts in the delete check. Full Vitest suite passes (4283 tests); `npm run lint` clean and `tsc --noEmit` clean.
+
 ## [0.41.0] - 2026-10-13
 
 ### Improved

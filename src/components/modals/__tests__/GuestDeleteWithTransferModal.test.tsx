@@ -3,6 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import { GuestDeleteWithTransferModal } from '../GuestDeleteWithTransferModal';
+import { useGuestsStore } from '@/stores/useGuestsStore';
 
 // Mock next-auth/react
 vi.mock('next-auth/react', () => ({
@@ -34,40 +35,46 @@ vi.mock('@/lib/utils/flexibleNameSearch', () => ({
 // Mock store methods
 const mockCheckGuestHasRecords = vi.fn();
 const mockDeleteGuestWithTransfer = vi.fn();
+const mockGetDependentsForPrimary = vi.fn(() => []);
+const mockGetFamilyForGuest = vi.fn(() => null);
 
 vi.mock('@/stores/useGuestsStore', () => ({
     useGuestsStore: vi.fn(() => ({
         guests: [
-            { 
-                id: 'guest-1', 
-                guestId: 'G001', 
-                firstName: 'John', 
-                lastName: 'Doe', 
+            {
+                id: 'guest-1',
+                guestId: 'G001',
+                firstName: 'John',
+                lastName: 'Doe',
                 name: 'John Doe',
                 preferredName: '',
                 location: 'Mountain View'
             },
-            { 
-                id: 'guest-2', 
-                guestId: 'G002', 
-                firstName: 'Jane', 
-                lastName: 'Smith', 
+            {
+                id: 'guest-2',
+                guestId: 'G002',
+                firstName: 'Jane',
+                lastName: 'Smith',
                 name: 'Jane Smith',
                 preferredName: 'Janie',
                 location: 'Palo Alto'
             },
-            { 
-                id: 'guest-3', 
-                guestId: 'G003', 
-                firstName: 'Bob', 
-                lastName: 'Wilson', 
+            {
+                id: 'guest-3',
+                guestId: 'G003',
+                firstName: 'Bob',
+                lastName: 'Wilson',
                 name: 'Bob Wilson',
                 preferredName: '',
                 location: 'Sunnyvale'
             },
         ],
+        guestFamilies: [],
+        guestFamilyMembers: [],
         checkGuestHasRecords: mockCheckGuestHasRecords,
         deleteGuestWithTransfer: mockDeleteGuestWithTransfer,
+        getDependentsForPrimary: mockGetDependentsForPrimary,
+        getFamilyForGuest: mockGetFamilyForGuest,
     })),
 }));
 
@@ -100,6 +107,8 @@ describe('GuestDeleteWithTransferModal', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockGetDependentsForPrimary.mockReturnValue([]);
+        mockGetFamilyForGuest.mockReturnValue(null);
         mockCheckGuestHasRecords.mockResolvedValue({
             meals: 0,
             showers: 0,
@@ -270,6 +279,121 @@ describe('GuestDeleteWithTransferModal', () => {
                 const deleteButton = screen.getByRole('button', { name: /delete guest/i });
                 expect(deleteButton).toBeDisabled();
             });
+        });
+    });
+
+    describe('primary household member with dependents', () => {
+        beforeEach(() => {
+            mockGetDependentsForPrimary.mockReturnValue([
+                { id: 'child-1', guestId: 'G010', firstName: 'Kid', lastName: 'Doe', name: 'Kid Doe', preferredName: '' },
+                { id: 'child-2', guestId: 'G011', firstName: 'Kid2', lastName: 'Doe', name: 'Kid2 Doe', preferredName: 'Kiki' },
+            ]);
+            mockCheckGuestHasRecords.mockResolvedValue({
+                meals: 0,
+                showers: 0,
+                laundry: 0,
+                haircuts: 0,
+                holidays: 0,
+                bicycleRepairs: 0,
+                itemsDistributed: 0,
+                familyMeals: 0,
+                familyLinks: 2,
+                total: 0,
+            });
+        });
+
+        it('blocks deletion and names the dependents to delete first', async () => {
+            const guest = createMockGuest();
+            render(
+                <GuestDeleteWithTransferModal
+                    guest={guest}
+                    onClose={mockOnClose}
+                    onDeleted={mockOnDeleted}
+                />
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('alert')).toBeInTheDocument();
+            });
+            expect(screen.getByText(/Cannot delete a primary household member/i)).toBeInTheDocument();
+            expect(screen.getByText('Kid Doe')).toBeInTheDocument();
+            expect(screen.getByText('Kiki')).toBeInTheDocument();
+        });
+
+        it('keeps the delete button disabled even with no historical records', async () => {
+            const guest = createMockGuest();
+            render(
+                <GuestDeleteWithTransferModal
+                    guest={guest}
+                    onClose={mockOnClose}
+                />
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('alert')).toBeInTheDocument();
+            });
+            const deleteButton = screen.getByRole('button', { name: /delete guest/i });
+            expect(deleteButton).toBeDisabled();
+
+            fireEvent.click(deleteButton);
+            expect(mockDeleteGuestWithTransfer).not.toHaveBeenCalled();
+        });
+
+        it('hides the direct-delete message when blocked', async () => {
+            const guest = createMockGuest();
+            render(
+                <GuestDeleteWithTransferModal
+                    guest={guest}
+                    onClose={mockOnClose}
+                />
+            );
+
+            await waitFor(() => {
+                expect(screen.getByRole('alert')).toBeInTheDocument();
+            });
+            expect(screen.queryByText(/no historical records/i)).not.toBeInTheDocument();
+        });
+    });
+
+    describe('household member context', () => {
+        it('explains that deleting a member keeps the household and its history', async () => {
+            const memberGuest = createMockGuest();
+            const primaryGuest = {
+                id: 'guest-2', guestId: 'G002', firstName: 'Jane', lastName: 'Smith',
+                name: 'Jane Smith', preferredName: 'Janie', location: 'Palo Alto',
+            };
+            mockGetFamilyForGuest.mockReturnValue({ id: 'family-1', primaryGuestId: 'guest-2', enrolledInFamilyMeal: true });
+            const mockedStore = vi.mocked(useGuestsStore);
+            const defaultImpl = mockedStore.getMockImplementation();
+            mockedStore.mockImplementation(() => ({
+                guests: [memberGuest, primaryGuest],
+                guestFamilies: [{ id: 'family-1', primaryGuestId: 'guest-2', enrolledInFamilyMeal: true }],
+                guestFamilyMembers: [{ id: 'm-1', familyId: 'family-1', guestId: 'guest-1' }],
+                checkGuestHasRecords: mockCheckGuestHasRecords,
+                deleteGuestWithTransfer: mockDeleteGuestWithTransfer,
+                getDependentsForPrimary: mockGetDependentsForPrimary,
+                getFamilyForGuest: mockGetFamilyForGuest,
+            }) as any);
+            mockCheckGuestHasRecords.mockResolvedValue({
+                meals: 0, showers: 0, laundry: 0, haircuts: 0, holidays: 0,
+                bicycleRepairs: 0, itemsDistributed: 0, familyMeals: 0, familyLinks: 1, total: 0,
+            });
+
+            try {
+                render(
+                    <GuestDeleteWithTransferModal
+                        guest={memberGuest}
+                        onClose={mockOnClose}
+                    />
+                );
+
+                await waitFor(() => {
+                    expect(screen.getByText(/Household member:/i)).toBeInTheDocument();
+                });
+            } finally {
+                mockedStore.mockImplementation(defaultImpl as any);
+                mockGetFamilyForGuest.mockReturnValue(null);
+            }
         });
     });
 
