@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.39.0';
+export const APP_VERSION = '0.40.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.40.0',
+        date: 'October 13, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Daily Meals & Weather Table Excludes Lunch Bags',
+                description: 'The MEALS column in the Daily Meals & Weather table now counts every meal type except lunch bags, on both the Meal Report and Analytics Trends tabs. Charts, totals, and breakdowns elsewhere still include lunch bags, and the table subtitle notes the exclusion.',
+            },
+        ],
+    },
     {
         version: '0.39.0',
         date: 'October 13, 2026',

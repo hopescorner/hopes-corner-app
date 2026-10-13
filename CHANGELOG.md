@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.40.0] - 2026-10-13
+
+### Improved
+
+- The MEALS column in the Daily Meals & Weather table now counts every meal type except lunch bags, on both the Meal Report and Analytics Trends tabs. Charts, totals, and breakdowns elsewhere still include lunch bags, and the table subtitle notes the exclusion.
+
+### Tests
+
+- Added regression coverage proving the table shows hot-meal totals without lunch bags in both tabs (fails on the old code).
+
 ## [0.39.0] - 2026-10-13
 
 ### Improved
