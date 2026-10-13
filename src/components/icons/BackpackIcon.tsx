@@ -9,9 +9,10 @@ interface BackpackIconProps {
 /**
  * Custom backpack icon used in shower essentials.
  *
- * Drawn from scratch to read clearly as a real backpack at small
- * sizes: a top carry handle, a rounded main body, two shoulder
- * straps hooking over the sides, and a front pocket with a zipper.
+ * Drawn as a real front-facing backpack: a rounded grab handle on
+ * top, a domed main body with rounded bottom corners, a lid seam,
+ * and a front pocket with a zipper and pull. Thick outlines match
+ * the lucide icon style.
  */
 export function BackpackIcon({ size = 24, className = '', strokeWidth = 2 }: BackpackIconProps) {
     return (
@@ -29,23 +30,23 @@ export function BackpackIcon({ size = 24, className = '', strokeWidth = 2 }: Bac
             data-testid="backpack-icon"
             aria-hidden="true"
         >
-            {/* Top carry handle */}
-            <path d="M10.8 6 Q12 3.4 13.2 6" />
+            {/* Top grab handle */}
+            <path d="M9.8 7.2 V6 a2.2 2.2 0 0 1 4.4 0 v1.2" />
 
-            {/* Main body — flat bottom, rounded top corners */}
-            <path d="M6 19 V8 a2 2 0 0 1 2-2 h8 a2 2 0 0 1 2 2 v11 a2 2 0 0 1-2 2 h-8 a2 2 0 0 1-2-2 z" />
+            {/* Main body — domed top, rounded bottom corners */}
+            <path d="M7 19.5 v-7.3 a5 5 0 0 1 10 0 v7.3 a2.5 2.5 0 0 1-2.5 2.5 h-5 A2.5 2.5 0 0 1 7 19.5 z" />
 
-            {/* Left shoulder strap hooking over the side */}
-            <path d="M7.5 6 C 5 6.5 4 10 5 14" />
-
-            {/* Right shoulder strap hooking over the side */}
-            <path d="M16.5 6 C 19 6.5 20 10 19 14" />
+            {/* Lid seam */}
+            <path d="M8.5 11.6 h7" />
 
             {/* Front pocket */}
-            <path d="M8.5 14 h7 a1 1 0 0 1 1 1 v3.5 a1 1 0 0 1-1 1 h-7 a1 1 0 0 1-1-1 V15 a1 1 0 0 1 1-1 z" />
+            <path d="M9.2 15 h5.6 a1 1 0 0 1 1 1 v2.2 a1.4 1.4 0 0 1-1.4 1.4 H9.6 A1.4 1.4 0 0 1 8.2 18 v-2 a1 1 0 0 1 1-1 z" />
 
             {/* Pocket zipper */}
-            <path d="M9 15.5 H15" />
+            <path d="M9.4 16.2 h5.2" />
+
+            {/* Zipper pull */}
+            <path d="M12 16.2 v1.3" />
         </svg>
     );
 }
