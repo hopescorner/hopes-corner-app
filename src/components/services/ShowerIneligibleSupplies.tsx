@@ -64,7 +64,12 @@ export function ShowerIneligibleSupplies({ guestId, className }: Props) {
                         data-testid={`ineligible-supply-${item.key}`}
                         className="relative inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 border-2 border-red-300 shadow-sm"
                     >
-                        <Icon size={20} className="text-gray-700" aria-hidden="true" />
+                        <Icon
+                            size={item.size ? 22 : 20}
+                            strokeWidth={item.strokeWidth ?? 2}
+                            className="text-gray-900"
+                            aria-hidden="true"
+                        />
                         <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center">
                             <span className="block w-[135%] h-[3px] bg-red-600 -rotate-[30deg] rounded-full shadow-[0_0_0_1px_white]" />
                         </span>

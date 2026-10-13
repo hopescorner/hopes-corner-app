@@ -35,7 +35,7 @@ describe('ShowerIneligibleSupplies', () => {
         expect(badge.getAttribute('aria-label')).toMatch(/Jacket unavailable/i);
         expect(badge.getAttribute('aria-label')).toMatch(/10d left/);
         // Prominent badge: larger tile, stronger contrast icon + bold strike line
-        expect(badge.querySelector('.text-gray-700')).not.toBeNull();
+        expect(badge.querySelector('.text-gray-900')).not.toBeNull();
         expect(badge.querySelector('.bg-red-600')).not.toBeNull();
         expect(badge.className).toMatch(/w-8/);
         expect(badge.className).toMatch(/h-8/);

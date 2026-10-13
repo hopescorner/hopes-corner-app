@@ -23,10 +23,10 @@ export interface ShowerAmenityItem {
 // (ineligible-supply icons) so both views stay in agreement.
 export const SHOWER_AMENITY_ITEMS: ShowerAmenityItem[] = [
     { key: 'tshirt', label: 'T-Shirt', icon: Shirt, limit: 'Weekly (Mon)' },
-    { key: 'jacket', label: 'Jacket', icon: JacketIcon, limit: '15 Days', size: 36, strokeWidth: 1.0 },
+    { key: 'jacket', label: 'Jacket', icon: JacketIcon, limit: '15 Days', size: 36, strokeWidth: 2 },
     { key: 'tent', label: 'Tent', icon: Tent, limit: '30 Days' },
     { key: 'sleeping_bag', label: 'Sleeping Bag', icon: SleepingBagIcon, limit: '30 Days' },
-    { key: 'backpack', label: 'Backpack', icon: BackpackIcon, limit: '30 Days', size: 36, strokeWidth: 1.0 },
+    { key: 'backpack', label: 'Backpack', icon: BackpackIcon, limit: '30 Days', size: 36, strokeWidth: 2 },
     { key: 'flipflops', label: 'Flip Flops', icon: Footprints, limit: '30 Days' },
     { key: 'sweatpants', label: 'Sweatpants', icon: SweatpantsIcon, limit: '30 Days' },
 ];
