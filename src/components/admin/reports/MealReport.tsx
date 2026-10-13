@@ -226,6 +226,9 @@ export const MealReport = () => {
     }, [calculateMealData]);
 
     const dailyMealsWeatherRows = useMemo(() => {
+        // The Daily Meals & Weather table counts every meal type except lunch
+        // bags, even when the lunch-bag filter is on for the charts and
+        // totals elsewhere in the report.
         return getMealReportDailyData({
             ...meals,
             ...services,
@@ -234,7 +237,7 @@ export const MealReport = () => {
             selectedYear,
             selectedMonth,
             selectedDays,
-            mealTypeFilters,
+            mealTypeFilters: { ...mealTypeFilters, lunchBags: false },
         }).map((row) => {
             const [y, m, d] = row.fullDate.split('-').map(Number);
             const date = new Date(y, m - 1, d);
@@ -486,7 +489,7 @@ export const MealReport = () => {
             <DailyMealsWeatherTable
                 rows={dailyMealsWeatherRows}
                 title="Daily Meals & Weather"
-                subtitle={`${months[selectedMonth]} ${selectedYear} service days with Mountain View conditions and top Bay Area headlines`}
+                subtitle={`${months[selectedMonth]} ${selectedYear} service days with Mountain View conditions and top Bay Area headlines (meal counts exclude lunch bags)`}
             />
 
             {/* Pie Charts Section */}

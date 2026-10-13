@@ -29,6 +29,27 @@ vi.mock('react-hot-toast', () => ({
     },
 }));
 
+// Mock weather/headlines stores (Daily Meals & Weather table joins them by date)
+vi.mock('@/stores/useWeatherStore', () => ({
+    useWeatherStore: vi.fn((selector: any) => {
+        const state = {
+            weatherByDate: {},
+            ensureLoaded: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
+}));
+
+vi.mock('@/stores/useHeadlinesStore', () => ({
+    useHeadlinesStore: vi.fn((selector: any) => {
+        const state = {
+            headlineByDate: {},
+            ensureLoaded: vi.fn(),
+        };
+        return typeof selector === 'function' ? selector(state) : state;
+    }),
+}));
+
 // Mock Recharts to avoid issues in test environment
 vi.mock('recharts', () => ({
     ResponsiveContainer: ({ children }: any) => <div style={{ width: '100%', height: '100%' }}>{children}</div>,
@@ -133,5 +154,34 @@ describe('MealReport', () => {
         expect(screen.getByText(/Year-to-Date \(YTD\) Cumulative/i)).toBeDefined();
         expect(screen.getByText('YTD Meals (Excl. Lunch Bags)')).toBeDefined();
         expect(screen.getByText('YTD Total Meals')).toBeDefined();
+    });
+
+    it('excludes lunch bags from the Daily Meals & Weather table', () => {
+        // Service days filter defaults to Mon/Wed/Fri/Sat (1,3,5,6); place the
+        // guest meal on such a weekday in the currently selected month.
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth();
+        let day = 1;
+        while (![1, 3, 5, 6].includes(new Date(year, month, day).getDay())) day++;
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        vi.mocked(useMealsStore).mockReturnValue({
+            mealRecords: [{ date: dateStr, count: 10, guestId: 'g1' }],
+            rvMealRecords: [],
+            shelterMealRecords: [],
+            unitedEffortMealRecords: [],
+            extraMealRecords: [],
+            dayWorkerMealRecords: [],
+            lunchBagRecords: [{ date: dateStr, count: 5, guestId: 'g1' }],
+        } as any);
+
+        render(<MealReport />);
+        const heading = screen.getByText('Daily Meals & Weather');
+        const card = heading.closest('div');
+        const rows = card?.querySelectorAll('tbody tr') ?? [];
+        expect(rows.length).toBe(1);
+        // 10 guest meals; the 5 lunch bags are excluded (would read 15 otherwise)
+        expect(rows[0].querySelectorAll('td')[2].textContent).toBe('10');
     });
 });

@@ -570,6 +570,18 @@ describe('AnalyticsSection Overview and Trends data', () => {
         expect(screen.getByText('28')).toBeDefined();
     });
 
+    it('excludes lunch bags from the Daily Meals & Weather table', () => {
+        render(<AnalyticsSection />);
+        fireEvent.click(screen.getByText('Trends'));
+
+        const heading = screen.getByText('Daily Meals & Weather');
+        const card = heading.closest('div');
+        const rows = card?.querySelectorAll('tbody tr') ?? [];
+        // Only today has meals: 1+2+3+4+5+6 = 21 hot meals, 7 lunch bags excluded
+        expect(rows.length).toBe(1);
+        expect(rows[0].querySelectorAll('td')[2].textContent).toBe('21');
+    });
+
     it('shows donation value for the selected analytics date range', () => {
         vi.mocked(useDonationsStore).mockReturnValue({
             donationRecords: [

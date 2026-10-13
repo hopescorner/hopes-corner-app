@@ -343,6 +343,7 @@ export function AnalyticsSection() {
 
     const dailyCountMaps = useMemo(() => {
         const mealsByDay = new Map<string, number>();
+        const lunchBagsByDay = new Map<string, number>();
         const showersDoneByDay = new Map<string, number>();
         const laundryDoneByDay = new Map<string, number>();
         const haircutsByDay = new Map<string, number>();
@@ -370,6 +371,10 @@ export function AnalyticsSection() {
                 addToMap(mealsByDay, dateKeyOf(r), Number(r.count) || 0);
             }
         }
+        for (const r of lunchBagRecords) {
+            if (!isGuestIncluded(mealGuestIdOf(r))) continue;
+            addToMap(lunchBagsByDay, dateKeyOf(r), Number(r.count) || 0);
+        }
         for (const r of showerRecords) {
             if (r.status === 'done' && isGuestIncluded(r.guestId)) addToMap(showersDoneByDay, dateKeyOf(r), 1);
         }
@@ -385,7 +390,7 @@ export function AnalyticsSection() {
             if (r.status === 'done' && isGuestIncluded(r.guestId)) addToMap(bicyclesDoneByDay, dateKeyOf(r), countBicycleServices(r));
         }
 
-        return { mealsByDay, showersDoneByDay, laundryDoneByDay, bicyclesDoneByDay, haircutsByDay };
+        return { mealsByDay, lunchBagsByDay, showersDoneByDay, laundryDoneByDay, bicyclesDoneByDay, haircutsByDay };
     }, [mealRecords, rvMealRecords, extraMealRecords, dayWorkerMealRecords, shelterMealRecords, unitedEffortMealRecords, lunchBagRecords, familyMealRecords, showerRecords, laundryRecords, bicycleRecords, haircutRecords, dateKeyOf, mealGuestIdOf, countBicycleServices, demoMealTypeFilters, isGuestIncluded]);
 
     // Calculate metrics for the selected range
@@ -1007,14 +1012,21 @@ export function AnalyticsSection() {
     }, [dailyData, getWeatherForDate]);
 
     const dailyMealsWeatherRows = useMemo(() => {
+        // The Daily Meals & Weather table counts every meal type except lunch
+        // bags, even when the lunch-bag filter is on for the charts and
+        // totals above. When the filter is off, the day totals already
+        // exclude bags, so there is nothing further to subtract.
+        const subtractBags = demoMealTypeFilters.lunchBags;
         return dailyData
-            .filter((day) => day.meals > 0)
             .map((day) => ({
                 fullDate: day.fullDate,
                 dateLabel: day.date,
-                meals: day.meals,
-            }));
-    }, [dailyData]);
+                meals: subtractBags
+                    ? Math.max(0, day.meals - (dailyCountMaps.lunchBagsByDay.get(day.fullDate) || 0))
+                    : day.meals,
+            }))
+            .filter((day) => day.meals > 0);
+    }, [dailyData, dailyCountMaps, demoMealTypeFilters]);
 
     // Render Trends
     const renderTrends = () => (
@@ -1145,7 +1157,7 @@ export function AnalyticsSection() {
             <DailyMealsWeatherTable
                 rows={dailyMealsWeatherRows}
                 title="Daily Meals & Weather"
-                subtitle="Meals served per service day with Mountain View conditions"
+                subtitle="Meals served per service day (excluding lunch bags) with Mountain View conditions"
             />
         </div>
     );
