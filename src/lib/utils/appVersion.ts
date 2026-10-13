@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.40.0';
+export const APP_VERSION = '0.41.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.41.0',
+        date: 'October 13, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'New Outline-Style Jacket Icon',
+                description: 'The jacket icon now follows the bomber-style parka design with a stand-up collar, chest yoke seam, center zipper, pocket zippers, and ribbed cuffs and hem, redrawn as a fill-free outline with thick strokes to match the other supply icons.',
+            },
+        ],
+    },
     {
         version: '0.40.0',
         date: 'October 13, 2026',

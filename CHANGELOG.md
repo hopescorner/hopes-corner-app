@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.41.0] - 2026-10-13
+
+### Improved
+
+- The jacket icon now follows the bomber-style parka design with a stand-up collar, chest yoke seam, center zipper, pocket zippers, and ribbed cuffs and hem, redrawn as a fill-free outline with thick strokes to match the other supply icons.
+
+### Tests
+
+- Icon, shower badge, and shower detail suites pass (74 tests); `npm run lint` clean.
+
 ## [0.40.0] - 2026-10-13
 
 ### Improved
