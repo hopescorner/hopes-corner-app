@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.38.1';
+export const APP_VERSION = '0.39.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.39.0',
+        date: 'October 13, 2026',
+        highlights: [
+            {
+                type: 'improvement',
+                title: 'Bolder Jacket and Backpack Icons in Shower Rows',
+                description: 'The jacket and backpack icons in the shower rows unavailable-supply badges now use thicker lines matching the other supply icons, with a slightly larger size and darker color, so blocked supplies are easier to spot at a glance.',
+            },
+        ],
+    },
     {
         version: '0.38.1',
         date: 'October 12, 2026',

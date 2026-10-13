@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.39.0] - 2026-10-13
+
+### Improved
+
+- Jacket and backpack icons in the shower rows unavailable-supply badges now use thicker lines matching the other supply icons, with a slightly larger size and darker color, so blocked supplies are easier to spot at a glance.
+
+### Tests
+
+- Updated `JacketIcon`, `BackpackIcon`, and `ShowerIneligibleSupplies` coverage for the bolder stroke defaults and badge styling.
+
 ## [0.38.1] - 2026-10-12
 
 ### Fixed
