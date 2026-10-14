@@ -341,3 +341,137 @@ export interface GuestWithRelations extends Guest {
     reminders?: GuestReminder[];
     family?: GuestFamily;
 }
+
+export interface Database {
+    public: {
+        Tables: {
+            shower_reservations: {
+                Row: {
+                    id: string;
+                    guest_id: string;
+                    scheduled_for: string | null;
+                    scheduled_time: string | null;
+                    status: ShowerStatusEnum | null;
+                    waitlist_position?: number | null;
+                    note?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Insert: {
+                    id?: string;
+                    guest_id: string;
+                    scheduled_for?: string | null;
+                    scheduled_time?: string | null;
+                    status?: ShowerStatusEnum | null;
+                    waitlist_position?: number | null;
+                    note?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: Partial<Database['public']['Tables']['shower_reservations']['Insert']>;
+            };
+            laundry_bookings: {
+                Row: {
+                    id: string;
+                    guest_id: string;
+                    scheduled_for: string | null;
+                    slot_label: string | null;
+                    laundry_type: 'onsite' | 'offsite';
+                    bag_number: string | null;
+                    status: LaundryStatusEnum;
+                    note?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Insert: {
+                    id?: string;
+                    guest_id: string;
+                    scheduled_for?: string | null;
+                    slot_label?: string | null;
+                    laundry_type: 'onsite' | 'offsite';
+                    bag_number?: string | null;
+                    status?: LaundryStatusEnum;
+                    note?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+                Update: Partial<Database['public']['Tables']['laundry_bookings']['Insert']>;
+            };
+            guests: {
+                Row: {
+                    id: string;
+                    external_id: string;
+                    first_name: string | null;
+                    last_name: string | null;
+                    full_name: string | null;
+                    preferred_name?: string | null;
+                    housing_status?: string | null;
+                    age_group?: string | null;
+                    gender?: string | null;
+                    location?: string | null;
+                    notes?: string | null;
+                    bicycle_description?: string | null;
+                    ban_reason?: string | null;
+                    banned_at?: string | null;
+                    banned_until?: string | null;
+                    banned_from_meals?: boolean | null;
+                    banned_from_shower?: boolean | null;
+                    banned_from_laundry?: boolean | null;
+                    banned_from_bicycle?: boolean | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+            };
+            meal_attendance: {
+                Row: {
+                    id: string;
+                    guest_id: string;
+                    deduplication_key?: string | null;
+                    picked_up_by_guest_id?: string | null;
+                    meal_type: MealTypeEnum | string;
+                    quantity?: number;
+                    served_on?: string | null;
+                    recorded_at?: string | null;
+                    notes?: string | null;
+                    created_at?: string;
+                    updated_at?: string;
+                };
+            };
+            bicycle_repairs: {
+                Row: {
+                    id: string;
+                    guest_id?: string | null;
+                    requested_at: string;
+                    repair_type?: string | null;
+                    repair_types?: string[] | null;
+                    completed_repairs?: string[] | null;
+                    notes?: string | null;
+                    status: BicycleRepairStatusEnum | string;
+                    priority?: number | null;
+                    completed_at?: string | null;
+                    updated_at?: string;
+                };
+            };
+            haircut_visits: {
+                Row: {
+                    id: string;
+                    guest_id: string;
+                    served_at: string;
+                    service_date?: string | null;
+                    slot_time?: string | null;
+                    stylist_name?: string | null;
+                    created_at?: string;
+                };
+            };
+            holiday_visits: {
+                Row: {
+                    id: string;
+                    guest_id: string;
+                    served_at: string;
+                    created_at?: string;
+                };
+            };
+        };
+    };
+}
+

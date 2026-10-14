@@ -11,10 +11,8 @@ import { flexibleNameSearch } from '@/lib/utils/flexibleNameSearch';
 import { findFuzzySuggestions, type FuzzySuggestion } from '@/lib/utils/fuzzyMatch';
 import { GuestCard } from '@/components/guests/GuestCard';
 import { ServiceStatusOverview } from '@/components/checkin/ServiceStatusOverview';
-import { KeyboardShortcutsBar } from '@/components/checkin/KeyboardShortcutsBar';
 import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import { TodayStats } from '@/components/checkin/TodayStats';
-import { DailyNotesSection } from '@/components/checkin/DailyNotesSection';
 import { LiveConnectionPill } from '@/components/checkin/LiveConnectionPill';
 import { RecentCheckinsBar } from '@/components/checkin/RecentCheckinsBar';
 import { UndoTray } from '@/components/checkin/UndoTray';
@@ -26,10 +24,12 @@ import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { useLanguage } from '@/components/providers/LanguageProvider';
 import { useSecretTap } from '@/hooks/useSecretTap';
 import dynamic from 'next/dynamic';
 import { useCheckInStore } from '@/stores/useCheckInStore';
 import { hydrateLegacyStoresFromSnapshot, snapshotToMealStatusMap } from '@/lib/checkin/legacyAdapter';
+import { replayOfflineCommands } from '@/lib/checkin/offlineQueue';
 import type { CheckInSnapshot } from '@/types/checkin';
 import type { PotentialDuplicatePair } from '@/lib/utils/duplicateDetection';
 import type { MountainViewWeather } from '@/lib/weather/mountainView';
@@ -52,6 +52,12 @@ const WeatherBadge = dynamic(
     () => import('@/components/checkin/WeatherBadge').then((module) => module.WeatherBadge),
     { ssr: false },
 );
+const KeyboardShortcutsBar = dynamic(
+    () => import('@/components/checkin/KeyboardShortcutsBar').then((module) => module.KeyboardShortcutsBar),
+);
+const DailyNotesSection = dynamic(
+    () => import('@/components/checkin/DailyNotesSection').then((module) => module.DailyNotesSection),
+);
 
 // Threshold for disabling animations for better performance
 const LARGE_LIST_THRESHOLD = 20;
@@ -69,6 +75,7 @@ export default function CheckInClient({
     initialWeather?: MountainViewWeather | null;
     v2Enabled?: boolean;
 }) {
+    const { t, language, setLanguage } = useLanguage();
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [isLoading, setIsLoading] = useState(!initialSnapshot);
@@ -93,6 +100,22 @@ export default function CheckInClient({
     // avoid a server/client mismatch; non-Mac keeps the explicit text form)
     useEffect(() => {
         setIsMac(/Mac|iPhone|iPad|iPod/i.test(navigator.platform || ''));
+    }, []);
+
+    useEffect(() => {
+        const handleOnline = async () => {
+            const { successCount } = await replayOfflineCommands();
+            if (successCount > 0) {
+                toast.success(`Synced ${successCount} offline check-in${successCount > 1 ? 's' : ''}`);
+            }
+        };
+
+        window.addEventListener('online', handleOnline);
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+            handleOnline();
+        }
+
+        return () => window.removeEventListener('online', handleOnline);
     }, []);
 
     const markPerf = useCallback((name: string) => {
@@ -712,9 +735,33 @@ export default function CheckInClient({
                             <Users size={22} className="text-emerald-600" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-black text-gray-900">Find or Add Guests</h2>
-                            <p className="text-xs text-gray-500 font-medium">Type a name to search or click New Guest to register</p>
+                            <h2 className="text-xl font-black text-gray-900">{t.findOrAddGuests}</h2>
+                            <p className="text-xs text-gray-500 font-medium">{t.searchSubtitle}</p>
                         </div>
+                    </div>
+                    <div className="flex items-center gap-1 self-start sm:self-auto rounded-xl bg-gray-100 p-1 text-xs font-bold" role="group" aria-label={t.language}>
+                        <button
+                            type="button"
+                            onClick={() => setLanguage('en')}
+                            className={cn(
+                                'px-2.5 py-1 rounded-lg transition-all',
+                                language === 'en' ? 'bg-white text-emerald-800 shadow-xs' : 'text-gray-500 hover:text-gray-700'
+                            )}
+                            aria-label="Switch to English"
+                        >
+                            EN
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setLanguage('es')}
+                            className={cn(
+                                'px-2.5 py-1 rounded-lg transition-all',
+                                language === 'es' ? 'bg-white text-emerald-800 shadow-xs' : 'text-gray-500 hover:text-gray-700'
+                            )}
+                            aria-label="Cambiar a Español"
+                        >
+                            ES
+                        </button>
                     </div>
                 </div>
 
@@ -734,7 +781,7 @@ export default function CheckInClient({
                                 setSearchQuery(e.target.value);
                                 setSelectedIndex(-1);
                             }}
-                            placeholder="Start typing a name (e.g. 'John' or 'JS')"
+                            placeholder={t.searchPlaceholder}
                             className="w-full pl-14 pr-14 py-4 sm:py-5 rounded-2xl border-2 border-gray-100 bg-gray-50/50 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 transition-all text-lg sm:text-xl font-bold placeholder:text-gray-300 outline-none shadow-inner touch-manipulation"
                             autoFocus
                         />
@@ -742,7 +789,7 @@ export default function CheckInClient({
                             <button
                                 onClick={handleClearSearch}
                                 className="absolute right-3.5 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-gray-200 text-gray-600 hover:bg-gray-300 hover:text-gray-800 rounded-full transition-all touch-manipulation active:scale-90"
-                                aria-label="Clear search"
+                                aria-label={t.clearSearch}
                             >
                                 <X size={18} strokeWidth={3} />
                             </button>
@@ -827,7 +874,7 @@ export default function CheckInClient({
                                 <Search size={40} className="text-gray-200" />
                             </div>
                             <h3 className="text-xl font-black text-gray-900 mb-2">
-                                {searchQuery ? `No matches for "${searchQuery}"` : 'Ready for Search'}
+                                {searchQuery ? `${t.noMatchesFor} "${searchQuery}"` : t.readyForSearch}
                             </h3>
                             <p className="text-gray-500 max-w-sm font-medium">
                                 {searchQuery
@@ -837,7 +884,7 @@ export default function CheckInClient({
 
                             {fuzzySuggestions.length > 0 && (
                                 <div className="mt-8 w-full max-w-md">
-                                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">Did you mean?</p>
+                                    <p className="text-xs font-black text-gray-400 uppercase tracking-widest mb-3">{t.didYouMean}</p>
                                     <div className="flex flex-wrap justify-center gap-2">
                                         {fuzzySuggestions.map((suggestion) => (
                                             <button
@@ -875,7 +922,7 @@ export default function CheckInClient({
                                     <span className="font-bold text-gray-900">{sortedGuests.length} guest{sortedGuests.length !== 1 ? 's' : ''} found</span>
                                     {searchQuery && (
                                         <span className="text-gray-400 ml-2 text-sm">
-                                            Searching for &quot;{searchQuery}&quot;
+                                            {t.searchingFor} &quot;{searchQuery}&quot;
                                         </span>
                                     )}
                                 </div>

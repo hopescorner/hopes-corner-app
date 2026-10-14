@@ -6,39 +6,21 @@ import dynamic from 'next/dynamic';
 import {
     ChevronDown,
     ChevronUp,
-    Utensils,
-    ShowerHead,
-    WashingMachine,
-    Bike,
-    AlertTriangle,
-    Link2,
-    Check,
     Ban,
-    Plus,
-    Loader2,
-    Home,
-    MapPin,
-    Edit,
     UserCheck,
-    AlertCircle,
-    Scissors,
-    Gift,
-    RotateCcw,
     Bell,
-    Clock,
     History,
-    Sparkles,
-    Users,
-    ListPlus,
+    AlertTriangle,
+    Edit,
     ArrowRight,
     Mars,
     Venus,
     CircleHelp,
-    NonBinary
+    NonBinary,
+    Plus,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
-import { getGuestInitials, getGuestAvatarColor } from '@/lib/utils/guestAvatar';
 import { findNextAvailableShowerSlot, findNextAvailableLaundrySlot, type NextAvailableShowerSlot, type NextAvailableLaundrySlot } from '@/lib/utils/nextAvailableSlot';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
@@ -67,16 +49,21 @@ import {
 } from '@/stores/selectors/todayStatusSelectors';
 import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
+import { getGuestBanDetails } from '@/lib/utils/banUtils';
+import { GuestIdentity } from './GuestIdentity';
+import { GuestMealActions, GuestExtraMealSection } from './GuestMealActions';
+import { GuestQuickServiceSlots, GuestServiceSlots, GuestAdditionalServices } from './GuestServiceSlots';
+import { GuestLinkedSection } from './GuestLinkedSection';
+import { GuestWarningsPanel } from './GuestWarnings';
 
 const LinkedGuestsList = dynamic(() => import('./LinkedGuestsList'));
+import { GuestBanNotice } from './GuestBanNotice';
 const GuestEditModal = dynamic(() => import('@/components/modals/GuestEditModal').then((module) => module.GuestEditModal));
 const BanManagementModal = dynamic(() => import('@/components/modals/BanManagementModal').then((module) => module.BanManagementModal));
 const WarningManagementModal = dynamic(() => import('@/components/modals/WarningManagementModal').then((module) => module.WarningManagementModal));
 const ReminderManagementModal = dynamic(() => import('@/components/modals/ReminderManagementModal').then((module) => module.ReminderManagementModal));
 const GuestHistoryModal = dynamic(() => import('@/components/modals/GuestHistoryModal').then((module) => module.GuestHistoryModal));
 const MobileServiceSheet = dynamic(() => import('@/components/checkin/MobileServiceSheet').then((module) => module.MobileServiceSheet));
-import { GuestBanNotice } from './GuestBanNotice';
-import { getGuestBanDetails } from '@/lib/utils/banUtils';
 
 interface GuestCardProps {
     guest: any;
@@ -84,31 +71,19 @@ interface GuestCardProps {
     onSelect?: () => void;
     compact?: boolean;
     onClearSearch?: () => void;
-    // Optional precomputed status maps for performance optimization
-    // When provided, skips local useMemo calculations
     mealStatusMap?: MealStatusMap;
     serviceStatusMap?: ServiceStatusMap;
     actionStatusMap?: ActionStatusMap;
     recentGuestsMap?: RecentGuestsMap;
-    /** Precomputed map of guestId → most recent service date (YYYY-MM-DD) across all service types. */
     lastVisitDateMap?: LastVisitDateMap;
-    // Precomputed next available shower and laundry slots
     nextAvailableShowerSlot?: NextAvailableShowerSlot | null;
     nextAvailableLaundrySlot?: NextAvailableLaundrySlot | null;
-    // Disable layout animations for better performance in large lists
     disableLayoutAnimation?: boolean;
-
-    // Optional precomputed per-guest counts to avoid per-card store subscriptions
     warningsCount?: number;
     linkedGuestsCount?: number;
     activeRemindersCount?: number;
-
-    // Optional expansion callback (useful for list virtualization measurement)
     onExpandedChange?: (guestId: string, expanded: boolean) => void;
-
-    // Called when the staff completes a check-in and wants to advance to the next result.
     onAdvanceToNext?: (guestId: string) => void;
-
     loadGuestContext?: () => Promise<void>;
     guestContext?: CheckInGuestContext | null;
 }
@@ -179,209 +154,6 @@ const getGuestGenderPresentation = (value: unknown) => {
     }
 };
 
-const WARNING_SEVERITY_META: Record<number, { label: string; pill: string; dot: string }> = {
-    1: { label: 'Low', pill: 'bg-yellow-100 text-yellow-800 border-yellow-200', dot: 'bg-yellow-500' },
-    2: { label: 'Med', pill: 'bg-amber-100 text-amber-800 border-amber-200', dot: 'bg-amber-500' },
-    3: { label: 'High', pill: 'bg-red-100 text-red-700 border-red-200', dot: 'bg-red-500' },
-};
-
-function getActiveWarnings(warnings: any[], guestId: string) {
-    return (warnings || []).filter((w: any) => w.guestId === guestId && w.active !== false);
-}
-
-function getMaxWarningSeverity(activeWarnings: any[]): number {
-    let max = 0;
-    for (const w of activeWarnings) {
-        const s = typeof w.severity === 'number' ? w.severity : 1;
-        if (s > max) max = s;
-    }
-    return max;
-}
-
-function GuestWarningBadge({
-    guestId,
-    fallbackCount,
-    onExpand,
-}: {
-    guestId: string;
-    fallbackCount: number;
-    onExpand: () => void;
-}) {
-    const warnings = useGuestsStore((s) => s.warnings);
-    const activeWarnings = useMemo(() => getActiveWarnings(warnings || [], guestId), [warnings, guestId]);
-    // Use the larger of store count vs precomputed prop so a stale/placeholder
-    // prop (e.g. in tests) never hides a real warning, and vice versa.
-    const count = Math.max(activeWarnings.length, fallbackCount ?? 0);
-    const maxSeverity = useMemo(() => getMaxWarningSeverity(activeWarnings), [activeWarnings]);
-
-    if (count <= 0) return null;
-
-    const tooltip =
-        activeWarnings.length > 0
-            ? activeWarnings
-                  .slice(0, 3)
-                  .map((w: any) => `• [${WARNING_SEVERITY_META[w.severity || 1]?.label || 'Low'}] ${w.message}`)
-                  .join('\n') + (activeWarnings.length > 3 ? `\n+${activeWarnings.length - 3} more — tap to view` : '\nTap to view')
-            : `${count} active warning${count === 1 ? '' : 's'} — tap to view`;
-
-    const severityStyle =
-        maxSeverity >= 3
-            ? 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200'
-            : maxSeverity === 2
-              ? 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200'
-              : 'bg-yellow-50 text-yellow-800 border-yellow-300 hover:bg-yellow-100';
-
-    return (
-        <button
-            type="button"
-            data-testid="warning-badge"
-            title={tooltip}
-            aria-label={`${count} active warning${count === 1 ? '' : 's'}${maxSeverity >= 3 ? ', includes high severity' : ''}. Activate to view warnings.`}
-            onClick={(e) => {
-                e.stopPropagation();
-                onExpand();
-            }}
-            className={cn(
-                'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-bold transition-colors cursor-pointer',
-                severityStyle,
-                maxSeverity >= 3 && 'animate-pulse'
-            )}
-        >
-            <AlertTriangle size={10} aria-hidden="true" />
-            <span>{count}</span>
-            <span>{count === 1 ? 'warning' : 'warnings'}</span>
-            {maxSeverity >= 3 && <span className="uppercase tracking-wide">• high</span>}
-        </button>
-    );
-}
-
-function GuestWarningsPanel({ guestId, onManage }: { guestId: string; onManage?: () => void }) {
-    const warnings = useGuestsStore((s) => s.warnings);
-
-    const activeWarnings = useMemo(() => getActiveWarnings(warnings || [], guestId), [warnings, guestId]);
-
-    if (activeWarnings.length === 0) return null;
-
-    const maxSeverity = getMaxWarningSeverity(activeWarnings);
-    const containerStyle =
-        maxSeverity >= 3
-            ? 'bg-red-50/60 border-red-200'
-            : maxSeverity === 2
-              ? 'bg-amber-50/60 border-amber-200'
-              : 'bg-yellow-50/60 border-yellow-200';
-
-    return (
-        <div id={`warnings-${guestId}`} data-testid="warnings-panel" className={cn('p-3 rounded-xl border mx-4 mb-3', containerStyle)}>
-            <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-                    <AlertTriangle size={13} aria-hidden="true" className={maxSeverity >= 3 ? 'text-red-600' : 'text-amber-600'} />
-                    Warnings ({activeWarnings.length})
-                </p>
-                {onManage && (
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            onManage();
-                        }}
-                        className="text-[11px] font-bold text-amber-700 hover:text-amber-900 hover:underline"
-                    >
-                        Manage
-                    </button>
-                )}
-            </div>
-            <ul className="space-y-2">
-                {activeWarnings.map((warning: any) => {
-                    const meta = WARNING_SEVERITY_META[warning.severity || 1] || WARNING_SEVERITY_META[1];
-                    return (
-                        <li key={warning.id} className="flex items-start gap-2 rounded-lg bg-white/70 border border-black/5 px-2.5 py-2">
-                            <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', meta.dot)} aria-hidden="true" />
-                            <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <span className={cn('rounded-full border px-1.5 py-px text-[9px] font-black uppercase', meta.pill)}>
-                                        {meta.label}
-                                    </span>
-                                    {warning.createdAt && (
-                                        <span className="text-[10px] text-gray-400">
-                                            {new Date(warning.createdAt).toLocaleDateString()}
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-sm text-gray-800 mt-0.5 break-words">{warning.message}</p>
-                            </div>
-                        </li>
-                    );
-                })}
-            </ul>
-        </div>
-    );
-}
-
-/**
- * Single, consistent undo affordance used everywhere on the card.
- * Always meets the 44px minimum touch target.
- */
-function UndoButton({
-    title,
-    label,
-    onClick,
-    disabled = false,
-    className,
-}: {
-    title: string;
-    label: string;
-    onClick: (event: React.MouseEvent) => void;
-    disabled?: boolean;
-    className?: string;
-}) {
-    return (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            title={title}
-            aria-label={label}
-            className={cn(
-                'flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 rounded-lg border border-orange-200 bg-orange-50 px-2.5 text-orange-700 transition-all hover:bg-orange-100 active:scale-95 touch-manipulation disabled:opacity-50',
-                className
-            )}
-        >
-            <RotateCcw size={16} aria-hidden="true" />
-        </button>
-    );
-}
-
-/**
- * Consistent disabled state for a program action so staff see the reason inline
- * instead of a control that is merely faded.
- */
-function DisabledAction({
-    label,
-    reason,
-    title,
-    className,
-}: {
-    label: string;
-    reason: string;
-    title?: string;
-    className?: string;
-}) {
-    return (
-        <div
-            title={title}
-            role="note"
-            className={cn(
-                'flex min-h-[44px] items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-gray-300 bg-gray-100 px-3 text-gray-400 cursor-not-allowed select-none',
-                className
-            )}
-        >
-            <Ban size={15} aria-hidden="true" />
-            <span className="text-[11px] font-bold leading-tight">{label}</span>
-            <span className="text-[10px] font-semibold leading-tight">· {reason}</span>
-        </div>
-    );
-}
-
 function PureGuestCard({
     guest,
     isSelected = false,
@@ -395,7 +167,7 @@ function PureGuestCard({
     lastVisitDateMap,
     nextAvailableShowerSlot: propNextAvailableShowerSlot,
     nextAvailableLaundrySlot: propNextAvailableLaundrySlot,
-    disableLayoutAnimation = false,
+    disableLayoutAnimation: _disableLayoutAnimation = false,
     warningsCount,
     linkedGuestsCount,
     activeRemindersCount,
@@ -426,8 +198,6 @@ function PureGuestCard({
     guestContext,
 }: PureGuestCardProps) {
     const [isExpanded, setIsExpanded] = useState(false);
-    const [showLinkedGuests, setShowLinkedGuests] = useState(false);
-    const [loadingLinkedGuests, setLoadingLinkedGuests] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [showBanModal, setShowBanModal] = useState(false);
@@ -521,8 +291,6 @@ function PureGuestCard({
         ? propNextAvailableLaundrySlot
         : computedNextAvailableLaundrySlot;
 
-    // Always compute local status (useMemo must be called unconditionally)
-    // Then use precomputed map if provided
     const localMealStatus = useMemo(() => {
         if (mealStatusMap) return defaultMealStatus;
         const todayRecord = mealRecords.find(
@@ -594,7 +362,6 @@ function PureGuestCard({
         };
     }, [getActionsForGuestToday, guest.id, today]);
 
-    // Use precomputed maps if provided, otherwise use local calculation
     const mealStatus: TodayMealStatus = mealStatusMap 
         ? (mealStatusMap.get(guest.id) || defaultMealStatus)
         : localMealStatus;
@@ -607,7 +374,6 @@ function PureGuestCard({
         ? (actionStatusMap.get(guest.id) || defaultActionStatus)
         : localActionStatus;
 
-    // Extract values for easier use
     const todayMeal = mealStatus.mealRecord || (mealStatus.hasMeal ? { id: `meal-${guest.id}`, guestId: guest.id, count: mealStatus.mealCount, date: '' } as any : undefined);
     const baseMealCount = mealStatus.mealCount;
     const extraMealsCount = mealStatus.extraMealCount;
@@ -621,7 +387,6 @@ function PureGuestCard({
     const todayHaircut = serviceStatus.hasHaircut;
     const todayHoliday = serviceStatus.hasHoliday;
 
-    // Check if the guest already has a haircut for the selected haircutDate
     const hasHaircutForSelectedDate = useMemo(() => {
         if (haircutDate === today) return todayHaircut;
         return (haircutRecords || []).some(
@@ -638,15 +403,11 @@ function PureGuestCard({
     const holidayAction = actionStatus.holidayActionId ? { id: actionStatus.holidayActionId } : undefined;
 
     const hasServiceToday = !!todayMeal || todayShower || todayLaundry || todayBicycle;
-    // Used for the at-a-glance served/needs-service card accent.
     const hasAnyActivityToday = hasServiceToday || todayHaircut || todayHoliday;
     const banDetails = useMemo(() => getGuestBanDetails(guest), [guest]);
     const isBanned = banDetails.isBanned;
-    // Haircut/holiday have no per-program ban flags, so they are only blocked
-    // by a blanket ban (all programs), not by a single-program ban (e.g. showers).
     const isBannedFromAllServices = banDetails.isAllProgramsBanned;
 
-    // Check program-specific bans
     const isBannedFromMeals = banDetails.programs.find(p => p.key === 'meals')?.isBanned ?? false;
     const isBannedFromShower = banDetails.programs.find(p => p.key === 'shower')?.isBanned ?? false;
     const isBannedFromLaundry = banDetails.programs.find(p => p.key === 'laundry')?.isBanned ?? false;
@@ -687,7 +448,6 @@ function PureGuestCard({
     const lastVisitLabel = useMemo(() => {
         if (!lastVisitDateStr) return null;
 
-        // Parse as noon local time to avoid DST edge-case shifts.
         const date = new Date(`${lastVisitDateStr}T12:00:00`);
         const todayDate = new Date(`${today}T12:00:00`);
         const diffDays = Math.round((todayDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
@@ -836,7 +596,6 @@ function PureGuestCard({
         e.stopPropagation();
         if (isPending || isBannedFromMeals || hasReachedMealLimit || hasReachedExtraMealLimit) return;
 
-        // Require explicit confirmation to prevent accidental extra meal additions
         const confirmed = window.confirm(
             `Add an extra meal for ${guest.preferredName || guest.firstName}?\n\nThis is in addition to the ${baseMealCount} meal${baseMealCount !== 1 ? 's' : ''} already logged.`
         );
@@ -861,7 +620,6 @@ function PureGuestCard({
         if (e) e.stopPropagation();
         if (isPending) return;
 
-        // Simple haptic feedback if available (simulated)
         if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
             window.navigator.vibrate(50);
         }
@@ -874,7 +632,7 @@ function PureGuestCard({
             } else {
                 toast.error(`Failed to undo ${label.toLowerCase()}`);
             }
-        } catch (error) {
+        } catch {
             toast.error('Something went wrong');
         } finally {
             setIsPending(false);
@@ -899,8 +657,6 @@ function PureGuestCard({
             onExpandedChange?.(guest.id, true);
             if (onSelect) onSelect();
         }
-        // Wait a tick for the expanded panel to mount, then scroll it into view.
-        // Guarded: non-visual environments (jsdom) lack scrollIntoView.
         requestAnimationFrame(() => {
             setTimeout(() => {
                 const el = document.getElementById(`warnings-${guest.id}`);
@@ -913,7 +669,7 @@ function PureGuestCard({
 
     const handleHaircutAdd = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (isPending || isBannedFromAllServices) return; // Blanket ban check
+        if (isPending || isBannedFromAllServices) return;
 
         const targetHaircutDate = haircutDate || today;
 
@@ -992,7 +748,6 @@ function PureGuestCard({
                 isSelected ? 'ring-2 ring-emerald-500/50 border-emerald-400 shadow-lg' : 'shadow-sm hover:border-emerald-200 hover:shadow-md'
             )}
         >
-            {/* At-a-glance served / needs-service rail */}
             <span
                 data-testid="service-rail"
                 aria-hidden="true"
@@ -1010,221 +765,36 @@ function PureGuestCard({
                 )}
                 onClick={toggleExpand}
             >
-                {/* Left: Avatar & Info */}
-                <div
-                    role={compact ? undefined : 'group'}
-                    aria-label={compact ? undefined : 'Guest identity'}
-                    className={cn(
-                        'flex flex-1 min-w-0',
-                        compact
-                            ? 'items-center gap-3'
-                            : 'w-full items-start gap-3 px-4 pb-3 pt-4 md:w-auto md:items-center md:p-0'
-                    )}
-                >
-                    {(() => {
-                        const avatarColor = getGuestAvatarColor(guest?.id || displayName);
-                        const initials = getGuestInitials(guest);
-                        return (
-                            <div className={cn(
-                                'flex items-center justify-center rounded-xl border shrink-0 transition-transform group-hover:scale-105 font-black select-none',
-                                compact ? 'w-10 h-10 text-xs' : 'w-12 h-12 text-sm',
-                                isBanned
-                                    ? 'bg-red-50 border-red-200 text-red-600'
-                                    : cn(avatarColor.bg, avatarColor.border, avatarColor.text)
-                            )}>
-                                {isBanned ? <Ban size={compact ? 18 : 22} /> : initials}
-                            </div>
-                        );
-                    })()}
+                <GuestIdentity
+                    guest={guest}
+                    displayName={displayName}
+                    fullName={fullName}
+                    showFullName={showFullName}
+                    ageRange={ageRange}
+                    genderPresentation={genderPresentation}
+                    compact={compact}
+                    isBanned={isBanned}
+                    banDetails={banDetails}
+                    today={today}
+                    warningBadgeCount={warningBadgeCount}
+                    reminderBadgeCount={reminderBadgeCount}
+                    totalLinkedCount={totalLinkedCount}
+                    linkedServedCount={linkedServedCount}
+                    totalMeals={totalMeals}
+                    todayShower={todayShower}
+                    todayLaundry={todayLaundry}
+                    todayHaircut={todayHaircut}
+                    serviceStatus={serviceStatus}
+                    mealStatus={mealStatus}
+                    recentGuestsMap={recentGuestsMap}
+                    pulses={pulses}
+                    lastVisitLabel={lastVisitLabel}
+                    lastVisitDateStr={lastVisitDateStr}
+                    isExpanded={isExpanded}
+                    onExpandWarnings={expandAndScrollToWarnings}
+                    onOpenReminders={() => setShowReminderModal(true)}
+                />
 
-                    <div className="flex-1 min-w-0">
-                        <div className="flex flex-col items-start gap-1 md:flex-row md:gap-2">
-                            <div className="min-w-0 w-full md:w-auto">
-                                <h3 className={cn(
-                                    'font-bold text-gray-900',
-                                    compact
-                                        ? 'truncate text-sm'
-                                        : 'break-words text-lg leading-tight md:truncate md:text-base'
-                                )}>
-                                    {displayName}
-                                </h3>
-                                {showFullName && (
-                                    <p className={cn(
-                                        'text-gray-500 truncate',
-                                        compact ? 'text-[11px]' : 'text-xs'
-                                    )}>
-                                        Full name: {fullName}
-                                    </p>
-                                )}
-                            </div>
-
-                            {/* Badges */}
-                            <div className="flex items-center gap-1 flex-wrap">
-                                {(() => {
-                                    const isNewGuest = guest.createdAt && pacificDateStringFrom(guest.createdAt) === today;
-                                    return isNewGuest ? (
-                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold animate-pulse">
-                                            <Sparkles size={10} />
-                                            NEW
-                                        </span>
-                                    ) : null;
-                                })()}
-                                <GuestWarningBadge
-                                    guestId={guest.id}
-                                    fallbackCount={warningBadgeCount}
-                                    onExpand={expandAndScrollToWarnings}
-                                />
-                                {reminderBadgeCount > 0 && (
-                                    <button 
-                                        onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
-                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-blue-50 to-purple-50 text-blue-700 border border-blue-200 text-[10px] font-bold hover:from-blue-100 hover:to-purple-100 transition-colors"
-                                    >
-                                        <Bell size={10} className="animate-pulse" />
-                                        {reminderBadgeCount}
-                                    </button>
-                                )}
-                                {totalLinkedCount > 0 && (
-                                    <span
-                                        className={cn(
-                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold",
-                                            linkedServedCount > 0 && linkedServedCount >= totalLinkedCount
-                                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                                : linkedServedCount > 0
-                                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                                    : "bg-blue-50 text-blue-700 border border-blue-200"
-                                        )}
-                                        title={
-                                            linkedServedCount > 0
-                                                ? `${linkedServedCount} of ${totalLinkedCount} linked ${totalLinkedCount === 1 ? 'buddy' : 'buddies'} served`
-                                                : `${totalLinkedCount} linked ${totalLinkedCount === 1 ? 'buddy' : 'buddies'}`
-                                        }
-                                    >
-                                        {linkedServedCount > 0 && linkedServedCount >= totalLinkedCount ? (
-                                            <Check size={10} />
-                                        ) : (
-                                            <Link2 size={10} />
-                                        )}
-                                        <span>
-                                            {linkedServedCount > 0
-                                                ? `${linkedServedCount}/${totalLinkedCount} served`
-                                                : totalLinkedCount}
-                                        </span>
-                                    </span>
-                                )}
-                                {isBanned && (
-                                    <span 
-                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 text-[10px] font-bold"
-                                        title={banDetails.isAllProgramsBanned ? 'Banned from all programs' : `Banned from: ${banDetails.bannedSummary}`}
-                                    >
-                                        <Ban size={10} />
-                                        <span>BANNED</span>
-                                        {!banDetails.isAllProgramsBanned && (
-                                            <span className="font-semibold text-red-600">({banDetails.bannedSummary})</span>
-                                        )}
-                                    </span>
-                                )}
-                                {/* Recent Badge (Active in last 7 days) - uses precomputed map for efficiency */}
-                                {(() => {
-                                    // Use precomputed map if available, otherwise compute locally
-                                    const isRecent = recentGuestsMap ? recentGuestsMap.has(guest.id) : false;
-                                    
-                                    // Don't show "Recent" badge if guest already has meal today (redundant info)
-                                    if (isRecent && !mealStatus.hasMeal) {
-                                        return (
-                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 text-[10px] font-bold">
-                                                <Utensils size={10} />
-                                                RECENT
-                                            </span>
-                                        );
-                                    }
-                                    return null;
-                                })()}
-                                {totalMeals > 0 && (
-                                    <span
-                                        className={cn(
-                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold",
-                                            pulses.meal !== undefined && "animate-success-pulse"
-                                        )}
-                                        style={pulses.meal !== undefined ? { animationDelay: `${pulses.meal}ms` } : undefined}
-                                    >
-                                        <Check size={10} />
-                                        {totalMeals} MEAL{totalMeals > 1 ? 'S' : ''}
-                                    </span>
-                                )}
-                                {todayShower && (
-                                    <span
-                                        className={cn(
-                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold",
-                                            pulses.shower !== undefined && "animate-success-pulse"
-                                        )}
-                                        style={pulses.shower !== undefined ? { animationDelay: `${pulses.shower}ms` } : undefined}
-                                    >
-                                        <ShowerHead size={10} />
-                                        SHOWER{serviceStatus.showerRecord?.time ? ` @ ${serviceStatus.showerRecord.time}` : ''}
-                                    </span>
-                                )}
-                                {todayLaundry && (
-                                    <span
-                                        className={cn(
-                                            "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold",
-                                            pulses.laundry !== undefined && "animate-success-pulse"
-                                        )}
-                                        style={pulses.laundry !== undefined ? { animationDelay: `${pulses.laundry}ms` } : undefined}
-                                    >
-                                        <WashingMachine size={10} />
-                                        LAUNDRY{serviceStatus.laundryRecord?.time ? ` @ ${serviceStatus.laundryRecord.time}` : ''}
-                                    </span>
-                                )}
-                                {todayHaircut && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold">
-                                        <Scissors size={10} />
-                                        HAIRCUT
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Guest details — intentionally de-emphasized so service status reads first */}
-                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] font-normal text-gray-400">
-                            <span className="inline-flex items-center gap-1">
-                                <Home size={11} className="text-gray-300" aria-hidden="true" />
-                                {guest.housingStatus}
-                            </span>
-                            {guest.location && (
-                                <span className="inline-flex items-center gap-1">
-                                    <MapPin size={11} className="text-gray-300" aria-hidden="true" />
-                                    {guest.location}
-                                </span>
-                            )}
-                            {guest.gender && (
-                                <span
-                                    aria-label={`Gender: ${guest.gender}`}
-                                    className="inline-flex items-center gap-1"
-                                >
-                                    <genderPresentation.Icon size={11} className="text-gray-300" aria-hidden="true" />
-                                    <span>{genderPresentation.shortLabel}</span>
-                                </span>
-                            )}
-                            {ageRange && (
-                                <span>{ageRange}</span>
-                            )}
-                            {lastVisitLabel && (
-                                <span className="inline-flex items-center gap-1 text-[10px] text-gray-400" title={`Last visit: ${lastVisitDateStr}`}>
-                                    <Clock size={10} className="text-gray-300" aria-hidden="true" />
-                                    Last visit: {lastVisitLabel}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    {!compact && (
-                        <div className="flex h-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 text-gray-400 transition-colors group-hover:text-emerald-500 md:hidden">
-                            {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                        </div>
-                    )}
-                </div>
-
-                {/* Right: Actions */}
                 <div
                     role={compact ? undefined : 'group'}
                     aria-label={compact ? undefined : `Quick check-in actions for ${displayName}`}
@@ -1235,67 +805,25 @@ function PureGuestCard({
                             : 'grid w-full grid-cols-4 gap-2 border-t border-gray-100 bg-gray-50/40 p-3 md:flex md:w-auto md:items-center md:gap-2 md:border-0 md:bg-transparent md:p-0'
                     )}
                 >
-                    {/* Mobile Meal Controls (1/2 + undo) - only visible on small screens */}
                     {!compact && (
-                        <div className="contents md:hidden">
-                            {!todayMeal ? (
-                                isBannedFromMeals ? (
-                                    <DisabledAction
-                                        label="Meals"
-                                        reason="Banned"
-                                        title="Banned from meals"
-                                        className="col-span-2 h-16 flex-col"
-                                    />
-                                ) : (
-                                    [1, 2].map((count) => (
-                                        <button
-                                            key={count}
-                                            onClick={(e) => handleMealAdd(e, count)}
-                                            disabled={isPending}
-                                            className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-emerald-600 px-1 text-white shadow-sm transition-transform active:scale-95 touch-manipulation disabled:opacity-50"
-                                            title={`Log ${count} meal${count > 1 ? 's' : ''}`}
-                                            aria-label={`Log ${count} meal${count > 1 ? 's' : ''}`}
-                                        >
-                                            {isPending ? (
-                                                <Loader2 size={18} className="animate-spin" />
-                                            ) : (
-                                                <Utensils size={19} />
-                                            )}
-                                            <span className="text-[11px] font-bold leading-none">
-                                                {count} Meal{count > 1 ? 's' : ''}
-                                            </span>
-                                        </button>
-                                    ))
-                                )
-                            ) : (
-                                <>
-                                    <div
-                                        className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-emerald-100 px-1 text-emerald-700"
-                                        title="Meal logged"
-                                    >
-                                        <Check size={18} strokeWidth={3} />
-                                        <span className="text-[11px] font-bold leading-none">
-                                            {totalMeals} Meal{totalMeals === 1 ? '' : 's'}
-                                        </span>
-                                    </div>
-                                    {mealAction && (
-                                        <button
-                                            onClick={(e) => handleUndo(e, mealAction.id, 'Check-in')}
-                                            disabled={isPending}
-                                            className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl border border-orange-200 bg-orange-100 px-1 text-orange-700 transition-transform active:scale-95 touch-manipulation disabled:opacity-50"
-                                            title="Undo meal"
-                                            aria-label="Undo meal"
-                                        >
-                                            <RotateCcw size={18} />
-                                            <span className="text-[11px] font-bold leading-none">Undo</span>
-                                        </button>
-                                    )}
-                                </>
-                            )}
-                        </div>
+                        <GuestMealActions
+                            guest={guest}
+                            todayMeal={!!todayMeal}
+                            baseMealCount={baseMealCount}
+                            extraMealsCount={extraMealsCount}
+                            totalMeals={totalMeals}
+                            hasReachedMealLimit={hasReachedMealLimit}
+                            hasReachedExtraMealLimit={hasReachedExtraMealLimit}
+                            isBannedFromMeals={isBannedFromMeals}
+                            isPending={isPending}
+                            mealAction={mealAction}
+                            extraMealAction={extraMealAction}
+                            onMealAdd={handleMealAdd}
+                            onExtraMealAdd={handleExtraMealAdd}
+                            onUndo={handleUndo}
+                        />
                     )}
 
-                    {/* Mobile Quick Add Button - only visible on small screens */}
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
@@ -1309,166 +837,27 @@ function PureGuestCard({
                         <span className="text-[11px] font-bold leading-none">Services</span>
                     </button>
 
-                    {/* Meal Buttons - hidden on mobile */}
                     {!compact && (
-                        isBannedFromMeals ? (
-                            <div className="hidden md:flex items-center">
-                                <DisabledAction label="Meals" reason="Banned" />
-                            </div>
-                        ) : (
-                        <div className="hidden md:flex items-center gap-1">
-                            {!todayMeal ? (
-                                <div className="flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
-                                    {[1, 2].map((count) => (
-                                        <button
-                                            key={count}
-                                            onClick={(e) => handleMealAdd(e, count)}
-                                            disabled={isPending}
-                                            className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] min-w-[44px] px-3.5 rounded-lg bg-white border border-gray-200 text-emerald-700 font-bold text-sm shadow-sm hover:border-emerald-300 hover:bg-emerald-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                        >
-                                            {isPending ? <Loader2 size={14} className="animate-spin" /> : <Utensils size={14} />}
-                                            <span>{count}</span>
-                                        </button>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1 px-1 py-1 bg-emerald-50/50 rounded-xl border border-emerald-100">
-                                        <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
-                                            <Check size={14} />
-                                            <span>{baseMealCount}</span>
-                                            {extraMealsCount > 0 && (
-                                                <span className="text-orange-600 text-xs ml-0.5">+{extraMealsCount}</span>
-                                            )}
-                                        </div>
-                                        {mealAction && (
-                                            <UndoButton
-                                                title="Undo Check-in"
-                                                label="Undo Check-in"
-                                                disabled={isPending}
-                                                onClick={(e) => handleUndo(e, mealAction.id, 'Check-in')}
-                                            />
-                                        )}
-                                    </div>
-                                    {hasReachedMealLimit || hasReachedExtraMealLimit ? (
-                                        <div className="flex items-center gap-1">
-                                            <div
-                                                className="flex items-center justify-center gap-1 h-11 min-h-[44px] px-3 rounded-lg bg-gray-100 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-xs cursor-not-allowed"
-                                                title={`Daily meal limit reached (${totalMeals}/${4})`}
-                                            >
-                                                <span>Limit</span>
-                                            </div>
-                                            {extraMealAction && (
-                                                <UndoButton
-                                                    title="Undo extra meal"
-                                                    label="Undo extra meal"
-                                                    disabled={isPending}
-                                                    onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
-                                                />
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-1">
-                                            <button
-                                                onClick={handleExtraMealAdd}
-                                                disabled={isPending}
-                                                className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-orange-50 border-2 border-dashed border-orange-300 text-orange-600 font-bold text-xs hover:bg-orange-100 hover:border-orange-400 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                                title="Add extra meal (requires confirmation)"
-                                            >
-                                                <Plus size={14} />
-                                                <span>Extra</span>
-                                            </button>
-                                            {extraMealAction && (
-                                                <UndoButton
-                                                    title="Undo extra meal"
-                                                    label="Undo extra meal"
-                                                    disabled={isPending}
-                                                    onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
-                                                />
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                        )
+                        <GuestQuickServiceSlots
+                            guest={guest}
+                            isPending={isPending}
+                            todayShower={todayShower}
+                            todayLaundry={todayLaundry}
+                            isBannedFromShower={isBannedFromShower}
+                            isBannedFromLaundry={isBannedFromLaundry}
+                            showerAction={showerAction}
+                            laundryAction={laundryAction}
+                            nextAvailableShowerSlot={nextAvailableShowerSlot}
+                            nextAvailableLaundrySlot={nextAvailableLaundrySlot}
+                            onQuickShower={handleQuickShower}
+                            onQuickLaundry={handleQuickLaundry}
+                            onUndo={handleUndo}
+                        />
                     )}
 
-                    {/* Quick Service Buttons - hidden on mobile */}
-                    {!compact && (
-                        <div className="hidden md:flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
-                            {/* Shower */}
-                            {isBannedFromShower ? (
-                                <DisabledAction label="Shower" reason="Banned" />
-                            ) : todayShower ? (
-                                    <div className="flex items-center gap-1">
-                                        <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
-                                            <Check size={14} />
-                                            <ShowerHead size={15} />
-                                        </div>
-                                        {showerAction && (
-                                            <UndoButton
-                                                title="Undo shower"
-                                                label="Undo shower"
-                                                onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
-                                            />
-                                        )}
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={handleQuickShower}
-                                        disabled={isPending}
-                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-sky-600 font-bold text-sm hover:border-sky-300 hover:bg-sky-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                        title={nextAvailableShowerSlot ? `Quick book shower @ ${nextAvailableShowerSlot.label}` : 'Join shower waitlist'}
-                                    >
-                                        <ShowerHead size={16} />
-                                        {nextAvailableShowerSlot ? (
-                                            <span className="text-[11px] ml-1 font-bold text-sky-700">{nextAvailableShowerSlot.slotTime}</span>
-                                        ) : (
-                                            <span className="text-[10px] ml-1 font-bold text-amber-600">Waitlist</span>
-                                        )}
-                                    </button>
-                                )
-                            }
-                            {/* Laundry */}
-                            {isBannedFromLaundry ? (
-                                <DisabledAction label="Laundry" reason="Banned" />
-                            ) : todayLaundry ? (
-                                    <div className="flex items-center gap-1">
-                                        <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
-                                            <Check size={14} />
-                                            <WashingMachine size={15} />
-                                        </div>
-                                        {laundryAction && (
-                                            <UndoButton
-                                                title="Undo laundry"
-                                                label="Undo laundry"
-                                                onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
-                                            />
-                                        )}
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={handleQuickLaundry}
-                                        disabled={isPending}
-                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-indigo-600 font-bold text-sm hover:border-indigo-300 hover:bg-indigo-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                        title={nextAvailableLaundrySlot ? `Quick book on-site laundry @ ${nextAvailableLaundrySlot.label}` : 'Book laundry'}
-                                    >
-                                        <WashingMachine size={16} />
-                                        {nextAvailableLaundrySlot && (
-                                            <span className="text-[10px] ml-1 font-bold text-indigo-700">{nextAvailableLaundrySlot.label.split(' - ')[0]}</span>
-                                        )}
-                                    </button>
-                                )
-                            }
-                        </div>
-                    )}
-
-                    {/* Complete Check-in Button - separated from undo to prevent confusion */}
                     {hasServiceToday && !compact && (
                         <>
-                            {/* Visual separator to distinguish from undo button */}
-                            <div className="hidden w-px h-8 bg-gray-200 mx-1 md:block" aria-hidden="true"></div>
+                            <div className="hidden w-px h-8 bg-gray-200 mx-1 md:block" aria-hidden="true" />
                             <button
                                 onClick={handleCompleteCheckIn}
                                 className="flex h-16 min-h-[44px] min-w-0 flex-col items-center justify-center gap-1 rounded-xl bg-blue-100 px-1 text-blue-800 font-bold transition-all hover:bg-blue-200 active:scale-95 touch-manipulation md:h-11 md:min-w-[44px] md:flex-row md:px-3.5"
@@ -1480,7 +869,6 @@ function PureGuestCard({
                         </>
                     )}
 
-                    {/* Next Result Button - lets staff skip a guest without service today */}
                     {!hasServiceToday && !compact && onAdvanceToNext && (
                         <button
                             onClick={(e) => {
@@ -1507,407 +895,168 @@ function PureGuestCard({
                 </div>
             </div>
 
-            {/* Expanded Content */}
-            {!compact && totalLinkedCount > 0 && (
-                <section aria-label={`Linked guest meals for ${displayName}`} className="border-t border-gray-100 bg-slate-50/70 px-4 py-3">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            <h4 className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-gray-800">
-                                <Users size={16} className="text-emerald-700" aria-hidden="true" />
-                                Linked guests
-                                <span className="text-xs font-medium text-gray-600">{linkedServedCount} of {totalLinkedCount} served</span>
-                            </h4>
-                            <p className="mt-1 break-words text-sm text-gray-600">{linkedNames.join(', ') || 'View guests to see who is linked'}</p>
-                        </div>
-                        <button
-                            type="button"
-                            aria-label={showLinkedGuests ? 'Hide linked guests' : 'View linked guests'}
-                            aria-expanded={showLinkedGuests}
-                            aria-controls={`linked-guests-${guest.id}`}
-                            onClick={async () => {
-                                const next = !showLinkedGuests;
-                                setShowLinkedGuests(next);
-                                if (next && loadGuestContext) {
-                                    setLoadingLinkedGuests(true);
-                                    try { await loadGuestContext(); } finally { setLoadingLinkedGuests(false); }
-                                }
-                            }}
-                            className="flex min-h-11 shrink-0 items-center gap-1 rounded-lg px-2 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
-                        >
-                            {showLinkedGuests ? 'Hide' : 'View'}
-                            {showLinkedGuests ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </button>
-                    </div>
-                    {todayMeal && linkedServedCount >= totalLinkedCount ? (
-                        <p role="status" className="mt-3 flex items-center gap-2 text-sm font-semibold text-emerald-700"><Check size={16} />All linked guests served</p>
-                    ) : (
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                            <p className="text-sm font-semibold text-gray-700">
-                                {todayMeal
-                                    ? `${totalLinkedCount - linkedServedCount} linked guest${totalLinkedCount - linkedServedCount === 1 ? '' : 's'} still need meals`
-                                    : `${displayName} + ${totalLinkedCount - linkedServedCount} linked guest${totalLinkedCount - linkedServedCount === 1 ? '' : 's'}`}
-                            </p>
-                            <div className="grid grid-cols-2 gap-2 sm:shrink-0">
-                                {[1, 2].map((count) => (
-                                    <button key={count} type="button" onClick={(e) => handleCheckInAll(e, count)}
-                                        disabled={isPending || (!todayMeal && isBannedFromMeals)}
-                                        className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 touch-manipulation">
-                                        {isPending ? <Loader2 size={16} className="animate-spin" /> : <Utensils size={16} aria-hidden="true" />}
-                                        {count} meal{count === 1 ? '' : 's'} each
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    {showLinkedGuests && (
-                        <div id={`linked-guests-${guest.id}`}>
-                            {loadingLinkedGuests ? <p role="status" className="py-3 text-sm text-gray-600">Loading linked guests…</p> : (
-                                <LinkedGuestsList guestId={guest.id} mealStatusMap={mealStatusMap} addMealRecord={addMealRecord} disabled={isPending} />
-                            )}
-                        </div>
-                    )}
-                </section>
+            {!compact && (
+                <GuestLinkedSection
+                    guestId={guest.id}
+                    displayName={displayName}
+                    totalLinkedCount={totalLinkedCount}
+                    linkedServedCount={linkedServedCount}
+                    linkedNames={linkedNames}
+                    todayMeal={!!todayMeal}
+                    isPending={isPending}
+                    isBannedFromMeals={isBannedFromMeals}
+                    mealStatusMap={mealStatusMap}
+                    addMealRecord={addMealRecord}
+                    loadGuestContext={loadGuestContext}
+                    onCheckInAll={handleCheckInAll}
+                />
             )}
 
-            {/* Warnings — always visible so staff see full details without expanding */}
             <GuestWarningsPanel guestId={guest.id} onManage={() => setShowWarningModal(true)} />
 
             {isExpanded && (
                 <div className="border-t border-gray-100 bg-gray-50/30 overflow-hidden motion-safe:animate-[fadeIn_160ms_ease-out]">
                     <div className="p-4 space-y-4">
-                        {/* Ban Status */}
                         {isBanned && (
                             <GuestBanNotice guest={guest} />
                         )}
 
-                            {/* Services Grid */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                <div
-                                    role="button"
-                                    tabIndex={isBannedFromShower || !!todayShower ? -1 : 0}
-                                    onClick={handleQuickShower}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            handleQuickShower();
-                                        }
-                                    }}
-                                    aria-disabled={isBannedFromShower || !!todayShower}
-                                    className={cn(
-                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation cursor-pointer select-none",
-                                        todayShower
-                                            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                            : isBannedFromShower
-                                                ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
-                                                : "bg-white border-gray-100 hover:border-sky-200 hover:bg-sky-50"
-                                    )}
-                                >
-                                    {todayShower ? (
-                                        <>
-                                            <Check size={20} className="text-emerald-500 mb-1.5" />
-                                            {showerAction && (
-                                                <UndoButton
-                                                    title="Undo shower"
-                                                    label="Undo shower"
-                                                    className="absolute top-1.5 right-1.5"
-                                                    onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
-                                                />
-                                            )}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ShowerHead size={20} className={isBannedFromShower ? "text-gray-400 mb-1.5" : "text-sky-500 mb-1.5"} />
-                                            {!isBannedFromShower && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => { e.stopPropagation(); setShowerPickerGuest(guest); }}
-                                                    className="absolute top-1.5 right-1.5 p-1.5 text-gray-400 hover:text-sky-600 rounded-md hover:bg-sky-50 transition-colors"
-                                                    title="Choose specific shower time"
-                                                >
-                                                    <Clock size={14} />
-                                                </button>
-                                            )}
-                                        </>
-                                    )}
-                                    <span className="text-xs font-bold">
-                                        {isBannedFromShower ? 'Shower · Banned' : todayShower ? 'Shower Done' : nextAvailableShowerSlot ? `Shower (${nextAvailableShowerSlot.slotTime})` : 'Join Waitlist'}
-                                    </span>
-                                </div>
-                                <div
-                                    role="button"
-                                    tabIndex={isBannedFromLaundry || !!todayLaundry ? -1 : 0}
-                                    onClick={handleQuickLaundry}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
-                                            e.preventDefault();
-                                            handleQuickLaundry();
-                                        }
-                                    }}
-                                    aria-disabled={isBannedFromLaundry || !!todayLaundry}
-                                    className={cn(
-                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation cursor-pointer select-none",
-                                        todayLaundry
-                                            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                            : isBannedFromLaundry
-                                                ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
-                                                : "bg-white border-gray-100 hover:border-indigo-200 hover:bg-indigo-50"
-                                    )}
-                                >
-                                    {todayLaundry ? (
-                                        <>
-                                            <Check size={20} className="text-emerald-500 mb-1.5" />
-                                            {laundryAction && (
-                                                <UndoButton
-                                                    title="Undo laundry"
-                                                    label="Undo laundry"
-                                                    className="absolute top-1.5 right-1.5"
-                                                    onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
-                                                />
-                                            )}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <WashingMachine size={20} className={isBannedFromLaundry ? "text-gray-400 mb-1.5" : "text-indigo-500 mb-1.5"} />
-                                            {!isBannedFromLaundry && (
-                                                <button
-                                                    type="button"
-                                                    onClick={(e) => { e.stopPropagation(); setLaundryPickerGuest(guest); }}
-                                                    className="absolute top-1.5 right-1.5 p-1.5 text-gray-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 transition-colors"
-                                                    title="Choose laundry options"
-                                                >
-                                                    <Clock size={14} />
-                                                </button>
-                                            )}
-                                        </>
-                                    )}
-                                    <span className="text-xs font-bold">
-                                        {isBannedFromLaundry ? 'Laundry · Banned' : todayLaundry ? 'Laundry Done' : nextAvailableLaundrySlot ? `Laundry (${nextAvailableLaundrySlot.label.split(' - ')[0]})` : 'Laundry'}
-                                    </span>
-                                </div>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setBicyclePickerGuest(guest); }}
-                                    disabled={isBannedFromBicycle || !!todayBicycle}
-                                    className={cn(
-                                        "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation",
-                                        todayBicycle
-                                            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                            : isBannedFromBicycle
-                                                ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
-                                                : "bg-white border-gray-100 hover:border-amber-200 hover:bg-amber-50"
-                                    )}
-                                >
-                                    {todayBicycle ? (
-                                        <>
-                                            <Check size={20} className="text-emerald-500 mb-1.5" />
-                                            {bicycleAction && (
-                                                <UndoButton
-                                                    title="Undo bicycle"
-                                                    label="Undo bicycle"
-                                                    className="absolute top-1.5 right-1.5"
-                                                    onClick={(e) => handleUndo(e, bicycleAction.id, 'Bicycle booking')}
-                                                />
-                                            )}
-                                        </>
-                                    ) : (
-                                        <Bike size={20} className={isBannedFromBicycle ? "text-gray-400 mb-1.5" : "text-amber-500 mb-1.5"} />
-                                    )}
-                                    <span className="text-xs font-bold text-gray-700">{isBannedFromBicycle ? 'Bicycle · Banned' : todayBicycle ? 'Bicycle Done' : 'Bicycle'}</span>
-                                </button>
-                            </div>
+                        <GuestServiceSlots
+                            guest={guest}
+                            todayShower={todayShower}
+                            todayLaundry={todayLaundry}
+                            todayBicycle={todayBicycle}
+                            isBannedFromShower={isBannedFromShower}
+                            isBannedFromLaundry={isBannedFromLaundry}
+                            isBannedFromBicycle={isBannedFromBicycle}
+                            showerAction={showerAction}
+                            laundryAction={laundryAction}
+                            bicycleAction={bicycleAction}
+                            nextAvailableShowerSlot={nextAvailableShowerSlot}
+                            nextAvailableLaundrySlot={nextAvailableLaundrySlot}
+                            onQuickShower={handleQuickShower}
+                            onQuickLaundry={handleQuickLaundry}
+                            onOpenShowerPicker={() => setShowerPickerGuest(guest)}
+                            onOpenLaundryPicker={() => setLaundryPickerGuest(guest)}
+                            onOpenBicyclePicker={() => setBicyclePickerGuest(guest)}
+                            onUndo={handleUndo}
+                        />
 
-                            {/* Extra Meal - separated from main services to prevent accidental taps */}
-                            {todayMeal && (
-                                <div className="mt-2 pt-2 border-t border-dashed border-orange-200">
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-orange-500">Extra Meals</p>
-                                        {extraMealAction && (
-                                            <UndoButton
-                                                title="Undo extra meal"
-                                                label="Undo extra meal"
-                                                disabled={isPending}
-                                                onClick={(e) => handleUndo(e, extraMealAction.id, 'Extra meal')}
-                                            />
-                                        )}
-                                    </div>
-                                    {hasReachedMealLimit || hasReachedExtraMealLimit ? (
-                                        <div className="w-full flex items-center justify-center gap-2 min-h-[44px] p-3 rounded-xl bg-gray-50 border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm">
-                                            <span>Daily meal limit reached ({totalMeals}/{4})</span>
-                                        </div>
-                                    ) : (
-                                        <button
-                                            onClick={handleExtraMealAdd}
-                                            disabled={isPending || isBannedFromMeals}
-                                            className="w-full flex items-center justify-center gap-2 min-h-[44px] p-3 rounded-xl bg-orange-50 border-2 border-dashed border-orange-300 text-orange-700 font-bold text-sm hover:bg-orange-100 hover:border-orange-400 transition-all active:scale-[0.98] touch-manipulation disabled:opacity-50"
-                                        >
-                                            <Plus size={16} />
-                                            <span>Add Extra Meal</span>
-                                            {extraMealsCount > 0 && (
-                                                <span className="ml-1 px-1.5 py-0.5 bg-orange-200 rounded-full text-[10px] font-black">{extraMealsCount} added</span>
-                                            )}
-                                        </button>
-                                    )}
-                                </div>
-                            )}
+                        {todayMeal && (
+                            <GuestExtraMealSection
+                                todayMeal={!!todayMeal}
+                                extraMealAction={extraMealAction}
+                                hasReachedMealLimit={hasReachedMealLimit}
+                                hasReachedExtraMealLimit={hasReachedExtraMealLimit}
+                                totalMeals={totalMeals}
+                                extraMealsCount={extraMealsCount}
+                                isPending={isPending}
+                                isBannedFromMeals={isBannedFromMeals}
+                                onExtraMealAdd={handleExtraMealAdd}
+                                onUndo={handleUndo}
+                            />
+                        )}
 
-                            {/* Linked Guests Manager */}
-                            {totalLinkedCount === 0 && <LinkedGuestsList
+                        {totalLinkedCount === 0 && (
+                            <LinkedGuestsList
                                 guestId={guest.id}
                                 mealStatusMap={mealStatusMap}
                                 addMealRecord={addMealRecord}
                                 className="mb-4"
-                            />}
+                            />
+                        )}
 
-                            {/* Actions */}
-                            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
-                                {todayHaircut ? (
-                                    <div className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-xl">
-                                        <Check size={14} />
-                                        Haircut
-                                        {haircutAction && (
-                                            <UndoButton
-                                                title="Undo haircut"
-                                                label="Undo haircut"
-                                                className="ml-1"
-                                                onClick={(e) => handleUndo(e, haircutAction.id, 'Haircut')}
-                                            />
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="inline-flex items-center gap-2">
-                                        <label htmlFor={`haircut-date-${guest.id}`} className="sr-only">Haircut date</label>
-                                        <input
-                                            id={`haircut-date-${guest.id}`}
-                                            aria-label="Haircut date"
-                                            type="date"
-                                            value={haircutDate}
-                                            max={today}
-                                            onChange={(e) => setHaircutDate(e.target.value)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="h-10 min-h-[40px] rounded-xl border border-gray-200 px-2.5 text-xs sm:text-sm text-gray-600 touch-manipulation"
-                                            disabled={isPending || isBannedFromAllServices || hasHaircutForSelectedDate}
-                                        />
-                                        <button
-                                            onClick={handleHaircutAdd}
-                                            disabled={isPending || isBannedFromAllServices || hasHaircutForSelectedDate}
-                                            title={isBannedFromAllServices ? 'Banned from all programs' : undefined}
-                                            className={cn(
-                                                "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation border border-transparent",
-                                                isBannedFromAllServices || hasHaircutForSelectedDate
-                                                    ? "text-gray-400 cursor-not-allowed"
-                                                    : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
-                                            )}
-                                        >
-                                            <Scissors size={14} />
-                                            {hasHaircutForSelectedDate ? 'Haircut Done' : isBannedFromAllServices ? 'Haircut · Banned' : 'Haircut'}
-                                        </button>
-                                    </div>
+                        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 flex-wrap">
+                            <GuestAdditionalServices
+                                guestId={guest.id}
+                                todayHaircut={todayHaircut}
+                                todayHoliday={todayHoliday}
+                                isPending={isPending}
+                                isBannedFromAllServices={isBannedFromAllServices}
+                                hasHaircutForSelectedDate={hasHaircutForSelectedDate}
+                                haircutDate={haircutDate}
+                                today={today}
+                                haircutAction={haircutAction}
+                                holidayAction={holidayAction}
+                                onHaircutDateChange={setHaircutDate}
+                                onHaircutAdd={handleHaircutAdd}
+                                onHolidayAdd={handleHolidayAdd}
+                                onUndo={handleUndo}
+                            />
+
+                            <span className="w-px h-4 bg-gray-200 mx-1" />
+
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowHistoryModal(true); }}
+                                className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all active:scale-95 touch-manipulation"
+                            >
+                                <History size={14} />
+                                History
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
+                                className={cn(
+                                    "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation",
+                                    reminderBadgeCount > 0
+                                        ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
+                                        : "text-blue-600 hover:bg-blue-50"
                                 )}
-
-                                {todayHoliday ? (
-                                    <div className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-pink-700 bg-pink-50 border border-pink-200 rounded-xl">
-                                        <Check size={14} />
-                                        Holiday
-                                        {holidayAction && (
-                                            <UndoButton
-                                                title="Undo holiday visit"
-                                                label="Undo holiday visit"
-                                                className="ml-1"
-                                                onClick={(e) => handleUndo(e, holidayAction.id, 'Holiday visit')}
-                                            />
-                                        )}
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={handleHolidayAdd}
-                                        disabled={isPending || isBannedFromAllServices}
-                                        title={isBannedFromAllServices ? 'Banned from all programs' : undefined}
-                                        className={cn(
-                                            "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation border border-transparent",
-                                            isBannedFromAllServices
-                                                ? "text-gray-400 cursor-not-allowed"
-                                                : "text-gray-600 hover:bg-gray-100 hover:text-gray-800"
-                                        )}
-                                    >
-                                        <Gift size={14} />
-                                        {isBannedFromAllServices ? 'Holiday · Banned' : 'Holiday Service'}
-                                    </button>
+                            >
+                                <Bell size={14} />
+                                Reminders
+                                {reminderBadgeCount > 0 && (
+                                    <span className="ml-0.5 px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded-full text-[9px] font-black">
+                                        {reminderBadgeCount}
+                                    </span>
                                 )}
-
-                                <span className="w-px h-4 bg-gray-200 mx-1"></span>
-
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setShowHistoryModal(true); }}
-                                    className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all active:scale-95 touch-manipulation"
-                                >
-                                    <History size={14} />
-                                    History
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setShowReminderModal(true); }}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation",
-                                        reminderBadgeCount > 0
-                                            ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
-                                            : "text-blue-600 hover:bg-blue-50"
-                                    )}
-                                >
-                                    <Bell size={14} />
-                                    Reminders
-                                    {reminderBadgeCount > 0 && (
-                                        <span className="ml-0.5 px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded-full text-[9px] font-black">
-                                            {reminderBadgeCount}
-                                        </span>
-                                    )}
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setShowWarningModal(true); }}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation",
-                                        warningBadgeCount > 0
-                                            ? "text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200"
-                                            : "text-amber-600 hover:bg-amber-50"
-                                    )}
-                                >
-                                    <AlertTriangle size={14} />
-                                    Warnings
-                                    {warningBadgeCount > 0 && (
-                                        <span className="ml-0.5 px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded-full text-[9px] font-black">
-                                            {warningBadgeCount}
-                                        </span>
-                                    )}
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setShowEditModal(true); }}
-                                    className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-all active:scale-95 touch-manipulation"
-                                >
-                                    <Edit size={14} />
-                                    Edit
-                                </button>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); setShowBanModal(true); }}
-                                    className={cn(
-                                        "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation",
-                                        isBanned
-                                            ? "text-emerald-600 hover:bg-emerald-50"
-                                            : "text-red-600 hover:bg-red-50"
-                                    )}
-                                >
-                                    <Ban size={14} />
-                                    {isBanned ? 'Manage Ban' : 'Ban'}
-                                </button>
-                            </div>
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowWarningModal(true); }}
+                                className={cn(
+                                    "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation",
+                                    warningBadgeCount > 0
+                                        ? "text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200"
+                                        : "text-amber-600 hover:bg-amber-50"
+                                )}
+                            >
+                                <AlertTriangle size={14} />
+                                Warnings
+                                {warningBadgeCount > 0 && (
+                                    <span className="ml-0.5 px-1.5 py-0.5 bg-amber-200 text-amber-800 rounded-full text-[9px] font-black">
+                                        {warningBadgeCount}
+                                    </span>
+                                )}
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowEditModal(true); }}
+                                className="inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition-all active:scale-95 touch-manipulation"
+                            >
+                                <Edit size={14} />
+                                Edit
+                            </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setShowBanModal(true); }}
+                                className={cn(
+                                    "inline-flex items-center gap-2 min-h-[44px] px-3.5 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all active:scale-95 touch-manipulation",
+                                    isBanned
+                                        ? "text-emerald-600 hover:bg-emerald-50"
+                                        : "text-red-600 hover:bg-red-50"
+                                )}
+                            >
+                                <Ban size={14} />
+                                {isBanned ? 'Manage Ban' : 'Ban'}
+                            </button>
                         </div>
                     </div>
+                </div>
             )}
 
-            {/* Modals */}
             {showEditModal && <GuestEditModal guest={guest} onClose={() => setShowEditModal(false)} />}
             {showBanModal && <BanManagementModal guest={guest} onClose={() => setShowBanModal(false)} />}
             {showWarningModal && <WarningManagementModal guest={guest} onClose={() => setShowWarningModal(false)} />}
             {showReminderModal && <ReminderManagementModal guest={guest} onClose={() => setShowReminderModal(false)} />}
             {showHistoryModal && <GuestHistoryModal guest={guest} onClose={() => setShowHistoryModal(false)} />}
 
-            {/* Mobile Service Sheet */}
             <MobileServiceSheet
                 isOpen={showMobileSheet}
                 onClose={() => setShowMobileSheet(false)}
@@ -1964,8 +1113,6 @@ function GuestCardImpl(props: GuestCardProps) {
         guest
     } = props;
 
-    // Also fetch records when lastVisitDateMap is not provided so the fallback
-    // last-visit computation in PureGuestCard has data to work with.
     const needsLastVisitRecords = !lastVisitDateMap;
 
     const needsMealRecords = !mealStatusMap || !recentGuestsMap;
@@ -2088,9 +1235,6 @@ function GuestCardImpl(props: GuestCardProps) {
         }))
     );
     const effectiveUndoAction = useCallback(async (actionId: string) => {
-        // Proxy pickups are stored under the recipient's guestId, so the
-        // picker's own card cannot find them via getActionsForGuestToday.
-        // Fall back to a lookup across recent history by action id.
         const storeState = typeof (useActionHistoryStore as unknown as { getState?: unknown }).getState === 'function'
             ? useActionHistoryStore.getState()
             : undefined;
@@ -2219,8 +1363,6 @@ export const GuestCard = memo(GuestCardImpl, (prev, next) => {
     const nextId = next.guest?.id;
     if (!prevId || !nextId || prevId !== nextId) return false;
 
-    // If the guest object identity changes but none of the rendered fields do, allow memo to skip.
-    // Track a few common fields used in rendering.
     const guestFieldsEqual =
         getGuestDisplayName(prev.guest || {}) === getGuestDisplayName(next.guest || {}) &&
         getGuestFullName(prev.guest || {}) === getGuestFullName(next.guest || {}) &&

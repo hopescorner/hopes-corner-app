@@ -1,3 +1,5 @@
+import type { DailyNoteServiceType } from '@/types/database';
+
 export interface CheckInGuestSummary {
     id: string;
     guestId: string;
@@ -64,13 +66,36 @@ export interface CheckInSnapshot {
     dailyNotes: CheckInDailyNote[];
 }
 
+export interface CheckInGuestWarning {
+    id: string;
+    guestId: string;
+    message: string;
+    severity: number;
+    issuedBy: string | null;
+    active: boolean;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CheckInGuestReminder {
+    id: string;
+    guestId: string;
+    message: string;
+    appliesTo: string[];
+    createdBy: string | null;
+    dismissedAt: string | null;
+    dismissedBy: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
 export interface CheckInGuestContext {
     guest: CheckInGuestSummary & {
         notes: string;
         bicycleDescription: string;
     };
-    warnings: unknown[];
-    reminders: unknown[];
+    warnings: CheckInGuestWarning[];
+    reminders: CheckInGuestReminder[];
     linkedGuests: CheckInGuestSummary[];
 }
 
@@ -96,4 +121,3 @@ export interface CheckInCommandResult {
     status: CheckInTodayStatus;
     recordId?: string;
 }
-import type { DailyNoteServiceType } from '@/types/database';

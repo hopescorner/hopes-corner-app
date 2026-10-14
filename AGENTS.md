@@ -24,7 +24,7 @@
 - Database: Supabase (PostgreSQL)
 - Auth: NextAuth v5 (beta) with Supabase
 - Animation: framer-motion
-- Charts: recharts, chart.js
+- Charts: recharts
 - Testing: Vitest + React Testing Library + Playwright Component Testing
 - PWA: Custom service worker (`public/sw.js`)
 

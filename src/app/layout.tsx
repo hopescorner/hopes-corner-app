@@ -3,6 +3,7 @@ import localFont from 'next/font/local';
 import { Toaster } from 'react-hot-toast';
 import { ServiceWorkerRegistration } from '@/components/pwa/ServiceWorkerRegistration';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { LanguageProvider } from '@/components/providers/LanguageProvider';
 import './globals.css';
 
 // Self-hosted (was next/font/google): the CI deploy build runs outside
@@ -44,8 +45,8 @@ export const viewport: Viewport = {
   themeColor: '#064e3b',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({
@@ -59,7 +60,9 @@ export default function RootLayout({
         className={`${inter.variable} ${outfit.variable} font-sans antialiased`}
       >
         <ServiceWorkerRegistration />
-        {children}
+        <LanguageProvider>
+          {children}
+        </LanguageProvider>
         <SpeedInsights />
         <Toaster
             position="top-center"

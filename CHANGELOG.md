@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.44.0] - 2026-10-13
+
+### Added
+
+- Spanish-language UI localization for guest-facing check-in flows with reactive toggling and persistent browser storage.
+- Native IndexedDB offline check-in queue that preserves meal check-ins during network dropouts and automatically replays mutations on reconnect.
+- Root-level App Router boundaries (`error.tsx`, `not-found.tsx`, and `loading.tsx`) with recovery actions and accessible skeletons.
+
+### Improved
+
+- Modularized `GuestCard` by separating meal check-in controls, service slots, identity headers, and linked guests into dedicated, testable subcomponents.
+- Removed unused runtime dependencies and pruned dead/unused exports.
+- Allowed mobile pinch-to-zoom (up to 5x) for low-vision accessibility.
+- Migrated in-app changelog entries to a lightweight JSON structure, shrinking the codebase surface.
+- Hardened service mapping type safety using generated Supabase database types.
+
+### Tests
+
+- Added comprehensive tests for root router boundaries, offline queue persistence and replay, Spanish language provider, and guest subcomponents. All 221 test suites pass (4,307 tests); ESLint clean; Next.js build clean and within JS budget.
+
 ## [0.43.0] - 2026-10-13
 
 ### Fixed

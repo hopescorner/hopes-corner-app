@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 import { mapDailyHeadlineRow } from '@/lib/utils/mappers';
 import { fetchAndSaveTodayBayAreaHeadlines, saveDailyHeadlines } from '@/lib/headlines/bayArea';
 
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const endDate = searchParams.get('endDate');
     const date = searchParams.get('date');
 
-    const supabase = createClient();
+    const supabase = await createClient();
     let query = supabase
         .from('daily_headlines')
         .select('*')
@@ -59,9 +59,6 @@ export async function POST(request: Request) {
             );
         }
 
-        // Server Supabase client (cookie-aware); the browser client has no
-        // session in a route handler.
-        const { createClient } = await import('@/lib/supabase/server');
         const supabase = await createClient();
 
         if (syncToday) {
