@@ -204,6 +204,79 @@ describe('GuestCard Component', () => {
             expect(screen.getByText('Shelter Guest')).toBeDefined();
         });
 
+        it('disables shower and laundry quick booking for shelter guests without existing bookings', () => {
+            render(<GuestCard guest={{ ...baseGuest, shelterGuest: true }} />);
+            expect(screen.getAllByText('· Shelter guest').length).toBe(2);
+            expect(screen.queryByTitle(/Quick book shower/i)).toBeNull();
+            expect(screen.queryByTitle(/Quick book on-site laundry/i)).toBeNull();
+        });
+
+        it('preserves visibility and cancellation controls for existing shower reservation when enrolled as shelter guest', async () => {
+            const serviceStatusMap = new Map([
+                ['g1', {
+                    hasShower: true,
+                    hasLaundry: false,
+                    hasBicycle: false,
+                    hasHaircut: false,
+                    hasHoliday: false,
+                    showerRecord: { id: 'shower-1', time: '8:00 AM', status: 'booked' },
+                }],
+            ]);
+            const actionStatusMap = new Map([
+                ['g1', {
+                    showerActionId: 'action-shower-1',
+                }],
+            ]);
+
+            render(
+                <GuestCard
+                    guest={{ ...baseGuest, shelterGuest: true }}
+                    serviceStatusMap={serviceStatusMap}
+                    actionStatusMap={actionStatusMap}
+                />
+            );
+
+            const undoButton = screen.getByRole('button', { name: 'Undo shower' });
+            expect(undoButton).toBeDefined();
+            fireEvent.click(undoButton);
+            await waitFor(() => {
+                expect(mockUndoAction).toHaveBeenCalledWith('action-shower-1');
+            });
+        });
+
+        it('preserves visibility and cancellation controls for existing laundry booking when enrolled as shelter guest', async () => {
+            const serviceStatusMap = new Map([
+                ['g1', {
+                    hasShower: false,
+                    hasLaundry: true,
+                    hasBicycle: false,
+                    hasHaircut: false,
+                    hasHoliday: false,
+                    laundryRecord: { id: 'laundry-1', time: '9:00 AM', status: 'waiting' },
+                }],
+            ]);
+            const actionStatusMap = new Map([
+                ['g1', {
+                    laundryActionId: 'action-laundry-1',
+                }],
+            ]);
+
+            render(
+                <GuestCard
+                    guest={{ ...baseGuest, shelterGuest: true }}
+                    serviceStatusMap={serviceStatusMap}
+                    actionStatusMap={actionStatusMap}
+                />
+            );
+
+            const undoButton = screen.getByRole('button', { name: 'Undo laundry' });
+            expect(undoButton).toBeDefined();
+            fireEvent.click(undoButton);
+            await waitFor(() => {
+                expect(mockUndoAction).toHaveBeenCalledWith('action-laundry-1');
+            });
+        });
+
         it('renders location when provided', () => {
             render(<GuestCard guest={baseGuest} />);
             expect(screen.getByText('San Jose')).toBeDefined();

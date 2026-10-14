@@ -120,6 +120,34 @@ describe('GuestEditModal Household Transitions', () => {
         });
     });
 
+    it('unenrolls a shelter guest from the profile', async () => {
+        render(<GuestEditModal guest={{ ...sampleGuest, shelterGuest: true }} onClose={mockOnClose} />);
+
+        fireEvent.click(screen.getByLabelText(/Enroll as Shelter Guest/i));
+        fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+        await waitFor(() => {
+            expect(mockUpdateGuest).toHaveBeenCalledWith('alice', expect.objectContaining({ shelterGuest: false }));
+            expect(mockOnClose).toHaveBeenCalled();
+        });
+    });
+
+    it('keeps the modal open and shows an error when updateGuest returns false', async () => {
+        mockUpdateGuest.mockResolvedValueOnce(false);
+        const { default: toast } = await import('react-hot-toast');
+
+        render(<GuestEditModal guest={sampleGuest} onClose={mockOnClose} />);
+
+        fireEvent.click(screen.getByLabelText(/Enroll as Shelter Guest/i));
+        fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+        await waitFor(() => {
+            expect(mockUpdateGuest).toHaveBeenCalled();
+            expect(toast.error).toHaveBeenCalledWith('Unable to save guest changes.');
+            expect(mockOnClose).not.toHaveBeenCalled();
+        });
+    });
+
     it('unenrolling a primary with dependents keeps the household and just unenrolls it', async () => {
         (useGuestsStore as any).mockReturnValue({
             updateGuest: mockUpdateGuest,

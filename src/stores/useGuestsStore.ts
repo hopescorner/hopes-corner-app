@@ -345,8 +345,12 @@ export const useGuestsStore = create<GuestsState>()(
                         const rpcResult = await supabase.rpc('save_guest_profile', { p_guest_data: payload });
                         const rpcRow = unwrapSingleRow(rpcResult.data);
                         if (!rpcResult.error && rpcRow) {
-                            data = rpcRow as any;
-                            error = null;
+                            if (payload.shelter_guest !== undefined && (rpcRow as any).shelter_guest !== payload.shelter_guest) {
+                                error = new Error('Failed to persist shelter guest designation');
+                            } else {
+                                data = rpcRow as any;
+                                error = null;
+                            }
                         } else {
                             error = rpcResult.error || error;
                         }
@@ -427,21 +431,25 @@ export const useGuestsStore = create<GuestsState>()(
                         });
                         const rpcRow = unwrapSingleRow(rpcResult.data);
                         if (!rpcResult.error && rpcRow) {
-                            const mapped = mapGuestRow(rpcRow as any) as Guest;
-                            const reconciled = !mapped || (mapped as any).id !== id
-                                ? ({ ...target, ...updates } as any)
-                                : ({ ...(mapped as any), id, guestId: (mapped as any)?.guestId || target.guestId } as any);
-                            if (!mapped || (mapped as any).id !== id) {
-                                console.error('Guest update returned a mismatched id; keeping local state.', { id, echo: (mapped as any)?.id });
-                            }
-                            set((state) => {
-                                const index = state.guests.findIndex((g) => g.id === id);
-                                if (index !== -1) {
-                                    state.guests[index] = reconciled;
+                            if (payload.shelter_guest !== undefined && (rpcRow as any).shelter_guest !== payload.shelter_guest) {
+                                error = new Error('Failed to persist shelter guest designation');
+                            } else {
+                                const mapped = mapGuestRow(rpcRow as any) as Guest;
+                                const reconciled = !mapped || (mapped as any).id !== id
+                                    ? ({ ...target, ...updates } as any)
+                                    : ({ ...(mapped as any), id, guestId: (mapped as any)?.guestId || target.guestId } as any);
+                                if (!mapped || (mapped as any).id !== id) {
+                                    console.error('Guest update returned a mismatched id; keeping local state.', { id, echo: (mapped as any)?.id });
                                 }
-                            });
-                            clearSearchIndexCache();
-                            return true;
+                                set((state) => {
+                                    const index = state.guests.findIndex((g) => g.id === id);
+                                    if (index !== -1) {
+                                        state.guests[index] = reconciled;
+                                    }
+                                });
+                                clearSearchIndexCache();
+                                return true;
+                            }
                         }
                         error = rpcResult.error || error;
                     }

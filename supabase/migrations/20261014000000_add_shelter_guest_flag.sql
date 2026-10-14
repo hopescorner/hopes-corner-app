@@ -43,6 +43,19 @@ begin
   from public.guests g
   where g.id = new.guest_id;
 
+  service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
+  normalized_service := lower(trim(coalesce(service_label, '')));
+
+  if coalesce(shelter_guest, false) and normalized_service in ('shower', 'showers', 'shower booking', 'shower bookings', 'laundry', 'laundry booking', 'laundry bookings') then
+    raise exception using
+      message = format(
+        'Guest %s is enrolled as a shelter guest and cannot book shower or laundry services.',
+        coalesce(guest_name, new.guest_id::text)
+      ),
+      detail = 'Shower and laundry services provided at shelter.',
+      hint = 'Remove the shelter guest designation to book these services.';
+  end if;
+
   if ban_until is null then
     return new;
   end if;
@@ -62,19 +75,6 @@ begin
     and coalesce(meal_ban, false)
     and coalesce(shower_ban, false)
     and coalesce(laundry_ban, false);
-
-  service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
-  normalized_service := lower(trim(coalesce(service_label, '')));
-
-  if shelter_guest and normalized_service in ('shower', 'showers', 'shower booking', 'shower bookings', 'laundry', 'laundry booking', 'laundry bookings') then
-    raise exception using
-      message = format(
-        'Guest %s is enrolled as a shelter guest and cannot book shower or laundry services.',
-        coalesce(guest_name, new.guest_id::text)
-      ),
-      detail = 'Shower and laundry services provided at shelter.',
-      hint = 'Remove the shelter guest designation to book these services.';
-  end if;
 
   if has_program_specific then
     if normalized_service in ('meals', 'meal service', 'meal') then

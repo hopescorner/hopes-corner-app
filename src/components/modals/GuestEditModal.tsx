@@ -163,7 +163,10 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                 shelterGuest,
                 name: `${toTitleCase(formData.firstName.trim())} ${toTitleCase(formData.lastName.trim())}`.trim(),
             };
-            await updateGuest(guest.id, updates);
+            const saved = await updateGuest(guest.id, updates);
+            if (!saved) {
+                throw new Error('Unable to save guest changes.');
+            }
             if (familyEnrolled) {
                 if (familyMode === 'member') {
                     const oldPrimaryFamily = (guestFamilies || []).find(

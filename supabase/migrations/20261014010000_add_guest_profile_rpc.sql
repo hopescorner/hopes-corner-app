@@ -21,6 +21,10 @@ begin
       and column_name = 'shelter_guest'
   ) into has_shelter_guest;
 
+  if (p_guest_data ? 'shelter_guest') and not has_shelter_guest then
+    raise exception 'Column shelter_guest is not available on guests table';
+  end if;
+
   if p_guest_id is null then
     sql := '
       insert into public.guests (
@@ -64,6 +68,11 @@ begin
       )
       returning *';
     execute sql using p_guest_data into result;
+    if (p_guest_data ? 'shelter_guest') and has_shelter_guest then
+      if result.shelter_guest is distinct from (p_guest_data->>'shelter_guest')::boolean then
+        raise exception 'Failed to persist shelter_guest value';
+      end if;
+    end if;
     return result;
   end if;
 
@@ -92,6 +101,11 @@ begin
   execute sql using p_guest_id, p_guest_data into result;
   if not found then
     raise exception 'Guest not found';
+  end if;
+  if (p_guest_data ? 'shelter_guest') and has_shelter_guest then
+    if result.shelter_guest is distinct from (p_guest_data->>'shelter_guest')::boolean then
+      raise exception 'Failed to persist shelter_guest value';
+    end if;
   end if;
   return result;
 end;

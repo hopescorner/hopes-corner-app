@@ -54,6 +54,19 @@ begin
   from public.guests g
   where g.id = new.guest_id;
 
+  service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
+  normalized_service := lower(trim(coalesce(service_label, '')));
+
+  if coalesce(shelter_guest, false) and normalized_service in ('shower', 'showers', 'shower booking', 'shower bookings', 'laundry', 'laundry booking', 'laundry bookings') then
+    raise exception using
+      message = format(
+        'Guest %s is enrolled as a shelter guest and cannot book shower or laundry services.',
+        coalesce(guest_name, new.guest_id::text)
+      ),
+      detail = 'Shower and laundry services provided at shelter.',
+      hint = 'Remove the shelter guest designation to book these services.';
+  end if;
+
   if ban_until is null then
     return new;
   end if;
@@ -75,19 +88,6 @@ begin
     and coalesce(meal_ban, false)
     and coalesce(shower_ban, false)
     and coalesce(laundry_ban, false);
-
-  service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
-  normalized_service := lower(trim(coalesce(service_label, '')));
-
-  if shelter_guest and normalized_service in ('shower', 'showers', 'shower booking', 'shower bookings', 'laundry', 'laundry booking', 'laundry bookings') then
-    raise exception using
-      message = format(
-        'Guest %s is enrolled as a shelter guest and cannot book shower or laundry services.',
-        coalesce(guest_name, new.guest_id::text)
-      ),
-      detail = 'Shower and laundry services provided at shelter.',
-      hint = 'Remove the shelter guest designation to book these services.';
-  end if;
 
   if has_program_specific then
     if normalized_service in ('meals', 'meal service', 'meal') then
@@ -572,6 +572,10 @@ begin
       and column_name = 'shelter_guest'
   ) into has_shelter_guest;
 
+  if (p_guest_data ? 'shelter_guest') and not has_shelter_guest then
+    raise exception 'Column shelter_guest is not available on guests table';
+  end if;
+
   if p_guest_id is null then
     sql := '
       insert into public.guests (
@@ -615,6 +619,11 @@ begin
       )
       returning *';
     execute sql using p_guest_data into result;
+    if (p_guest_data ? 'shelter_guest') and has_shelter_guest then
+      if result.shelter_guest is distinct from (p_guest_data->>'shelter_guest')::boolean then
+        raise exception 'Failed to persist shelter_guest value';
+      end if;
+    end if;
     return result;
   end if;
 
@@ -642,7 +651,12 @@ begin
 
   execute sql using p_guest_id, p_guest_data into result;
   if not found then
-    raise exception ''Guest not found'';
+    raise exception 'Guest not found';
+  end if;
+  if (p_guest_data ? 'shelter_guest') and has_shelter_guest then
+    if result.shelter_guest is distinct from (p_guest_data->>'shelter_guest')::boolean then
+      raise exception 'Failed to persist shelter_guest value';
+    end if;
   end if;
   return result;
 end;

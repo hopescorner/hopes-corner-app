@@ -718,7 +718,7 @@ function PureGuestCard({
 
     const handleQuickShower = async (e?: React.MouseEvent | React.KeyboardEvent) => {
         e?.stopPropagation();
-        if (todayShower || isPending || isBannedFromShower) return;
+        if (todayShower || isPending || isBannedFromShower || isShelterGuest) return;
 
         if (nextAvailableShowerSlot && addShowerRecord) {
             setIsPending(true);
@@ -755,7 +755,7 @@ function PureGuestCard({
 
     const handleQuickLaundry = async (e?: React.MouseEvent | React.KeyboardEvent) => {
         e?.stopPropagation();
-        if (todayLaundry || isPending || isBannedFromLaundry) return;
+        if (todayLaundry || isPending || isBannedFromLaundry || isShelterGuest) return;
 
         if (nextAvailableLaundrySlot && addLaundryRecord) {
             setIsPending(true);
@@ -1404,89 +1404,86 @@ function PureGuestCard({
                     {/* Quick Service Buttons - hidden on mobile */}
                     {!compact && (
                         <div className="hidden md:flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
-                            {isShelterGuest ? (
+                            {/* Shower */}
+                            {todayShower ? (
                                 <div className="flex items-center gap-1">
-                                    <DisabledAction
-                                        label="Shower"
-                                        reason="Shelter guest"
-                                        title="Shower and laundry services provided at shelter."
-                                    />
-                                    <DisabledAction
-                                        label="Laundry"
-                                        reason="Shelter guest"
-                                        title="Shower and laundry services provided at shelter."
-                                    />
-                                    <span className="ml-1 text-[11px] font-medium text-cyan-700">
-                                        Shower and laundry services provided at shelter.
-                                    </span>
+                                    <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
+                                        <Check size={14} />
+                                        <ShowerHead size={15} />
+                                    </div>
+                                    {showerAction && (
+                                        <UndoButton
+                                            title="Undo shower"
+                                            label="Undo shower"
+                                            onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
+                                        />
+                                    )}
                                 </div>
+                            ) : isBannedFromShower ? (
+                                <DisabledAction label="Shower" reason="Banned" />
+                            ) : isShelterGuest ? (
+                                <DisabledAction
+                                    label="Shower"
+                                    reason="Shelter guest"
+                                    title="Shower and laundry services provided at shelter."
+                                />
                             ) : (
-                                <>
-                                    {/* Shower */}
-                                    {isBannedFromShower ? (
-                                        <DisabledAction label="Shower" reason="Banned" />
-                                    ) : todayShower ? (
-                                            <div className="flex items-center gap-1">
-                                                <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
-                                                    <Check size={14} />
-                                                    <ShowerHead size={15} />
-                                                </div>
-                                                {showerAction && (
-                                                    <UndoButton
-                                                        title="Undo shower"
-                                                        label="Undo shower"
-                                                        onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
-                                                    />
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={handleQuickShower}
-                                                disabled={isPending}
-                                                className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-sky-600 font-bold text-sm hover:border-sky-300 hover:bg-sky-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                                title={nextAvailableShowerSlot ? `Quick book shower @ ${nextAvailableShowerSlot.label}` : 'Join shower waitlist'}
-                                            >
-                                                <ShowerHead size={16} />
-                                                {nextAvailableShowerSlot ? (
-                                                    <span className="text-[11px] ml-1 font-bold text-sky-700">{nextAvailableShowerSlot.slotTime}</span>
-                                                ) : (
-                                                    <span className="text-[10px] ml-1 font-bold text-amber-600">Waitlist</span>
-                                                )}
-                                            </button>
-                                        )
-                                    }
-                                    {/* Laundry */}
-                                    {isBannedFromLaundry ? (
-                                        <DisabledAction label="Laundry" reason="Banned" />
-                                    ) : todayLaundry ? (
-                                            <div className="flex items-center gap-1">
-                                                <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
-                                                    <Check size={14} />
-                                                    <WashingMachine size={15} />
-                                                </div>
-                                                {laundryAction && (
-                                                    <UndoButton
-                                                        title="Undo laundry"
-                                                        label="Undo laundry"
-                                                        onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
-                                                    />
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={handleQuickLaundry}
-                                                disabled={isPending}
-                                                className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-indigo-600 font-bold text-sm hover:border-indigo-300 hover:bg-indigo-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                                title={nextAvailableLaundrySlot ? `Quick book on-site laundry @ ${nextAvailableLaundrySlot.label}` : 'Book laundry'}
-                                            >
-                                                <WashingMachine size={16} />
-                                                {nextAvailableLaundrySlot && (
-                                                    <span className="text-[10px] ml-1 font-bold text-indigo-700">{nextAvailableLaundrySlot.label.split(' - ')[0]}</span>
-                                                )}
-                                            </button>
-                                        )
-                                    }
-                                </>
+                                <button
+                                    onClick={handleQuickShower}
+                                    disabled={isPending}
+                                    className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-sky-600 font-bold text-sm hover:border-sky-300 hover:bg-sky-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                    title={nextAvailableShowerSlot ? `Quick book shower @ ${nextAvailableShowerSlot.label}` : 'Join shower waitlist'}
+                                >
+                                    <ShowerHead size={16} />
+                                    {nextAvailableShowerSlot ? (
+                                        <span className="text-[11px] ml-1 font-bold text-sky-700">{nextAvailableShowerSlot.slotTime}</span>
+                                    ) : (
+                                        <span className="text-[10px] ml-1 font-bold text-amber-600">Waitlist</span>
+                                    )}
+                                </button>
+                            )}
+
+                            {/* Laundry */}
+                            {todayLaundry ? (
+                                <div className="flex items-center gap-1">
+                                    <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
+                                        <Check size={14} />
+                                        <WashingMachine size={15} />
+                                    </div>
+                                    {laundryAction && (
+                                        <UndoButton
+                                            title="Undo laundry"
+                                            label="Undo laundry"
+                                            onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
+                                        />
+                                    )}
+                                </div>
+                            ) : isBannedFromLaundry ? (
+                                <DisabledAction label="Laundry" reason="Banned" />
+                            ) : isShelterGuest ? (
+                                <DisabledAction
+                                    label="Laundry"
+                                    reason="Shelter guest"
+                                    title="Shower and laundry services provided at shelter."
+                                />
+                            ) : (
+                                <button
+                                    onClick={handleQuickLaundry}
+                                    disabled={isPending}
+                                    className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-indigo-600 font-bold text-sm hover:border-indigo-300 hover:bg-indigo-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                    title={nextAvailableLaundrySlot ? `Quick book on-site laundry @ ${nextAvailableLaundrySlot.label}` : 'Book laundry'}
+                                >
+                                    <WashingMachine size={16} />
+                                    {nextAvailableLaundrySlot && (
+                                        <span className="text-[10px] ml-1 font-bold text-indigo-700">{nextAvailableLaundrySlot.label.split(' - ')[0]}</span>
+                                    )}
+                                </button>
+                            )}
+
+                            {isShelterGuest && !todayShower && !todayLaundry && (
+                                <span className="ml-1 text-[11px] font-medium text-cyan-700 hidden lg:inline">
+                                    Shower and laundry services provided at shelter.
+                                </span>
                             )}
                         </div>
                     )}
@@ -1611,7 +1608,7 @@ function PureGuestCard({
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                 <div
                                     role="button"
-                                    tabIndex={isBannedFromShower || !!todayShower ? -1 : 0}
+                                    tabIndex={isBannedFromShower || isShelterGuest || !!todayShower ? -1 : 0}
                                     onClick={handleQuickShower}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' || e.key === ' ') {
@@ -1619,12 +1616,12 @@ function PureGuestCard({
                                             handleQuickShower();
                                         }
                                     }}
-                                    aria-disabled={isBannedFromShower || !!todayShower}
+                                    aria-disabled={isBannedFromShower || isShelterGuest || !!todayShower}
                                     className={cn(
                                         "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation cursor-pointer select-none",
                                         todayShower
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                            : isBannedFromShower
+                                            : isBannedFromShower || isShelterGuest
                                                 ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
                                                 : "bg-white border-gray-100 hover:border-sky-200 hover:bg-sky-50"
                                     )}
@@ -1643,8 +1640,8 @@ function PureGuestCard({
                                         </>
                                     ) : (
                                         <>
-                                            <ShowerHead size={20} className={isBannedFromShower ? "text-gray-400 mb-1.5" : "text-sky-500 mb-1.5"} />
-                                            {!isBannedFromShower && (
+                                            <ShowerHead size={20} className={isBannedFromShower || isShelterGuest ? "text-gray-400 mb-1.5" : "text-sky-500 mb-1.5"} />
+                                            {!isBannedFromShower && !isShelterGuest && (
                                                 <button
                                                     type="button"
                                                     onClick={(e) => { e.stopPropagation(); setShowerPickerGuest(guest); }}
@@ -1657,12 +1654,12 @@ function PureGuestCard({
                                         </>
                                     )}
                                     <span className="text-xs font-bold">
-                                        {isBannedFromShower ? 'Shower · Banned' : todayShower ? 'Shower Done' : nextAvailableShowerSlot ? `Shower (${nextAvailableShowerSlot.slotTime})` : 'Join Waitlist'}
+                                        {todayShower ? 'Shower Done' : isBannedFromShower ? 'Shower · Banned' : isShelterGuest ? 'Shower · Shelter' : nextAvailableShowerSlot ? `Shower (${nextAvailableShowerSlot.slotTime})` : 'Join Waitlist'}
                                     </span>
                                 </div>
                                 <div
                                     role="button"
-                                    tabIndex={isBannedFromLaundry || !!todayLaundry ? -1 : 0}
+                                    tabIndex={isBannedFromLaundry || isShelterGuest || !!todayLaundry ? -1 : 0}
                                     onClick={handleQuickLaundry}
                                     onKeyDown={(e) => {
                                         if (e.key === 'Enter' || e.key === ' ') {
@@ -1670,12 +1667,12 @@ function PureGuestCard({
                                             handleQuickLaundry();
                                         }
                                     }}
-                                    aria-disabled={isBannedFromLaundry || !!todayLaundry}
+                                    aria-disabled={isBannedFromLaundry || isShelterGuest || !!todayLaundry}
                                     className={cn(
                                         "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation cursor-pointer select-none",
                                         todayLaundry
                                             ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                                            : isBannedFromLaundry
+                                            : isBannedFromLaundry || isShelterGuest
                                                 ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
                                                 : "bg-white border-gray-100 hover:border-indigo-200 hover:bg-indigo-50"
                                     )}
@@ -1694,8 +1691,8 @@ function PureGuestCard({
                                         </>
                                     ) : (
                                         <>
-                                            <WashingMachine size={20} className={isBannedFromLaundry ? "text-gray-400 mb-1.5" : "text-indigo-500 mb-1.5"} />
-                                            {!isBannedFromLaundry && (
+                                            <WashingMachine size={20} className={isBannedFromLaundry || isShelterGuest ? "text-gray-400 mb-1.5" : "text-indigo-500 mb-1.5"} />
+                                            {!isBannedFromLaundry && !isShelterGuest && (
                                                 <button
                                                     type="button"
                                                     onClick={(e) => { e.stopPropagation(); setLaundryPickerGuest(guest); }}
@@ -1708,7 +1705,7 @@ function PureGuestCard({
                                         </>
                                     )}
                                     <span className="text-xs font-bold">
-                                        {isBannedFromLaundry ? 'Laundry · Banned' : todayLaundry ? 'Laundry Done' : nextAvailableLaundrySlot ? `Laundry (${nextAvailableLaundrySlot.label.split(' - ')[0]})` : 'Laundry'}
+                                        {todayLaundry ? 'Laundry Done' : isBannedFromLaundry ? 'Laundry · Banned' : isShelterGuest ? 'Laundry · Shelter' : nextAvailableLaundrySlot ? `Laundry (${nextAvailableLaundrySlot.label.split(' - ')[0]})` : 'Laundry'}
                                     </span>
                                 </div>
                                 <button

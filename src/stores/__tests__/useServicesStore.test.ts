@@ -303,6 +303,40 @@ describe('useServicesStore', () => {
                     'Shower and laundry services provided at shelter.'
                 );
             });
+
+            it('blocks shelter guests from joining shower waitlist', async () => {
+                useGuestsStore.setState({
+                    guests: [{ id: 'guest-1', shelterGuest: true }],
+                } as any);
+
+                await expect(useServicesStore.getState().addShowerWaitlist('guest-1')).rejects.toThrow(
+                    'Shower and laundry services provided at shelter.'
+                );
+            });
+
+            it('blocks shelter guests from joining laundry waitlist', async () => {
+                useGuestsStore.setState({
+                    guests: [{ id: 'guest-1', shelterGuest: true }],
+                } as any);
+
+                await expect(useServicesStore.getState().addLaundryWaitlist('guest-1', 'onsite')).rejects.toThrow(
+                    'Shower and laundry services provided at shelter.'
+                );
+            });
+
+            it('restores booking availability when an existing guest is unenrolled', async () => {
+                useGuestsStore.setState({
+                    guests: [{ id: 'guest-1', shelterGuest: false }],
+                } as any);
+
+                mockRpcResult.single.mockResolvedValueOnce({
+                    data: { id: 'shower-unrolled', guest_id: 'guest-1', scheduled_time: '08:00', status: 'booked' },
+                    error: null,
+                });
+
+                const result = await useServicesStore.getState().addShowerRecord('guest-1', '08:00');
+                expect(result).toBeDefined();
+            });
         });
     });
 

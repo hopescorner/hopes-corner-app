@@ -765,6 +765,58 @@ describe('useGuestsStore', () => {
                 expect(useGuestsStore.getState().guests[0].shelterGuest).toBe(true);
             });
 
+            it('fails visibly and rolls back when the fallback RPC cannot persist shelter_guest', async () => {
+                useGuestsStore.setState({ guests: [createMockGuest({ id: 'u1', shelterGuest: false })] });
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: null,
+                    error: { code: '42703', message: 'column "shelter_guest" does not exist' },
+                });
+                mockSupabase.rpc.mockResolvedValueOnce({
+                    data: {
+                        id: 'u1',
+                        shelter_guest: false, // RPC returned without the requested flag
+                    },
+                    error: null,
+                });
+
+                const result = await useGuestsStore.getState().updateGuest('u1', { shelterGuest: true });
+
+                expect(result).toBe(false);
+                expect(toast.error).toHaveBeenCalledWith('Unable to update guest. Reverted changes.');
+                expect(useGuestsStore.getState().guests[0].shelterGuest).toBe(false);
+            });
+
+            it('fails visibly when the fallback RPC returns an error', async () => {
+                useGuestsStore.setState({ guests: [createMockGuest({ id: 'u1', shelterGuest: false })] });
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: null,
+                    error: { code: '42703', message: 'column "shelter_guest" does not exist' },
+                });
+                mockSupabase.rpc.mockResolvedValueOnce({
+                    data: null,
+                    error: { message: 'Column shelter_guest is not available on guests table' },
+                });
+
+                const result = await useGuestsStore.getState().updateGuest('u1', { shelterGuest: true });
+
+                expect(result).toBe(false);
+                expect(toast.error).toHaveBeenCalledWith('Unable to update guest. Reverted changes.');
+                expect(useGuestsStore.getState().guests[0].shelterGuest).toBe(false);
+            });
+
+            it('unenrolls an existing shelter guest and persists the change', async () => {
+                useGuestsStore.setState({ guests: [createMockGuest({ id: 'u1', shelterGuest: true })] });
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: { id: 'u1', shelter_guest: false },
+                    error: null,
+                });
+
+                const result = await useGuestsStore.getState().updateGuest('u1', { shelterGuest: false });
+
+                expect(result).toBe(true);
+                expect(useGuestsStore.getState().guests[0].shelterGuest).toBe(false);
+            });
+
             it('keeps the original id and links when the DB echo comes back mismatched', async () => {
                 useGuestsStore.setState({
                     guests: [createMockGuest({ id: 'u1', guestId: 'G001', notes: 'Old' })],

@@ -288,13 +288,12 @@ export function MobileServiceSheet({
                             {/* Divider */}
                             <div className="border-t border-gray-100" />
 
-                            {isShelterGuest ? (
+                            {isShelterGuest && (
                                 <div className="rounded-2xl border-2 border-cyan-200 bg-cyan-50 p-4 text-cyan-800">
                                     <p className="font-bold">Shelter Guest</p>
                                     <p className="text-sm font-medium">Shower and laundry services provided at shelter.</p>
                                 </div>
-                            ) : (
-                                <>
+                            )}
                             {/* Shower Section */}
                             <div className="space-y-3">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
@@ -321,6 +320,7 @@ export function MobileServiceSheet({
                                                 }}
                                                 className="flex items-center justify-center gap-1.5 px-3 h-10 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 font-semibold active:scale-95 transition-transform touch-manipulation shrink-0"
                                                 title="Undo shower"
+                                                aria-label="Undo shower"
                                             >
                                                 <RotateCcw size={16} />
                                                 <span className="text-sm">Undo</span>
@@ -330,6 +330,10 @@ export function MobileServiceSheet({
                                 ) : isBannedFromShower ? (
                                     <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-red-50 border-2 border-red-200 text-red-600 font-bold">
                                         <span>Banned from Showers</span>
+                                    </div>
+                                ) : isShelterGuest ? (
+                                    <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-cyan-50 border-2 border-cyan-200 text-cyan-800 font-bold">
+                                        <span>Shower provided at shelter</span>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">
@@ -417,6 +421,7 @@ export function MobileServiceSheet({
                                                 }}
                                                 className="flex items-center justify-center gap-1.5 px-3 h-10 rounded-xl bg-orange-100 border border-orange-200 text-orange-700 font-semibold active:scale-95 transition-transform touch-manipulation shrink-0"
                                                 title="Undo laundry"
+                                                aria-label="Undo laundry"
                                             >
                                                 <RotateCcw size={16} />
                                                 <span className="text-sm">Undo</span>
@@ -426,6 +431,10 @@ export function MobileServiceSheet({
                                 ) : isBannedFromLaundry ? (
                                     <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-red-50 border-2 border-red-200 text-red-600 font-bold">
                                         <span>Banned from Laundry</span>
+                                    </div>
+                                ) : isShelterGuest ? (
+                                    <div className="flex items-center justify-center gap-3 h-16 rounded-2xl bg-cyan-50 border-2 border-cyan-200 text-cyan-800 font-bold">
+                                        <span>Laundry provided at shelter</span>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-2">
@@ -483,8 +492,6 @@ export function MobileServiceSheet({
                                     </div>
                                 )}
                             </div>
-                                </>
-                            )}
 
                             {/* Close hint */}
                             <div className="pt-4 flex justify-center">
