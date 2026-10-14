@@ -29,6 +29,17 @@ declare
   service_label text;
   closing_status text;
 begin
+  -- A buddy (proxy picker) may pick up meals for a linked guest even when
+  -- that linked guest is banned from meals or from all services. Row-level
+  -- custody is recorded via picked_up_by_guest_id, so the recipient's ban does
+  -- not apply to proxy meal pickups.
+  if TG_TABLE_NAME = 'meal_attendance'
+     and TG_OP in ('INSERT', 'UPDATE')
+     and new.picked_up_by_guest_id is not null
+     and new.picked_up_by_guest_id is distinct from new.guest_id then
+    return new;
+  end if;
+
   -- Closing out a booking (cancel / no-show / completion / pickup) must
   -- never be blocked by a ban recorded after the booking was made.
   -- Otherwise a newly-banned guest's rows are stuck open forever because
