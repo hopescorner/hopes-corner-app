@@ -21,6 +21,7 @@ const createGuests = (count: number): CheckInGuestSummary[] => Array.from({ leng
     bannedFromShower: false,
     bannedFromLaundry: false,
     bannedFromBicycle: false,
+    shelterGuest: false,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-07-19T00:00:00.000Z',
     warningCount: 0,

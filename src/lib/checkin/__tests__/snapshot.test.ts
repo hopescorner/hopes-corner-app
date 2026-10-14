@@ -73,4 +73,23 @@ describe('normalizeCheckInSnapshot', () => {
         expect(snapshot.dailyNotes).toEqual([]);
         expect(snapshot.directoryVersion).toContain(':0');
     });
+
+    it('preserves the shelter guest flag from the snapshot directory', () => {
+        const snapshot = normalizeCheckInSnapshot({
+            generated_at: '2026-07-19T18:00:00.000Z',
+            directory_version: 'v-shelter',
+            service_date: '2026-07-19',
+            guests: [
+                { id: 'shelter-1', external_id: 'HC-S1', first_name: 'Shelter', last_name: 'Guest', shelter_guest: true },
+                { id: 'regular-1', external_id: 'HC-R1', first_name: 'Regular', last_name: 'Guest', shelter_guest: false },
+                { id: 'legacy-1', external_id: 'HC-L1', first_name: 'Legacy', last_name: 'Guest' },
+            ],
+            today_by_guest: {},
+            daily_notes: [],
+        });
+
+        expect(snapshot.guests.find((guest) => guest.id === 'shelter-1')?.shelterGuest).toBe(true);
+        expect(snapshot.guests.find((guest) => guest.id === 'regular-1')?.shelterGuest).toBe(false);
+        expect(snapshot.guests.find((guest) => guest.id === 'legacy-1')?.shelterGuest).toBe(false);
+    });
 });

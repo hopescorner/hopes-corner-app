@@ -95,12 +95,25 @@ export function hydrateLegacyStoresFromSnapshot(snapshot: CheckInSnapshot) {
     // card expands. Reconciliation must not erase those details or links.
     const existingGuests = new Map(useGuestsStore.getState().guests.map((guest) => [guest.id, guest]));
     useGuestsStore.setState({
-        guests: snapshot.guests.map((guest) => ({
-            ...guest,
-            notes: existingGuests.get(guest.id)?.notes ?? '',
-            bicycleDescription: existingGuests.get(guest.id)?.bicycleDescription ?? '',
-            docId: guest.id,
-        })),
+        guests: snapshot.guests.map((guest) => {
+            const existing = existingGuests.get(guest.id) as any;
+            return {
+                ...guest,
+                // Snapshot summaries carry the shelter flag (camelCase); older
+                // snapshots may omit it, so keep the known legacy value rather
+                // than silently clearing enrollment on every reconcile.
+                shelterGuest: Boolean(
+                    (guest as any).shelterGuest
+                    ?? (guest as any).shelter_guest
+                    ?? existing?.shelterGuest
+                    ?? existing?.shelter_guest
+                    ?? false,
+                ),
+                notes: existingGuests.get(guest.id)?.notes ?? '',
+                bicycleDescription: existingGuests.get(guest.id)?.bicycleDescription ?? '',
+                docId: guest.id,
+            };
+        }),
         isLoaded: true,
         isLoading: false,
         lastLoadedAt: snapshot.generatedAt,

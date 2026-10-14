@@ -32,6 +32,7 @@ import {
     GENDERS,
 } from '@/lib/constants/constants';
 import { clearSearchIndexCache } from '@/lib/utils/flexibleNameSearch';
+import { useCheckInStore } from '@/stores/useCheckInStore';
 
 const GUEST_IMPORT_CHUNK_SIZE = 100;
 const MAX_LINKED_GUESTS = 3;
@@ -45,6 +46,32 @@ const isShelterGuestSchemaError = (error: any) => {
 const unwrapSingleRow = <T,>(data: T | T[] | null | undefined): T | null => {
     if (Array.isArray(data)) return data[0] ?? null;
     return data ?? null;
+};
+
+/**
+ * Keep the check-in snapshot directory in sync when the shelter flag changes
+ * locally. The check-in page renders snapshot guests (not legacy store
+ * guests), so without this an enroll/unenroll would look stale until the next
+ * server reconcile. The flag is not a search token, so patching the indexed
+ * entry in place keeps search results fresh without a full index rebuild.
+ */
+const patchSnapshotShelterFlag = (guestId: string, shelterGuest: boolean) => {
+    try {
+        useCheckInStore.setState((state: any) => {
+            const prev = state?.guestsById?.[guestId];
+            if (!prev) return state;
+            if (Boolean((prev as any).shelterGuest) === shelterGuest) return state;
+            const next = { ...prev, shelterGuest };
+            const entry = state?.searchIndex?.byId?.get?.(guestId);
+            if (entry) entry.guest = next;
+            return {
+                guests: (state.guests || []).map((g: any) => (g?.id === guestId ? next : g)),
+                guestsById: { ...(state.guestsById || {}), [guestId]: next },
+            };
+        });
+    } catch {
+        // Snapshot store is best-effort: the next reconcile converges anyway.
+    }
 };
 
 export interface Guest {
@@ -448,6 +475,9 @@ export const useGuestsStore = create<GuestsState>()(
                                     }
                                 });
                                 clearSearchIndexCache();
+                                if (updates.shelterGuest !== undefined) {
+                                    patchSnapshotShelterFlag(id, Boolean((reconciled as any).shelterGuest));
+                                }
                                 return true;
                             }
                         }
@@ -485,6 +515,9 @@ export const useGuestsStore = create<GuestsState>()(
                         }
                     });
                     clearSearchIndexCache();
+                    if (updates.shelterGuest !== undefined) {
+                        patchSnapshotShelterFlag(id, Boolean((reconciled as any).shelterGuest));
+                    }
                     return true;
                 },
 
@@ -917,7 +950,7 @@ export const useGuestsStore = create<GuestsState>()(
                             state.guests = (guestsData || []).map((g: any) => ({
                                 ...g,
                                 housingStatus: normalizeHousingStatus(g.housingStatus),
-                                shelterGuest: Boolean(g.shelterGuest ?? g.shelter_guest),
+                                shelterGuest: Boolean(g.shelterGuest || g.shelter_guest),
                             })) as any;
                             state.guestFamilies = familiesData as any;
                             state.guestFamilyMembers = membersData as any;

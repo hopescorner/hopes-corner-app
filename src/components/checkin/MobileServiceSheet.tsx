@@ -167,7 +167,7 @@ export function MobileServiceSheet({
     if (!guest) return null;
 
     const guestName = guest.preferredName || guest.name || 'Guest';
-    const isShelterGuest = Boolean(guest.shelter_guest ?? guest.shelterGuest);
+    const isShelterGuest = Boolean((guest as any).shelterGuest || (guest as any).shelter_guest);
 
     return (
         <AnimatePresence>

@@ -19,6 +19,7 @@ export interface CheckInGuestSummary {
     bannedFromShower: boolean;
     bannedFromLaundry: boolean;
     bannedFromBicycle: boolean;
+    shelterGuest: boolean;
     createdAt: string;
     updatedAt: string;
     warningCount: number;

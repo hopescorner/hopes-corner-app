@@ -45,6 +45,7 @@ function normalizeGuest(row: UnknownRecord): CheckInGuestSummary {
         bannedFromShower: booleanValue(row.banned_from_shower),
         bannedFromLaundry: booleanValue(row.banned_from_laundry),
         bannedFromBicycle: booleanValue(row.banned_from_bicycle),
+        shelterGuest: row.shelter_guest === true || (row as UnknownRecord).shelterGuest === true,
         createdAt: stringValue(row.created_at),
         updatedAt: stringValue(row.updated_at),
         warningCount: numberValue(row.warning_count),

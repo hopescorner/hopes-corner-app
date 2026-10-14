@@ -412,7 +412,7 @@ function PureGuestCard({
     const isBannedFromShower = banDetails.programs.find(p => p.key === 'shower')?.isBanned ?? false;
     const isBannedFromLaundry = banDetails.programs.find(p => p.key === 'laundry')?.isBanned ?? false;
     const isBannedFromBicycle = banDetails.programs.find(p => p.key === 'bicycle')?.isBanned ?? false;
-    const isShelterGuest = Boolean(guest.shelter_guest ?? guest.shelterGuest);
+    const isShelterGuest = Boolean((guest as any).shelterGuest || (guest as any).shelter_guest);
 
     const lastVisitDateStr = useMemo(() => {
         const precomputedDate = lastVisitDateMap?.get(guest.id);

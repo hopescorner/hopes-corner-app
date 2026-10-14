@@ -402,6 +402,23 @@ export function useRealtimeSync() {
                     useGuestsStore.setState((state: any) => ({
                         guests: [mapped, ...state.guests.filter((g: any) => g.id !== mapped.id)],
                     }));
+                    // The check-in directory renders snapshot guests: keep the
+                    // shelter flag in sync so another device's enroll/unenroll
+                    // reflects without waiting for the next reconcile.
+                    if (row.shelter_guest !== undefined) {
+                        const flag = row.shelter_guest === true;
+                        useCheckInStore.setState((state: any) => {
+                            const prev = state?.guestsById?.[mapped.id];
+                            if (!prev || Boolean((prev as any).shelterGuest) === flag) return state;
+                            const next = { ...prev, shelterGuest: flag };
+                            const entry = state?.searchIndex?.byId?.get?.(mapped.id);
+                            if (entry) entry.guest = next;
+                            return {
+                                guests: (state.guests || []).map((g: any) => (g?.id === mapped.id ? next : g)),
+                                guestsById: { ...(state.guestsById || {}), [mapped.id]: next },
+                            };
+                        });
+                    }
                 } catch (error) {
                     console.error('[RealtimeSync] Guest patch failed, reloading:', error);
                     fallbackReload(guestsLoadFromSupabase, 'guest');

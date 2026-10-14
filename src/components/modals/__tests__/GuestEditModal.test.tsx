@@ -132,6 +132,13 @@ describe('GuestEditModal Household Transitions', () => {
         });
     });
 
+    it('shows the enrollment as checked for snapshot guests carrying snake_case shelter_guest', async () => {
+        const { shelterGuest: _dropped, ...withoutCamel } = sampleGuest;
+        render(<GuestEditModal guest={{ ...withoutCamel, shelter_guest: true }} onClose={mockOnClose} />);
+
+        expect((screen.getByLabelText(/Enroll as Shelter Guest/i) as HTMLInputElement).checked).toBe(true);
+    });
+
     it('keeps the modal open and shows an error when updateGuest returns false', async () => {
         mockUpdateGuest.mockResolvedValueOnce(false);
         const { default: toast } = await import('react-hot-toast');
