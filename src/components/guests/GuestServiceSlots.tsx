@@ -13,6 +13,7 @@ export interface GuestQuickServiceSlotsProps {
     todayLaundry: boolean;
     isBannedFromShower: boolean;
     isBannedFromLaundry: boolean;
+    isShelterGuest?: boolean;
     showerAction?: { id: string };
     laundryAction?: { id: string };
     nextAvailableShowerSlot?: NextAvailableShowerSlot | null;
@@ -28,6 +29,7 @@ export function GuestQuickServiceSlots({
     todayLaundry,
     isBannedFromShower,
     isBannedFromLaundry,
+    isShelterGuest,
     showerAction,
     laundryAction,
     nextAvailableShowerSlot,
@@ -39,9 +41,7 @@ export function GuestQuickServiceSlots({
     return (
         <div className="hidden md:flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
             {/* Shower */}
-            {isBannedFromShower ? (
-                <DisabledAction label="Shower" reason="Banned" />
-            ) : todayShower ? (
+            {todayShower ? (
                 <div className="flex items-center gap-1">
                     <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
                         <Check size={14} />
@@ -55,6 +55,14 @@ export function GuestQuickServiceSlots({
                         />
                     )}
                 </div>
+            ) : isBannedFromShower ? (
+                <DisabledAction label="Shower" reason="Banned" />
+            ) : isShelterGuest ? (
+                <DisabledAction
+                    label="Shower"
+                    reason="Shelter guest"
+                    title="Shower and laundry services provided at shelter."
+                />
             ) : (
                 <button
                     onClick={onQuickShower}
@@ -72,9 +80,7 @@ export function GuestQuickServiceSlots({
             )}
 
             {/* Laundry */}
-            {isBannedFromLaundry ? (
-                <DisabledAction label="Laundry" reason="Banned" />
-            ) : todayLaundry ? (
+            {todayLaundry ? (
                 <div className="flex items-center gap-1">
                     <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
                         <Check size={14} />
@@ -88,6 +94,14 @@ export function GuestQuickServiceSlots({
                         />
                     )}
                 </div>
+            ) : isBannedFromLaundry ? (
+                <DisabledAction label="Laundry" reason="Banned" />
+            ) : isShelterGuest ? (
+                <DisabledAction
+                    label="Laundry"
+                    reason="Shelter guest"
+                    title="Shower and laundry services provided at shelter."
+                />
             ) : (
                 <button
                     onClick={onQuickLaundry}
@@ -101,6 +115,12 @@ export function GuestQuickServiceSlots({
                     )}
                 </button>
             )}
+
+            {isShelterGuest && !todayShower && !todayLaundry && (
+                <span className="ml-1 text-[11px] font-medium text-cyan-700 hidden lg:inline">
+                    Shower and laundry services provided at shelter.
+                </span>
+            )}
         </div>
     );
 }
@@ -113,6 +133,7 @@ export interface GuestServiceSlotsProps {
     isBannedFromShower: boolean;
     isBannedFromLaundry: boolean;
     isBannedFromBicycle: boolean;
+    isShelterGuest?: boolean;
     showerAction?: { id: string };
     laundryAction?: { id: string };
     bicycleAction?: { id: string };
@@ -133,6 +154,7 @@ export function GuestServiceSlots({
     isBannedFromShower,
     isBannedFromLaundry,
     isBannedFromBicycle,
+    isShelterGuest,
     showerAction,
     laundryAction,
     bicycleAction,
@@ -150,7 +172,7 @@ export function GuestServiceSlots({
             {/* Shower Slot Card */}
             <div
                 role="button"
-                tabIndex={isBannedFromShower || !!todayShower ? -1 : 0}
+                tabIndex={isBannedFromShower || isShelterGuest || !!todayShower ? -1 : 0}
                 onClick={onQuickShower}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -158,12 +180,12 @@ export function GuestServiceSlots({
                         onQuickShower();
                     }
                 }}
-                aria-disabled={isBannedFromShower || !!todayShower}
+                aria-disabled={isBannedFromShower || isShelterGuest || !!todayShower}
                 className={cn(
                     "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation cursor-pointer select-none",
                     todayShower
                         ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                        : isBannedFromShower
+                        : isBannedFromShower || isShelterGuest
                             ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
                             : "bg-white border-gray-100 hover:border-sky-200 hover:bg-sky-50"
                 )}
@@ -182,8 +204,8 @@ export function GuestServiceSlots({
                     </>
                 ) : (
                     <>
-                        <ShowerHead size={20} className={isBannedFromShower ? "text-gray-400 mb-1.5" : "text-sky-500 mb-1.5"} />
-                        {!isBannedFromShower && (
+                        <ShowerHead size={20} className={isBannedFromShower || isShelterGuest ? "text-gray-400 mb-1.5" : "text-sky-500 mb-1.5"} />
+                        {!isBannedFromShower && !isShelterGuest && (
                             <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onOpenShowerPicker(); }}
@@ -196,14 +218,14 @@ export function GuestServiceSlots({
                     </>
                 )}
                 <span className="text-xs font-bold">
-                    {isBannedFromShower ? 'Shower · Banned' : todayShower ? 'Shower Done' : nextAvailableShowerSlot ? `Shower (${nextAvailableShowerSlot.slotTime})` : 'Join Waitlist'}
+                    {todayShower ? 'Shower Done' : isBannedFromShower ? 'Shower · Banned' : isShelterGuest ? 'Shower · Shelter' : nextAvailableShowerSlot ? `Shower (${nextAvailableShowerSlot.slotTime})` : 'Join Waitlist'}
                 </span>
             </div>
 
             {/* Laundry Slot Card */}
             <div
                 role="button"
-                tabIndex={isBannedFromLaundry || !!todayLaundry ? -1 : 0}
+                tabIndex={isBannedFromLaundry || isShelterGuest || !!todayLaundry ? -1 : 0}
                 onClick={onQuickLaundry}
                 onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
@@ -211,12 +233,12 @@ export function GuestServiceSlots({
                         onQuickLaundry();
                     }
                 }}
-                aria-disabled={isBannedFromLaundry || !!todayLaundry}
+                aria-disabled={isBannedFromLaundry || isShelterGuest || !!todayLaundry}
                 className={cn(
                     "relative flex flex-col items-center justify-center min-h-[84px] p-3.5 sm:p-4 rounded-2xl border shadow-sm transition-all active:scale-[0.98] touch-manipulation cursor-pointer select-none",
                     todayLaundry
                         ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                        : isBannedFromLaundry
+                        : isBannedFromLaundry || isShelterGuest
                             ? "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed"
                             : "bg-white border-gray-100 hover:border-indigo-200 hover:bg-indigo-50"
                 )}
@@ -235,8 +257,8 @@ export function GuestServiceSlots({
                     </>
                 ) : (
                     <>
-                        <WashingMachine size={20} className={isBannedFromLaundry ? "text-gray-400 mb-1.5" : "text-indigo-500 mb-1.5"} />
-                        {!isBannedFromLaundry && (
+                        <WashingMachine size={20} className={isBannedFromLaundry || isShelterGuest ? "text-gray-400 mb-1.5" : "text-indigo-500 mb-1.5"} />
+                        {!isBannedFromLaundry && !isShelterGuest && (
                             <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); onOpenLaundryPicker(); }}
@@ -249,7 +271,7 @@ export function GuestServiceSlots({
                     </>
                 )}
                 <span className="text-xs font-bold">
-                    {isBannedFromLaundry ? 'Laundry · Banned' : todayLaundry ? 'Laundry Done' : nextAvailableLaundrySlot ? `Laundry (${nextAvailableLaundrySlot.label.split(' - ')[0]})` : 'Laundry'}
+                    {todayLaundry ? 'Laundry Done' : isBannedFromLaundry ? 'Laundry · Banned' : isShelterGuest ? 'Laundry · Shelter' : nextAvailableLaundrySlot ? `Laundry (${nextAvailableLaundrySlot.label.split(' - ')[0]})` : 'Laundry'}
                 </span>
             </div>
 

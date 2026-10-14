@@ -16,6 +16,7 @@ describe('MobileServiceSheet', () => {
         id: 'guest-1',
         name: 'John Doe',
         preferredName: 'Johnny',
+        shelterGuest: false,
     };
 
     const defaultProps = {
@@ -47,6 +48,48 @@ describe('MobileServiceSheet', () => {
         const guestWithoutPreferred = { id: 'guest-2', name: 'Jane Smith' };
         render(<MobileServiceSheet {...defaultProps} guest={guestWithoutPreferred} />);
         expect(screen.getByText('Quick Add for Jane Smith')).toBeDefined();
+    });
+
+    it('shows shelter guest notice when shower and laundry are restricted', () => {
+        render(<MobileServiceSheet {...defaultProps} guest={{ ...mockGuest, shelterGuest: true }} />);
+        expect(screen.getByText('Shelter Guest')).toBeDefined();
+        expect(screen.getByText('Shower and laundry services provided at shelter.')).toBeDefined();
+    });
+
+    it('preserves existing shower booking and undo control for shelter guests', () => {
+        const onShowerUndo = vi.fn();
+        render(
+            <MobileServiceSheet
+                {...defaultProps}
+                guest={{ ...mockGuest, shelterGuest: true }}
+                hasShowerToday={true}
+                bookedShowerTime="08:00"
+                onShowerUndo={onShowerUndo}
+            />
+        );
+        expect(screen.getByText('Shower Booked Today')).toBeDefined();
+        const undoButton = screen.getByRole('button', { name: 'Undo shower' });
+        expect(undoButton).toBeDefined();
+        fireEvent.click(undoButton);
+        expect(onShowerUndo).toHaveBeenCalled();
+    });
+
+    it('preserves existing laundry booking and undo control for shelter guests', () => {
+        const onLaundryUndo = vi.fn();
+        render(
+            <MobileServiceSheet
+                {...defaultProps}
+                guest={{ ...mockGuest, shelterGuest: true }}
+                hasLaundryToday={true}
+                bookedLaundryTime="09:00"
+                onLaundryUndo={onLaundryUndo}
+            />
+        );
+        expect(screen.getByText('Laundry Booked Today')).toBeDefined();
+        const undoButton = screen.getByRole('button', { name: 'Undo laundry' });
+        expect(undoButton).toBeDefined();
+        fireEvent.click(undoButton);
+        expect(onLaundryUndo).toHaveBeenCalled();
     });
 
     describe('Meal Section', () => {

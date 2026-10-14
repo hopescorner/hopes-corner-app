@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.45.0",
+    "date": "October 14, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Shelter Guest Enrollment",
+        "description": "Staff can mark guests as shelter guests from the new-guest form or profile edit screen. Shelter guests are clearly labeled during check-in, and shower and laundry bookings are blocked while the designation is active."
+      },
+      {
+        "type": "fix",
+        "title": "Shelter Guest Booking Enforcement and Save Fallback",
+        "description": "Database triggers consistently enforce shower and laundry restrictions regardless of ban status, guest profile updates verify the shelter flag against fallback responses, and existing reservations remain visible and manageable."
+      }
+    ]
+  },
+  {
     "version": "0.44.0",
     "date": "October 13, 2026",
     "highlights": [

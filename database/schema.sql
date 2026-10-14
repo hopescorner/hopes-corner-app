@@ -21,6 +21,7 @@ declare
   meal_ban boolean;
   shower_ban boolean;
   laundry_ban boolean;
+  shelter_guest boolean;
   has_program_specific boolean;
   all_programs_banned boolean;
   normalized_service text;
@@ -47,11 +48,24 @@ begin
 
   select g.banned_until, g.ban_reason, g.full_name,
          g.banned_from_bicycle, g.banned_from_meals,
-         g.banned_from_shower, g.banned_from_laundry
+         g.banned_from_shower, g.banned_from_laundry, g.shelter_guest
     into ban_until, ban_reason, guest_name,
-         bicycle_ban, meal_ban, shower_ban, laundry_ban
+         bicycle_ban, meal_ban, shower_ban, laundry_ban, shelter_guest
   from public.guests g
   where g.id = new.guest_id;
+
+  service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
+  normalized_service := lower(trim(coalesce(service_label, '')));
+
+  if coalesce(shelter_guest, false) and normalized_service in ('shower', 'showers', 'shower booking', 'shower bookings', 'laundry', 'laundry booking', 'laundry bookings') then
+    raise exception using
+      message = format(
+        'Guest %s is enrolled as a shelter guest and cannot book shower or laundry services.',
+        coalesce(guest_name, new.guest_id::text)
+      ),
+      detail = 'Shower and laundry services provided at shelter.',
+      hint = 'Remove the shelter guest designation to book these services.';
+  end if;
 
   if ban_until is null then
     return new;
@@ -74,9 +88,6 @@ begin
     and coalesce(meal_ban, false)
     and coalesce(shower_ban, false)
     and coalesce(laundry_ban, false);
-
-  service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
-  normalized_service := lower(trim(coalesce(service_label, '')));
 
   if has_program_specific then
     if normalized_service in ('meals', 'meal service', 'meal') then
@@ -236,6 +247,7 @@ create table if not exists public.guests (
   banned_from_meals boolean default false,
   banned_from_shower boolean default false,
   banned_from_laundry boolean default false,
+  shelter_guest boolean default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint guests_ban_window_valid check (
@@ -249,6 +261,7 @@ comment on column public.guests.banned_from_bicycle is 'If true, guest is banned
 comment on column public.guests.banned_from_meals is 'If true, guest is banned from meal services when banned_until is in the future';
 comment on column public.guests.banned_from_shower is 'If true, guest is banned from shower services when banned_until is in the future';
 comment on column public.guests.banned_from_laundry is 'If true, guest is banned from laundry services when banned_until is in the future';
+comment on column public.guests.shelter_guest is 'If true, shower and laundry bookings are disabled because these services are provided at shelter';
 
 drop trigger if exists trg_guests_updated_at on public.guests;
 create trigger trg_guests_updated_at
@@ -538,6 +551,116 @@ create policy "Authenticated users can manage guests"
   to authenticated, anon
   using (true)
   with check (true);
+
+create or replace function public.save_guest_profile(
+  p_guest_id uuid default null,
+  p_guest_data jsonb default '{}'::jsonb
+)
+returns public.guests
+language plpgsql
+as $$
+declare
+  has_shelter_guest boolean;
+  sql text;
+  result public.guests;
+begin
+  select exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'guests'
+      and column_name = 'shelter_guest'
+  ) into has_shelter_guest;
+
+  if (p_guest_data ? 'shelter_guest') and not has_shelter_guest then
+    raise exception 'Column shelter_guest is not available on guests table';
+  end if;
+
+  if p_guest_id is null then
+    sql := '
+      insert into public.guests (
+        external_id,
+        first_name,
+        last_name,
+        full_name,
+        preferred_name,
+        housing_status,
+        age_group,
+        gender,
+        location,
+        notes,
+        bicycle_description';
+    if has_shelter_guest then
+      sql := sql || ',
+        shelter_guest';
+    end if;
+    sql := sql || '
+      )
+      values (
+        coalesce(nullif($1->>''external_id'', ''''), gen_random_uuid()::text),
+        coalesce($1->>''first_name'', ''''),
+        coalesce($1->>''last_name'', ''''),
+        coalesce(
+          $1->>''full_name'',
+          concat_ws('' '', coalesce($1->>''first_name'', ''''), coalesce($1->>''last_name'', ''''))
+        ),
+        coalesce($1->>''preferred_name'', ''''),
+        coalesce(nullif($1->>''housing_status'', '''')::public.housing_status_enum, ''Unhoused''::public.housing_status_enum),
+        coalesce(nullif($1->>''age_group'', '''')::public.age_group_enum, ''Adult 18-59''::public.age_group_enum),
+        coalesce(nullif($1->>''gender'', '''')::public.gender_enum, ''Unknown''::public.gender_enum),
+        coalesce($1->>''location'', ''Mountain View''),
+        coalesce($1->>''notes'', ''''),
+        coalesce($1->>''bicycle_description'', '''')';
+    if has_shelter_guest then
+      sql := sql || ',
+        coalesce(($1->>''shelter_guest'')::boolean, false)';
+    end if;
+    sql := sql || '
+      )
+      returning *';
+    execute sql using p_guest_data into result;
+    if (p_guest_data ? 'shelter_guest') and has_shelter_guest then
+      if result.shelter_guest is distinct from (p_guest_data->>'shelter_guest')::boolean then
+        raise exception 'Failed to persist shelter_guest value';
+      end if;
+    end if;
+    return result;
+  end if;
+
+  sql := '
+    update public.guests
+    set
+      external_id = coalesce(nullif($2->>''external_id'', ''''), external_id),
+      first_name = coalesce($2->>''first_name'', first_name),
+      last_name = coalesce($2->>''last_name'', last_name),
+      full_name = coalesce($2->>''full_name'', full_name),
+      preferred_name = coalesce($2->>''preferred_name'', preferred_name),
+      housing_status = coalesce(nullif($2->>''housing_status'', '''')::public.housing_status_enum, housing_status),
+      age_group = coalesce(nullif($2->>''age_group'', '''')::public.age_group_enum, age_group),
+      gender = coalesce(nullif($2->>''gender'', '''')::public.gender_enum, gender),
+      location = coalesce($2->>''location'', location),
+      notes = coalesce($2->>''notes'', notes),
+      bicycle_description = coalesce($2->>''bicycle_description'', bicycle_description)';
+  if has_shelter_guest then
+    sql := sql || ',
+      shelter_guest = coalesce(($2->>''shelter_guest'')::boolean, shelter_guest)';
+  end if;
+  sql := sql || '
+    where id = $1
+    returning *';
+
+  execute sql using p_guest_id, p_guest_data into result;
+  if not found then
+    raise exception 'Guest not found';
+  end if;
+  if (p_guest_data ? 'shelter_guest') and has_shelter_guest then
+    if result.shelter_guest is distinct from (p_guest_data->>'shelter_guest')::boolean then
+      raise exception 'Failed to persist shelter_guest value';
+    end if;
+  end if;
+  return result;
+end;
+$$;
 
 -- 4. Program attendance & services
 create table if not exists public.meal_attendance (

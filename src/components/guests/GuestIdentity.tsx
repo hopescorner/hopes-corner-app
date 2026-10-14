@@ -33,6 +33,7 @@ export interface GuestIdentityProps {
     compact?: boolean;
     isBanned: boolean;
     banDetails: any;
+    isShelterGuest?: boolean;
     today: string;
     warningBadgeCount: number;
     reminderBadgeCount: number;
@@ -63,6 +64,7 @@ export function GuestIdentity({
     compact = false,
     isBanned,
     banDetails,
+    isShelterGuest,
     today,
     warningBadgeCount,
     reminderBadgeCount,
@@ -141,6 +143,12 @@ export function GuestIdentity({
                             <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 text-[10px] font-bold animate-pulse">
                                 <Sparkles size={10} />
                                 NEW
+                            </span>
+                        )}
+                        {isShelterGuest && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 text-[10px] font-bold">
+                                <Home size={10} />
+                                Shelter Guest
                             </span>
                         )}
                         <GuestWarningBadge

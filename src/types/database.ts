@@ -33,6 +33,7 @@ export interface Guest {
     banned_from_shower?: boolean;
     banned_from_laundry?: boolean;
     banned_from_bicycle?: boolean;
+    shelter_guest?: boolean;
     created_at: string;
     updated_at: string;
 }

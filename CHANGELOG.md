@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.45.0] - 2026-10-14
+
+### Added
+
+- Staff can now mark guests as shelter guests from the new-guest form or profile edit screen. Shelter guests are labeled during check-in, and shower and laundry bookings are blocked while the designation is active.
+
+### Fixed
+
+- Database triggers consistently enforce shower and laundry restrictions regardless of ban status.
+- Guest profile updates verify the shelter designation against fallback responses and report failures to staff.
+- Existing bookings remain visible and manageable for newly enrolled shelter guests.
+
+### Tests
+
+- Added regression coverage for shelter guest enrollment, database trigger ordering, waitlist rejections, fallback RPC validation, and check-in service actions.
+
 ## [0.44.0] - 2026-10-13
 
 ### Added

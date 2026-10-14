@@ -412,6 +412,7 @@ function PureGuestCard({
     const isBannedFromShower = banDetails.programs.find(p => p.key === 'shower')?.isBanned ?? false;
     const isBannedFromLaundry = banDetails.programs.find(p => p.key === 'laundry')?.isBanned ?? false;
     const isBannedFromBicycle = banDetails.programs.find(p => p.key === 'bicycle')?.isBanned ?? false;
+    const isShelterGuest = Boolean(guest.shelter_guest ?? guest.shelterGuest);
 
     const lastVisitDateStr = useMemo(() => {
         const precomputedDate = lastVisitDateMap?.get(guest.id);
@@ -477,7 +478,7 @@ function PureGuestCard({
 
     const handleQuickShower = async (e?: React.MouseEvent | React.KeyboardEvent) => {
         e?.stopPropagation();
-        if (todayShower || isPending || isBannedFromShower) return;
+        if (todayShower || isPending || isBannedFromShower || isShelterGuest) return;
 
         if (nextAvailableShowerSlot && addShowerRecord) {
             setIsPending(true);
@@ -514,7 +515,7 @@ function PureGuestCard({
 
     const handleQuickLaundry = async (e?: React.MouseEvent | React.KeyboardEvent) => {
         e?.stopPropagation();
-        if (todayLaundry || isPending || isBannedFromLaundry) return;
+        if (todayLaundry || isPending || isBannedFromLaundry || isShelterGuest) return;
 
         if (nextAvailableLaundrySlot && addLaundryRecord) {
             setIsPending(true);
@@ -775,6 +776,7 @@ function PureGuestCard({
                     compact={compact}
                     isBanned={isBanned}
                     banDetails={banDetails}
+                    isShelterGuest={isShelterGuest}
                     today={today}
                     warningBadgeCount={warningBadgeCount}
                     reminderBadgeCount={reminderBadgeCount}
@@ -845,6 +847,7 @@ function PureGuestCard({
                             todayLaundry={todayLaundry}
                             isBannedFromShower={isBannedFromShower}
                             isBannedFromLaundry={isBannedFromLaundry}
+                            isShelterGuest={isShelterGuest}
                             showerAction={showerAction}
                             laundryAction={laundryAction}
                             nextAvailableShowerSlot={nextAvailableShowerSlot}
@@ -854,7 +857,6 @@ function PureGuestCard({
                             onUndo={handleUndo}
                         />
                     )}
-
                     {hasServiceToday && !compact && (
                         <>
                             <div className="hidden w-px h-8 bg-gray-200 mx-1 md:block" aria-hidden="true" />
@@ -929,6 +931,7 @@ function PureGuestCard({
                             isBannedFromShower={isBannedFromShower}
                             isBannedFromLaundry={isBannedFromLaundry}
                             isBannedFromBicycle={isBannedFromBicycle}
+                            isShelterGuest={isShelterGuest}
                             showerAction={showerAction}
                             laundryAction={laundryAction}
                             bicycleAction={bicycleAction}

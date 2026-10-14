@@ -42,6 +42,7 @@ describe('GuestEditModal Household Transitions', () => {
         gender: 'Female',
         notes: '',
         bicycleDescription: '',
+        shelterGuest: false,
     };
 
     beforeEach(() => {
@@ -104,6 +105,46 @@ describe('GuestEditModal Household Transitions', () => {
             expect(mockUpdateGuest).toHaveBeenCalled();
             expect(mockRemoveGuestFromFamily).toHaveBeenCalledWith('alice');
             expect(mockOnClose).toHaveBeenCalled();
+        });
+    });
+
+    it('updates shelter guest enrollment from the profile', async () => {
+        render(<GuestEditModal guest={sampleGuest} onClose={mockOnClose} />);
+
+        fireEvent.click(screen.getByLabelText(/Enroll as Shelter Guest/i));
+        fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+        await waitFor(() => {
+            expect(mockUpdateGuest).toHaveBeenCalledWith('alice', expect.objectContaining({ shelterGuest: true }));
+            expect(mockOnClose).toHaveBeenCalled();
+        });
+    });
+
+    it('unenrolls a shelter guest from the profile', async () => {
+        render(<GuestEditModal guest={{ ...sampleGuest, shelterGuest: true }} onClose={mockOnClose} />);
+
+        fireEvent.click(screen.getByLabelText(/Enroll as Shelter Guest/i));
+        fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+        await waitFor(() => {
+            expect(mockUpdateGuest).toHaveBeenCalledWith('alice', expect.objectContaining({ shelterGuest: false }));
+            expect(mockOnClose).toHaveBeenCalled();
+        });
+    });
+
+    it('keeps the modal open and shows an error when updateGuest returns false', async () => {
+        mockUpdateGuest.mockResolvedValueOnce(false);
+        const { default: toast } = await import('react-hot-toast');
+
+        render(<GuestEditModal guest={sampleGuest} onClose={mockOnClose} />);
+
+        fireEvent.click(screen.getByLabelText(/Enroll as Shelter Guest/i));
+        fireEvent.click(screen.getByRole('button', { name: /Save Changes/i }));
+
+        await waitFor(() => {
+            expect(mockUpdateGuest).toHaveBeenCalled();
+            expect(toast.error).toHaveBeenCalledWith('Unable to save guest changes.');
+            expect(mockOnClose).not.toHaveBeenCalled();
         });
     });
 

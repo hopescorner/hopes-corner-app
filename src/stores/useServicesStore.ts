@@ -52,8 +52,20 @@ const friendlyServiceError = (message: string, fallback: string) => {
         const detail = message.split('SLOT_BLOCKED:')[1]?.trim();
         return new Error(detail ? `${detail}. Please choose another time.` : 'This slot is blocked. Please choose another time.');
     }
+    if (message.toLowerCase().includes('shelter guest') || message.toLowerCase().includes('provided at shelter')) {
+        return new Error('Shower and laundry services provided at shelter.');
+    }
     if (message.includes('banned from')) return new Error(message.split(' using ')[0]);
     return new Error(fallback);
+};
+
+const SHELTER_GUEST_SERVICE_MESSAGE = 'Shower and laundry services provided at shelter.';
+
+const throwIfShelterGuest = (guestId: string) => {
+    const guest = useGuestsStore.getState().guests.find((candidate) => candidate.id === guestId);
+    if (guest && ((guest as any).shelter_guest || guest.shelterGuest)) {
+        throw new Error(SHELTER_GUEST_SERVICE_MESSAGE);
+    }
 };
 
 export type ShowerRecord = MappedShowerRecord;
@@ -181,6 +193,7 @@ export const useServicesStore = create<ServicesState>()(
                     // Shower Actions
                     addShowerRecord: async (guestId: string, time: string | null = null, serviceDate?: string, initialStatus: 'booked' | 'done' = 'booked') => {
                         if (!guestId) throw new Error('Guest ID is required');
+                        throwIfShelterGuest(guestId);
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
@@ -252,6 +265,7 @@ export const useServicesStore = create<ServicesState>()(
 
                     addShowerWaitlist: async (guestId: string, serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
+                        throwIfShelterGuest(guestId);
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 
@@ -341,6 +355,7 @@ export const useServicesStore = create<ServicesState>()(
                     addLaundryRecord: async (guestId: string, washType: string, slotLabel: string | null = null, bagNumber: string = '', serviceDate?: string, initialStatus?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
                         if (!washType) throw new Error('Wash type is required');
+                        throwIfShelterGuest(guestId);
 
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
@@ -499,6 +514,7 @@ export const useServicesStore = create<ServicesState>()(
 
                     addLaundryWaitlist: async (guestId: string, washType: string = 'onsite', serviceDate?: string) => {
                         if (!guestId) throw new Error('Guest ID is required');
+                        throwIfShelterGuest(guestId);
                         const targetDate = serviceDate || todayPacificDateString();
                         const supabase = createClient();
 

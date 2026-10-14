@@ -80,6 +80,7 @@ describe('GuestCreateModal Component', () => {
         it('renders location and notes fields', () => {
             render(<GuestCreateModal onClose={mockOnClose} />);
             expect(screen.getByText('Primary Location')).toBeDefined();
+            expect(screen.getByText(/Enroll as Shelter Guest/i)).toBeDefined();
             expect(screen.getByPlaceholderText('Any important information staff should know...')).toBeDefined();
             expect(screen.getByPlaceholderText('Color, brand, distinguishing features...')).toBeDefined();
         });
@@ -219,6 +220,7 @@ describe('GuestCreateModal Component', () => {
             // Fill required fields
             fireEvent.change(screen.getByPlaceholderText('e.g. John'), { target: { value: 'Test' } });
             fireEvent.change(screen.getByPlaceholderText('e.g. Smith'), { target: { value: 'User' } });
+            fireEvent.click(screen.getByLabelText(/Enroll as Shelter Guest/i));
 
             // Submit
             fireEvent.click(screen.getByText('Create Guest'));
@@ -227,6 +229,7 @@ describe('GuestCreateModal Component', () => {
                 expect(mockAddGuest).toHaveBeenCalledWith(expect.objectContaining({
                     firstName: 'Test',
                     lastName: 'User',
+                    shelterGuest: true,
                 }));
             });
         });
@@ -357,6 +360,16 @@ describe('GuestCreateModal Component', () => {
             fireEvent.click(screen.getByText(/Enroll in Family Meal Program/i));
             fireEvent.click(screen.getByRole('button', { name: /Add to Existing Family/i }));
             expect(screen.getByText(/No enrolled households yet/i)).toBeDefined();
+        });
+    });
+
+    describe('Shelter Guest', () => {
+        it('toggles the shelter guest enrollment checkbox', () => {
+            render(<GuestCreateModal onClose={mockOnClose} />);
+            const checkbox = screen.getByLabelText(/Enroll as Shelter Guest/i);
+            expect(checkbox).not.toBeChecked();
+            fireEvent.click(checkbox);
+            expect(checkbox).toBeChecked();
         });
     });
 });
