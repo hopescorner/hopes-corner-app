@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.44.1] - 2026-10-14
+
+### Fixed
+
+- Saving a guest profile now keeps shelter guest enrollment in sync even when the database needs a fallback path, so staff can enroll or unenroll existing guests without losing the rest of the edit.
+
+### Tests
+
+- Added regression coverage for the shelter guest save fallback path and bumped release metadata to 0.44.1.
+
 ## [0.44.0] - 2026-10-14
 
 ### Added

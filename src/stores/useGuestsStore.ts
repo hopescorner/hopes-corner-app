@@ -36,6 +36,17 @@ import { clearSearchIndexCache } from '@/lib/utils/flexibleNameSearch';
 const GUEST_IMPORT_CHUNK_SIZE = 100;
 const MAX_LINKED_GUESTS = 3;
 
+const isShelterGuestSchemaError = (error: any) => {
+    const message = String(error?.message || error?.details || error?.hint || '').toLowerCase();
+    const code = String(error?.code || '');
+    return code === '42703' || message.includes('shelter_guest') || message.includes('schema cache') || message.includes('does not exist');
+};
+
+const unwrapSingleRow = <T,>(data: T | T[] | null | undefined): T | null => {
+    if (Array.isArray(data)) return data[0] ?? null;
+    return data ?? null;
+};
+
 export interface Guest {
     id: string;
     guestId: string;
@@ -330,6 +341,17 @@ export const useGuestsStore = create<GuestsState>()(
                             .single());
                     }
 
+                    if (error && isShelterGuestSchemaError(error)) {
+                        const rpcResult = await supabase.rpc('save_guest_profile', { p_guest_data: payload });
+                        const rpcRow = unwrapSingleRow(rpcResult.data);
+                        if (!rpcResult.error && rpcRow) {
+                            data = rpcRow as any;
+                            error = null;
+                        } else {
+                            error = rpcResult.error || error;
+                        }
+                    }
+
                     if (error) {
                         console.error('Failed to add guest to Supabase:', error);
                         throw new Error('Unable to save guest.');
@@ -390,12 +412,38 @@ export const useGuestsStore = create<GuestsState>()(
                         }
                     });
 
-                    const { data, error } = await supabase
+                    let { data, error } = await supabase
                         .from('guests')
                         .update(payload)
                         .eq('id', id)
                         .select()
                         .single();
+
+                    if (error && isShelterGuestSchemaError(error)) {
+                        const rpcResult = await supabase.rpc('save_guest_profile', {
+                            p_guest_id: id,
+                            p_guest_data: payload,
+                        });
+                        const rpcRow = unwrapSingleRow(rpcResult.data);
+                        if (!rpcResult.error && rpcRow) {
+                            const mapped = mapGuestRow(rpcRow as any) as Guest;
+                            const reconciled = !mapped || (mapped as any).id !== id
+                                ? ({ ...target, ...updates } as any)
+                                : ({ ...(mapped as any), id, guestId: (mapped as any)?.guestId || target.guestId } as any);
+                            if (!mapped || (mapped as any).id !== id) {
+                                console.error('Guest update returned a mismatched id; keeping local state.', { id, echo: (mapped as any)?.id });
+                            }
+                            set((state) => {
+                                const index = state.guests.findIndex((g) => g.id === id);
+                                if (index !== -1) {
+                                    state.guests[index] = reconciled;
+                                }
+                            });
+                            clearSearchIndexCache();
+                            return true;
+                        }
+                        error = rpcResult.error || error;
+                    }
 
                     if (error) {
                         console.error('Failed to update guest in Supabase:', error);

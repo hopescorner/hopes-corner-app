@@ -12,6 +12,7 @@ const mockSupabase = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     or: vi.fn().mockResolvedValue({ error: null }),
+    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
     single: vi.fn().mockResolvedValue({
         data: {
             id: 'new-id',
@@ -101,6 +102,8 @@ describe('useGuestsStore', () => {
         mockSupabase.delete.mockReturnThis();
         mockSupabase.select.mockReturnThis();
         mockSupabase.eq.mockReturnThis();
+        mockSupabase.rpc.mockReset();
+        mockSupabase.rpc.mockResolvedValue({ data: null, error: null });
 
         // Reset specific mocks with logic
         mockSupabase.single.mockReset();
@@ -723,6 +726,43 @@ describe('useGuestsStore', () => {
                 mockSupabase.single.mockResolvedValueOnce({ data: { id: 'u1', notes: 'New' }, error: null });
                 await useGuestsStore.getState().updateGuest('u1', { notes: 'New' });
                 expect(useGuestsStore.getState().guests[0].id).toBe('u1'); // Mapped behavior
+            });
+
+            it('falls back to the guest profile RPC when shelter_guest hits a schema error', async () => {
+                useGuestsStore.setState({ guests: [createMockGuest({ id: 'u1' })] });
+                mockSupabase.single.mockResolvedValueOnce({
+                    data: null,
+                    error: { code: '42703', message: 'column "shelter_guest" does not exist' },
+                });
+                mockSupabase.rpc.mockResolvedValueOnce({
+                    data: {
+                        id: 'u1',
+                        external_id: 'G001',
+                        first_name: 'John',
+                        last_name: 'Doe',
+                        full_name: 'John Doe',
+                        preferred_name: '',
+                        housing_status: 'housed',
+                        age_group: 'Adult 18-59',
+                        gender: 'Male',
+                        location: 'Mountain View',
+                        notes: '',
+                        bicycle_description: '',
+                        shelter_guest: true,
+                        created_at: '2025-01-01T00:00:00Z',
+                        updated_at: '2025-01-01T00:00:00Z',
+                    },
+                    error: null,
+                });
+
+                const result = await useGuestsStore.getState().updateGuest('u1', { shelterGuest: true });
+
+                expect(result).toBe(true);
+                expect(mockSupabase.rpc).toHaveBeenCalledWith('save_guest_profile', expect.objectContaining({
+                    p_guest_id: 'u1',
+                    p_guest_data: expect.objectContaining({ shelter_guest: true }),
+                }));
+                expect(useGuestsStore.getState().guests[0].shelterGuest).toBe(true);
             });
 
             it('keeps the original id and links when the DB echo comes back mismatched', async () => {

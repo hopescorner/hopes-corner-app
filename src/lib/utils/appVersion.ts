@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.44.0';
+export const APP_VERSION = '0.44.1';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.44.1',
+        date: 'October 14, 2026',
+        highlights: [
+            {
+                type: 'fix',
+                title: 'Shelter Guest Saves Work Again',
+                description: 'Saving a guest profile now keeps shelter guest enrollment in sync even when the database needs a fallback path, so staff can enroll or unenroll existing guests without losing the rest of the edit.',
+            },
+        ],
+    },
     {
         version: '0.44.0',
         date: 'October 14, 2026',
