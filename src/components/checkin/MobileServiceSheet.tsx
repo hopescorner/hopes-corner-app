@@ -24,6 +24,7 @@ interface Guest {
     name: string;
     preferredName?: string;
     shelterGuest?: boolean;
+    shelter_guest?: boolean;
     isBanned?: boolean;
     bannedUntil?: string | null;
     banReason?: string | null;
@@ -166,7 +167,7 @@ export function MobileServiceSheet({
     if (!guest) return null;
 
     const guestName = guest.preferredName || guest.name || 'Guest';
-    const isShelterGuest = Boolean(guest.shelterGuest);
+    const isShelterGuest = Boolean(guest.shelter_guest ?? guest.shelterGuest);
 
     return (
         <AnimatePresence>

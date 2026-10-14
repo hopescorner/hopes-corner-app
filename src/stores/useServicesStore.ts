@@ -63,7 +63,7 @@ const SHELTER_GUEST_SERVICE_MESSAGE = 'Shower and laundry services provided at s
 
 const throwIfShelterGuest = (guestId: string) => {
     const guest = useGuestsStore.getState().guests.find((candidate) => candidate.id === guestId);
-    if (guest?.shelterGuest) {
+    if (guest && ((guest as any).shelter_guest || guest.shelterGuest)) {
         throw new Error(SHELTER_GUEST_SERVICE_MESSAGE);
     }
 };

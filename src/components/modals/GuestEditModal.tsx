@@ -69,7 +69,7 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
     const [isPending, setIsPending] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [familyEnrolled, setFamilyEnrolled] = useState(currentFamily?.enrolledInFamilyMeal === true);
-    const [shelterGuest, setShelterGuest] = useState(Boolean(guest.shelterGuest));
+    const [shelterGuest, setShelterGuest] = useState(Boolean((guest as any).shelter_guest ?? guest.shelterGuest));
     const [familyMode, setFamilyMode] = useState<'primary' | 'member'>(
         currentFamily && currentFamily.primaryGuestId !== guest.id ? 'member' : 'primary'
     );

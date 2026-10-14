@@ -352,7 +352,7 @@ export const mapGuestRow = (row: GuestRow) => {
     bannedFromMeals: row.banned_from_meals || false,
     bannedFromShower: row.banned_from_shower || false,
     bannedFromLaundry: row.banned_from_laundry || false,
-    shelterGuest: row.shelter_guest || false,
+    shelterGuest: Boolean(row.shelter_guest || (row as any).shelterGuest),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     docId: row.id,
