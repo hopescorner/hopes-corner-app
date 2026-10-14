@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.46.0",
+    "date": "October 14, 2026",
+    "highlights": [
+      {
+        "type": "improvement",
+        "title": "Compact Shelter Guest Card",
+        "description": "Shelter guest cards now show a single compact notice for shower and laundry instead of two disabled buttons plus repeated text, while existing bookings stay visible with undo controls and the Shelter Guest badge stays on one line."
+      }
+    ]
+  },
+  {
     "version": "0.45.1",
     "date": "October 14, 2026",
     "highlights": [

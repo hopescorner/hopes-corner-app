@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.46.0] - 2026-10-14
+
+### Improved
+
+- Shelter guest cards now show one compact notice (home icon, "Shelter guest", "Shower & laundry at shelter") instead of two disabled buttons plus repeated explanatory text. Guests with an existing shower or laundry booking still see that booking with its undo control, and the "Shelter Guest" badge no longer wraps onto two lines.
+
+### Tests
+
+- Updated guest card coverage for the compact shelter notice.
+
 ## [0.45.1] - 2026-10-14
 
 ### Fixed
