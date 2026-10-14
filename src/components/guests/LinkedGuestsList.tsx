@@ -6,7 +6,8 @@ import { useMealsStore } from '@/stores/useMealsStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { useCheckInStore } from '@/stores/useCheckInStore';
 import { useTodayMealStatusMap, useTodayActionStatusMap } from '@/stores/selectors/todayStatusSelectors';
-import { Link, Unlink, Search, X, Loader2, RotateCcw, Check } from 'lucide-react';
+import { Link, Unlink, Search, X, Loader2, RotateCcw, Check, ShieldAlert } from 'lucide-react';
+import { getGuestBanDetails } from '@/lib/utils/banUtils';
 import toast from 'react-hot-toast';
 import type { MealStatusMap } from '@/stores/selectors/todayStatusSelectors';
 
@@ -116,10 +117,18 @@ export default function LinkedGuestsList({ guestId, className = '', mealStatusMa
                     const status = effectiveMealStatusMap.get(guest.id);
                     const name = guest.preferredName || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Unknown Guest';
                     const mealActionId = actionStatusMap.get(guest.id)?.mealActionId;
+                    const banDetails = getGuestBanDetails(guest as any);
+                    const mealsBanned = banDetails.programs.find((p) => p.key === 'meals')?.isBanned ?? false;
                     return (
                         <li key={guest.id} className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                             <div className="min-w-0">
                                 <p className="break-words text-sm font-semibold text-gray-900">{name}</p>
+                                {mealsBanned && (
+                                    <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-red-700">
+                                        <ShieldAlert size={14} />
+                                        <span>Banned from meals — a buddy can still pick this up.</span>
+                                    </p>
+                                )}
                                 <p className={`mt-1 flex items-center gap-1 text-xs ${status?.hasMeal ? 'text-emerald-700' : 'text-gray-600'}`}>
                                     {status?.hasMeal ? <><Check size={14} /><span>Served</span>{status.mealCount ? ` · ${status.mealCount} meal${status.mealCount === 1 ? '' : 's'}` : ''}</> : 'No meal yet today'}
                                 </p>
