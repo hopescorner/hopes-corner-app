@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ShowerHead, WashingMachine, Bike, Check, Clock, Scissors, Gift } from 'lucide-react';
+import { ShowerHead, WashingMachine, Bike, Check, Clock, Scissors, Gift, Home } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { UndoButton, DisabledAction } from './GuestActionControls';
 import type { NextAvailableShowerSlot, NextAvailableLaundrySlot } from '@/lib/utils/nextAvailableSlot';
@@ -38,9 +38,26 @@ export function GuestQuickServiceSlots({
     onQuickLaundry,
     onUndo,
 }: GuestQuickServiceSlotsProps) {
+    // A shelter guest with no bookings today gets one compact notice instead
+    // of two disabled buttons plus explanatory text repeating the same thing.
+    // Partial states (an existing booking for one service) keep the per-service
+    // layout so the booking and its undo control stay visible.
+    const shelterWithoutBookings = Boolean(isShelterGuest) && !todayShower && !todayLaundry;
     return (
         <div className="hidden md:flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
-            {/* Shower */}
+            {shelterWithoutBookings ? (
+                <div
+                    role="note"
+                    title="Shower and laundry services provided at shelter."
+                    className="flex min-h-[44px] items-center gap-2 rounded-lg border border-dashed border-cyan-300 bg-cyan-50/60 px-3 text-cyan-800 select-none"
+                >
+                    <Home size={15} className="shrink-0 text-cyan-600" aria-hidden="true" />
+                    <span className="text-[11px] font-bold leading-tight whitespace-nowrap">Shelter guest</span>
+                    <span className="text-[10px] font-medium leading-tight text-cyan-700">Shower & laundry at shelter</span>
+                </div>
+            ) : (
+            <>
+                    {/* Shower */}
             {todayShower ? (
                 <div className="flex items-center gap-1">
                     <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
@@ -115,11 +132,7 @@ export function GuestQuickServiceSlots({
                     )}
                 </button>
             )}
-
-            {isShelterGuest && !todayShower && !todayLaundry && (
-                <span className="ml-1 text-[11px] font-medium text-cyan-700 hidden lg:inline">
-                    Shower and laundry services provided at shelter.
-                </span>
+            </>
             )}
         </div>
     );

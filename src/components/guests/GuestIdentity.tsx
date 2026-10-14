@@ -146,7 +146,7 @@ export function GuestIdentity({
                             </span>
                         )}
                         {isShelterGuest && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 text-[10px] font-bold">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 text-[10px] font-bold whitespace-nowrap shrink-0">
                                 <Home size={10} />
                                 Shelter Guest
                             </span>

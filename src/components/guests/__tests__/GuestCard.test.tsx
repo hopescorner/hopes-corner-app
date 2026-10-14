@@ -204,9 +204,10 @@ describe('GuestCard Component', () => {
             expect(screen.getByText('Shelter Guest')).toBeDefined();
         });
 
-        it('disables shower and laundry quick booking for shelter guests without existing bookings', () => {
+        it('shows one compact shelter notice instead of shower and laundry buttons', () => {
             render(<GuestCard guest={{ ...baseGuest, shelterGuest: true }} />);
-            expect(screen.getAllByText('· Shelter guest').length).toBe(2);
+            expect(screen.getByText('Shower & laundry at shelter')).toBeDefined();
+            expect(screen.queryByText('· Shelter guest')).toBeNull();
             expect(screen.queryByTitle(/Quick book shower/i)).toBeNull();
             expect(screen.queryByTitle(/Quick book on-site laundry/i)).toBeNull();
         });
