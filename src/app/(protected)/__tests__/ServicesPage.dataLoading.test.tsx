@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 
 /**
@@ -198,5 +198,29 @@ describe('ServicesPage data loading (integration, real stores)', () => {
             expect(queriedTables).toContain('shower_reservations');
             expect(queriedTables).toContain('laundry_bookings');
         });
+    });
+
+    it('switches service tabs immediately and keeps visited tabs mounted', async () => {
+        const pushStateSpy = vi.spyOn(window.history, 'pushState');
+
+        render(<ServicesPage />);
+
+        const overviewTab = screen.getByTestId('services-tab-overview-desktop');
+        const showersTab = screen.getByTestId('services-tab-showers-desktop');
+        const laundryTab = screen.getByTestId('services-tab-laundry-desktop');
+
+        fireEvent.click(showersTab);
+        expect(pushStateSpy).toHaveBeenCalledWith(null, '', expect.stringContaining('tab=showers'));
+        expect(showersTab.className).toContain('bg-white');
+
+        fireEvent.click(laundryTab);
+        expect(pushStateSpy).toHaveBeenCalledWith(null, '', expect.stringContaining('tab=laundry'));
+        expect(laundryTab.className).toContain('bg-white');
+
+        fireEvent.click(overviewTab);
+        expect(pushStateSpy).toHaveBeenCalledWith(null, '', expect.stringContaining('tab=overview'));
+        expect(overviewTab.className).toContain('bg-white');
+
+        pushStateSpy.mockRestore();
     });
 });

@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.46.1",
+    "date": "October 14, 2026",
+    "highlights": [
+      {
+        "type": "performance",
+        "title": "Snappier Page And Service-Tab Navigation",
+        "description": "Top-level Check-In, Services, and Dashboard navigation now switches immediately on the client while visited page views stay mounted, avoiding server reloads and preserving search, service-tab, scroll, and report state."
+      }
+    ]
+  },
+  {
     "version": "0.46.0",
     "date": "October 14, 2026",
     "highlights": [

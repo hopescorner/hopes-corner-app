@@ -174,4 +174,57 @@ describe('MainLayout', () => {
         expect(main.className).toContain('pb-[7.5rem]');
         expect(mutationObserve).not.toHaveBeenCalled();
     });
+
+    it('switches between Check In, Services, and Dashboard tabs immediately without unmounting visited views', () => {
+        vi.mocked(useSession).mockReturnValue({
+            data: { user: { role: 'admin', name: 'Admin' } },
+            status: 'authenticated',
+        } as any);
+
+        const pushStateSpy = vi.spyOn(window.history, 'pushState');
+        let initialCheckInUnmounts = 0;
+        const InitialCheckInChild = () => {
+            React.useEffect(() => {
+                return () => {
+                    initialCheckInUnmounts += 1;
+                };
+            }, []);
+            return <div data-testid="initial-checkin-child">Check-in Content</div>;
+        };
+
+        render(
+            <MainLayout>
+                <InitialCheckInChild />
+            </MainLayout>
+        );
+
+        const checkInTab = screen.getByTestId('nav-tab-check-in-desktop');
+        const servicesTab = screen.getByTestId('nav-tab-services-desktop');
+        const dashboardTab = screen.getByTestId('nav-tab-dashboard-desktop');
+
+        expect(checkInTab.getAttribute('aria-current')).toBe('page');
+        expect(screen.getByTestId('initial-checkin-child').closest('[hidden]')).toBeNull();
+
+        fireEvent.click(servicesTab);
+
+        expect(servicesTab.getAttribute('aria-current')).toBe('page');
+        expect(checkInTab.getAttribute('aria-current')).toBeNull();
+        expect(pushStateSpy).toHaveBeenCalledWith(null, '', '/services');
+        expect(initialCheckInUnmounts).toBe(0);
+        expect(screen.getByTestId('initial-checkin-child').closest('[hidden]')).not.toBeNull();
+
+        fireEvent.click(dashboardTab);
+
+        expect(dashboardTab.getAttribute('aria-current')).toBe('page');
+        expect(pushStateSpy).toHaveBeenCalledWith(null, '', '/dashboard');
+        expect(initialCheckInUnmounts).toBe(0);
+
+        fireEvent.click(checkInTab);
+
+        expect(checkInTab.getAttribute('aria-current')).toBe('page');
+        expect(screen.getByTestId('initial-checkin-child').closest('[hidden]')).toBeNull();
+        expect(initialCheckInUnmounts).toBe(0);
+
+        pushStateSpy.mockRestore();
+    });
 });

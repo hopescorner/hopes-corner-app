@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.46.1] - 2026-10-14
+
+### Changed
+
+- **Navigation**: Check-In, Services, and Dashboard tabs now switch immediately on the client while visited page views stay mounted, avoiding server round-trips and preserving search and report state.
+- **Services Tab Switching**: Service tabs now switch instantly and remain mounted once visited, with preload-on-hover/focus for dynamic modules and store data.
+- **Realtime**: Shared Supabase realtime subscriptions are reference-counted so mounted-but-hidden views do not exhaust websockets or leave channel handlers stale.
+
+### Improved
+
+- **Check-In**: Avoids an initial loading-flash when the store is already hydrated on tab return.
+- **Keyboard Shortcuts**: Global shortcuts no-op while hidden on another top-level page so they cannot act on a nonvisible screen.
+
+### Tests
+
+- Added integration coverage for client-side top-level tab switching and stable visited-view mounting.
+
 ## [0.46.0] - 2026-10-14
 
 ### Improved

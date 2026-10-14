@@ -1,15 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut } from 'lucide-react';
 import { getDefaultRoute, getRoleLabel, ROLE_ACCESS, type UserRole } from '@/lib/auth/types';
 import { AppVersion } from '@/components/pwa/AppVersion';
+import { useCheckInStore } from '@/stores/useCheckInStore';
+import { useServicesStore } from '@/stores/useServicesStore';
+import { useGuestsStore } from '@/stores/useGuestsStore';
+import { useMealsStore } from '@/stores/useMealsStore';
+import { hydrateLegacyStoresFromSnapshot } from '@/lib/checkin/legacyAdapter';
+import type { CheckInSnapshot } from '@/types/checkin';
 import dynamic from 'next/dynamic';
 
 const TutorialModal = dynamic(() => import('@/components/modals/TutorialModal').then((module) => module.TutorialModal));
+const CheckInPageView = dynamic(() => import('@/components/checkin/CheckInClient'));
+const ServicesPageView = dynamic(() => import('@/app/(protected)/services/page'));
+const DashboardPageView = dynamic(() => import('@/app/(protected)/dashboard/page'));
 
 interface NavItem {
     id: string;
@@ -28,18 +37,129 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const { data: session } = useSession();
     const pathname = usePathname();
     const [showTutorial, setShowTutorial] = useState(false);
+    const firstNavSwitchMarkRef = useRef(false);
+    const snapshotPreloadingRef = useRef(false);
 
     const role = (session?.user?.role as UserRole) || 'checkin';
     const roleLabel = getRoleLabel(role);
     const allowedTabs = ROLE_ACCESS[role];
     const defaultRoute = getDefaultRoute(role);
 
-    const navItems = allNavItems.filter((item) =>
-        (allowedTabs as readonly string[]).includes(item.id)
+    const navItems = useMemo(
+        () => allNavItems.filter((item) => (allowedTabs as readonly string[]).includes(item.id)),
+        [allowedTabs]
     );
 
-    // Get current active tab from pathname
-    const activeTab = navItems.find((item) => pathname.startsWith(item.href))?.id || navItems[0]?.id;
+    // Get tab matching current pathname
+    const pathnameTab = navItems.find((item) => pathname.startsWith(item.href))?.id || navItems[0]?.id;
+    const initialTabRef = useRef<string | undefined>(pathnameTab);
+    if (!initialTabRef.current && pathnameTab) {
+        initialTabRef.current = pathnameTab;
+    }
+    const initialTab = initialTabRef.current;
+
+    const [selectedTab, setSelectedTab] = useState<string | undefined>(pathnameTab);
+    const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(pathnameTab ? [pathnameTab] : []));
+
+    useEffect(() => {
+        if (!pathnameTab) return;
+        setSelectedTab(pathnameTab);
+        setVisitedTabs((prev) => {
+            if (prev.has(pathnameTab)) return prev;
+            const next = new Set(prev);
+            next.add(pathnameTab);
+            return next;
+        });
+    }, [pathnameTab]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const onPopState = () => {
+            const currentPath = window.location.pathname;
+            const matched = navItems.find((item) => currentPath.startsWith(item.href))?.id;
+            if (!matched) return;
+            setSelectedTab(matched);
+            setVisitedTabs((prev) => {
+                if (prev.has(matched)) return prev;
+                const next = new Set(prev);
+                next.add(matched);
+                return next;
+            });
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [navItems]);
+
+    const activeTab = navItems.some((item) => item.id === selectedTab) ? selectedTab : pathnameTab;
+
+    const preloadRouteIntent = useCallback((tabId: string) => {
+        if (tabId === 'check-in') {
+            void import('@/components/checkin/CheckInClient');
+            const checkInState = typeof useCheckInStore.getState === 'function' ? useCheckInStore.getState() : null;
+            if (checkInState && !checkInState.isReady && !snapshotPreloadingRef.current && typeof fetch === 'function') {
+                snapshotPreloadingRef.current = true;
+                fetch('/api/check-in/snapshot', { cache: 'no-store' })
+                    .then((res) => (res.ok ? (res.json() as Promise<CheckInSnapshot>) : null))
+                    .then((snapshot) => {
+                        if (snapshot && useCheckInStore.getState?.()?.hydrate?.(snapshot)) {
+                            hydrateLegacyStoresFromSnapshot(snapshot);
+                        }
+                    })
+                    .catch(() => {})
+                    .finally(() => {
+                        snapshotPreloadingRef.current = false;
+                    });
+            }
+            return;
+        }
+        if (tabId === 'services') {
+            void import('@/app/(protected)/services/page');
+            void import('@/components/services/OverviewSection');
+            void useServicesStore.getState?.()?.ensureLoaded?.();
+            void useGuestsStore.getState?.()?.ensureLoaded?.();
+            void useMealsStore.getState?.()?.ensureLoaded?.();
+            return;
+        }
+        if (tabId === 'dashboard') {
+            void import('@/app/(protected)/dashboard/page');
+            void import('@/components/admin/AnalyticsSection');
+            void useMealsStore.getState?.()?.ensureLoaded?.();
+            void useServicesStore.getState?.()?.ensureLoaded?.();
+            void useGuestsStore.getState?.()?.ensureLoaded?.();
+        }
+    }, []);
+
+    const handleNavClick = useCallback((event: React.MouseEvent<HTMLAnchorElement>, item: NavItem) => {
+        if (
+            event.defaultPrevented ||
+            event.button !== 0 ||
+            event.metaKey ||
+            event.ctrlKey ||
+            event.shiftKey ||
+            event.altKey
+        ) {
+            return;
+        }
+        event.preventDefault();
+        if (!firstNavSwitchMarkRef.current) {
+            firstNavSwitchMarkRef.current = true;
+            if (typeof performance !== 'undefined') {
+                performance.mark('nav:first-page-switch');
+            }
+        }
+        setVisitedTabs((prev) => {
+            if (prev.has(item.id)) return prev;
+            const next = new Set(prev);
+            next.add(item.id);
+            return next;
+        });
+        setSelectedTab(item.id);
+        if (typeof window !== 'undefined' && window.location.pathname !== item.href) {
+            window.history.pushState(null, '', item.href);
+        }
+    }, []);
+
+    const defaultNavItem = navItems.find((item) => item.href === defaultRoute);
 
     const handleLogout = async () => {
         await signOut({ callbackUrl: '/login' });
@@ -55,6 +175,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         <div className="flex items-center gap-3 shrink-0">
                             <Link
                                 href={defaultRoute}
+                                prefetch={true}
+                                onClick={(e) => {
+                                    if (defaultNavItem) handleNavClick(e, defaultNavItem);
+                                }}
                                 className="inline-flex items-center p-1 rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
                             >
                                 <img
@@ -86,6 +210,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                                         <Link
                                             key={item.id}
                                             href={item.href}
+                                            prefetch={true}
+                                            data-testid={`nav-tab-${item.id}-desktop`}
+                                            onClick={(e) => handleNavClick(e, item)}
+                                            onMouseEnter={() => preloadRouteIntent(item.id)}
+                                            onFocus={() => preloadRouteIntent(item.id)}
                                             aria-current={isActive ? 'page' : undefined}
                                             className={`relative flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 ${isActive
                                                 ? 'bg-white text-emerald-900 shadow-md'
@@ -130,7 +259,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <main
                 className="container mx-auto flex-1 px-4 pt-4 pb-[7.5rem] md:pb-8 md:px-6 min-h-[calc(100vh-4rem)]"
             >
-                <div className="max-w-7xl mx-auto space-y-4">{children}</div>
+                <div className="max-w-7xl mx-auto space-y-4">
+                    <div hidden={Boolean(initialTab && activeTab !== initialTab)}>
+                        {children}
+                    </div>
+                    {navItems.map((item) => {
+                        if (item.id === initialTab || !visitedTabs.has(item.id)) return null;
+                        return (
+                            <div key={item.id} hidden={activeTab !== item.id}>
+                                {item.id === 'check-in' && <CheckInPageView />}
+                                {item.id === 'services' && <ServicesPageView />}
+                                {item.id === 'dashboard' && <DashboardPageView />}
+                            </div>
+                        );
+                    })}
+                </div>
             </main>
 
             {/* Mobile Bottom Navigation */}
@@ -156,6 +299,11 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                             <Link
                                 key={item.id}
                                 href={item.href}
+                                prefetch={true}
+                                data-testid={`nav-tab-${item.id}-mobile`}
+                                onClick={(e) => handleNavClick(e, item)}
+                                onMouseEnter={() => preloadRouteIntent(item.id)}
+                                onFocus={() => preloadRouteIntent(item.id)}
                                 aria-current={isActive ? 'page' : undefined}
                                 className={`flex flex-col items-center justify-center rounded-lg border py-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 ${isActive
                                     ? 'border-emerald-200 bg-emerald-50 text-emerald-700 shadow'

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Fragment } from 'react';
+import { useEffect, useRef, useState, Fragment } from 'react';
 
 interface KeyboardShortcutsBarProps {
     className?: string;
@@ -45,11 +45,13 @@ function KbdHint({ keys, label }: ShortcutHint) {
 
 export function KeyboardShortcutsBar({ className = '' }: KeyboardShortcutsBarProps) {
     const [expanded, setExpanded] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
     const hints = expanded ? ALL_SHORTCUTS : ESSENTIAL_SHORTCUTS;
 
     // "?" toggles the full list (ignored while typing in an editable field)
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
+            if (containerRef.current?.closest('[hidden]')) return;
             if (e.key !== '?') return;
             const target = e.target as HTMLElement | null;
             if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable) return;
@@ -61,7 +63,7 @@ export function KeyboardShortcutsBar({ className = '' }: KeyboardShortcutsBarPro
 
     return (
         // Hidden on small/touch screens: keyboard shortcuts require a physical keyboard.
-        <div className={`${className} hidden sm:block`}>
+        <div ref={containerRef} className={`${className} hidden sm:block`}>
             <div
                 id="all-keyboard-shortcuts"
                 className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500"

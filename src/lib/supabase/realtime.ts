@@ -32,6 +32,7 @@ export interface SubscriptionOptions {
 
 // Store active channels to prevent duplicates and enable cleanup
 const activeChannels: Map<string, RealtimeChannel> = new Map();
+const channelSubscriberCounts: Map<string, number> = new Map();
 
 const realtimeDebugEnabled = process.env.NEXT_PUBLIC_REALTIME_DEBUG === 'true';
 
@@ -43,6 +44,22 @@ function dispatchPayload(options: SubscriptionOptions, payload: RealtimePostgres
     onChange?.(payload);
 }
 
+function retainChannel(channelName: string): () => void {
+    channelSubscriberCounts.set(channelName, (channelSubscriberCounts.get(channelName) || 0) + 1);
+    let released = false;
+    return () => {
+        if (released) return;
+        released = true;
+        const remaining = (channelSubscriberCounts.get(channelName) || 1) - 1;
+        if (remaining <= 0) {
+            channelSubscriberCounts.delete(channelName);
+            unsubscribeFromChannel(channelName);
+        } else {
+            channelSubscriberCounts.set(channelName, remaining);
+        }
+    };
+}
+
 /** Register several postgres-change handlers on a single websocket channel. */
 export function subscribeToTables(
     options: SubscriptionOptions[],
@@ -50,7 +67,7 @@ export function subscribeToTables(
     onStatus?: (status: string) => void,
 ): () => void {
     const channelName = `realtime:${scope}:${options.map((option) => option.table).join(',')}`;
-    if (activeChannels.has(channelName)) return () => unsubscribeFromChannel(channelName);
+    if (activeChannels.has(channelName)) return retainChannel(channelName);
 
     const supabase = createClient();
     let channel = supabase.channel(channelName);
@@ -71,7 +88,7 @@ export function subscribeToTables(
         onStatus?.(status);
     });
     activeChannels.set(channelName, channel);
-    return () => unsubscribeFromChannel(channelName);
+    return retainChannel(channelName);
 }
 
 /**
@@ -89,7 +106,7 @@ export function subscribeToTable(options: SubscriptionOptions): () => void {
         if (realtimeDebugEnabled) {
             console.log(`[Realtime] Channel ${channelName} already exists, reusing`);
         }
-        return () => unsubscribeFromChannel(channelName);
+        return retainChannel(channelName);
     }
 
     const supabase = createClient();
@@ -121,7 +138,7 @@ export function subscribeToTable(options: SubscriptionOptions): () => void {
 
     activeChannels.set(channelName, channel);
 
-    return () => unsubscribeFromChannel(channelName);
+    return retainChannel(channelName);
 }
 
 /**
@@ -129,6 +146,7 @@ export function subscribeToTable(options: SubscriptionOptions): () => void {
  */
 function unsubscribeFromChannel(channelName: string): void {
     const channel = activeChannels.get(channelName);
+    channelSubscriberCounts.delete(channelName);
     if (channel) {
         const supabase = createClient();
         supabase.removeChannel(channel);
@@ -151,6 +169,7 @@ export function unsubscribeFromAll(): void {
         }
     });
     activeChannels.clear();
+    channelSubscriberCounts.clear();
 }
 
 /**

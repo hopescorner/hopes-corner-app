@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
     ClipboardList,
@@ -43,7 +43,7 @@ const ALL_TABS = [
 // Bicycle role only sees the bicycles tab
 const BICYCLE_TABS = ALL_TABS.filter((tab) => tab.id === 'bicycles');
 
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 const TabSkeleton = () => <div className="h-80 w-full animate-pulse rounded-2xl bg-gray-100" />;
 const OverviewSection = dynamic(() => import('@/components/services/OverviewSection').then((m) => m.OverviewSection), { loading: TabSkeleton });
@@ -56,6 +56,18 @@ const TimelineSection = dynamic(() => import('@/components/services/TimelineSect
 const MealsSection = dynamic(() => import('@/components/services/MealsSection').then((m) => m.MealsSection), { loading: TabSkeleton });
 const DonationsSection = dynamic(() => import('@/components/services/DonationsSection').then((m) => m.DonationsSection), { loading: TabSkeleton });
 
+const SERVICE_TAB_MODULE_LOADERS: Record<string, () => Promise<unknown>> = {
+    overview: () => import('@/components/services/OverviewSection'),
+    timeline: () => import('@/components/services/TimelineSection'),
+    meals: () => import('@/components/services/MealsSection'),
+    showers: () => import('@/components/services/ShowersSection'),
+    laundry: () => import('@/components/services/LaundrySection'),
+    haircuts: () => import('@/components/services/HaircutsSection'),
+    bicycles: () => import('@/components/services/BicycleSection'),
+    holiday: () => import('@/components/services/HolidayProgramSection'),
+    donations: () => import('@/components/services/DonationsSection'),
+};
+
 const RealtimeSyncProvider = dynamic(
     () => import('@/components/providers/RealtimeSyncProvider').then((module) => module.RealtimeSyncProvider),
     { ssr: false },
@@ -63,7 +75,6 @@ const RealtimeSyncProvider = dynamic(
 
 export default function ServicesPage() {
     const searchParams = useSearchParams();
-    const router = useRouter();
     const firstTabSwitchMarkRef = useRef(false);
     const { data: session } = useSession();
     const role = (session?.user?.role as UserRole) || 'checkin';
@@ -76,20 +87,49 @@ export default function ServicesPage() {
         performance.mark(name);
     }, []);
 
-    // Use URL as source of truth for active tab
-    const rawTab = searchParams.get('tab') || defaultTab;
-    // Ensure the tab is valid for the current role
-    const activeTab = TABS.some((t) => t.id === rawTab) ? rawTab : defaultTab;
+    const urlTab = searchParams.get('tab');
+    const resolvedUrlTab = urlTab && TABS.some((t) => t.id === urlTab) ? urlTab : defaultTab;
+    const [selectedTab, setSelectedTab] = useState(resolvedUrlTab);
+    const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([resolvedUrlTab]));
 
-    const setActiveTab = (tabId: string) => {
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const onPopState = () => {
+            const nextTab = new URLSearchParams(window.location.search).get('tab');
+            if (!nextTab || !TABS.some((t) => t.id === nextTab)) return;
+            setSelectedTab(nextTab);
+            setVisitedTabs((prev) => {
+                if (prev.has(nextTab)) return prev;
+                const next = new Set(prev);
+                next.add(nextTab);
+                return next;
+            });
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [TABS]);
+
+    // Ensure the tab is valid for the current role
+    const activeTab = TABS.some((t) => t.id === selectedTab) ? selectedTab : defaultTab;
+
+    const setActiveTab = useCallback((tabId: string) => {
         if (!firstTabSwitchMarkRef.current) {
             firstTabSwitchMarkRef.current = true;
             markPerf('services:first-tab-switch');
         }
-        const params = new URLSearchParams(searchParams.toString());
-        params.set('tab', tabId);
-        router.push(`?${params.toString()}`, { scroll: false });
-    };
+        setVisitedTabs((prev) => {
+            if (prev.has(tabId)) return prev;
+            const next = new Set(prev);
+            next.add(tabId);
+            return next;
+        });
+        setSelectedTab(tabId);
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            params.set('tab', tabId);
+            window.history.pushState(null, '', `${window.location.pathname}?${params.toString()}`);
+        }
+    }, [markPerf]);
 
     const { ensureLoaded: ensureServicesLoaded, loadFromSupabase: reloadServices, showerRecords, laundryRecords, bicycleRecords } = useServicesStore(
         useShallow((s) => ({
@@ -132,6 +172,11 @@ export default function ServicesPage() {
         };
         return Promise.all(serviceTabDataKeys(tab).map((key) => loaders[key]()));
     }, [ensureServicesLoaded, ensureGuestsLoaded, ensureMealsLoaded, ensureDonationsLoaded, ensureRemindersLoaded, ensureDailyNotesLoaded, ensureHolidayLoaded]);
+
+    const preloadTabIntent = useCallback((tab: string) => {
+        void SERVICE_TAB_MODULE_LOADERS[tab]?.();
+        void loadTabData(tab);
+    }, [loadTabData]);
 
     useEffect(() => {
         void loadTabData(activeTab);
@@ -248,20 +293,55 @@ export default function ServicesPage() {
         };
     }, [guests, mealRecords, rvMealRecords, extraMealRecords, unitedEffortMealRecords, dayWorkerMealRecords, shelterMealRecords, familyMealRecords, showerRecords, laundryRecords, bicycleRecords, today, startOfWeek]);
 
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'overview': return <OverviewSection metrics={metrics} setActiveTab={setActiveTab} />;
-            case 'showers': return <ShowersSection />;
-            case 'laundry': return <LaundrySection />;
-            case 'haircuts': return <HaircutsSection />;
-            case 'bicycles': return <BicycleSection />;
-            case 'holiday': return <HolidayProgramSection />;
-            case 'timeline': return <TimelineSection />;
-            case 'meals': return <MealsSection />;
-            case 'donations': return <DonationsSection />;
-            default: return isBicycleRole ? <BicycleSection /> : <OverviewSection metrics={metrics} setActiveTab={setActiveTab} />;
-        }
-    };
+    const renderContent = () => (
+        <>
+            {!isBicycleRole && visitedTabs.has('overview') && (
+                <div hidden={activeTab !== 'overview'}>
+                    <OverviewSection metrics={metrics} setActiveTab={setActiveTab} />
+                </div>
+            )}
+            {visitedTabs.has('timeline') && (
+                <div hidden={activeTab !== 'timeline'}>
+                    <TimelineSection />
+                </div>
+            )}
+            {visitedTabs.has('meals') && (
+                <div hidden={activeTab !== 'meals'}>
+                    <MealsSection />
+                </div>
+            )}
+            {visitedTabs.has('showers') && (
+                <div hidden={activeTab !== 'showers'}>
+                    <ShowersSection />
+                </div>
+            )}
+            {visitedTabs.has('laundry') && (
+                <div hidden={activeTab !== 'laundry'}>
+                    <LaundrySection />
+                </div>
+            )}
+            {visitedTabs.has('haircuts') && (
+                <div hidden={activeTab !== 'haircuts'}>
+                    <HaircutsSection />
+                </div>
+            )}
+            {(isBicycleRole || visitedTabs.has('bicycles')) && (
+                <div hidden={activeTab !== 'bicycles'}>
+                    <BicycleSection />
+                </div>
+            )}
+            {visitedTabs.has('holiday') && (
+                <div hidden={activeTab !== 'holiday'}>
+                    <HolidayProgramSection />
+                </div>
+            )}
+            {visitedTabs.has('donations') && (
+                <div hidden={activeTab !== 'donations'}>
+                    <DonationsSection />
+                </div>
+            )}
+        </>
+    );
 
     return (
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -289,9 +369,10 @@ export default function ServicesPage() {
                         return (
                             <button
                                 key={tab.id}
+                                data-testid={`services-tab-${tab.id}-desktop`}
                                 onClick={() => setActiveTab(tab.id)}
-                                onMouseEnter={() => void loadTabData(tab.id)}
-                                onFocus={() => void loadTabData(tab.id)}
+                                onMouseEnter={() => preloadTabIntent(tab.id)}
+                                onFocus={() => preloadTabIntent(tab.id)}
                                 className={cn(
                                     "flex items-center gap-2.5 px-6 py-3 rounded-xl text-sm font-black whitespace-nowrap transition-all",
                                     isActive
@@ -317,9 +398,10 @@ export default function ServicesPage() {
                     return (
                         <button
                             key={tab.id}
+                            data-testid={`services-tab-${tab.id}-mobile`}
                             onClick={() => setActiveTab(tab.id)}
-                            onMouseEnter={() => void loadTabData(tab.id)}
-                            onFocus={() => void loadTabData(tab.id)}
+                            onMouseEnter={() => preloadTabIntent(tab.id)}
+                            onFocus={() => preloadTabIntent(tab.id)}
                             className={cn(
                                 "flex-shrink-0 flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-black transition-all border",
                                 isActive
@@ -335,10 +417,7 @@ export default function ServicesPage() {
             </div>
 
             {/* Main Content Area */}
-            <div
-                key={activeTab}
-                className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none"
-            >
+            <div className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
                 {renderContent()}
             </div>
         </div>

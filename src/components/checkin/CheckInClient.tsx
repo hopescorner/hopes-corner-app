@@ -78,7 +78,8 @@ export default function CheckInClient({
     const { t, language, setLanguage } = useLanguage();
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [isLoading, setIsLoading] = useState(!initialSnapshot);
+    const snapshotReady = useCheckInStore((s) => s.isReady);
+    const [isLoading, setIsLoading] = useState(() => !initialSnapshot && !snapshotReady);
     const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: null, direction: 'asc' });
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [defaultLocation, setDefaultLocation] = useState('');
@@ -131,12 +132,13 @@ export default function CheckInClient({
     const guestProxies = useGuestsStore((s) => s.guestProxies);
     const reminders = useRemindersStore((s) => s.reminders);
     const snapshotGuests = useCheckInStore((s) => s.guests);
-    const snapshotReady = useCheckInStore((s) => s.isReady);
     const snapshotTodayByGuest = useCheckInStore((s) => s.todayByGuest);
     const snapshotServiceDate = useCheckInStore((s) => s.serviceDate);
     const hydrateCheckIn = useCheckInStore((s) => s.hydrate);
     const searchSnapshotGuests = useCheckInStore((s) => s.searchGuests);
-    const guests: Guest[] = snapshotReady ? snapshotGuests as unknown as Guest[] : legacyGuests;
+    const guests: Guest[] = snapshotReady
+        ? snapshotGuests as unknown as Guest[]
+        : (initialSnapshot?.guests as unknown as Guest[] | undefined) ?? legacyGuests;
 
     const { ensureLoaded: ensureGuestsLoaded, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase } = useGuestsStore(
         useShallow((s) => ({
@@ -215,6 +217,11 @@ export default function CheckInClient({
             void loadGuestWarningsFromSupabase();
             return;
         }
+        if (typeof useCheckInStore.getState === 'function' && useCheckInStore.getState()?.isReady) {
+            void loadGuestProxiesFromSupabase();
+            void loadGuestWarningsFromSupabase();
+            return;
+        }
         if (v2Enabled) {
             try {
                 const response = await fetch('/api/check-in/snapshot', { cache: 'no-store' });
@@ -244,8 +251,11 @@ export default function CheckInClient({
 
     // Initial data load
     useEffect(() => {
+        const alreadyReady = Boolean(
+            initialSnapshot || (typeof useCheckInStore.getState === 'function' && useCheckInStore.getState()?.isReady)
+        );
         const init = async () => {
-            setIsLoading(true);
+            if (!alreadyReady) setIsLoading(true);
             try {
                 await loadAllData();
             } catch (error) {
@@ -255,7 +265,7 @@ export default function CheckInClient({
             }
         };
         init();
-    }, [loadAllData]);
+    }, [initialSnapshot, loadAllData]);
 
     // Subscribe to real-time daily notes updates
     useEffect(() => {
@@ -398,7 +408,7 @@ export default function CheckInClient({
     useEffect(() => {
         if (!isLargeList) return;
         const el = listContainerRef.current;
-        if (!el) return;
+        if (!el || el.closest('[hidden]')) return;
         setScrollMargin(el.getBoundingClientRect().top + window.scrollY);
     }, [isLargeList, sortedGuests.length]);
 
@@ -546,6 +556,7 @@ export default function CheckInClient({
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (searchInputRef.current?.closest('[hidden]')) return;
             const target = e.target as HTMLElement;
             const isEditable = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
 
