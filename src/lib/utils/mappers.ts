@@ -10,10 +10,41 @@ import {
 } from "./normalizers";
 import { pacificDateStringFrom } from './date';
 
+import type { Database, ShowerStatusEnum, LaundryStatusEnum } from '@/types/database';
+
 // Type for shower status in database
-type ShowerDbStatus = 'booked' | 'waitlisted' | 'done' | 'cancelled' | 'no_show' | null | undefined;
+export type ShowerDbStatus = ShowerStatusEnum | null | undefined;
 // Type for shower status in app (maps 'booked' to 'awaiting')
-type ShowerAppStatus = 'awaiting' | 'waitlisted' | 'done' | 'cancelled' | 'no_show';
+export type ShowerAppStatus = 'booked' | 'awaiting' | 'waitlisted' | 'done' | 'cancelled' | 'no_show';
+
+export type ShowerDbRow = Database['public']['Tables']['shower_reservations']['Row'];
+export type LaundryDbRow = Database['public']['Tables']['laundry_bookings']['Row'];
+
+export interface MappedShowerRecord {
+  id: string;
+  guestId: string;
+  time: string | null;
+  scheduledFor: string | null;
+  date: string;
+  dateKey: string;
+  status: ShowerAppStatus;
+  createdAt?: string;
+  lastUpdated?: string;
+}
+
+export interface MappedLaundryRecord {
+  id: string;
+  guestId: string;
+  time: string | null;
+  laundryType: 'onsite' | 'offsite';
+  bagNumber: string;
+  scheduledFor: string | null;
+  date: string;
+  dateKey: string;
+  status: LaundryStatusEnum | string;
+  createdAt?: string;
+  lastUpdated?: string;
+}
 
 // Database row types (what comes from Supabase)
 interface GuestRow {
@@ -82,27 +113,8 @@ interface FamilyMealRow {
   guest_families?: { primary_guest_id?: string | null } | { primary_guest_id?: string | null }[] | null;
 }
 
-interface ShowerRow {
-  id: string;
-  guest_id: string;
-  scheduled_for?: string | null;
-  scheduled_time?: string | null;
-  status?: ShowerDbStatus;
-  created_at?: string;
-  updated_at?: string;
-}
-
-interface LaundryRow {
-  id: string;
-  guest_id: string;
-  scheduled_for?: string | null;
-  slot_label?: string | null;
-  laundry_type: 'onsite' | 'offsite';
-  bag_number?: string | null;
-  status: string;
-  created_at?: string;
-  updated_at?: string;
-}
+type ShowerRow = ShowerDbRow;
+type LaundryRow = LaundryDbRow;
 
 interface BicycleRow {
   id: string;
@@ -199,14 +211,14 @@ interface ValidationResult {
   issues: string[];
 }
 
-export const mapShowerStatusToApp = (status: ShowerDbStatus): ShowerAppStatus => {
+export const mapShowerStatusToApp = (status: ShowerDbStatus | string | null | undefined): ShowerAppStatus => {
   if (!status) return "awaiting";
-  return status === "booked" ? "awaiting" : status;
+  return status === "booked" ? "awaiting" : (status as ShowerAppStatus);
 };
 
-export const mapShowerStatusToDb = (status: ShowerAppStatus | null): ShowerDbStatus => {
+export const mapShowerStatusToDb = (status: ShowerAppStatus | string | null | undefined): ShowerDbStatus => {
   if (!status) return "booked";
-  return status === "awaiting" ? "booked" : status;
+  return status === "awaiting" ? "booked" : (status as ShowerDbStatus);
 };
 
 /**

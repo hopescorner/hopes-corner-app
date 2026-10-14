@@ -17,6 +17,11 @@ import {
     mapHolidayRow,
     mapShowerStatusToDb,
     mapShowerStatusToApp,
+    type ShowerDbRow,
+    type LaundryDbRow,
+    type ShowerAppStatus,
+    type MappedShowerRecord,
+    type MappedLaundryRecord,
 } from '@/lib/utils/mappers';
 import { todayPacificDateString, pacificDateStringFrom, weekStartPacificDateString, nextWeekStartPacificDateString } from '@/lib/utils/date';
 import { MAX_GUESTS_PER_LAUNDRY_SLOT, LAUNDRY_SLOT_OCCUPYING_STATUSES, MAX_LAUNDRY_LOADS_PER_WEEK, LAUNDRY_WEEKLY_COUNT_STATUSES, LAUNDRY_WEEKLY_VOID_STATUSES } from '@/lib/constants/constants';
@@ -63,31 +68,10 @@ const throwIfShelterGuest = (guestId: string) => {
     }
 };
 
-interface ShowerRecord {
-    id: string;
-    guestId: string;
-    time?: string | null;
-    scheduledFor?: string | null;
-    date: string;
-    dateKey?: string;
-    status: string;
-    createdAt?: string;
-    lastUpdated?: string;
-}
+export type ShowerRecord = MappedShowerRecord;
 
-interface LaundryRecord {
-    id: string;
-    guestId: string;
-    time?: string | null;
-    laundryType?: string;
+export interface LaundryRecord extends MappedLaundryRecord {
     washType?: string; // App-side compatibility
-    bagNumber?: string;
-    scheduledFor?: string | null;
-    date: string;
-    dateKey?: string;
-    status: string;
-    createdAt?: string;
-    lastUpdated?: string;
 }
 
 export interface LaundryWeeklyUsage {
@@ -238,13 +222,13 @@ export const useServicesStore = create<ServicesState>()(
                                 throw friendlyServiceError(msg, 'Unable to book shower slot. Please try again.');
                             }
 
-                            const mapped = mapShowerRow(data as any);
+                            const mapped = mapShowerRow(data as ShowerDbRow);
                             set((state) => {
                                 const existingIndex = state.showerRecords.findIndex((record) => record.id === mapped.id);
                                 if (existingIndex === -1) {
-                                    state.showerRecords.push(mapped as any);
+                                    state.showerRecords.push(mapped);
                                 } else {
-                                    state.showerRecords[existingIndex] = mapped as any;
+                                    state.showerRecords[existingIndex] = mapped;
                                 }
                             });
                             return mapped;
@@ -274,7 +258,7 @@ export const useServicesStore = create<ServicesState>()(
 
                         const mapped = mapShowerRow(data);
                         set((state) => {
-                            state.showerRecords.push(mapped as any);
+                            state.showerRecords.push(mapped);
                         });
                         return mapped;
                     },
@@ -308,7 +292,7 @@ export const useServicesStore = create<ServicesState>()(
                             const mapped = mapShowerRow(data);
                             set((state) => {
                                 const existingIndex = state.showerRecords.findIndex((record) => record.id === mapped.id);
-                                if (existingIndex !== -1) state.showerRecords[existingIndex] = mapped as any;
+                                if (existingIndex !== -1) state.showerRecords[existingIndex] = mapped;
                             });
                             return mapped;
                         }
@@ -332,7 +316,7 @@ export const useServicesStore = create<ServicesState>()(
 
                         const mapped = mapShowerRow(data);
                         set((state) => {
-                            state.showerRecords.push(mapped as any);
+                            state.showerRecords.push(mapped);
                         });
                         return mapped;
                     },
@@ -359,7 +343,7 @@ export const useServicesStore = create<ServicesState>()(
                                 console.error('Failed to delete shower record from Supabase:', error);
                                 set((state) => {
                                     if (target && !state.showerRecords.some((r) => r.id === recordId)) {
-                                        state.showerRecords.splice(Math.max(targetIndex, 0), 0, target as any);
+                                        state.showerRecords.splice(Math.max(targetIndex, 0), 0, target);
                                     }
                                 });
                                 throw new Error('Unable to delete shower record');
@@ -489,8 +473,8 @@ export const useServicesStore = create<ServicesState>()(
                             const remapped = mapLaundryRow(reused);
                             set((state) => {
                                 const existingIndex = state.laundryRecords.findIndex((record) => record.id === remapped.id);
-                                if (existingIndex === -1) state.laundryRecords.push(remapped as any);
-                                else state.laundryRecords[existingIndex] = remapped as any;
+                                if (existingIndex === -1) state.laundryRecords.push(remapped);
+                                else state.laundryRecords[existingIndex] = remapped;
                             });
                             return remapped;
                         }
@@ -523,7 +507,7 @@ export const useServicesStore = create<ServicesState>()(
 
                         const mapped = mapLaundryRow(data);
                         set((state) => {
-                            state.laundryRecords.push(mapped as any);
+                            state.laundryRecords.push(mapped);
                         });
                         return mapped;
                     },
@@ -554,7 +538,7 @@ export const useServicesStore = create<ServicesState>()(
 
                         const mapped = mapLaundryRow(data);
                         set((state) => {
-                            state.laundryRecords.push(mapped as any);
+                            state.laundryRecords.push(mapped);
                         });
                         return mapped;
                     },
@@ -581,7 +565,7 @@ export const useServicesStore = create<ServicesState>()(
                                 console.error('Failed to delete laundry record from Supabase:', error);
                                 set((state) => {
                                     if (target && !state.laundryRecords.some((r) => r.id === recordId)) {
-                                        state.laundryRecords.splice(Math.max(targetIndex, 0), 0, target as any);
+                                        state.laundryRecords.splice(Math.max(targetIndex, 0), 0, target);
                                     }
                                 });
                                 throw new Error('Unable to delete laundry record');
@@ -672,7 +656,7 @@ export const useServicesStore = create<ServicesState>()(
                         // unstyled badge until realtime maps it back to
                         // 'awaiting'. The database write below still uses the
                         // DB-canonical value.
-                        const displayStatus = mapShowerStatusToApp(status as any);
+                        const displayStatus = mapShowerStatusToApp(status);
                         set((state) => {
                             const index = state.showerRecords.findIndex((r) => r.id === recordId);
                             if (index !== -1) {
@@ -682,7 +666,7 @@ export const useServicesStore = create<ServicesState>()(
 
                         const supabase = createClient();
                         // Map app status to DB status (e.g., 'awaiting' -> 'booked')
-                        const dbStatus = mapShowerStatusToDb(status as any);
+                        const dbStatus = mapShowerStatusToDb(status);
                         let { error: updateError } = await supabase
                             .from('shower_reservations')
                             .update({ status: dbStatus })
@@ -727,7 +711,7 @@ export const useServicesStore = create<ServicesState>()(
                         if (!recordIds.length) return true;
 
                         const { showerRecords } = get();
-                        const previousStatuses = new Map<string, string>();
+                        const previousStatuses = new Map<string, ShowerAppStatus>();
 
                         // Store previous statuses for potential rollback
                         recordIds.forEach((id) => {
@@ -1116,8 +1100,8 @@ export const useServicesStore = create<ServicesState>()(
                             ]);
 
                             set((state) => {
-                                state.showerRecords = (showerRows || []) as any;
-                                state.laundryRecords = (laundryRows || []) as any;
+                                state.showerRecords = showerRows || [];
+                                state.laundryRecords = laundryRows || [];
                                 state.bicycleRecords = (bicycleRows || []) as any;
                                 state.haircutRecords = (haircutRows || []) as any;
                                 state.holidayRecords = (holidayRows || []) as any;

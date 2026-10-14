@@ -14,7 +14,10 @@ vi.mock('@/lib/headlines/bayArea', () => ({
 }));
 
 vi.mock('@/lib/supabase/server', () => ({
-    createClient: vi.fn(async () => ({ __testServerClient: true })),
+    createClient: vi.fn(async () => ({
+        from: mockFrom,
+        __testServerClient: true,
+    })),
 }));
 
 /** Build a select chain supporting .order().order() then terminal filters. */

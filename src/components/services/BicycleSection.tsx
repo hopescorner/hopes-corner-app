@@ -13,12 +13,7 @@ import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
 import { ReminderIndicator } from '@/components/ui/ReminderIndicator';
-
-const BICYCLE_REPAIR_STATUS = {
-    PENDING: 'pending',
-    IN_PROGRESS: 'in_progress',
-    DONE: 'done',
-};
+import { BICYCLE_REPAIR_STATUS } from '@/lib/constants/constants';
 
 const STATUS_COLUMNS = [
     {

@@ -50,5 +50,3 @@ export function BackpackIcon({ size = 24, className = '', strokeWidth = 2 }: Bac
         </svg>
     );
 }
-
-export default BackpackIcon;

@@ -2,23 +2,39 @@
 
 ## [0.44.1] - 2026-10-14
 
-### Fixed
-
-- Saving a guest profile now keeps shelter guest enrollment in sync even when the database needs a fallback path, so staff can enroll or unenroll existing guests without losing the rest of the edit.
-
-### Tests
-
-- Added regression coverage for the shelter guest save fallback path and bumped release metadata to 0.44.1.
-
-## [0.44.0] - 2026-10-14
-
 ### Added
 
 - Staff can now mark guests as shelter guests from the new-guest form or profile edit screen. Shelter guests are labeled during check-in, and shower and laundry bookings are blocked while the designation is active.
 
+### Fixed
+
+- Database triggers consistently enforce shower and laundry restrictions regardless of ban status.
+- Guest profile updates verify the shelter designation against fallback responses and report failures to staff.
+- Existing bookings remain visible and manageable for newly enrolled shelter guests.
+
 ### Tests
 
-- Added regression coverage for the new shelter guest toggle, check-in label/notice, and service-store booking restrictions. Version metadata and service worker cache version were bumped to 0.44.0.
+- Added regression coverage for shelter guest enrollment, database trigger ordering, waitlist rejections, fallback RPC validation, and check-in service actions.
+
+## [0.44.0] - 2026-10-13
+
+### Added
+
+- Spanish-language UI localization for guest-facing check-in flows with reactive toggling and persistent browser storage.
+- Native IndexedDB offline check-in queue that preserves meal check-ins during network dropouts and automatically replays mutations on reconnect.
+- Root-level App Router boundaries (`error.tsx`, `not-found.tsx`, and `loading.tsx`) with recovery actions and accessible skeletons.
+
+### Improved
+
+- Modularized `GuestCard` by separating meal check-in controls, service slots, identity headers, and linked guests into dedicated, testable subcomponents.
+- Removed unused runtime dependencies and pruned dead/unused exports.
+- Allowed mobile pinch-to-zoom (up to 5x) for low-vision accessibility.
+- Migrated in-app changelog entries to a lightweight JSON structure, shrinking the codebase surface.
+- Hardened service mapping type safety using generated Supabase database types.
+
+### Tests
+
+- Added comprehensive tests for root router boundaries, offline queue persistence and replay, Spanish language provider, and guest subcomponents. All 221 test suites pass (4,307 tests); ESLint clean; Next.js build clean and within JS budget.
 
 ## [0.43.0] - 2026-10-13
 

@@ -46,6 +46,17 @@ describe('releaseVersion script', () => {
         ).not.toThrow();
     });
 
+    it('passes when changelogJsonSource covers the current version', () => {
+        expect(() =>
+            assertChangelogsMatchVersion({
+                version: '0.5.26',
+                appVersionSource: "export const APP_VERSION = '0.5.26';\n",
+                changelogJsonSource: JSON.stringify([{ version: '0.5.26' }]),
+                changelogMdSource: '# Changelog\n\n## [0.5.26] - 2026-07-20\n\n### Fixed\n\n- Something.\n',
+            }),
+        ).not.toThrow();
+    });
+
     it('fails when the in-app changelog lags behind APP_VERSION', () => {
         expect(() =>
             assertChangelogsMatchVersion({

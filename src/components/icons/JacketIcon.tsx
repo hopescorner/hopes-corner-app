@@ -67,5 +67,3 @@ export function JacketIcon({ size = 24, className = '', strokeWidth = 2 }: Jacke
         </svg>
     );
 }
-
-export default JacketIcon;

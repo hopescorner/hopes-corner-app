@@ -52,17 +52,51 @@ export function buildReleaseTag(version) {
     return `v${version}`;
 }
 
-export function assertChangelogsMatchVersion({ version, appVersionSource, changelogMdSource }) {
-    const latestInAppVersion = extractVersion(
-        appVersionSource,
-        IN_APP_CHANGELOG_FIRST_VERSION_PATTERN,
-        'appVersion.ts CHANGELOG first entry',
-    );
+export function assertChangelogsMatchVersion({
+    version,
+    appVersionSource,
+    changelogMdSource,
+    changelogJsonSource,
+    baseDir = repoRoot,
+}) {
+    let latestInAppVersion;
+
+    if (changelogJsonSource) {
+        try {
+            const parsed = JSON.parse(changelogJsonSource);
+            latestInAppVersion = Array.isArray(parsed) ? parsed[0]?.version : undefined;
+        } catch {
+            latestInAppVersion = undefined;
+        }
+    }
+
+    if (!latestInAppVersion && appVersionSource) {
+        const match = appVersionSource.match(IN_APP_CHANGELOG_FIRST_VERSION_PATTERN);
+        if (match) {
+            latestInAppVersion = match[1];
+        }
+    }
+
+    if (!latestInAppVersion) {
+        const changelogJsonPath = path.join(baseDir, 'src/data/changelog.json');
+        if (fs.existsSync(changelogJsonPath)) {
+            try {
+                const parsed = JSON.parse(fs.readFileSync(changelogJsonPath, 'utf8'));
+                latestInAppVersion = Array.isArray(parsed) ? parsed[0]?.version : undefined;
+            } catch {
+                latestInAppVersion = undefined;
+            }
+        }
+    }
+
+    if (!latestInAppVersion) {
+        throw new Error('Could not find in-app changelog first entry version.');
+    }
 
     if (latestInAppVersion !== version) {
         throw new Error(
             `In-app changelog is out of date: appVersion.ts CHANGELOG[0].version=${latestInAppVersion} but APP_VERSION=${version}. ` +
-            'Add a new entry at the top of the CHANGELOG array in src/lib/utils/appVersion.ts.',
+            'Add a new entry at the top of src/data/changelog.json.',
         );
     }
 

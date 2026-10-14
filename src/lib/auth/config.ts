@@ -28,7 +28,7 @@ interface ExtendedJWT {
     role?: string;
 }
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+export const { handlers, auth } = NextAuth({
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
     providers: [
         Credentials({
