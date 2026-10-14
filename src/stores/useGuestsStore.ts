@@ -412,12 +412,13 @@ export const useGuestsStore = create<GuestsState>()(
                         }
                     });
 
-                    let { data, error } = await supabase
+                    const { data, error: initialError } = await supabase
                         .from('guests')
                         .update(payload)
                         .eq('id', id)
                         .select()
                         .single();
+                    let error = initialError;
 
                     if (error && isShelterGuestSchemaError(error)) {
                         const rpcResult = await supabase.rpc('save_guest_profile', {
