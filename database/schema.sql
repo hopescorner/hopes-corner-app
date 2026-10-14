@@ -21,6 +21,7 @@ declare
   meal_ban boolean;
   shower_ban boolean;
   laundry_ban boolean;
+  shelter_guest boolean;
   has_program_specific boolean;
   all_programs_banned boolean;
   normalized_service text;
@@ -47,9 +48,9 @@ begin
 
   select g.banned_until, g.ban_reason, g.full_name,
          g.banned_from_bicycle, g.banned_from_meals,
-         g.banned_from_shower, g.banned_from_laundry
+         g.banned_from_shower, g.banned_from_laundry, g.shelter_guest
     into ban_until, ban_reason, guest_name,
-         bicycle_ban, meal_ban, shower_ban, laundry_ban
+         bicycle_ban, meal_ban, shower_ban, laundry_ban, shelter_guest
   from public.guests g
   where g.id = new.guest_id;
 
@@ -77,6 +78,16 @@ begin
 
   service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
   normalized_service := lower(trim(coalesce(service_label, '')));
+
+  if shelter_guest and normalized_service in ('shower', 'showers', 'shower booking', 'shower bookings', 'laundry', 'laundry booking', 'laundry bookings') then
+    raise exception using
+      message = format(
+        'Guest %s is enrolled as a shelter guest and cannot book shower or laundry services.',
+        coalesce(guest_name, new.guest_id::text)
+      ),
+      detail = 'Shower and laundry services provided at shelter.',
+      hint = 'Remove the shelter guest designation to book these services.';
+  end if;
 
   if has_program_specific then
     if normalized_service in ('meals', 'meal service', 'meal') then
@@ -236,6 +247,7 @@ create table if not exists public.guests (
   banned_from_meals boolean default false,
   banned_from_shower boolean default false,
   banned_from_laundry boolean default false,
+  shelter_guest boolean default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint guests_ban_window_valid check (
@@ -249,6 +261,7 @@ comment on column public.guests.banned_from_bicycle is 'If true, guest is banned
 comment on column public.guests.banned_from_meals is 'If true, guest is banned from meal services when banned_until is in the future';
 comment on column public.guests.banned_from_shower is 'If true, guest is banned from shower services when banned_until is in the future';
 comment on column public.guests.banned_from_laundry is 'If true, guest is banned from laundry services when banned_until is in the future';
+comment on column public.guests.shelter_guest is 'If true, shower and laundry bookings are disabled because these services are provided at shelter';
 
 drop trigger if exists trg_guests_updated_at on public.guests;
 create trigger trg_guests_updated_at

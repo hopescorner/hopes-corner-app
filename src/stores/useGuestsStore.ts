@@ -57,6 +57,7 @@ export interface Guest {
     bannedFromMeals: boolean;
     bannedFromShower: boolean;
     bannedFromLaundry: boolean;
+    shelterGuest?: boolean;
     createdAt: string;
     updatedAt: string;
     docId?: string;
@@ -309,6 +310,7 @@ export const useGuestsStore = create<GuestsState>()(
                         location: guestData.location || 'Mountain View',
                         notes: guestData.notes || '',
                         bicycle_description: bicycleDescription,
+                        shelter_guest: Boolean(guestData.shelterGuest),
                     };
 
                     let { data, error } = await supabase
@@ -378,6 +380,7 @@ export const useGuestsStore = create<GuestsState>()(
                     if (updates.notes !== undefined) payload.notes = updates.notes;
                     if (updates.bicycleDescription !== undefined) payload.bicycle_description = normalizeBicycleDescription(updates.bicycleDescription);
                     if (updates.guestId !== undefined) payload.external_id = updates.guestId;
+                    if (updates.shelterGuest !== undefined) payload.shelter_guest = updates.shelterGuest;
 
                     // Optimistic update
                     set((state) => {
@@ -857,6 +860,7 @@ export const useGuestsStore = create<GuestsState>()(
                             state.guests = (guestsData || []).map((g: any) => ({
                                 ...g,
                                 housingStatus: normalizeHousingStatus(g.housingStatus),
+                                shelterGuest: Boolean(g.shelterGuest ?? g.shelter_guest),
                             })) as any;
                             state.guestFamilies = familiesData as any;
                             state.guestFamilyMembers = membersData as any;

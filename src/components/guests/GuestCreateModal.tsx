@@ -46,6 +46,7 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
         notes: '',
         bicycleDescription: '',
         enrollInFamilyMeal: false,
+        shelterGuest: false,
         familyId: '',
     });
     const [familyMode, setFamilyMode] = useState<'primary' | 'member'>('primary');
@@ -99,6 +100,7 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
                 ...formData,
                 enrollInFamilyMeal: formData.enrollInFamilyMeal && familyMode === 'primary',
                 familyId: formData.enrollInFamilyMeal && familyMode === 'member' ? formData.familyId : '',
+                shelterGuest: formData.shelterGuest,
             });
             await onCreated?.(guest);
             toast.success('Guest added successfully');
@@ -302,6 +304,26 @@ export function GuestCreateModal({ onClose, initialName = '', defaultLocation = 
                                         <option key={city} value={city}>{city}</option>
                                     ))}
                                 </select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold text-cyan-700 uppercase tracking-wider flex items-center gap-2">
+                                <Home size={14} /> Shelter Guest
+                            </h3>
+                            <div className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-4 space-y-3">
+                                <label className="flex items-start gap-3 text-sm font-semibold text-gray-800">
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.shelterGuest}
+                                        onChange={(e) => setFormData({ ...formData, shelterGuest: e.target.checked })}
+                                        className="mt-0.5 h-4 w-4 rounded border-cyan-300 text-cyan-600"
+                                    />
+                                    <span>
+                                        Enroll as Shelter Guest
+                                        <span className="block text-xs font-medium text-gray-500">Shower and laundry services are provided at shelter.</span>
+                                    </span>
+                                </label>
                             </div>
                         </div>
 

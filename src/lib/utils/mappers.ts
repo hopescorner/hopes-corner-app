@@ -36,6 +36,7 @@ interface GuestRow {
   banned_from_shower?: boolean | null;
   banned_from_laundry?: boolean | null;
   banned_from_bicycle?: boolean | null;
+  shelter_guest?: boolean | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -339,10 +340,11 @@ export const mapGuestRow = (row: GuestRow) => {
     bannedFromMeals: row.banned_from_meals || false,
     bannedFromShower: row.banned_from_shower || false,
     bannedFromLaundry: row.banned_from_laundry || false,
+    shelterGuest: row.shelter_guest || false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     docId: row.id,
-  };
+    };
 };
 
 export const mapMealRow = (row: MealRow) => {
@@ -650,4 +652,3 @@ export const mapDailyHeadlineRow = (row: DailyHeadlineRowInput) => ({
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
-

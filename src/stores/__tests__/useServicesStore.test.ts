@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { useServicesStore } from '../useServicesStore';
+import { useGuestsStore } from '../useGuestsStore';
 
 // Mock dependencies
 const mockRpcResult = {
@@ -94,6 +95,7 @@ describe('useServicesStore', () => {
             haircutRecords: [],
             holidayRecords: [],
         });
+        useGuestsStore.setState({ guests: [] } as any);
         vi.clearAllMocks();
 
         // Reset mocks to ensure no leakages
@@ -278,6 +280,28 @@ describe('useServicesStore', () => {
 
                 const { showerRecords } = useServicesStore.getState();
                 expect(showerRecords[0].status).toBe('no-show');
+            });
+        });
+
+        describe('shelter guest restrictions', () => {
+            it('blocks shower bookings for shelter guests', async () => {
+                useGuestsStore.setState({
+                    guests: [{ id: 'guest-1', shelterGuest: true }],
+                } as any);
+
+                await expect(useServicesStore.getState().addShowerRecord('guest-1', '08:00')).rejects.toThrow(
+                    'Shower and laundry services provided at shelter.'
+                );
+            });
+
+            it('blocks laundry bookings for shelter guests', async () => {
+                useGuestsStore.setState({
+                    guests: [{ id: 'guest-1', shelterGuest: true }],
+                } as any);
+
+                await expect(useServicesStore.getState().addLaundryRecord('guest-1', 'onsite', '08:00 - 09:00')).rejects.toThrow(
+                    'Shower and laundry services provided at shelter.'
+                );
             });
         });
     });

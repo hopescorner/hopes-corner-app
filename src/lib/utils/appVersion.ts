@@ -3,7 +3,7 @@
  * Centralizes version information and changelog data
  */
 
-export const APP_VERSION = '0.43.0';
+export const APP_VERSION = '0.44.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';
@@ -19,6 +19,17 @@ export interface ChangelogEntry {
 
 // Changelog entries - add new entries at the top
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: '0.44.0',
+        date: 'October 14, 2026',
+        highlights: [
+            {
+                type: 'feature',
+                title: 'Shelter Guest Enrollment',
+                description: 'Staff can now mark guests as shelter guests from the new-guest form or profile edit screen. Shelter guests are clearly labeled during check-in, and shower and laundry bookings are blocked while the designation is active.',
+            },
+        ],
+    },
     {
         version: '0.43.0',
         date: 'October 13, 2026',

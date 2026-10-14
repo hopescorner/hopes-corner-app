@@ -16,6 +16,7 @@ describe('MobileServiceSheet', () => {
         id: 'guest-1',
         name: 'John Doe',
         preferredName: 'Johnny',
+        shelterGuest: false,
     };
 
     const defaultProps = {
@@ -47,6 +48,12 @@ describe('MobileServiceSheet', () => {
         const guestWithoutPreferred = { id: 'guest-2', name: 'Jane Smith' };
         render(<MobileServiceSheet {...defaultProps} guest={guestWithoutPreferred} />);
         expect(screen.getByText('Quick Add for Jane Smith')).toBeDefined();
+    });
+
+    it('shows shelter guest notice when shower and laundry are restricted', () => {
+        render(<MobileServiceSheet {...defaultProps} guest={{ ...mockGuest, shelterGuest: true }} />);
+        expect(screen.getByText('Shelter Guest')).toBeDefined();
+        expect(screen.getByText('Shower and laundry services provided at shelter.')).toBeDefined();
     });
 
     describe('Meal Section', () => {

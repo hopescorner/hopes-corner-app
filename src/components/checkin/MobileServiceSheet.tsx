@@ -23,6 +23,7 @@ interface Guest {
     id: string;
     name: string;
     preferredName?: string;
+    shelterGuest?: boolean;
     isBanned?: boolean;
     bannedUntil?: string | null;
     banReason?: string | null;
@@ -165,6 +166,7 @@ export function MobileServiceSheet({
     if (!guest) return null;
 
     const guestName = guest.preferredName || guest.name || 'Guest';
+    const isShelterGuest = Boolean(guest.shelterGuest);
 
     return (
         <AnimatePresence>
@@ -286,6 +288,13 @@ export function MobileServiceSheet({
                             {/* Divider */}
                             <div className="border-t border-gray-100" />
 
+                            {isShelterGuest ? (
+                                <div className="rounded-2xl border-2 border-cyan-200 bg-cyan-50 p-4 text-cyan-800">
+                                    <p className="font-bold">Shelter Guest</p>
+                                    <p className="text-sm font-medium">Shower and laundry services provided at shelter.</p>
+                                </div>
+                            ) : (
+                                <>
                             {/* Shower Section */}
                             <div className="space-y-3">
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
@@ -474,6 +483,8 @@ export function MobileServiceSheet({
                                     </div>
                                 )}
                             </div>
+                                </>
+                            )}
 
                             {/* Close hint */}
                             <div className="pt-4 flex justify-center">

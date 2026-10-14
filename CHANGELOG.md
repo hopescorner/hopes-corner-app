@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.44.0] - 2026-10-14
+
+### Added
+
+- Staff can now mark guests as shelter guests from the new-guest form or profile edit screen. Shelter guests are labeled during check-in, and shower and laundry bookings are blocked while the designation is active.
+
+### Tests
+
+- Added regression coverage for the new shelter guest toggle, check-in label/notice, and service-store booking restrictions. Version metadata and service worker cache version were bumped to 0.44.0.
+
 ## [0.43.0] - 2026-10-13
 
 ### Fixed

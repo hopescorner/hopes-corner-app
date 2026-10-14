@@ -651,6 +651,7 @@ function PureGuestCard({
     const isBannedFromShower = banDetails.programs.find(p => p.key === 'shower')?.isBanned ?? false;
     const isBannedFromLaundry = banDetails.programs.find(p => p.key === 'laundry')?.isBanned ?? false;
     const isBannedFromBicycle = banDetails.programs.find(p => p.key === 'bicycle')?.isBanned ?? false;
+    const isShelterGuest = Boolean(guest.shelterGuest);
 
     const lastVisitDateStr = useMemo(() => {
         const precomputedDate = lastVisitDateMap?.get(guest.id);
@@ -1069,6 +1070,12 @@ function PureGuestCard({
                                         </span>
                                     ) : null;
                                 })()}
+                                {isShelterGuest && (
+                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 text-[10px] font-bold">
+                                        <Home size={10} />
+                                        Shelter Guest
+                                    </span>
+                                )}
                                 <GuestWarningBadge
                                     guestId={guest.id}
                                     fallbackCount={warningBadgeCount}
@@ -1397,70 +1404,90 @@ function PureGuestCard({
                     {/* Quick Service Buttons - hidden on mobile */}
                     {!compact && (
                         <div className="hidden md:flex items-center gap-1 px-1 py-1 bg-gray-50 rounded-xl border border-gray-100 shadow-inner">
-                            {/* Shower */}
-                            {isBannedFromShower ? (
-                                <DisabledAction label="Shower" reason="Banned" />
-                            ) : todayShower ? (
-                                    <div className="flex items-center gap-1">
-                                        <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
-                                            <Check size={14} />
-                                            <ShowerHead size={15} />
-                                        </div>
-                                        {showerAction && (
-                                            <UndoButton
-                                                title="Undo shower"
-                                                label="Undo shower"
-                                                onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
-                                            />
-                                        )}
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={handleQuickShower}
-                                        disabled={isPending}
-                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-sky-600 font-bold text-sm hover:border-sky-300 hover:bg-sky-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                        title={nextAvailableShowerSlot ? `Quick book shower @ ${nextAvailableShowerSlot.label}` : 'Join shower waitlist'}
-                                    >
-                                        <ShowerHead size={16} />
-                                        {nextAvailableShowerSlot ? (
-                                            <span className="text-[11px] ml-1 font-bold text-sky-700">{nextAvailableShowerSlot.slotTime}</span>
+                            {isShelterGuest ? (
+                                <div className="flex items-center gap-1">
+                                    <DisabledAction
+                                        label="Shower"
+                                        reason="Shelter guest"
+                                        title="Shower and laundry services provided at shelter."
+                                    />
+                                    <DisabledAction
+                                        label="Laundry"
+                                        reason="Shelter guest"
+                                        title="Shower and laundry services provided at shelter."
+                                    />
+                                    <span className="ml-1 text-[11px] font-medium text-cyan-700">
+                                        Shower and laundry services provided at shelter.
+                                    </span>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Shower */}
+                                    {isBannedFromShower ? (
+                                        <DisabledAction label="Shower" reason="Banned" />
+                                    ) : todayShower ? (
+                                            <div className="flex items-center gap-1">
+                                                <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
+                                                    <Check size={14} />
+                                                    <ShowerHead size={15} />
+                                                </div>
+                                                {showerAction && (
+                                                    <UndoButton
+                                                        title="Undo shower"
+                                                        label="Undo shower"
+                                                        onClick={(e) => handleUndo(e, showerAction.id, 'Shower booking')}
+                                                    />
+                                                )}
+                                            </div>
                                         ) : (
-                                            <span className="text-[10px] ml-1 font-bold text-amber-600">Waitlist</span>
-                                        )}
-                                    </button>
-                                )
-                            }
-                            {/* Laundry */}
-                            {isBannedFromLaundry ? (
-                                <DisabledAction label="Laundry" reason="Banned" />
-                            ) : todayLaundry ? (
-                                    <div className="flex items-center gap-1">
-                                        <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
-                                            <Check size={14} />
-                                            <WashingMachine size={15} />
-                                        </div>
-                                        {laundryAction && (
-                                            <UndoButton
-                                                title="Undo laundry"
-                                                label="Undo laundry"
-                                                onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
-                                            />
-                                        )}
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={handleQuickLaundry}
-                                        disabled={isPending}
-                                        className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-indigo-600 font-bold text-sm hover:border-indigo-300 hover:bg-indigo-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
-                                        title={nextAvailableLaundrySlot ? `Quick book on-site laundry @ ${nextAvailableLaundrySlot.label}` : 'Book laundry'}
-                                    >
-                                        <WashingMachine size={16} />
-                                        {nextAvailableLaundrySlot && (
-                                            <span className="text-[10px] ml-1 font-bold text-indigo-700">{nextAvailableLaundrySlot.label.split(' - ')[0]}</span>
-                                        )}
-                                    </button>
-                                )
-                            }
+                                            <button
+                                                onClick={handleQuickShower}
+                                                disabled={isPending}
+                                                className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-sky-600 font-bold text-sm hover:border-sky-300 hover:bg-sky-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                                title={nextAvailableShowerSlot ? `Quick book shower @ ${nextAvailableShowerSlot.label}` : 'Join shower waitlist'}
+                                            >
+                                                <ShowerHead size={16} />
+                                                {nextAvailableShowerSlot ? (
+                                                    <span className="text-[11px] ml-1 font-bold text-sky-700">{nextAvailableShowerSlot.slotTime}</span>
+                                                ) : (
+                                                    <span className="text-[10px] ml-1 font-bold text-amber-600">Waitlist</span>
+                                                )}
+                                            </button>
+                                        )
+                                    }
+                                    {/* Laundry */}
+                                    {isBannedFromLaundry ? (
+                                        <DisabledAction label="Laundry" reason="Banned" />
+                                    ) : todayLaundry ? (
+                                            <div className="flex items-center gap-1">
+                                                <div className="flex items-center justify-center gap-1.5 h-11 min-h-[44px] px-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-sm">
+                                                    <Check size={14} />
+                                                    <WashingMachine size={15} />
+                                                </div>
+                                                {laundryAction && (
+                                                    <UndoButton
+                                                        title="Undo laundry"
+                                                        label="Undo laundry"
+                                                        onClick={(e) => handleUndo(e, laundryAction.id, 'Laundry booking')}
+                                                    />
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={handleQuickLaundry}
+                                                disabled={isPending}
+                                                className="flex items-center justify-center h-11 min-h-[44px] min-w-[44px] px-3 rounded-lg bg-white border border-gray-200 text-indigo-600 font-bold text-sm hover:border-indigo-300 hover:bg-indigo-50 transition-all active:scale-95 touch-manipulation disabled:opacity-50"
+                                                title={nextAvailableLaundrySlot ? `Quick book on-site laundry @ ${nextAvailableLaundrySlot.label}` : 'Book laundry'}
+                                            >
+                                                <WashingMachine size={16} />
+                                                {nextAvailableLaundrySlot && (
+                                                    <span className="text-[10px] ml-1 font-bold text-indigo-700">{nextAvailableLaundrySlot.label.split(' - ')[0]}</span>
+                                                )}
+                                            </button>
+                                        )
+                                    }
+                                </>
+                            )}
                         </div>
                     )}
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, User, Loader2, Bike, Trash2, Users } from 'lucide-react';
+import { X, User, Loader2, Bike, Trash2, Users, Home } from 'lucide-react';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { GuestDeleteWithTransferModal } from './GuestDeleteWithTransferModal';
 import toast from 'react-hot-toast';
@@ -69,6 +69,7 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
     const [isPending, setIsPending] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [familyEnrolled, setFamilyEnrolled] = useState(currentFamily?.enrolledInFamilyMeal === true);
+    const [shelterGuest, setShelterGuest] = useState(Boolean(guest.shelterGuest));
     const [familyMode, setFamilyMode] = useState<'primary' | 'member'>(
         currentFamily && currentFamily.primaryGuestId !== guest.id ? 'member' : 'primary'
     );
@@ -159,6 +160,7 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                 lastName: toTitleCase(formData.lastName.trim()),
                 preferredName: formData.preferredName?.trim() || '',
                 bicycleDescription: formData.bicycleDescription?.trim() || '',
+                shelterGuest,
                 name: `${toTitleCase(formData.firstName.trim())} ${toTitleCase(formData.lastName.trim())}`.trim(),
             };
             await updateGuest(guest.id, updates);
@@ -408,6 +410,25 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                                 )}
                             </div>
                         )}
+                    </div>
+
+                    <div className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-4 space-y-3">
+                        <h3 className="text-xs font-black text-cyan-700 uppercase tracking-wider flex items-center gap-2">
+                            <Home size={14} />
+                            Shelter Guest
+                        </h3>
+                        <label className="flex items-start gap-3 text-sm font-semibold text-gray-800">
+                            <input
+                                type="checkbox"
+                                checked={shelterGuest}
+                                onChange={(event) => setShelterGuest(event.target.checked)}
+                                className="mt-0.5 h-4 w-4 rounded border-cyan-300 text-cyan-600"
+                            />
+                            <span>
+                                Enroll as Shelter Guest
+                                <span className="block text-xs font-medium text-gray-500">Shower and laundry services are provided at shelter.</span>
+                            </span>
+                        </label>
                     </div>
 
                     {/* Notes */}

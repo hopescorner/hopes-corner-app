@@ -137,6 +137,7 @@ const baseGuest = {
     gender: 'Male',
     age: 'Adult 18-59',
     isBanned: false,
+    shelterGuest: false,
     createdAt: '2024-01-01',
 };
 
@@ -196,6 +197,11 @@ describe('GuestCard Component', () => {
         it('renders housing status', () => {
             render(<GuestCard guest={baseGuest} />);
             expect(screen.getByText('Unsheltered')).toBeDefined();
+        });
+
+        it('labels shelter guests next to the name', () => {
+            render(<GuestCard guest={{ ...baseGuest, shelterGuest: true }} />);
+            expect(screen.getByText('Shelter Guest')).toBeDefined();
         });
 
         it('renders location when provided', () => {
