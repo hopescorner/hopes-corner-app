@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.45.1",
+    "date": "October 14, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Shelter Guest Edit State and Snapshot Sync",
+        "description": "Shelter guest enrollment now flows through the check-in snapshot into guest cards and the profile edit screen, so the designation stays checked and staff can switch guests between shelter and non-shelter status with immediate effect."
+      }
+    ]
+  },
+  {
     "version": "0.45.0",
     "date": "October 14, 2026",
     "highlights": [

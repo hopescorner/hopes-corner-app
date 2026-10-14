@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.45.1] - 2026-10-14
+
+### Fixed
+
+- Shelter guest enrollment now survives the check-in snapshot pipeline, so the profile edit screen shows the designation as checked and staff can switch guests between shelter and non-shelter status.
+- Check-in directory, guest cards, and the mobile service sheet read the shelter flag from snapshot summaries, keeping shower and laundry restrictions consistent immediately after enroll/unenroll, including updates from other devices.
+
+### Tests
+
+- Added regression coverage for snapshot shelter-flag normalization and snake_case guest handling in the profile edit screen.
+
 ## [0.45.0] - 2026-10-14
 
 ### Added
