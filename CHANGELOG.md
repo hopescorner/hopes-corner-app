@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.46.2] - 2026-10-15
+
+### Fixed
+
+- Donations Log CSV exports now load the latest donation records before downloading, so authorized staff can export the report from a cold dashboard session.
+
+### Tests
+
+- Added regression coverage for the Donations Log export flow.
+
 ## [0.46.1] - 2026-10-14
 
 ### Changed

@@ -75,7 +75,7 @@ export function DataExportSection() {
     const { guests } = useGuestsStore();
     const { mealRecords, familyMealRecords = [] } = useMealsStore();
     const { showerRecords, laundryRecords, bicycleRecords } = useServicesStore();
-    const { donationRecords } = useDonationsStore();
+    const ensureDonationsLoaded = useDonationsStore((state) => state.ensureLoaded);
     const [exporting, setExporting] = useState<string | null>(null);
 
     const handleExport = async (id: string) => {
@@ -222,9 +222,11 @@ export function DataExportSection() {
                     );
                     break;
 
-                case 'donations':
+                case 'donations': {
+                    await ensureDonationsLoaded();
+                    const donationRecords = useDonationsStore.getState().donationRecords || [];
                     exportToCSV(
-                        (donationRecords || []).map(r => {
+                        donationRecords.map(r => {
                             const lineItemValue = calculateDonationLineItemValue(r);
                             return {
                                 Date: new Date(r.date).toLocaleDateString(),
@@ -239,6 +241,7 @@ export function DataExportSection() {
                         `hopes-corner-donations-${today}.csv`
                     );
                     break;
+                }
 
                 case 'supplies': {
                     const supabase = createClient();
