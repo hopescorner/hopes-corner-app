@@ -109,5 +109,27 @@ describe('DataExportSection donations export', () => {
         await waitFor(() => expect(createObjectURLSpy).toHaveBeenCalledTimes(1));
         expect(clickSpy).toHaveBeenCalledTimes(1);
         expect(toastError).not.toHaveBeenCalledWith('No data to export');
+        expect(toastSuccess).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows only the empty-state error without a success toast when there are no donations', async () => {
+        ensureDonationsLoaded.mockImplementationOnce(async () => {
+            donationStoreState.donationRecords = [];
+        });
+
+        render(<DataExportSection />);
+
+        const heading = screen.getByRole('heading', { name: /Donations Log/i });
+        const card = heading.parentElement;
+        expect(card).not.toBeNull();
+
+        const downloadButton = within(card as HTMLElement).getByRole('button', { name: /Download CSV/i });
+        fireEvent.click(downloadButton);
+
+        await waitFor(() => expect(ensureDonationsLoaded).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(toastError).toHaveBeenCalledWith('No data to export'));
+        expect(createObjectURLSpy).not.toHaveBeenCalled();
+        expect(clickSpy).not.toHaveBeenCalled();
+        expect(toastSuccess).not.toHaveBeenCalled();
     });
 });
