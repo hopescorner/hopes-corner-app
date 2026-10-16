@@ -24,11 +24,12 @@ import { todayPacificDateString } from '@/lib/utils/date';
 import { createClient } from '@/lib/supabase/client';
 import { calculateDonationLineItemValue, formatDonationCurrency } from '@/lib/utils/donationUtils';
 
-// Helper to convert data to CSV and trigger download
-function exportToCSV(data: Record<string, unknown>[], filename: string) {
+// Helper to convert data to CSV and trigger download.
+// Returns true when a file was generated, false when there was no data.
+function exportToCSV(data: Record<string, unknown>[], filename: string): boolean {
     if (!data.length) {
         toast.error('No data to export');
-        return;
+        return false;
     }
 
     const headers = Object.keys(data[0]);
@@ -57,6 +58,7 @@ function exportToCSV(data: Record<string, unknown>[], filename: string) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    return true;
 }
 
 const EXPORT_OPTIONS = [
@@ -75,7 +77,7 @@ export function DataExportSection() {
     const { guests } = useGuestsStore();
     const { mealRecords, familyMealRecords = [] } = useMealsStore();
     const { showerRecords, laundryRecords, bicycleRecords } = useServicesStore();
-    const { donationRecords } = useDonationsStore();
+    const ensureDonationsLoaded = useDonationsStore((state) => state.ensureLoaded);
     const [exporting, setExporting] = useState<string | null>(null);
 
     const handleExport = async (id: string) => {
@@ -83,10 +85,11 @@ export function DataExportSection() {
 
         try {
             const today = todayPacificDateString();
+            let exportSucceeded = false;
 
             switch (id) {
                 case 'guests':
-                    exportToCSV(
+                    exportSucceeded = exportToCSV(
                         guests.map(g => ({
                             'Guest ID': g.guestId || g.id,
                             'Housing Status': g.housingStatus || '',
@@ -142,11 +145,11 @@ export function DataExportSection() {
                             Details: r.status || '-',
                         })),
                     ];
-                    exportToCSV(allServices, `hopes-corner-services-${today}.csv`);
+                    exportSucceeded = exportToCSV(allServices, `hopes-corner-services-${today}.csv`);
                     break;
 
                 case 'meals':
-                    exportToCSV(
+                    exportSucceeded = exportToCSV(
                         [
                             ...mealRecords.map(r => ({
                                 Date: new Date(r.date).toLocaleDateString(),
@@ -170,7 +173,7 @@ export function DataExportSection() {
                     break;
 
                 case 'family-meals':
-                    exportToCSV(
+                    exportSucceeded = exportToCSV(
                         familyMealRecords.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
                             'Primary Guest ID': r.primaryGuestId || '-',
@@ -185,7 +188,7 @@ export function DataExportSection() {
                     break;
 
                 case 'showers':
-                    exportToCSV(
+                    exportSucceeded = exportToCSV(
                         showerRecords.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
                             'Guest ID': r.guestId,
@@ -197,7 +200,7 @@ export function DataExportSection() {
                     break;
 
                 case 'laundry':
-                    exportToCSV(
+                    exportSucceeded = exportToCSV(
                         laundryRecords.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
                             'Guest ID': r.guestId,
@@ -210,7 +213,7 @@ export function DataExportSection() {
                     break;
 
                 case 'bicycles':
-                    exportToCSV(
+                    exportSucceeded = exportToCSV(
                         bicycleRecords.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
                             'Guest ID': r.guestId,
@@ -222,9 +225,11 @@ export function DataExportSection() {
                     );
                     break;
 
-                case 'donations':
-                    exportToCSV(
-                        (donationRecords || []).map(r => {
+                case 'donations': {
+                    await ensureDonationsLoaded();
+                    const donationRecords = useDonationsStore.getState().donationRecords || [];
+                    exportSucceeded = exportToCSV(
+                        donationRecords.map(r => {
                             const lineItemValue = calculateDonationLineItemValue(r);
                             return {
                                 Date: new Date(r.date).toLocaleDateString(),
@@ -239,6 +244,7 @@ export function DataExportSection() {
                         `hopes-corner-donations-${today}.csv`
                     );
                     break;
+                }
 
                 case 'supplies': {
                     const supabase = createClient();
@@ -262,7 +268,7 @@ export function DataExportSection() {
                         sweatpants: 'Sweatpants',
                     };
 
-                    exportToCSV(
+                    exportSucceeded = exportToCSV(
                         (supplyData || []).map((r: { distributed_at: string; guest_id: string; item_key: string }) => ({
                             Date: new Date(r.distributed_at).toLocaleDateString(),
                             'Guest ID': r.guest_id,
@@ -278,7 +284,9 @@ export function DataExportSection() {
                     toast.error('Unknown export type');
             }
 
-            toast.success(`${id.charAt(0).toUpperCase() + id.slice(1)} export downloaded!`);
+            if (exportSucceeded) {
+                toast.success(`${id.charAt(0).toUpperCase() + id.slice(1)} export downloaded!`);
+            }
         } catch (error) {
             console.error('Export error:', error);
             toast.error('Export failed. Please try again.');
