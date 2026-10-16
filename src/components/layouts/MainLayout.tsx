@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { ClipboardList, BarChart3, UserPlus, HelpCircle, LogOut } from 'lucide-react';
 import { getDefaultRoute, getRoleLabel, ROLE_ACCESS, type UserRole } from '@/lib/auth/types';
 import { AppVersion } from '@/components/pwa/AppVersion';
+import { isHalloweenSeason } from '@/lib/seasonal';
 import { useCheckInStore } from '@/stores/useCheckInStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
@@ -49,6 +50,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         () => allNavItems.filter((item) => (allowedTabs as readonly string[]).includes(item.id)),
         [allowedTabs]
     );
+
+    // Halloween special (October only): pumpkin replaces the "o" in "Hope's".
+    // Automatically reverts on Nov 1st when isHalloweenSeason() goes false.
+    const showHalloweenBrand = useMemo(() => isHalloweenSeason(), []);
 
     // Get tab matching current pathname
     const pathnameTab = navItems.find((item) => pathname.startsWith(item.href))?.id || navItems[0]?.id;
@@ -188,8 +193,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                                 />
                             </Link>
                             <div className="hidden sm:block">
-                                <h1 className="text-lg md:text-xl font-bold leading-tight font-heading">
-                                    Hope&apos;s Corner
+                                <h1
+                                    className="text-lg md:text-xl font-bold leading-tight font-heading"
+                                    aria-label="Hope's Corner"
+                                >
+                                    {showHalloweenBrand ? (
+                                        <>
+                                            H<span aria-hidden="true">🎃</span>
+                                            pe&apos;s Corner
+                                            <span className="sr-only"> (Halloween)</span>
+                                        </>
+                                    ) : (
+                                        <>Hope&apos;s Corner</>
+                                    )}
                                 </h1>
                                 <p className="text-emerald-100 text-[10px] md:text-xs">
                                     Guest Check-In System
