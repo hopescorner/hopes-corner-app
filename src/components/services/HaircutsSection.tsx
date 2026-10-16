@@ -39,8 +39,12 @@ export function HaircutsSection() {
     const today = todayPacificDateString();
     const slots = useMemo(() => generateHaircutSlots(), []);
 
-    const { haircutRecords, addHaircutRecord, deleteHaircutRecord } = useServicesStore();
-    const { guests } = useGuestsStore();
+    const services = useServicesStore();
+    const haircutRecords = services?.haircutRecords ?? [];
+    const addHaircutRecord = services?.addHaircutRecord;
+    const deleteHaircutRecord = services?.deleteHaircutRecord;
+    const guestsData = useGuestsStore();
+    const guests = Array.isArray(guestsData) ? guestsData : (guestsData?.guests ?? []);
     const { data: session } = useSession();
 
     const [selectedDate, setSelectedDate] = useState(today);

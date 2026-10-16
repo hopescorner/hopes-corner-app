@@ -8,6 +8,7 @@ import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { getGuestsMap } from '@/lib/utils/guestLookup';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { isShowerPendingForEndOfDay } from '@/lib/utils/serviceStatus';
 import { formatSlotLabel } from '@/lib/utils/serviceSlots';
@@ -42,7 +43,7 @@ export function ShowersSection() {
     const [search, setSearch] = useServiceViewState<string>('showers-search', '');
     const query = useDeferredValue(search.trim().toLowerCase());
     const now = useServiceClock();
-    const guestMap = useMemo(() => new Map(guests.map((guest) => [guest.id, guest])), [guests]);
+    const guestMap = useMemo(() => getGuestsMap(guests), [guests]);
     const [activeTab, setActiveTab] = useServiceViewState<'active' | 'completed' | 'waitlist' | 'cancelled'>('showers-filter', 'active', ['active', 'completed', 'waitlist', 'cancelled']);
     const [viewMode, setViewMode] = useServiceViewState<'grid' | 'list'>('showers-view', 'list', ['grid', 'list']);
     const [selectedShowerId, setSelectedShowerId] = useState<string | null>(null);
@@ -124,6 +125,7 @@ export function ShowersSection() {
     }, [selectedDate]);
 
     const selectableGuests = useMemo(() => {
+        if (!showAddForm) return [];
         return (guests || [])
             .filter((guest) => guest?.id)
             .sort((firstGuest, secondGuest) => {
@@ -131,7 +133,7 @@ export function ShowersSection() {
                 const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
                 return firstName.localeCompare(secondName);
             });
-    }, [guests]);
+    }, [guests, showAddForm]);
 
     const currentList = useMemo(() => {
         switch (activeTab) {
@@ -547,12 +549,11 @@ function ShowerListItem({ record, guest, onClick, readOnly = false, queuePositio
 
     return (
         <motion.div
-            layout
             initial={false}
             animate={{ y: 0 }}
             exit={{ scale: 0.95 }}
             className={cn(
-                "bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative",
+                "bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-all group relative content-auto",
                 onClick ? "cursor-pointer hover:border-sky-100" : ""
             )}
             onClick={(e) => {

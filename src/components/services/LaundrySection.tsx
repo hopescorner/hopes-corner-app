@@ -18,6 +18,7 @@ import {
 import { useDroppable, useDraggable } from '@dnd-kit/core';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { getGuestsMap } from '@/lib/utils/guestLookup';
 import { todayPacificDateString, pacificDateStringFrom, formatDateForDisplay } from '@/lib/utils/date';
 import { useShallow } from 'zustand/react/shallow';
 import { useLaundryStatusChange, LAUNDRY_NEXT_ACTION } from './useLaundryStatusChange';
@@ -130,7 +131,7 @@ export function LaundrySection() {
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     }, [laundryRecords, isViewingPast, today]);
 
-    const guestMap = useMemo(() => new Map(guests.map((guest) => [guest.id, guest])), [guests]);
+    const guestMap = useMemo(() => getGuestsMap(guests), [guests]);
     const readyCount = [...activeLaundry, ...legacyLaundry].filter((record) => record.status === 'done' || record.status === 'returned').length;
     const matchesSearch = useCallback((record: any) => {
         if (readyOnly && record.status !== 'done' && record.status !== 'returned') return false;
@@ -158,14 +159,15 @@ export function LaundrySection() {
     }, [selectedDate]);
 
     const selectableGuests = useMemo(() => {
+        if (!showAddForm) return [];
         return (guests || [])
             .filter((guest) => guest?.id)
             .sort((firstGuest, secondGuest) => {
-                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
+                const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${firstGuest.lastName || ''}`).toString();
                 const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
                 return firstName.localeCompare(secondName);
             });
-    }, [guests]);
+    }, [guests, showAddForm]);
 
     // Per-guest weekly laundry usage for the *selected* backfill date's week
     const backfillWeeklyUsage = useMemo(() => {

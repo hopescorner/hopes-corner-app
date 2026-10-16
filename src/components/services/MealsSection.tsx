@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { getGuestsMap } from '@/lib/utils/guestLookup';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific, parsePacificDateParts } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
@@ -167,13 +168,7 @@ export function MealsSection() {
         }
     };
 
-    const guestMap = useMemo(() => {
-        const map = new Map<string, (typeof guests)[number]>();
-        for (const g of guests) {
-            if (g?.id) map.set(g.id, g);
-        }
-        return map;
-    }, [guests]);
+    const guestMap = useMemo(() => getGuestsMap(guests), [guests]);
 
     const familyMembersByFamilyId = useMemo(() => {
         const map = new Map<string, typeof guestFamilyMembers>();
@@ -263,14 +258,8 @@ export function MealsSection() {
     // Base is scoped to guests who have a meal record on the selected date so staff
     // only see guests relevant to that service day.
     const filteredBulkGuests = useMemo(() => {
-        // Start from guests who are present on the selected date (have a guest meal record).
-        const guestsById = new Map<string, (typeof guests)[number]>();
-        for (const g of guests) {
-            if (g?.id) guestsById.set(g.id, g);
-        }
-
         let list = [...guestsWithMealOnDateSet]
-            .map((id) => guestsById.get(id))
+            .map((id) => guestMap.get(id))
             .filter((g): g is (typeof guests)[number] => !!g && !g.bannedFromMeals);
 
         if (bulkGuestMealFilter === 'has_meal') {

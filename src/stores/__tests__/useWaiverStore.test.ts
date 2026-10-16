@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useWaiverStore } from '../useWaiverStore';
+import { useWaiverStore, clearWaiverStoreCache } from '../useWaiverStore';
 
 // Mock Supabase client
 const mockRpc = vi.fn();
@@ -13,6 +13,7 @@ vi.mock('@/lib/supabase/client', () => ({
 describe('useWaiverStore', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        clearWaiverStoreCache();
         mockRpc.mockImplementation((fn: string, args: any) => {
             if (fn === 'guest_needs_waiver_reminder') {
                 return Promise.resolve({ data: args.p_guest_id === 'needs-remind', error: null });
@@ -186,6 +187,42 @@ describe('useWaiverStore', () => {
             useWaiverStore.getState().incrementWaiverVersion();
             useWaiverStore.getState().incrementWaiverVersion();
             expect(useWaiverStore.getState().waiverVersion).toBe(initialVersion + 3);
+        });
+    });
+
+    describe('caching behavior', () => {
+        it('caches guestNeedsWaiverReminder to avoid repeated RPC calls', async () => {
+            const { guestNeedsWaiverReminder } = useWaiverStore.getState();
+            const first = await guestNeedsWaiverReminder('needs-remind', 'shower');
+            expect(first).toBe(true);
+            expect(mockRpc).toHaveBeenCalledTimes(1);
+
+            const second = await guestNeedsWaiverReminder('needs-remind', 'shower');
+            expect(second).toBe(true);
+            expect(mockRpc).toHaveBeenCalledTimes(1); // No new network call
+        });
+
+        it('caches hasActiveWaiver to avoid repeated RPC calls', async () => {
+            const { hasActiveWaiver } = useWaiverStore.getState();
+            const first = await hasActiveWaiver('has-waiver', 'bicycle');
+            expect(first).toBe(true);
+            expect(mockRpc).toHaveBeenCalledTimes(1);
+
+            const second = await hasActiveWaiver('has-waiver', 'bicycle');
+            expect(second).toBe(true);
+            expect(mockRpc).toHaveBeenCalledTimes(1); // No new network call
+        });
+
+        it('invalidates cache when waiver is dismissed', async () => {
+            const { guestNeedsWaiverReminder, dismissWaiver } = useWaiverStore.getState();
+            await guestNeedsWaiverReminder('needs-remind', 'shower');
+            expect(mockRpc).toHaveBeenCalledTimes(1);
+
+            await dismissWaiver('needs-remind', 'shower');
+
+            // Cache was cleared for this key on dismiss
+            const after = await guestNeedsWaiverReminder('needs-remind', 'shower');
+            expect(mockRpc).toHaveBeenCalledTimes(3); // 1 initial + 1 dismiss + 1 refetch
         });
     });
 });

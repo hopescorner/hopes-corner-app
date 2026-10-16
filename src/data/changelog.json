@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.48.0",
+    "date": "October 16, 2026",
+    "highlights": [
+      {
+        "type": "performance",
+        "title": "Client Device & Tablet Responsiveness Optimizations",
+        "description": "Cached waiver and item availability lookups, eliminated repeated guest array scans with weak-cached Map lookups, precomputed recent guest status maps, introduced fine-grained Zustand subscriptions, and optimized touch responsiveness and offscreen rendering."
+      }
+    ]
+  },
+  {
     "version": "0.47.0",
     "date": "October 15, 2026",
     "highlights": [

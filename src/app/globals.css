@@ -56,9 +56,23 @@ h6,
 }
 
 /* Touch optimization */
+button,
+a,
+input,
+select,
+[role="button"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 .touch-manipulation {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+}
+
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
 }
 
 /* Enhanced toast animations */

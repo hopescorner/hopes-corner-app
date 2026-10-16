@@ -20,6 +20,8 @@ interface CheckInState {
     serviceDate: string;
     guests: CheckInGuestSummary[];
     guestsById: Record<string, CheckInGuestSummary>;
+    recentGuestIds: Set<string>;
+    lastVisitDateMap: Map<string, string>;
     searchIndex: SearchIndex<CheckInGuestSummary>;
     todayByGuest: Record<string, CheckInTodayStatus>;
     dailyNotes: CheckInSnapshot['dailyNotes'];
@@ -65,6 +67,8 @@ const initialState = {
     serviceDate: '',
     guests: [] as CheckInGuestSummary[],
     guestsById: {} as Record<string, CheckInGuestSummary>,
+    recentGuestIds: new Set<string>(),
+    lastVisitDateMap: new Map<string, string>(),
     searchIndex: createSearchIndex([] as CheckInGuestSummary[]),
     todayByGuest: {} as Record<string, CheckInTodayStatus>,
     dailyNotes: [] as CheckInSnapshot['dailyNotes'],
@@ -82,6 +86,17 @@ export const useCheckInStore = create<CheckInState>()((set, get) => ({
         // A refresh started before a check-in/undo/live event must not erase it.
         if (expectedTodayByGuest && current.todayByGuest !== expectedTodayByGuest) return false;
         if (current.generatedAt && snapshot.generatedAt < current.generatedAt) return false;
+
+        const guestsById: Record<string, CheckInGuestSummary> = {};
+        const recentGuestIds = new Set<string>();
+        const lastVisitDateMap = new Map<string, string>();
+        for (let i = 0; i < snapshot.guests.length; i++) {
+            const guest = snapshot.guests[i];
+            guestsById[guest.id] = guest;
+            if (guest.recentMeal) recentGuestIds.add(guest.id);
+            if (guest.lastVisitDate) lastVisitDateMap.set(guest.id, guest.lastVisitDate);
+        }
+
         set((state) => ({
             ...state,
             isReady: true,
@@ -89,7 +104,9 @@ export const useCheckInStore = create<CheckInState>()((set, get) => ({
             directoryVersion: snapshot.directoryVersion,
             serviceDate: snapshot.serviceDate,
             guests: snapshot.guests,
-            guestsById: Object.fromEntries(snapshot.guests.map((guest) => [guest.id, guest])),
+            guestsById,
+            recentGuestIds,
+            lastVisitDateMap,
             searchIndex: state.directoryVersion === snapshot.directoryVersion
                 ? state.searchIndex
                 : createSearchIndex(snapshot.guests),

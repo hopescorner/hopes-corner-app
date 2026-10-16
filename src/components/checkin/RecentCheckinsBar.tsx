@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { History, Check, Utensils, ShowerHead, WashingMachine, Bike } from 'lucide-react';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { type Guest } from '@/stores/useGuestsStore';
+import { getGuestsMap } from '@/lib/utils/guestLookup';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { getGuestInitials, getGuestAvatarColor } from '@/lib/utils/guestAvatar';
 import { cn } from '@/lib/utils/cn';
@@ -19,10 +20,7 @@ export function RecentCheckinsBar({ guests, onSelectGuest, className = '' }: Rec
     const today = todayPacificDateString();
 
     const recentGuestsWithAction = useMemo(() => {
-        const guestMap = new Map<string, Guest>();
-        for (const g of guests || []) {
-            if (g?.id) guestMap.set(g.id, g);
-        }
+        const guestMap = getGuestsMap(guests || []);
 
         const seenGuestIds = new Set<string>();
         const result: Array<{ guest: Guest; actionType: string; timestamp: string }> = [];

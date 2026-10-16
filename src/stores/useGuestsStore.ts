@@ -74,22 +74,8 @@ const patchSnapshotShelterFlag = (guestId: string, shelterGuest: boolean) => {
     }
 };
 
-const guestsMapCache = new WeakMap<Guest[], Map<string, Guest>>();
-
-function getGuestsMap(guests: Guest[]): Map<string, Guest> {
-    let map = guestsMapCache.get(guests);
-    if (!map) {
-        map = new Map<string, Guest>();
-        for (let i = 0; i < guests.length; i++) {
-            const g = guests[i];
-            if (g?.id) {
-                map.set(g.id, g);
-            }
-        }
-        guestsMapCache.set(guests, map);
-    }
-    return map;
-}
+export { getGuestsMap } from '@/lib/utils/guestLookup';
+import { getGuestsMap } from '@/lib/utils/guestLookup';
 
 export interface Guest {
     id: string;
