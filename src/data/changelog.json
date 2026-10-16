@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.47.0",
+    "date": "October 15, 2026",
+    "highlights": [
+      {
+        "type": "performance",
+        "title": "Comprehensive App Performance Optimizations",
+        "description": "Optimized check-in snapshot queries with database partial indexes, accelerated guest store lookups and search indexing, eliminated array spreads in family meal aggregations, and memoized guest cards and status selectors to eliminate redundant re-renders."
+      }
+    ]
+  },
+  {
     "version": "0.46.1",
     "date": "October 14, 2026",
     "highlights": [

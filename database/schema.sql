@@ -292,6 +292,7 @@ create table if not exists public.guest_warnings (
 );
 
 create index if not exists guest_warnings_guest_id_idx on public.guest_warnings (guest_id);
+create index if not exists idx_guest_warnings_active_guest_id on public.guest_warnings (guest_id) where active = true;
 create index if not exists guest_warnings_created_at_idx on public.guest_warnings (created_at desc);
 
 drop trigger if exists trg_guest_warnings_updated_at on public.guest_warnings;
@@ -762,6 +763,10 @@ create index if not exists meal_attendance_created_at_idx
 create index if not exists meal_attendance_picked_up_by_idx
   on public.meal_attendance (picked_up_by_guest_id)
   where picked_up_by_guest_id is not null;
+
+create index if not exists idx_meal_attendance_recent_meals
+  on public.meal_attendance (served_on, guest_id)
+  where guest_id is not null;
 
 -- RLS for meal_attendance table
 alter table public.meal_attendance enable row level security;

@@ -1448,4 +1448,14 @@ describe('GuestCard Component', () => {
             expect(screen.queryByRole('button', { name: 'Next guest' })).toBeNull();
         });
     });
+
+    describe('Memoization and Shelter Updates', () => {
+        it('re-renders when shelterGuest changes on the guest prop', () => {
+            const { rerender } = render(<GuestCard guest={{ ...baseGuest, shelterGuest: false }} />);
+            expect(screen.queryByText('Shelter Guest')).toBeNull();
+
+            rerender(<GuestCard guest={{ ...baseGuest, shelterGuest: true }} />);
+            expect(screen.getByText('Shelter Guest')).toBeDefined();
+        });
+    });
 });

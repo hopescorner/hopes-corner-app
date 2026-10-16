@@ -179,8 +179,12 @@ export function MealsSection() {
         const map = new Map<string, typeof guestFamilyMembers>();
         for (const member of guestFamilyMembers || []) {
             if (!member?.familyId) continue;
-            const list = map.get(member.familyId) || [];
-            map.set(member.familyId, [...list, member]);
+            let list = map.get(member.familyId);
+            if (!list) {
+                list = [];
+                map.set(member.familyId, list);
+            }
+            list.push(member);
         }
         return map;
     }, [guestFamilyMembers]);

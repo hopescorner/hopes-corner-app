@@ -154,6 +154,8 @@ const getGuestGenderPresentation = (value: unknown) => {
     }
 };
 
+const EMPTY_NAMES: string[] = [];
+
 function PureGuestCard({
     guest,
     isSelected = false,
@@ -260,9 +262,13 @@ function PureGuestCard({
             : mealRecords.some((record) => record.guestId === id && (record.dateKey || pacificDateStringFrom(record.date)) === today)
     ))), [mealStatusMap, effectiveLinkedIds, mealRecords, today]);
     const linkedServedCount = servedLinkedIds.size;
-    const linkedNames = useGuestsStore(useShallow((state) => (state.guests ?? [])
-        .filter((linked) => effectiveLinkedIds.includes(linked.id))
-        .map(getGuestDisplayName)));
+    const linkedNames = useGuestsStore(useShallow((state) => {
+        if (effectiveLinkedIds.length === 0) return EMPTY_NAMES;
+        const ids = new Set(effectiveLinkedIds);
+        return (state.guests ?? [])
+            .filter((linked) => ids.has(linked.id))
+            .map(getGuestDisplayName);
+    }));
 
     const [haircutDate, setHaircutDate] = useState(today);
     const displayName = getGuestDisplayName(guest);
@@ -1373,7 +1379,9 @@ export const GuestCard = memo(GuestCardImpl, (prev, next) => {
         prev.guest?.location === next.guest?.location &&
         prev.guest?.gender === next.guest?.gender &&
         prev.guest?.age === next.guest?.age &&
-        prev.guest?.isBanned === next.guest?.isBanned;
+        prev.guest?.isBanned === next.guest?.isBanned &&
+        Boolean(prev.guest?.shelterGuest ?? (prev.guest as any)?.shelter_guest) ===
+            Boolean(next.guest?.shelterGuest ?? (next.guest as any)?.shelter_guest);
 
     return (
         guestFieldsEqual &&

@@ -74,6 +74,23 @@ const patchSnapshotShelterFlag = (guestId: string, shelterGuest: boolean) => {
     }
 };
 
+const guestsMapCache = new WeakMap<Guest[], Map<string, Guest>>();
+
+function getGuestsMap(guests: Guest[]): Map<string, Guest> {
+    let map = guestsMapCache.get(guests);
+    if (!map) {
+        map = new Map<string, Guest>();
+        for (let i = 0; i < guests.length; i++) {
+            const g = guests[i];
+            if (g?.id) {
+                map.set(g.id, g);
+            }
+        }
+        guestsMapCache.set(guests, map);
+    }
+    return map;
+}
+
 export interface Guest {
     id: string;
     guestId: string;
@@ -1072,15 +1089,26 @@ export const useGuestsStore = create<GuestsState>()(
 
                 getLinkedGuests: (guestId) => {
                     const { guests, guestProxies } = get();
-                    const linkedIds = guestProxies
-                        .filter(p => p.guestId === guestId)
-                        .map(p => p.proxyId);
-                    const reverseLinkedIds = guestProxies
-                        .filter(p => p.proxyId === guestId)
-                        .map(p => p.guestId);
+                    if (!guestProxies || guestProxies.length === 0) return [];
+                    const guestMap = getGuestsMap(guests);
+                    const result: Guest[] = [];
+                    const seen = new Set<string>();
 
-                    const allLinkedIds = new Set([...linkedIds, ...reverseLinkedIds]);
-                    return guests.filter(g => g && allLinkedIds.has(g.id));
+                    for (let i = 0; i < guestProxies.length; i++) {
+                        const p = guestProxies[i];
+                        let targetId: string | null = null;
+                        if (p.guestId === guestId) {
+                            targetId = p.proxyId;
+                        } else if (p.proxyId === guestId) {
+                            targetId = p.guestId;
+                        }
+                        if (targetId && !seen.has(targetId)) {
+                            seen.add(targetId);
+                            const g = guestMap.get(targetId);
+                            if (g) result.push(g);
+                        }
+                    }
+                    return result;
                 },
 
                 getLinkedGuestsCount: (guestId) => {
@@ -1150,16 +1178,20 @@ export const useGuestsStore = create<GuestsState>()(
 
                 getFamilyMembers: (familyId) => {
                     const { guests, guestFamilies, guestFamilyMembers } = get();
-                    const memberIds = new Set(
-                        guestFamilyMembers
-                            .filter((m) => m.familyId === familyId)
-                            .map((m) => m.guestId)
-                    );
-                    // The primary is always part of the household, even when its
-                    // member row is missing (older data, failed writes).
+                    const guestMap = getGuestsMap(guests);
+                    const memberIds = new Set<string>();
+                    for (let i = 0; i < guestFamilyMembers.length; i++) {
+                        const m = guestFamilyMembers[i];
+                        if (m.familyId === familyId) memberIds.add(m.guestId);
+                    }
                     const family = guestFamilies.find((f) => f.id === familyId);
                     if (family?.primaryGuestId) memberIds.add(family.primaryGuestId);
-                    return guests.filter((g) => g && memberIds.has(g.id));
+                    const result: Guest[] = [];
+                    memberIds.forEach((id) => {
+                        const g = guestMap.get(id);
+                        if (g) result.push(g);
+                    });
+                    return result;
                 },
 
                 getEnrolledFamilies: () => {
@@ -1187,12 +1219,18 @@ export const useGuestsStore = create<GuestsState>()(
                     const { guests, guestFamilies, guestFamilyMembers } = get();
                     const family = guestFamilies.find((f) => f.primaryGuestId === primaryGuestId);
                     if (!family) return [];
-                    const memberIds = new Set(
-                        guestFamilyMembers
-                            .filter((m) => m.familyId === family.id && m.guestId !== primaryGuestId)
-                            .map((m) => m.guestId)
-                    );
-                    return guests.filter((g) => g && memberIds.has(g.id));
+                    const guestMap = getGuestsMap(guests);
+                    const result: Guest[] = [];
+                    const seen = new Set<string>();
+                    for (let i = 0; i < guestFamilyMembers.length; i++) {
+                        const m = guestFamilyMembers[i];
+                        if (m.familyId === family.id && m.guestId !== primaryGuestId && !seen.has(m.guestId)) {
+                            seen.add(m.guestId);
+                            const g = guestMap.get(m.guestId);
+                            if (g) result.push(g);
+                        }
+                    }
+                    return result;
                 },
 
                 isPrimaryWithDependents: (guestId) => {

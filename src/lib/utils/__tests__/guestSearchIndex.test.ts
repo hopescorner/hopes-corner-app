@@ -117,6 +117,13 @@ describe('guestSearchIndex', () => {
             expect(entry).toBeDefined();
             expect(entry!.guest.firstName).toBe('Jane');
         });
+
+        it('deduplicates index entries per character and initials for a single guest', () => {
+            const index = createSearchIndex([{ id: 'pp', firstName: 'Peter', lastName: 'Parker' }]);
+            const pEntries = index.byFirstChar.get('p');
+            expect(pEntries).toHaveLength(1);
+            expect(pEntries![0].guest.id).toBe('pp');
+        });
     });
 
     describe('scoreMatch', () => {

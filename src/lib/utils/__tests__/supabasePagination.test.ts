@@ -10,6 +10,9 @@ describe('supabasePagination', () => {
             select: vi.fn().mockReturnThis(),
             order: vi.fn().mockReturnThis(),
             gte: vi.fn().mockReturnThis(),
+            gt: vi.fn().mockReturnThis(),
+            lt: vi.fn().mockReturnThis(),
+            limit: vi.fn().mockReturnThis(),
             range: vi.fn().mockReturnThis(),
             eq: vi.fn().mockReturnThis(),
             neq: vi.fn().mockReturnThis(),
@@ -123,5 +126,25 @@ describe('supabasePagination', () => {
         mockQuery.then.mockImplementation((resolve) => resolve({ data: null, error: null }));
         const result = await fetchAllPaginated(mockClient, { table: 'test' });
         expect(result).toEqual([]);
+    });
+
+    it('supports keyset cursor pagination with cursorColumn', async () => {
+        const page1 = [{ id: 'a' }, { id: 'b' }];
+        const page2 = [{ id: 'c' }];
+
+        mockQuery.then
+            .mockImplementationOnce((resolve) => resolve({ data: page1, error: null }))
+            .mockImplementationOnce((resolve) => resolve({ data: page2, error: null }));
+
+        const result = await fetchAllPaginated(mockClient, {
+            table: 'test',
+            pageSize: 2,
+            cursorColumn: 'id',
+            ascending: true,
+        });
+
+        expect(result).toEqual([...page1, ...page2]);
+        expect(mockQuery.limit).toHaveBeenCalledWith(2);
+        expect(mockQuery.gt).toHaveBeenCalledWith('id', 'b');
     });
 });

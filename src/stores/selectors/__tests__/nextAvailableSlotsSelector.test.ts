@@ -33,16 +33,14 @@ describe('useNextAvailableSlots', () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-01-20T20:00:00Z'));
 
-        mockUseMealsStore.mockImplementation((selector: any) => selector({
-            mealRecords: [],
-            extraMealRecords: [],
-        }));
-        mockUseActionHistoryStore.mockImplementation((selector: any) => selector({
-            actionHistory: [],
-        }));
-        mockUseBlockedSlotsStore.mockImplementation((selector: any) => selector({
-            isSlotBlocked: () => false,
-        }));
+        const stableMealState = { mealRecords: [], extraMealRecords: [] };
+        const stableActionHistoryState = { actionHistory: [] };
+        const stableBlockedSlotFn = () => false;
+        const stableBlockedSlotsState = { isSlotBlocked: stableBlockedSlotFn };
+
+        mockUseMealsStore.mockImplementation((selector: any) => selector(stableMealState));
+        mockUseActionHistoryStore.mockImplementation((selector: any) => selector(stableActionHistoryState));
+        mockUseBlockedSlotsStore.mockImplementation((selector: any) => selector(stableBlockedSlotsState));
     });
 
     afterEach(() => {
@@ -123,5 +121,13 @@ describe('useNextAvailableSlots', () => {
         const { result } = renderHook(() => useTodayStatusMaps());
         expect(result.current.nextAvailableShowerSlot?.slotTime).toBe('08:00');
         expect(result.current.nextAvailableLaundrySlot?.slotLabel).toBe('08:00 - 09:00');
+    });
+
+    it('returns a stable memoized reference across re-renders when data does not change', () => {
+        setupServicesStore();
+        const { result, rerender } = renderHook(() => useTodayStatusMaps());
+        const first = result.current;
+        rerender();
+        expect(result.current).toBe(first);
     });
 });

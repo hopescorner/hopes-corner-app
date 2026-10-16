@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.47.0] - 2026-10-15
+
+### Performance
+
+- **Database Indexes**: Added partial indexes for active guest warnings (`where active = true`), active reminders (`where dismissed_at is null`), and recent meal attendance (`served_on, guest_id where guest_id is not null`) to accelerate `get_checkin_snapshot` RPC execution.
+- **Store Lookups**: Introduced cached Map lookups in `useGuestsStore` for linked guests, family members, and dependents, replacing repeated $O(N)$ linear scans over 3,000+ guest records with $O(1)$ ID lookups.
+- **Search Indexing**: Deduplicated token first-character and initials buckets in `guestSearchIndex` to reduce candidate lists and prevent duplicate guest scoring.
+- **Meal Aggregations**: Replaced repeated array spread allocations in `MealsSection` family groupings with in-place bucket pushes.
+- **Render Optimizations**: Short-circuited linked name subscriptions on guest cards with 0 links, added `shelterGuest` to `GuestCard` memo comparator to ensure accurate updates, and memoized `useTodayStatusMaps` return value to eliminate unnecessary downstream re-renders.
+- **Pagination**: Added keyset cursor pagination support in `fetchAllPaginated` for large table querying without offset scan overhead.
+
+### Tests
+
+- Added tests for `guestSearchIndex` deduplication, `GuestCard` shelter memo re-renders, `useTodayStatusMaps` memoization stability, and keyset cursor pagination.
+
 ## [0.46.1] - 2026-10-14
 
 ### Changed
