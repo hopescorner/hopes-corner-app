@@ -200,6 +200,32 @@ describe('useItemsStore', () => {
             const result = getLastGivenDate('g1', 'tshirt');
             expect(result?.toISOString()).toBe(newer.toISOString());
         });
+
+        it('efficiently indexes items across multiple guests and items without mutating cache', () => {
+            const dateG1 = new Date('2025-01-05T10:00:00Z');
+            const dateG2 = new Date('2025-01-08T10:00:00Z');
+
+            useItemsStore.setState({
+                distributedItems: [
+                    { id: 'i1', guestId: 'g1', itemKey: 'jacket', distributedAt: dateG1.toISOString(), createdAt: dateG1.toISOString() },
+                    { id: 'i2', guestId: 'g2', itemKey: 'jacket', distributedAt: dateG2.toISOString(), createdAt: dateG2.toISOString() },
+                ],
+            });
+
+            const { getLastGivenDate } = useItemsStore.getState();
+            const res1 = getLastGivenDate('g1', 'jacket');
+            const res2 = getLastGivenDate('g2', 'jacket');
+            const res3 = getLastGivenDate('g3', 'jacket');
+
+            expect(res1?.toISOString()).toBe(dateG1.toISOString());
+            expect(res2?.toISOString()).toBe(dateG2.toISOString());
+            expect(res3).toBeNull();
+
+            // Mutating the returned date should not affect subsequent calls
+            res1?.setFullYear(2000);
+            const res1Again = getLastGivenDate('g1', 'jacket');
+            expect(res1Again?.toISOString()).toBe(dateG1.toISOString());
+        });
     });
 
     describe('checkAvailability', () => {

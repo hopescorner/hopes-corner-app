@@ -48,6 +48,8 @@ describe('useCheckInStore', () => {
         expect(state.isReady).toBe(true);
         expect(state.directoryVersion).toBe('v1');
         expect(state.guestsById['guest-1'].firstName).toBe('Ada');
+        expect(state.recentGuestIds.has('guest-1')).toBe(true);
+        expect(state.lastVisitDateMap.get('guest-1')).toBe('2026-07-18');
         expect('persist' in useCheckInStore).toBe(false);
     });
 

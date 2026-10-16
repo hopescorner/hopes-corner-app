@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.48.0] - 2026-10-16
+
+### Performance
+
+- **Waiver & Items Caching**: Added in-memory caching in `useWaiverStore` for `guest_needs_waiver_reminder` and `has_active_waiver` RPC responses to eliminate redundant network round-trips when rendering service cards. Added an index cache in `useItemsStore` for $O(1)$ distribution date lookups, eliminating repeated array filtering and sorting.
+- **Guest Lookup Cache**: Created `getGuestsMap` backed by `WeakMap` in `guestLookup.ts`, eliminating repeated `new Map(guests.map(...))` allocations across CheckIn, Services, and Multi-Guest bulk panels.
+- **Precomputed Snapshot Maps**: Precomputed `recentGuestIds` and `lastVisitDateMap` in a single pass during `useCheckInStore.hydrate`, avoiding thousands of array allocations on every check-in render.
+- **Lazy Selection**: Gated `selectableGuests` sorting in `ShowersSection` and `LaundrySection` behind `showAddForm`, preventing full list sorting on unexpanded forms.
+- **Fine-Grained Subscriptions**: Subscribed selectively to `bicycleRecords`, `haircutRecords`, and `reminders` to stop cascading re-renders across service sections.
+- **Touch & Paint Performance**: Added global `touch-action: manipulation` and transparent tap highlights for instantaneous tap responsiveness on tablets and mobile phones. Replaced heavy FLIP layout animations with hardware-accelerated transitions and added `content-visibility: auto` to skip offscreen card layout and paint costs.
+
+### Tests
+
+- Added test coverage for waiver store RPC caching, items store multi-guest indexing and date immutability, check-in store precomputed snapshot maps, and guest lookup caching.
+
+## [0.47.0] - 2026-10-15
+
+### Performance
+
+- **Database Indexes**: Added partial indexes for active guest warnings (`where active = true`), active reminders (`where dismissed_at is null`), and recent meal attendance (`served_on, guest_id where guest_id is not null`) to accelerate `get_checkin_snapshot` RPC execution.
+- **Store Lookups**: Introduced cached Map lookups in `useGuestsStore` for linked guests, family members, and dependents, replacing repeated $O(N)$ linear scans over 3,000+ guest records with $O(1)$ ID lookups.
+- **Search Indexing**: Deduplicated token first-character and initials buckets in `guestSearchIndex` to reduce candidate lists and prevent duplicate guest scoring.
+- **Meal Aggregations**: Replaced repeated array spread allocations in `MealsSection` family groupings with in-place bucket pushes.
+- **Render Optimizations**: Short-circuited linked name subscriptions on guest cards with 0 links, added `shelterGuest` to `GuestCard` memo comparator to ensure accurate updates, and memoized `useTodayStatusMaps` return value to eliminate unnecessary downstream re-renders.
+- **Pagination**: Added keyset cursor pagination support in `fetchAllPaginated` for large table querying without offset scan overhead.
+
+### Tests
+
+- Added tests for `guestSearchIndex` deduplication, `GuestCard` shelter memo re-renders, `useTodayStatusMaps` memoization stability, and keyset cursor pagination.
+
 ## [0.46.2] - 2026-10-15
 
 ### Fixed

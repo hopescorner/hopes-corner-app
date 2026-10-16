@@ -4,6 +4,7 @@ import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Check, Loader2 } from 'lucide-react';
 import { useRemindersStore, ReminderServiceType, GuestReminder } from '@/stores/useRemindersStore';
+import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 
@@ -30,11 +31,12 @@ export const ReminderIndicator = memo(function ReminderIndicator({
     allowInlineDismiss = true,
     className,
 }: ReminderIndicatorProps) {
-    const { getRemindersForService, dismissReminder } = useRemindersStore();
+    const reminders = useRemindersStore(
+        useShallow((s) => s.getRemindersForService(guestId, serviceType))
+    );
+    const dismissReminder = useRemindersStore((s) => s.dismissReminder);
     const [dismissingId, setDismissingId] = useState<string | null>(null);
     const [showTooltip, setShowTooltip] = useState(false);
-
-    const reminders = getRemindersForService(guestId, serviceType);
 
     if (reminders.length === 0) {
         return null;
@@ -162,15 +164,13 @@ export const ReminderBadge = memo(function ReminderBadge({
     onClick?: (e: React.MouseEvent) => void;
     className?: string;
 }) {
-    const { getRemindersForService, hasActiveReminder } = useRemindersStore();
-    
-    const reminders = serviceType 
-        ? getRemindersForService(guestId, serviceType)
-        : [];
-    
-    const hasReminder = serviceType 
-        ? hasActiveReminder(guestId, serviceType)
-        : hasActiveReminder(guestId);
+    const hasReminder = useRemindersStore((s) =>
+        serviceType ? s.hasActiveReminder(guestId, serviceType) : s.hasActiveReminder(guestId)
+    );
+    const reminderCount = useRemindersStore((s) => {
+        if (!serviceType) return 0;
+        return s.getRemindersForService(guestId, serviceType).length;
+    });
 
     if (!hasReminder) {
         return null;
@@ -196,7 +196,7 @@ export const ReminderBadge = memo(function ReminderBadge({
             >
                 <Bell size={10} />
             </motion.span>
-            {reminders.length > 0 ? reminders.length : '!'}
+            {reminderCount > 0 ? reminderCount : '!'}
         </motion.button>
     );
 });
@@ -215,10 +215,11 @@ export const ServiceCardReminder = memo(function ServiceCardReminder({
     serviceType: ReminderServiceType;
     className?: string;
 }) {
-    const { getRemindersForService, dismissReminder } = useRemindersStore();
+    const reminders = useRemindersStore(
+        useShallow((s) => s.getRemindersForService(guestId, serviceType))
+    );
+    const dismissReminder = useRemindersStore((s) => s.dismissReminder);
     const [dismissingId, setDismissingId] = useState<string | null>(null);
-
-    const reminders = getRemindersForService(guestId, serviceType);
 
     if (reminders.length === 0) {
         return null;

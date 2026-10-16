@@ -30,6 +30,33 @@ interface ItemsState {
     getLastGivenDate: (guestId: string, itemKey: string) => Date | null;
 }
 
+let cachedItemsRef: DistributedItem[] | null = null;
+let cachedLatestMap = new Map<string, Date>();
+
+export function clearItemsStoreCache() {
+    cachedItemsRef = null;
+    cachedLatestMap = new Map();
+}
+
+function getLatestGivenMap(items: DistributedItem[]): Map<string, Date> {
+    if (items === cachedItemsRef) {
+        return cachedLatestMap;
+    }
+    const map = new Map<string, Date>();
+    for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const key = `${item.guestId}:${item.itemKey}`;
+        const itemDate = new Date(item.distributedAt);
+        const existing = map.get(key);
+        if (!existing || itemDate.getTime() > existing.getTime()) {
+            map.set(key, itemDate);
+        }
+    }
+    cachedItemsRef = items;
+    cachedLatestMap = map;
+    return map;
+}
+
 export const useItemsStore = create<ItemsState>()(
     devtools(
         immer((set, get) => ({
@@ -179,12 +206,9 @@ export const useItemsStore = create<ItemsState>()(
 
             getLastGivenDate: (guestId: string, itemKey: string) => {
                 const { distributedItems } = get();
-                const items = distributedItems.filter(i => i.guestId === guestId && i.itemKey === itemKey);
-                if (items.length === 0) return null;
-
-                // Sort descending just in case
-                items.sort((a, b) => new Date(b.distributedAt).getTime() - new Date(a.distributedAt).getTime());
-                return new Date(items[0].distributedAt);
+                const map = getLatestGivenMap(distributedItems);
+                const date = map.get(`${guestId}:${itemKey}`);
+                return date ? new Date(date.getTime()) : null;
             },
 
             checkAvailability: (guestId: string, itemKey: string) => {

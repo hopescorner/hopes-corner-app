@@ -3,6 +3,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef, useDeferredValue, useTransition } from 'react';
 import { AlertTriangle, Search, UserPlus, X, Users } from 'lucide-react';
 import { useGuestsStore, Guest } from '@/stores/useGuestsStore';
+import { getGuestsMap } from '@/lib/utils/guestLookup';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useRemindersStore } from '@/stores/useRemindersStore';
@@ -136,6 +137,8 @@ export default function CheckInClient({
     const snapshotServiceDate = useCheckInStore((s) => s.serviceDate);
     const hydrateCheckIn = useCheckInStore((s) => s.hydrate);
     const searchSnapshotGuests = useCheckInStore((s) => s.searchGuests);
+    const snapshotRecentGuests = useCheckInStore((s) => s.recentGuestIds);
+    const snapshotLastVisitDates = useCheckInStore((s) => s.lastVisitDateMap);
     const guests: Guest[] = snapshotReady
         ? snapshotGuests as unknown as Guest[]
         : (initialSnapshot?.guests as unknown as Guest[] | undefined) ?? legacyGuests;
@@ -192,14 +195,8 @@ export default function CheckInClient({
         : legacyMealStatus,
     [snapshotReady, snapshotTodayByGuest, snapshotServiceDate, legacyMealStatus]);
 
-    const recentGuests = useMemo(() => snapshotReady
-        ? new Set(snapshotGuests.filter((guest) => guest.recentMeal).map((guest) => guest.id))
-        : legacyRecentGuests,
-    [snapshotReady, snapshotGuests, legacyRecentGuests]);
-    const lastVisitDates = useMemo(() => snapshotReady
-        ? new Map(snapshotGuests.flatMap((guest) => guest.lastVisitDate ? [[guest.id, guest.lastVisitDate] as const] : []))
-        : legacyLastVisitDates,
-    [snapshotReady, snapshotGuests, legacyLastVisitDates]);
+    const recentGuests = snapshotReady ? snapshotRecentGuests : legacyRecentGuests;
+    const lastVisitDates = snapshotReady ? snapshotLastVisitDates : legacyLastVisitDates;
 
     const applySnapshot = useCallback((snapshot: CheckInSnapshot, expectedTodayByGuest?: CheckInSnapshot['todayByGuest']) => {
         if (hydrateCheckIn(snapshot, expectedTodayByGuest)) {
@@ -339,7 +336,7 @@ export default function CheckInClient({
     }, [filteredGuests, sortConfig]);
 
     const duplicateCandidatePairs = useMemo(() => {
-        const byId = new Map(guests.map((guest) => [guest.id, guest]));
+        const byId = getGuestsMap(guests);
         return duplicateCandidateIds.flatMap(({ firstGuestId, secondGuestId }) => {
             const first = byId.get(firstGuestId);
             const second = byId.get(secondGuestId);

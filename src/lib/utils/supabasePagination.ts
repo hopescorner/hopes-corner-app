@@ -12,13 +12,9 @@ interface PaginationOptions {
     mapper?: (row: any) => any;
     onPage?: (rows: any[], meta: { page: number; offset: number }) => void;
     maxPages?: number;
+    cursorColumn?: string;
 }
 
-/**
- * Paginated Supabase fetch helper for large tables.
- * Uses offset-based pagination with a configurable page size and optional filters.
- * Accepts an optional mapper to transform rows and an onPage callback to stream results.
- */
 export const fetchAllPaginated = async (
     client: SupabaseClient,
     {
@@ -33,6 +29,7 @@ export const fetchAllPaginated = async (
         mapper,
         onPage,
         maxPages,
+        cursorColumn,
     }: PaginationOptions
 ) => {
     if (!client) return [];
@@ -42,16 +39,13 @@ export const fetchAllPaginated = async (
     let offset = 0;
     let page = 0;
     let hasMore = true;
+    let lastCursorValue: any = null;
 
     while (hasMore) {
         let query = client.from(table).select(select);
 
         if (orderBy) {
             query = query.order(orderBy, { ascending, nullsFirst: false });
-            // Tiebreaker: offset pagination over a non-unique sort key can skip or
-            // duplicate rows when many rows share the same value (e.g. bulk-migrated
-            // updated_at timestamps), because Postgres does not guarantee a stable
-            // order among ties across separate page queries.
             if (orderBy !== "id") {
                 query = query.order("id", { ascending: true });
             }
@@ -75,17 +69,30 @@ export const fetchAllPaginated = async (
             });
         }
 
-        query = query.range(offset, offset + pageSize - 1);
+        if (cursorColumn && lastCursorValue !== null && lastCursorValue !== undefined) {
+            query = ascending ? query.gt(cursorColumn, lastCursorValue) : query.lt(cursorColumn, lastCursorValue);
+            query = query.limit(pageSize);
+        } else if (cursorColumn) {
+            query = query.limit(pageSize);
+        } else {
+            query = query.range(offset, offset + pageSize - 1);
+        }
 
-        // Supabase query builders are thenable; await works directly.
         const { data, error } = await query;
         if (error) throw error;
 
         const pageRows = Array.isArray(data) ? data : [];
         const mappedRows = mapper ? pageRows.map(mapper) : pageRows;
 
-        results.push(...mappedRows);
+        for (let i = 0; i < mappedRows.length; i++) {
+            results.push(mappedRows[i]);
+        }
         if (onPage) onPage(mappedRows, { page, offset });
+
+        if (cursorColumn && pageRows.length > 0) {
+            const lastRow = pageRows[pageRows.length - 1];
+            lastCursorValue = lastRow ? (lastRow as Record<string, any>)[cursorColumn] : null;
+        }
 
         offset += pageSize;
         page += 1;

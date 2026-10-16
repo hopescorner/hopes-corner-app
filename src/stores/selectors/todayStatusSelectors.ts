@@ -366,7 +366,7 @@ export function useTodayStatusMaps() {
     const lastVisitDates = useLastVisitDateMap();
     const { nextAvailableShowerSlot, nextAvailableLaundrySlot } = useNextAvailableSlots();
 
-    return {
+    return useMemo(() => ({
         mealStatus,
         serviceStatus,
         actionStatus,
@@ -374,7 +374,15 @@ export function useTodayStatusMaps() {
         lastVisitDates,
         nextAvailableShowerSlot,
         nextAvailableLaundrySlot,
-    };
+    }), [
+        mealStatus,
+        serviceStatus,
+        actionStatus,
+        recentGuests,
+        lastVisitDates,
+        nextAvailableShowerSlot,
+        nextAvailableLaundrySlot,
+    ]);
 }
 
 /**

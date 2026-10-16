@@ -165,23 +165,33 @@ export const createSearchIndex = <T extends SearchGuest>(guests: T[]): SearchInd
 
     byId.set(guest.id, indexEntry);
 
-    // Index by first character of each token
+    const seenFirstChars = new Set<string>();
     for (const token of parts.allTokens) {
       if (token.length > 0) {
         const firstChar = token[0];
-        if (!byFirstChar.has(firstChar)) {
-          byFirstChar.set(firstChar, []);
+        if (!seenFirstChars.has(firstChar)) {
+          seenFirstChars.add(firstChar);
+          let list = byFirstChar.get(firstChar);
+          if (!list) {
+            list = [];
+            byFirstChar.set(firstChar, list);
+          }
+          list.push(indexEntry);
         }
-        byFirstChar.get(firstChar)!.push(indexEntry);
       }
     }
 
-    // Index by initials
+    const seenInitials = new Set<string>();
     for (const initial of parts.initials) {
-      if (!byInitials.has(initial)) {
-        byInitials.set(initial, []);
+      if (!seenInitials.has(initial)) {
+        seenInitials.add(initial);
+        let list = byInitials.get(initial);
+        if (!list) {
+          list = [];
+          byInitials.set(initial, list);
+        }
+        list.push(indexEntry);
       }
-      byInitials.get(initial)!.push(indexEntry);
     }
   }
 

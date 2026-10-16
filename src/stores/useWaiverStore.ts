@@ -21,15 +21,24 @@ interface WaiverState {
  * - Bicycle has a separate waiver
  * - Waivers reset on January 1st each year
  */
+const reminderCache = new Map<string, boolean>();
+const activeWaiverCache = new Map<string, boolean>();
+
+export const clearWaiverStoreCache = () => {
+    reminderCache.clear();
+    activeWaiverCache.clear();
+};
+
 export const useWaiverStore = create<WaiverState>()((set, get) => ({
     waiverVersion: 0,
 
-    /**
-     * Check if a guest needs a waiver reminder for a service
-     * Calls the database function `guest_needs_waiver_reminder`
-     */
     guestNeedsWaiverReminder: async (guestId: string, serviceType: ServiceType): Promise<boolean> => {
         if (!guestId || !serviceType) return false;
+
+        const cacheKey = `${guestId}:${serviceType}`;
+        if (reminderCache.has(cacheKey)) {
+            return reminderCache.get(cacheKey)!;
+        }
 
         try {
             const supabase = createClient();
@@ -43,18 +52,15 @@ export const useWaiverStore = create<WaiverState>()((set, get) => ({
                 return false;
             }
 
-            return data || false;
+            const result = data || false;
+            reminderCache.set(cacheKey, result);
+            return result;
         } catch (error) {
             console.error('[WaiverStore] Exception in guestNeedsWaiverReminder:', error);
             return false;
         }
     },
 
-    /**
-     * Dismiss/acknowledge a waiver for a guest
-     * Staff dismisses after confirming external waiver is signed
-     * Calls the database function `dismiss_waiver`
-     */
     dismissWaiver: async (guestId: string, serviceType: ServiceType, reason: string = 'signed_by_staff'): Promise<boolean> => {
         if (!guestId || !serviceType) return false;
 
@@ -71,7 +77,14 @@ export const useWaiverStore = create<WaiverState>()((set, get) => ({
                 return false;
             }
 
-            // Increment version to trigger re-renders in components
+            reminderCache.delete(`${guestId}:${serviceType}`);
+            activeWaiverCache.set(`${guestId}:${serviceType}`, true);
+            if (serviceType === 'shower' || serviceType === 'laundry') {
+                const other = serviceType === 'shower' ? 'laundry' : 'shower';
+                reminderCache.delete(`${guestId}:${other}`);
+                activeWaiverCache.set(`${guestId}:${other}`, true);
+            }
+
             get().incrementWaiverVersion();
             return true;
         } catch (error) {
@@ -80,12 +93,13 @@ export const useWaiverStore = create<WaiverState>()((set, get) => ({
         }
     },
 
-    /**
-     * Check if a guest has an active (signed) waiver for a service this year
-     * Calls the database function `has_active_waiver`
-     */
     hasActiveWaiver: async (guestId: string, serviceType: ServiceType): Promise<boolean> => {
         if (!guestId || !serviceType) return false;
+
+        const cacheKey = `${guestId}:${serviceType}`;
+        if (activeWaiverCache.has(cacheKey)) {
+            return activeWaiverCache.get(cacheKey)!;
+        }
 
         try {
             const supabase = createClient();
@@ -99,17 +113,17 @@ export const useWaiverStore = create<WaiverState>()((set, get) => ({
                 return false;
             }
 
-            return data || false;
+            const result = data || false;
+            activeWaiverCache.set(cacheKey, result);
+            return result;
         } catch (error) {
             console.error('[WaiverStore] Exception in hasActiveWaiver:', error);
             return false;
         }
     },
 
-    /**
-     * Increment waiver version to trigger component re-renders
-     */
     incrementWaiverVersion: () => {
+        clearWaiverStoreCache();
         set((state) => ({ waiverVersion: state.waiverVersion + 1 }));
     },
 }));

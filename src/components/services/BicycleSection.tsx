@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
+import { getGuestsMap } from '@/lib/utils/guestLookup';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
@@ -46,8 +47,10 @@ const STATUS_COLUMNS = [
 ];
 
 export function BicycleSection() {
-    const { bicycleRecords, updateBicycleRecord, deleteBicycleRecord } = useServicesStore();
-    const { guests } = useGuestsStore();
+    const bicycleRecords = useServicesStore((s) => s.bicycleRecords);
+    const updateBicycleRecord = useServicesStore((s) => s.updateBicycleRecord);
+    const deleteBicycleRecord = useServicesStore((s) => s.deleteBicycleRecord);
+    const guests = useGuestsStore((s) => s.guests);
 
     // View mode state
     const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
@@ -67,11 +70,7 @@ export function BicycleSection() {
     const [expandedCards, setExpandedCards] = useState<Record<string, boolean>>({});
 
     // Guest lookup map
-    const guestMap = useMemo(() => {
-        const map = new Map();
-        (guests || []).forEach(g => map.set(g.id, g));
-        return map;
-    }, [guests]);
+    const guestMap = useMemo(() => getGuestsMap(guests), [guests]);
 
     // Filter records by date
     const dateFilteredRecords = useMemo(() => {
