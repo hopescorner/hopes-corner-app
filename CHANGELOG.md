@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.48.1] - 2026-10-17
+
+### Fixed
+
+- Shower and laundry sign-ups work again. The shared `ensure_guest_not_banned()` database trigger read the meal-only `picked_up_by_guest_id` column directly, so every shower, laundry, bicycle, haircut, holiday, and items write failed with `42703: record "new" has no field "picked_up_by_guest_id"` (shown as "Unable to book shower slot. Please try again."). The proxy-pickup waiver now reads that column via `to_jsonb(NEW)` in a new migration (`20261017000000_fix_ban_guard_proxy_field`), mirrored in `database/schema.sql`. No guest records or service history are touched.
+
+### Tests
+
+- Added migration contract coverage pinning the `to_jsonb(NEW)` access and the preserved proxy-waiver, shelter-restriction, and ban-guard semantics.
+
 ## [0.48.0] - 2026-10-16
 
 ### Performance

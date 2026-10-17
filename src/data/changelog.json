@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.48.1",
+    "date": "October 17, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Shower & Laundry Sign-Ups Restored",
+        "description": "Fixed a database trigger error that blocked all shower, laundry, and other service bookings. Staff can sign guests up for showers and laundry again; no guest records or history were affected."
+      }
+    ]
+  },
+  {
     "version": "0.48.0",
     "date": "October 16, 2026",
     "highlights": [

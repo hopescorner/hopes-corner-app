@@ -33,10 +33,14 @@ begin
   -- that linked guest is banned from meals or from all services. Row-level
   -- custody is recorded via picked_up_by_guest_id, so the recipient's ban does
   -- not apply to proxy meal pickups.
+  -- NOTE: to_jsonb(NEW) access is required here because this is a shared
+  -- trigger function and only meal_attendance has a picked_up_by_guest_id
+  -- column. Direct NEW.picked_up_by_guest_id access raises 42703 on every
+  -- other table and blocks all of its writes.
   if TG_TABLE_NAME = 'meal_attendance'
      and TG_OP in ('INSERT', 'UPDATE')
-     and new.picked_up_by_guest_id is not null
-     and new.picked_up_by_guest_id is distinct from new.guest_id then
+     and (to_jsonb(NEW)->>'picked_up_by_guest_id') is not null
+     and (to_jsonb(NEW)->>'picked_up_by_guest_id') is distinct from (to_jsonb(NEW)->>'guest_id') then
     return new;
   end if;
 
