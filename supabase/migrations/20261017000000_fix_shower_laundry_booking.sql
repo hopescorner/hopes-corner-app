@@ -3,24 +3,25 @@
 --
 -- Root cause: migration 20261014000000 added shelter_guest to guests and
 -- updated ensure_guest_not_banned() to SELECT g.shelter_guest in the same
--- transaction. If that migration did not reach the function-replace step
--- (e.g. partial failure, lock timeout, or ordering issue between environments),
--- the trigger body references a column that does not exist.  Every subsequent
--- INSERT/UPDATE on shower_reservations or laundry_bookings then raises
--- PostgreSQL error 42703 (undefined_column), which the app surfaces as the
--- generic "Unable to book shower slot. Please try again." message.
+-- transaction. If the column was never created (e.g. partial failure, lock
+-- timeout, or ordering issue between environments), the trigger body
+-- references a column that does not exist.  Every subsequent INSERT/UPDATE on
+-- shower_reservations or laundry_bookings then raises PostgreSQL error 42703
+-- (undefined_column), which the app surfaces as the generic
+-- "Unable to book shower slot. Please try again." message.
 --
--- Fix:
---   1. Guarantee shelter_guest exists (idempotent ADD COLUMN IF NOT EXISTS).
---   2. Wrap the SELECT that reads shelter_guest in an exception block so that
---      a missing column defaults to false instead of aborting the booking.
+-- Fix: guarantee shelter_guest exists. Once the column is present the trigger
+-- function (unchanged in logic) works correctly.  Re-create it here so that
+-- environments which previously failed to apply it get the correct body.
 
--- Step 1: ensure the column is present.
+-- Step 1: ensure the column is present (no-op if already applied).
 alter table public.guests
   add column if not exists shelter_guest boolean not null default false;
 
--- Step 2: replace the trigger function with a version that is safe against
--- the column being absent (exception handler catches 42703 / undefined_column).
+-- Step 2: re-create the trigger function.  This is identical in logic to the
+-- version in migration 20261015000000 but is re-applied here to guarantee
+-- every environment has the correct, up-to-date body regardless of which
+-- earlier migrations succeeded or partially failed.
 create or replace function public.ensure_guest_not_banned()
 returns trigger as $$
 declare
@@ -31,7 +32,7 @@ declare
   meal_ban boolean;
   shower_ban boolean;
   laundry_ban boolean;
-  shelter_guest boolean := false;
+  shelter_guest boolean;
   has_program_specific boolean;
   all_programs_banned boolean;
   normalized_service text;
@@ -67,29 +68,13 @@ begin
     return new;
   end if;
 
-  -- Query ban fields. Wrap the shelter_guest read in an exception block so
-  -- that a missing column (42703) defaults to false rather than aborting
-  -- the entire booking.
-  begin
-    select g.banned_until, g.ban_reason, g.full_name,
-           g.banned_from_bicycle, g.banned_from_meals,
-           g.banned_from_shower, g.banned_from_laundry, g.shelter_guest
-      into ban_until, ban_reason, guest_name,
-           bicycle_ban, meal_ban, shower_ban, laundry_ban, shelter_guest
-    from public.guests g
-    where g.id = new.guest_id;
-  exception when undefined_column then
-    -- shelter_guest column not yet present in this environment; fall back
-    -- to querying without it.
-    shelter_guest := false;
-    select g.banned_until, g.ban_reason, g.full_name,
-           g.banned_from_bicycle, g.banned_from_meals,
-           g.banned_from_shower, g.banned_from_laundry
-      into ban_until, ban_reason, guest_name,
-           bicycle_ban, meal_ban, shower_ban, laundry_ban
-    from public.guests g
-    where g.id = new.guest_id;
-  end;
+  select g.banned_until, g.ban_reason, g.full_name,
+         g.banned_from_bicycle, g.banned_from_meals,
+         g.banned_from_shower, g.banned_from_laundry, g.shelter_guest
+    into ban_until, ban_reason, guest_name,
+         bicycle_ban, meal_ban, shower_ban, laundry_ban, shelter_guest
+  from public.guests g
+  where g.id = new.guest_id;
 
   service_label := CASE WHEN TG_NARGS > 0 THEN TG_ARGV[0] ELSE NULL END;
   normalized_service := lower(trim(coalesce(service_label, '')));

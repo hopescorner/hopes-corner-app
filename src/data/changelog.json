@@ -6,7 +6,7 @@
       {
         "type": "fix",
         "title": "Fixed shower and laundry booking failures",
-        "description": "Resolved a database trigger issue that prevented staff from booking guests into shower and laundry slots. Bookings now work reliably for all guests."
+        "description": "Fixed a database migration issue where the shelter_guest column on the guests table was not guaranteed to exist. This caused the ensure_guest_not_banned trigger to raise a database error on every shower and laundry booking, surfacing as the generic 'Unable to book shower slot. Please try again.' error. The fix adds the column idempotently and re-applies the trigger function so all environments have a consistent schema."
       }
     ]
   },
