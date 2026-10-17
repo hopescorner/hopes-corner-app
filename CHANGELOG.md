@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.48.1] - 2026-10-17
+
+### Bug Fix
+
+- **Shower and laundry booking**: Fixed a database trigger issue where the `ensure_guest_not_banned` function queried the `shelter_guest` column before it was guaranteed to exist, causing all shower and laundry booking attempts to fail with "Unable to book shower slot. Please try again." The trigger now handles the missing column gracefully.
+
 ## [0.48.0] - 2026-10-16
 
 ### Performance

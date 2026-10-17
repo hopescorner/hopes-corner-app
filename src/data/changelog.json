@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.48.1",
+    "date": "October 17, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Fixed shower and laundry booking failures",
+        "description": "Resolved a database trigger issue that prevented staff from booking guests into shower and laundry slots. Bookings now work reliably for all guests."
+      }
+    ]
+  },
+  {
     "version": "0.48.0",
     "date": "October 16, 2026",
     "highlights": [
