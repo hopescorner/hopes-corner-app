@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.48.2] - 2026-10-19
+
+### Fixed
+
+- Blocked shower and laundry slots now update everywhere immediately. Unblocking a slot previously left guest cards, the check-in status overview, booking dialogs, and next-available slot hints showing the old blocked state until reload; all views now resubscribe to blocked-slot changes and guest cards re-render when the next-available slot updates.
+- A slow blocked-slots fetch can no longer overwrite a newer block or unblock. In-flight fetches are ignored once a block/unblock mutation has started, so the confirmed state wins.
+- Check-in now ensures blocked slots are loaded on all snapshot entry paths, so quick-book buttons respect blocked times on first paint.
+- Donations loading now surfaces fetch errors and clears stale records instead of keeping the previous list when a load returns empty or fails.
+
+### Tests
+
+- Added coverage for stale-fetch suppression on unblock, immediate next-slot updates on unblock with a stable blocker reference, guest-card re-render on next-slot changes, and blocked-slot resubscription in status, modal, and selector paths.
+
 ## [0.48.1] - 2026-10-17
 
 ### Fixed

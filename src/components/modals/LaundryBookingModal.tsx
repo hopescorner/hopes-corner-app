@@ -22,7 +22,7 @@ export function LaundryBookingModal() {
     const { laundryPickerGuest, setLaundryPickerGuest } = useModalStore();
     const { laundryRecords, addLaundryRecord, getLaundryWeeklyUsage, loadFromSupabase } = useServicesStore();
     const { addAction } = useActionHistoryStore();
-    const { fetchBlockedSlots, isSlotBlocked } = useBlockedSlotsStore();
+    const { blockedSlots, fetchBlockedSlots, isSlotBlocked } = useBlockedSlotsStore();
 
     useEffect(() => {
         fetchBlockedSlots();
@@ -61,7 +61,7 @@ export function LaundryBookingModal() {
                 isBlocked
             };
         });
-    }, [allSlots, laundryRecords, laundryPickerGuest, isSlotBlocked, today]);
+    }, [allSlots, laundryRecords, laundryPickerGuest, isSlotBlocked, blockedSlots, today]);
 
     const nextAvailableSlot = useMemo(() => {
         return slotsWithStatus.find(s => !s.isBooked && !s.isBlocked);

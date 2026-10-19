@@ -23,6 +23,8 @@ interface BlockedSlotsState {
     isSlotBlocked: (serviceType: 'shower' | 'laundry', slotTime: string, date: string) => boolean;
 }
 
+let mutationVersion = 0;
+
 export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
     blockedSlots: [],
     loading: false,
@@ -34,6 +36,7 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
     },
 
     fetchBlockedSlots: async () => {
+        const versionAtStart = mutationVersion;
         const supabase = createClient();
         set({ loading: true });
         try {
@@ -44,7 +47,7 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
 
             if (error) throw error;
 
-            if (data) {
+            if (data && versionAtStart === mutationVersion) {
                 set({
                     blockedSlots: ((data as any[]) || []).map((item: any) => ({
                         id: item.id,
@@ -66,6 +69,7 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
     },
 
     blockSlot: async (serviceType, slotTime, date) => {
+        mutationVersion += 1;
         const tempId = `temp-${Date.now()}`;
         const newSlot: BlockedSlot = {
             id: tempId,
@@ -75,7 +79,6 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
             createdAt: new Date().toISOString(),
         };
 
-        // Optimistic update
         set((state) => ({
             blockedSlots: [...state.blockedSlots, newSlot],
         }));
@@ -93,12 +96,12 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
                 .single();
 
             if (error) {
-                // Ignore duplicate key errors (slot already blocked)
                 if (error.code !== '23505') {
                     throw error;
                 }
             }
 
+            mutationVersion += 1;
             if (data) {
                 set((state) => ({
                     blockedSlots: state.blockedSlots.map((s) =>
@@ -115,9 +118,9 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
             }
             return true;
         } catch (error) {
+            mutationVersion += 1;
             console.error('Error blocking slot:', error);
             toast.error('Failed to block slot');
-            // Revert optimistic update
             set((state) => ({
                 blockedSlots: state.blockedSlots.filter((s) => s.id !== tempId),
             }));
@@ -126,9 +129,9 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
     },
 
     unblockSlot: async (serviceType, slotTime, date) => {
+        mutationVersion += 1;
         const originalSlots = get().blockedSlots;
 
-        // Optimistic update
         set((state) => ({
             blockedSlots: state.blockedSlots.filter(
                 (s) =>
@@ -152,11 +155,12 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
                 });
 
             if (error) throw error;
+            mutationVersion += 1;
             return true;
         } catch (error) {
+            mutationVersion += 1;
             console.error('Error unblocking slot:', error);
             toast.error('Failed to unblock slot');
-            // Revert
             set({ blockedSlots: originalSlots });
             return false;
         }

@@ -369,5 +369,33 @@ describe('useBlockedSlotsStore', () => {
 
             expect(mockOrder).not.toHaveBeenCalled();
         });
+
+        it('does not overwrite an optimistic unblock with a stale in-flight fetchBlockedSlots response', async () => {
+            useBlockedSlotsStore.setState({
+                initialized: true,
+                blockedSlots: [{ id: 'slot-1', serviceType: 'shower', slotTime: '08:00', date: '2025-01-06' }],
+            });
+
+            let resolveFetch!: (value: any) => void;
+            mockOrder.mockImplementationOnce(
+                () =>
+                    new Promise((resolve) => {
+                        resolveFetch = resolve;
+                    })
+            );
+
+            const fetchPromise = useBlockedSlotsStore.getState().fetchBlockedSlots();
+
+            await useBlockedSlotsStore.getState().unblockSlot('shower', '08:00', '2025-01-06');
+            expect(useBlockedSlotsStore.getState().isSlotBlocked('shower', '08:00', '2025-01-06')).toBe(false);
+
+            resolveFetch({
+                data: [{ id: 'slot-1', service_type: 'shower', slot_time: '08:00', date: '2025-01-06' }],
+                error: null,
+            });
+            await fetchPromise;
+
+            expect(useBlockedSlotsStore.getState().isSlotBlocked('shower', '08:00', '2025-01-06')).toBe(false);
+        });
     });
 });

@@ -130,4 +130,33 @@ describe('useNextAvailableSlots', () => {
         rerender();
         expect(result.current).toBe(first);
     });
+
+    it('immediately updates next available shower and laundry slots when blocked slots are unblocked with a stable isSlotBlocked reference', () => {
+        setupServicesStore();
+        let currentBlockedSlots = [
+            { id: 'b1', serviceType: 'shower', slotTime: '07:30', date: '2026-01-20' },
+            { id: 'b2', serviceType: 'laundry', slotTime: '07:30 - 08:30', date: '2026-01-20' },
+        ];
+        const stableIsSlotBlocked = (service: string, slot: string, date: string) =>
+            currentBlockedSlots.some(
+                (s) => s.serviceType === service && s.slotTime === slot && s.date === date
+            );
+
+        mockUseBlockedSlotsStore.mockImplementation((selector: any) =>
+            selector({
+                blockedSlots: currentBlockedSlots,
+                isSlotBlocked: stableIsSlotBlocked,
+            })
+        );
+
+        const { result, rerender } = renderHook(() => useNextAvailableSlots());
+        expect(result.current.nextAvailableShowerSlot?.slotTime).toBe('08:00');
+        expect(result.current.nextAvailableLaundrySlot?.slotLabel).toBe('08:00 - 09:00');
+
+        currentBlockedSlots = [];
+        rerender();
+
+        expect(result.current.nextAvailableShowerSlot?.slotTime).toBe('07:30');
+        expect(result.current.nextAvailableLaundrySlot?.slotLabel).toBe('07:30 - 08:30');
+    });
 });

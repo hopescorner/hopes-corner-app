@@ -342,6 +342,7 @@ export function useNextAvailableSlots(): {
     const showerRecords = useServicesStore((s) => s.showerRecords);
     const laundryRecords = useServicesStore((s) => s.laundryRecords);
     const isSlotBlocked = useBlockedSlotsStore((s) => s.isSlotBlocked);
+    const blockedSlots = useBlockedSlotsStore((s) => s.blockedSlots);
 
     return useMemo(() => {
         const today = todayPacificDateString();
@@ -351,7 +352,7 @@ export function useNextAvailableSlots(): {
             nextAvailableShowerSlot: nextShower,
             nextAvailableLaundrySlot: nextLaundry,
         };
-    }, [showerRecords, laundryRecords, isSlotBlocked]);
+    }, [showerRecords, laundryRecords, isSlotBlocked, blockedSlots]);
 }
 
 /**

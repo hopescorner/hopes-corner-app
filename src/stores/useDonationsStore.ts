@@ -129,15 +129,19 @@ export const useDonationsStore = create<DonationsState>()(
                                 .order('donated_at', { ascending: false })
                                 .limit(2000);
 
-                            const { data: donations } = since
+                            const { data: donations, error } = since
                                 ? await query.gte('donated_at', since)
                                 : await query;
 
+                            if (error) throw error;
+
                             set((state) => {
-                                if (donations) state.donationRecords = donations.map(mapDonationRow);
+                                state.donationRecords = (donations || []).map(mapDonationRow);
                                 state.isLoaded = true;
                                 state.lastLoadedAt = new Date().toISOString();
                             });
+                        } catch (error) {
+                            console.error('Failed to load donations from Supabase:', error);
                         } finally {
                             set((state) => {
                                 state.isLoading = false;

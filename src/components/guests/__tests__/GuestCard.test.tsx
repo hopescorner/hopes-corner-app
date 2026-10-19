@@ -1457,5 +1457,27 @@ describe('GuestCard Component', () => {
             rerender(<GuestCard guest={{ ...baseGuest, shelterGuest: true }} />);
             expect(screen.getByText('Shelter Guest')).toBeDefined();
         });
+
+        it('re-renders when nextAvailableShowerSlot and nextAvailableLaundrySlot update after slots are unblocked', () => {
+            const { rerender } = render(
+                <GuestCard
+                    guest={baseGuest}
+                    nextAvailableShowerSlot={null}
+                    nextAvailableLaundrySlot={null}
+                />
+            );
+            expect(screen.getByTitle('Join shower waitlist')).toBeDefined();
+            expect(screen.getByTitle('Book laundry')).toBeDefined();
+
+            rerender(
+                <GuestCard
+                    guest={baseGuest}
+                    nextAvailableShowerSlot={{ slotTime: '08:00', label: '8:00 AM' }}
+                    nextAvailableLaundrySlot={{ slotLabel: '07:30 - 08:30', label: '7:30 AM - 8:30 AM' }}
+                />
+            );
+            expect(screen.getByTitle('Quick book shower @ 8:00 AM')).toBeDefined();
+            expect(screen.getByTitle('Quick book on-site laundry @ 7:30 AM - 8:30 AM')).toBeDefined();
+        });
     });
 });

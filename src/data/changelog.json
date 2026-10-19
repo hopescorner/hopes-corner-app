@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.48.2",
+    "date": "October 19, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Blocked Slots Update Instantly Everywhere",
+        "description": "Blocking or unblocking a shower or laundry slot now refreshes guest cards, status overviews, booking dialogs, and next-available hints immediately, and a slow fetch can no longer undo a fresh block or unblock."
+      }
+    ]
+  },
+  {
     "version": "0.48.1",
     "date": "October 17, 2026",
     "highlights": [

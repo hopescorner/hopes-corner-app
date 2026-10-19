@@ -219,7 +219,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             if ((slotCounts[slot] || 0) < MAX_GUESTS_PER_SHOWER_SLOT) return slot;
         }
         return null;
-    }, [allShowerSlots, showerRecords, todayString, showerStats.available, isSlotBlocked, showerRecordsLength]);
+    }, [allShowerSlots, showerRecords, todayString, showerStats.available, isSlotBlocked, blockedSlots, showerRecordsLength]);
 
     // Find next available laundry slot (any unbooked slot regardless of time)
     const nextAvailableLaundrySlot = useMemo(() => {
@@ -238,7 +238,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             if (!bookedLaundrySlots.has(slot)) return slot;
         }
         return null;
-    }, [allLaundrySlots, laundryRecords, todayString, laundryStats.onsiteAvailable, isSlotBlocked, laundryRecordsLength]);
+    }, [allLaundrySlots, laundryRecords, todayString, laundryStats.onsiteAvailable, isSlotBlocked, blockedSlots, laundryRecordsLength]);
 
     const nextShowerSlotLabel = nextAvailableShowerSlot
         ? `Next: ${formatSlotLabel(nextAvailableShowerSlot)}`

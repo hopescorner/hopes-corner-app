@@ -1228,7 +1228,16 @@ function GuestCardImpl(props: GuestCardProps) {
             addHolidayRecord: s.addHolidayRecord,
         }))
     );
+    const needsBlockedSlots = nextAvailableShowerSlot === undefined || nextAvailableLaundrySlot === undefined;
     const isSlotBlocked = useBlockedSlotsStore((s) => s.isSlotBlocked);
+    const blockedSlots = useBlockedSlotsStore((s) => (needsBlockedSlots ? s.blockedSlots : EMPTY_ARRAY));
+    const effectiveIsSlotBlocked = useCallback(
+        (serviceType: 'shower' | 'laundry', slot: string, date: string) => {
+            void blockedSlots;
+            return typeof isSlotBlocked === 'function' ? isSlotBlocked(serviceType, slot, date) : false;
+        },
+        [isSlotBlocked, blockedSlots]
+    );
     const { setShowerPickerGuest, setLaundryPickerGuest, setBicyclePickerGuest } = useModalStore(
         useShallow((s) => ({
             setShowerPickerGuest: s.setShowerPickerGuest,
@@ -1302,7 +1311,7 @@ function GuestCardImpl(props: GuestCardProps) {
             addLaundryRecord={addLaundryRecord}
             addHaircutRecord={addHaircutRecord}
             addHolidayRecord={addHolidayRecord}
-            isSlotBlocked={isSlotBlocked}
+            isSlotBlocked={effectiveIsSlotBlocked}
             setShowerPickerGuest={setShowerPickerGuest}
             setLaundryPickerGuest={setLaundryPickerGuest}
             setBicyclePickerGuest={setBicyclePickerGuest}
@@ -1383,8 +1392,18 @@ export const GuestCard = memo(GuestCardImpl, (prev, next) => {
         Boolean(prev.guest?.shelterGuest ?? (prev.guest as any)?.shelter_guest) ===
             Boolean(next.guest?.shelterGuest ?? (next.guest as any)?.shelter_guest);
 
+    const showerSlotEqual =
+        (prev.nextAvailableShowerSlot === undefined) === (next.nextAvailableShowerSlot === undefined) &&
+        (prev.nextAvailableShowerSlot?.slotTime ?? null) === (next.nextAvailableShowerSlot?.slotTime ?? null);
+
+    const laundrySlotEqual =
+        (prev.nextAvailableLaundrySlot === undefined) === (next.nextAvailableLaundrySlot === undefined) &&
+        (prev.nextAvailableLaundrySlot?.slotLabel ?? null) === (next.nextAvailableLaundrySlot?.slotLabel ?? null);
+
     return (
         guestFieldsEqual &&
+        showerSlotEqual &&
+        laundrySlotEqual &&
         prev.isSelected === next.isSelected &&
         prev.compact === next.compact &&
         prev.disableLayoutAnimation === next.disableLayoutAnimation &&

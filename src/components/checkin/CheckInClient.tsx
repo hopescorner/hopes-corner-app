@@ -209,14 +209,14 @@ export default function CheckInClient({
         if (initialSnapshot) {
             applySnapshot(initialSnapshot);
             void loadGuestProxiesFromSupabase();
-            // Same as the fetched-snapshot branch below: warning counts come
-            // from the snapshot, but the panel needs the full warning records.
             void loadGuestWarningsFromSupabase();
+            void ensureBlockedSlotsLoaded?.();
             return;
         }
         if (typeof useCheckInStore.getState === 'function' && useCheckInStore.getState()?.isReady) {
             void loadGuestProxiesFromSupabase();
             void loadGuestWarningsFromSupabase();
+            void ensureBlockedSlotsLoaded?.();
             return;
         }
         if (v2Enabled) {
@@ -225,10 +225,8 @@ export default function CheckInClient({
                 if (!response.ok) throw new Error(`Snapshot request failed (${response.status})`);
                 applySnapshot(await response.json() as CheckInSnapshot);
                 void loadGuestProxiesFromSupabase();
-                // Warning counts come from the snapshot, but the full warning
-                // records (message/severity) live in the guests store — without
-                // this the GuestCard warnings panel stays empty in snapshot mode.
                 void loadGuestWarningsFromSupabase();
+                void ensureBlockedSlotsLoaded?.();
                 return;
             } catch (error) {
                 console.warn('[check-in] Snapshot unavailable; using legacy loader', error);

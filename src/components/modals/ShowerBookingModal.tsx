@@ -24,7 +24,7 @@ export function ShowerBookingModal() {
     const { showerRecords, addShowerRecord, addShowerWaitlist, loadFromSupabase } = useServicesStore();
     const { guests } = useGuestsStore();
     const { addAction } = useActionHistoryStore();
-    const { fetchBlockedSlots, isSlotBlocked } = useBlockedSlotsStore();
+    const { blockedSlots, fetchBlockedSlots, isSlotBlocked } = useBlockedSlotsStore();
 
     useEffect(() => {
         fetchBlockedSlots();
@@ -74,7 +74,7 @@ export function ShowerBookingModal() {
                 isBlocked,
             };
         });
-    }, [allSlots, showerRecords, today, guests, showerPickerGuest, isSlotBlocked]);
+    }, [allSlots, showerRecords, today, guests, showerPickerGuest, isSlotBlocked, blockedSlots]);
 
     const nextAvailableSlot = useMemo(() => {
         return slotsWithDetails.find(s => !s.isFull && !s.isBlocked);
