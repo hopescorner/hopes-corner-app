@@ -147,6 +147,11 @@ describe('MealsSection Component', () => {
             expect(buttons.length).toBeGreaterThan(0);
         });
 
+        it('includes the shared calendar date picker for staff navigation', () => {
+            render(<MealsSection />);
+            expect(screen.getByLabelText('Toggle calendar')).toBeInTheDocument();
+        });
+
         it('shows the meal note for the selected date', () => {
             render(<MealsSection />);
             expect(screen.getByTestId('service-day-note')).toHaveTextContent('meals:2026-01-08');

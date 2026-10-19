@@ -7,8 +7,6 @@ import {
     Utensils,
     Users,
     History,
-    ChevronLeft,
-    ChevronRight,
     Plus,
     Minus,
     Filter,
@@ -37,7 +35,9 @@ import { MealServiceTimer } from '@/components/checkin/MealServiceTimer';
 import { MAX_BASE_MEALS_PER_DAY } from '@/lib/constants/constants';
 import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
+import { useSession } from 'next-auth/react';
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
+import { ServiceDatePicker } from './ServiceDatePicker';
 import { ServiceDayNote } from './ServiceDayNote';
 import type React from 'react';
 
@@ -57,6 +57,9 @@ const getGuestDisplayName = (guest: any) => {
 };
 
 export function MealsSection() {
+    const { data: session } = useSession();
+    const userRole = session?.user.role ?? '';
+    const canAccessCalendar = ['admin', 'board', 'staff'].includes(userRole);
     const [selectedDate, setSelectedDate] = useState(todayPacificDateString());
     const [showAddPanel, setShowAddPanel] = useState(false);
     const [addingType, setAddingType] = useState<string | null>(null);
@@ -712,40 +715,7 @@ const proxyPickerIds = new Set<string>();
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    {/* Date navigation */}
-                    <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1">
-                        <button
-                            onClick={() => shiftDate(-1)}
-                            aria-label="Previous day"
-                            className="p-2 rounded-lg hover:bg-white transition-all text-gray-500 hover:text-gray-900"
-                        >
-                            <ChevronLeft size={18} />
-                        </button>
-                        <div className="text-center px-2 sm:px-3 min-w-[8rem]">
-                            <p className="text-sm font-bold text-gray-900 leading-tight">{new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                            <p className={cn(
-                                "text-[11px] font-bold mt-0.5",
-                                isToday ? 'text-emerald-600' : 'text-gray-400'
-                            )}>
-                                {isToday ? 'Active Service Day' : 'Archived Records'}
-                            </p>
-                        </div>
-                        <button
-                            onClick={() => shiftDate(1)}
-                            aria-label="Next day"
-                            className="p-2 rounded-lg hover:bg-white transition-all text-gray-500 hover:text-gray-900"
-                        >
-                            <ChevronRight size={18} />
-                        </button>
-                    </div>
-                    {!isToday && (
-                        <button
-                            onClick={() => setSelectedDate(todayPacificDateString())}
-                            className="px-3 py-2 text-xs font-bold bg-white border border-gray-200 text-gray-600 rounded-lg hover:border-emerald-300 hover:text-emerald-700 transition-colors"
-                        >
-                            Today
-                        </button>
-                    )}
+                    <ServiceDatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} isAdmin={canAccessCalendar} />
 
                     {/* Meal Service Timer - subtle indicator for volunteers */}
                     <MealServiceTimer />

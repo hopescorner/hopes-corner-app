@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.48.3] - 2026-10-19
+
+### Improved
+
+- Daily Meal Logs now use the same calendar date picker as the other service views, so staff can jump to a specific date and navigate month-to-month without leaving the meal workflow.
+
 ## [0.48.2] - 2026-10-19
 
 ### Fixed
