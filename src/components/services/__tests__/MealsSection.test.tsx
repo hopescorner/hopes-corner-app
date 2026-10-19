@@ -149,7 +149,7 @@ describe('MealsSection Component', () => {
 
         it('includes the shared calendar date picker for staff navigation', () => {
             render(<MealsSection />);
-            expect(screen.getByLabelText('Toggle calendar')).toBeDefined();
+            expect(screen.getByLabelText('Toggle calendar')).toBeInTheDocument();
         });
 
         it('shows the meal note for the selected date', () => {

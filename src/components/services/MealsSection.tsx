@@ -58,7 +58,7 @@ const getGuestDisplayName = (guest: any) => {
 
 export function MealsSection() {
     const { data: session } = useSession();
-    const userRole = (session?.user as any)?.role || '';
+    const userRole = session?.user.role ?? '';
     const canAccessCalendar = ['admin', 'board', 'staff'].includes(userRole);
     const [selectedDate, setSelectedDate] = useState(todayPacificDateString());
     const [showAddPanel, setShowAddPanel] = useState(false);
