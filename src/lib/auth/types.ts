@@ -39,6 +39,10 @@ export function canAccessRoute(role: UserRole, route: string): boolean {
     return allowedRoutes.some((r) => route.startsWith(`/${r}`));
 }
 
+export function isPrivilegedServiceRole(role?: string | null): boolean {
+    return ['admin', 'staff', 'board'].includes(role ?? '');
+}
+
 // Get the default route for a role
 export function getDefaultRoute(role: UserRole): string {
     if (role === 'board') return '/dashboard';

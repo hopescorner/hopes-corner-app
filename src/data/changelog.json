@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.48.3",
+    "date": "October 20, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Meal Logs Support Calendar Date Selection",
+        "description": "Daily Meal Logs now include the same month-view calendar date picker used for showers, so staff can click any day, browse months, and quickly switch between historical meal log dates without losing the existing day navigation and logging flows."
+      }
+    ]
+  },
+  {
     "version": "0.48.2",
     "date": "October 19, 2026",
     "highlights": [

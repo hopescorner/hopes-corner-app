@@ -39,7 +39,10 @@ import toast from 'react-hot-toast';
 import { useShallow } from 'zustand/react/shallow';
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { ServiceDayNote } from './ServiceDayNote';
+import { ServiceDatePicker } from './ServiceDatePicker';
 import type React from 'react';
+import { useSession } from 'next-auth/react';
+import { isPrivilegedServiceRole } from '@/lib/auth/types';
 
 // Meal category configurations
 const MEAL_CATEGORIES = [
@@ -80,6 +83,9 @@ export function MealsSection() {
     const [selectedFamilyIds, setSelectedFamilyIds] = useState<Set<string>>(new Set());
     const [familyMealCounts, setFamilyMealCounts] = useState<Record<string, number>>({});
     const [isAddingFamilyMeals, setIsAddingFamilyMeals] = useState(false);
+    const { data: session } = useSession();
+    const userRole = session?.user?.role || '';
+    const canUseCalendarPicker = isPrivilegedServiceRole(userRole);
 
     const {
         mealRecords,
@@ -713,30 +719,33 @@ const proxyPickerIds = new Set<string>();
 
                 <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     {/* Date navigation */}
-                    <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1">
-                        <button
-                            onClick={() => shiftDate(-1)}
-                            aria-label="Previous day"
-                            className="p-2 rounded-lg hover:bg-white transition-all text-gray-500 hover:text-gray-900"
-                        >
-                            <ChevronLeft size={18} />
-                        </button>
-                        <div className="text-center px-2 sm:px-3 min-w-[8rem]">
-                            <p className="text-sm font-bold text-gray-900 leading-tight">{new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
-                            <p className={cn(
-                                "text-[11px] font-bold mt-0.5",
-                                isToday ? 'text-emerald-600' : 'text-gray-400'
-                            )}>
-                                {isToday ? 'Active Service Day' : 'Archived Records'}
-                            </p>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1">
+                            <button
+                                onClick={() => shiftDate(-1)}
+                                aria-label="Previous day"
+                                className="p-2 rounded-lg hover:bg-white transition-all text-gray-500 hover:text-gray-900"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                            <div className="text-center px-2 sm:px-3 min-w-[8rem]">
+                                <p className="text-sm font-bold text-gray-900 leading-tight">{new Date(selectedDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                                <p className={cn(
+                                    "text-[11px] font-bold mt-0.5",
+                                    isToday ? 'text-emerald-600' : 'text-gray-400'
+                                )}>
+                                    {isToday ? 'Active Service Day' : 'Archived Records'}
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => shiftDate(1)}
+                                aria-label="Next day"
+                                className="p-2 rounded-lg hover:bg-white transition-all text-gray-500 hover:text-gray-900"
+                            >
+                                <ChevronRight size={18} />
+                            </button>
                         </div>
-                        <button
-                            onClick={() => shiftDate(1)}
-                            aria-label="Next day"
-                            className="p-2 rounded-lg hover:bg-white transition-all text-gray-500 hover:text-gray-900"
-                        >
-                            <ChevronRight size={18} />
-                        </button>
+                        <ServiceDatePicker selectedDate={selectedDate} onDateChange={setSelectedDate} isAdmin={canUseCalendarPicker} />
                     </div>
                     {!isToday && (
                         <button
