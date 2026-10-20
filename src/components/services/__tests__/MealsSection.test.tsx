@@ -152,6 +152,16 @@ describe('MealsSection Component', () => {
             expect(screen.getByTestId('service-day-note')).toHaveTextContent('meals:2026-01-08');
         });
 
+        it('opens the calendar and selects another day for the meal log', async () => {
+            const user = userEvent.setup();
+            render(<MealsSection />);
+
+            await user.click(screen.getByLabelText('Toggle calendar'));
+            await user.click(screen.getAllByRole('button', { name: '5' })[0]);
+
+            expect(screen.getByTestId('service-day-note')).toHaveTextContent('meals:2026-01-05');
+        });
+
         it('renders the meal automation switch', () => {
             render(<MealsSection />);
 

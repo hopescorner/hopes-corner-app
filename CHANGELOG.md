@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.48.3] - 2026-10-20
+
+### Added
+
+- Meal logs now include the same month-view calendar picker used by showers, so staff can click a date, move between months, and jump straight to archived meal records without losing the existing day arrows and quick logging workflow.
+
 ## [0.48.2] - 2026-10-19
 
 ### Fixed
