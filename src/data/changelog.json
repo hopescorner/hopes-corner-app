@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.48.4",
+    "date": "October 24, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Family Households Load on Check In",
+        "description": "The Add to Existing Family list now loads every household after a fresh check-in page load. Staff can add new members to any existing household, including one created in an earlier session or on another device, without visiting another page first."
+      }
+    ]
+  },
+  {
     "version": "0.48.3",
     "date": "October 20, 2026",
     "highlights": [

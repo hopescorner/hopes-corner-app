@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import toast from 'react-hot-toast';
 import { useGuestsStore } from '../useGuestsStore';
+import { fetchAllPaginated } from '@/lib/utils/supabasePagination';
 
 // 1. Define Mock Supabase
 const mockSupabase = {
@@ -152,6 +153,27 @@ describe('useGuestsStore', () => {
             useGuestsStore.setState({ guests: [createMockGuest()] });
             useGuestsStore.getState().clearGuests();
             expect(useGuestsStore.getState().guests).toHaveLength(0);
+        });
+    });
+
+    describe('ensureLoaded households', () => {
+        it('fetches households when the guest directory is already loaded', async () => {
+            // Check-in snapshot hydration marks guests loaded without loading
+            // guest_families, which previously left the household dropdown empty.
+            useGuestsStore.setState({
+                guests: [createMockGuest()],
+                isLoaded: true,
+                familiesLoaded: false,
+                guestFamilies: [],
+                guestFamilyMembers: [],
+            });
+
+            await useGuestsStore.getState().ensureLoaded();
+
+            const state = useGuestsStore.getState();
+            expect(state.familiesLoaded).toBe(true);
+            expect(state.isLoaded).toBe(true);
+            expect(fetchAllPaginated).not.toHaveBeenCalled();
         });
     });
 

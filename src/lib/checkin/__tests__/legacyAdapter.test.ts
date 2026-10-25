@@ -60,9 +60,25 @@ describe('hydrateLegacyStoresFromSnapshot', () => {
     } as unknown as CheckInSnapshot;
 
     beforeEach(() => {
-        useGuestsStore.setState({ guests: [], guestProxies: [], warnings: [] });
+        useGuestsStore.setState({
+            guests: [],
+            guestProxies: [],
+            warnings: [],
+            isLoaded: false,
+            familiesLoaded: false,
+            guestFamilies: [],
+            guestFamilyMembers: [],
+        });
         useMealsStore.setState({ mealRecords: [], extraMealRecords: [], isLoaded: false, isLoading: false });
         useServicesStore.setState({ isLoaded: false, isLoading: false });
+    });
+
+    it('leaves households marked unloaded so they are fetched separately', () => {
+        hydrateLegacyStoresFromSnapshot(snapshot);
+
+        const state = useGuestsStore.getState();
+        expect(state.isLoaded).toBe(true);
+        expect(state.familiesLoaded).toBe(false);
     });
 
     it('seeds meal records without marking the store as loaded, so pages still fetch real rows', () => {

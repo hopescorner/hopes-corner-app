@@ -143,11 +143,17 @@ export default function CheckInClient({
         ? snapshotGuests as unknown as Guest[]
         : (initialSnapshot?.guests as unknown as Guest[] | undefined) ?? legacyGuests;
 
-    const { ensureLoaded: ensureGuestsLoaded, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase } = useGuestsStore(
+    const {
+        ensureLoaded: ensureGuestsLoaded,
+        loadGuestWarningsFromSupabase,
+        loadGuestProxiesFromSupabase,
+        loadGuestFamiliesFromSupabase,
+    } = useGuestsStore(
         useShallow((s) => ({
             ensureLoaded: s.ensureLoaded,
             loadGuestWarningsFromSupabase: s.loadGuestWarningsFromSupabase,
             loadGuestProxiesFromSupabase: s.loadGuestProxiesFromSupabase,
+            loadGuestFamiliesFromSupabase: s.loadGuestFamiliesFromSupabase,
         }))
     );
     const ensureMealsLoaded = useMealsStore((s) => s.ensureLoaded);
@@ -210,12 +216,14 @@ export default function CheckInClient({
             applySnapshot(initialSnapshot);
             void loadGuestProxiesFromSupabase();
             void loadGuestWarningsFromSupabase();
+            void loadGuestFamiliesFromSupabase();
             void ensureBlockedSlotsLoaded?.();
             return;
         }
         if (typeof useCheckInStore.getState === 'function' && useCheckInStore.getState()?.isReady) {
             void loadGuestProxiesFromSupabase();
             void loadGuestWarningsFromSupabase();
+            void loadGuestFamiliesFromSupabase();
             void ensureBlockedSlotsLoaded?.();
             return;
         }
@@ -226,6 +234,7 @@ export default function CheckInClient({
                 applySnapshot(await response.json() as CheckInSnapshot);
                 void loadGuestProxiesFromSupabase();
                 void loadGuestWarningsFromSupabase();
+                void loadGuestFamiliesFromSupabase();
                 void ensureBlockedSlotsLoaded?.();
                 return;
             } catch (error) {
@@ -242,7 +251,7 @@ export default function CheckInClient({
             loadReminders(),
             ensureDailyNotesLoaded()
         ]);
-    }, [v2Enabled, initialSnapshot, applySnapshot, ensureGuestsLoaded, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase, ensureMealsLoaded, ensureServicesLoaded, ensureBlockedSlotsLoaded, loadReminders, ensureDailyNotesLoaded]);
+    }, [v2Enabled, initialSnapshot, applySnapshot, ensureGuestsLoaded, loadGuestWarningsFromSupabase, loadGuestProxiesFromSupabase, loadGuestFamiliesFromSupabase, ensureMealsLoaded, ensureServicesLoaded, ensureBlockedSlotsLoaded, loadReminders, ensureDailyNotesLoaded]);
 
     // Initial data load
     useEffect(() => {

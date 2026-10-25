@@ -180,6 +180,8 @@ interface GuestsState {
     guestFamilyMembers: GuestFamilyMember[];
     warnings: GuestWarning[];
     isLoaded: boolean;
+    /** Household rows are fetched separately because check-in snapshot hydration marks guests loaded without them. */
+    familiesLoaded: boolean;
     isLoading: boolean;
     lastLoadedAt?: string;
 
@@ -249,6 +251,7 @@ export const useGuestsStore = create<GuestsState>()(
                 guestFamilyMembers: [],
                 warnings: [],
                 isLoaded: false,
+                familiesLoaded: false,
                 isLoading: false,
                 lastLoadedAt: undefined,
 
@@ -934,7 +937,13 @@ export const useGuestsStore = create<GuestsState>()(
                 },
 
                 ensureLoaded: async ({ force = false }: { force?: boolean; since?: string } = {}) => {
-                    if (!force && get().isLoaded) return;
+                    // Check-in snapshot hydration sets isLoaded without fetching
+                    // households, so guests and household links need independent
+                    // freshness flags. Otherwise the family dropdown stays empty
+                    // for the rest of the page session.
+                    const needsGuests = force || !get().isLoaded;
+                    const needsFamilies = force || !get().familiesLoaded;
+                    if (!needsGuests && !needsFamilies) return;
                     if (get().isLoading) return;
 
                     set((state) => {
@@ -944,19 +953,24 @@ export const useGuestsStore = create<GuestsState>()(
                     try {
                         // Use cached query to prevent duplicate fetches
                         const [guestsData, familiesData, membersData] = await Promise.all([
-                            getCachedGuests(),
-                            getCachedGuestFamilies(),
-                            getCachedGuestFamilyMembers(),
+                            needsGuests ? getCachedGuests() : Promise.resolve(get().guests),
+                            needsFamilies ? getCachedGuestFamilies() : Promise.resolve(get().guestFamilies),
+                            needsFamilies ? getCachedGuestFamilyMembers() : Promise.resolve(get().guestFamilyMembers),
                         ]);
 
                         set((state) => {
-                            state.guests = (guestsData || []).map((g: any) => ({
-                                ...g,
-                                housingStatus: normalizeHousingStatus(g.housingStatus),
-                                shelterGuest: Boolean(g.shelterGuest || g.shelter_guest),
-                            })) as any;
-                            state.guestFamilies = familiesData as any;
-                            state.guestFamilyMembers = membersData as any;
+                            if (needsGuests) {
+                                state.guests = (guestsData || []).map((g: any) => ({
+                                    ...g,
+                                    housingStatus: normalizeHousingStatus(g.housingStatus),
+                                    shelterGuest: Boolean(g.shelterGuest || g.shelter_guest),
+                                })) as any;
+                            }
+                            if (needsFamilies) {
+                                state.guestFamilies = familiesData as any;
+                                state.guestFamilyMembers = membersData as any;
+                                state.familiesLoaded = true;
+                            }
                             state.isLoaded = true;
                             state.lastLoadedAt = new Date().toISOString();
                         });
@@ -1010,6 +1024,7 @@ export const useGuestsStore = create<GuestsState>()(
                         set((state) => {
                             state.guestFamilies = familiesData as any;
                             state.guestFamilyMembers = membersData as any;
+                            state.familiesLoaded = true;
                         });
                     } catch (error) {
                         console.error('Failed to load guest families from Supabase:', error);
@@ -1021,6 +1036,7 @@ export const useGuestsStore = create<GuestsState>()(
                         state.guests = [];
                         state.guestFamilies = [];
                         state.guestFamilyMembers = [];
+                        state.familiesLoaded = false;
                     });
                     clearSearchIndexCache();
                 },

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.48.4] - 2026-10-24
+
+### Fixed
+
+- The Family Meal Program household dropdown now loads on a fresh check-in page load. Check-in snapshot hydration marked the guest directory as loaded without fetching `guest_families`, so `ensureLoaded()` returned early and "Add to Existing Family" showed an empty list until staff visited Services. Household data now loads alongside warnings and proxies on every snapshot path, and the store tracks household freshness separately from the guest directory.
+
+### Tests
+
+- Added coverage that snapshot hydration leaves households marked unloaded and that `ensureLoaded()` fetches them even when guests are already loaded.
+
 ## [0.48.3] - 2026-10-20
 
 ### Added
