@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.49.0] - 2026-10-24
+
+### Added
+
+- Households now have an **Add members** action on the Meals tab and in the primary's Edit Guest form. The dedicated sheet is already scoped to the household, so staff no longer need to start from New Guest, enable the Family Meal Program, switch to Add to Existing Family, and pick the household from a dropdown.
+- New members can be entered as multiple rows and saved in one submit, with the primary's last name, housing status, and location prefilled. The default age group is `Child 0-17`, and extra details stay behind a More details expander.
+- An Existing guest tab searches the full guest directory and links someone already in the system instead of creating a duplicate. Possible matches also appear inline while typing, with a one-click **Use existing** action.
+- Adding a member enrolls the household in the Family Meal Program automatically. The member count and meal totals update immediately.
+
+### Database
+
+- Added `create_family_members(p_family_id uuid, p_members jsonb)`, which creates all guests and household links in one transaction and enrolls the household. Mirrored in `database/schema.sql`.
+
+### Tests
+
+- Added store coverage for batch creation, enrollment, missing households, duplicate names, and database errors.
+- Added component coverage for prefilled defaults, multi-person entry, existing-guest linking, duplicate suggestions, and the auto-enroll notice.
+
 ## [0.48.4] - 2026-10-24
 
 ### Fixed

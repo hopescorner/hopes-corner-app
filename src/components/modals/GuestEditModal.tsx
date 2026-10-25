@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, User, Loader2, Bike, Trash2, Users, Home } from 'lucide-react';
+import { X, User, Loader2, Bike, Trash2, Users, Home, UserPlus } from 'lucide-react';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { GuestDeleteWithTransferModal } from './GuestDeleteWithTransferModal';
+import { AddFamilyMembersModal } from './AddFamilyMembersModal';
 import toast from 'react-hot-toast';
 
 interface GuestEditModalProps {
@@ -68,6 +69,7 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
     }, [guestFamilies, guests, guestFamilyMembers, currentFamily?.id, guest.id]);
     const [isPending, setIsPending] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showAddFamilyMembers, setShowAddFamilyMembers] = useState(false);
     const [familyEnrolled, setFamilyEnrolled] = useState(currentFamily?.enrolledInFamilyMeal === true);
     const [shelterGuest, setShelterGuest] = useState(Boolean((guest as any).shelterGuest || (guest as any).shelter_guest));
     const [familyMode, setFamilyMode] = useState<'primary' | 'member'>(
@@ -413,6 +415,25 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                                 )}
                             </div>
                         )}
+
+                        {currentFamily && currentFamily.primaryGuestId === guest.id && (
+                            <div className="flex flex-col gap-2 rounded-xl border border-teal-200 bg-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-[10px] font-black uppercase tracking-wider text-teal-700">Household members</p>
+                                    <p className="text-xs font-medium text-gray-500">
+                                        {currentHouseholdDependents.length + 1} member{currentHouseholdDependents.length === 0 ? '' : 's'} including the primary
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowAddFamilyMembers(true)}
+                                    className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-teal-700"
+                                >
+                                    <UserPlus size={14} />
+                                    Add members
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-4 space-y-3">
@@ -503,6 +524,13 @@ export function GuestEditModal({ guest, onClose }: GuestEditModalProps) {
                     guest={guest}
                     onClose={() => setShowDeleteModal(false)}
                     onDeleted={onClose}
+                />
+            )}
+
+            {showAddFamilyMembers && currentFamily && (
+                <AddFamilyMembersModal
+                    familyId={currentFamily.id}
+                    onClose={() => setShowAddFamilyMembers(false)}
                 />
             )}
         </div>

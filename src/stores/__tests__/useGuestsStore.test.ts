@@ -177,6 +177,114 @@ describe('useGuestsStore', () => {
         });
     });
 
+    describe('addFamilyMembers', () => {
+        // Clearly fictional fixture data; never use real guest names here.
+        const primary = createMockGuest({
+            id: 'primary-1',
+            firstName: 'Guardian',
+            lastName: 'Example',
+            name: 'Guardian Example',
+        });
+        const family = {
+            id: 'family-1',
+            primaryGuestId: 'primary-1',
+            enrolledInFamilyMeal: false,
+        };
+
+        beforeEach(() => {
+            useGuestsStore.setState({
+                guests: [primary],
+                guestFamilies: [family],
+                guestFamilyMembers: [{ id: 'member-primary', familyId: 'family-1', guestId: 'primary-1' }],
+                isLoaded: true,
+                familiesLoaded: true,
+            });
+        });
+
+        it('creates multiple members in one RPC and enrolls the household', async () => {
+            mockSupabase.rpc.mockResolvedValueOnce({
+                data: {
+                    guests: [
+                        {
+                            id: 'guest-new-1',
+                            external_id: 'GNEW1',
+                            first_name: 'New',
+                            last_name: 'Example',
+                            full_name: 'New Example',
+                            housing_status: 'Unhoused',
+                            age_group: 'Child 0-17',
+                            gender: 'Unknown',
+                            location: 'Mountain View',
+                            created_at: '2026-10-24T12:00:00Z',
+                            updated_at: '2026-10-24T12:00:00Z',
+                        },
+                    ],
+                    members: [
+                        { id: 'member-new-1', family_id: 'family-1', guest_id: 'guest-new-1', created_at: '2026-10-24T12:00:00Z' },
+                    ],
+                },
+                error: null,
+            });
+
+            const created = await useGuestsStore.getState().addFamilyMembers('family-1', [
+                { firstName: 'new', lastName: 'example' },
+            ]);
+
+            expect(created).toHaveLength(1);
+            expect(created[0].firstName).toBe('New');
+            expect(mockSupabase.rpc).toHaveBeenCalledWith(
+                'create_family_members',
+                expect.objectContaining({
+                    p_family_id: 'family-1',
+                    p_members: [
+                        expect.objectContaining({
+                            first_name: 'New',
+                            last_name: 'Example',
+                            age_group: 'Child 0-17',
+                        }),
+                    ],
+                }),
+            );
+
+            const state = useGuestsStore.getState();
+            expect(state.guestFamilies[0].enrolledInFamilyMeal).toBe(true);
+            expect(state.guestFamilyMembers.some((member) => member.guestId === 'guest-new-1')).toBe(true);
+            expect(state.guests.some((guest) => guest.id === 'guest-new-1')).toBe(true);
+        });
+
+        it('rejects a missing household without calling the database', async () => {
+            await expect(
+                useGuestsStore.getState().addFamilyMembers('missing-family', [{ firstName: 'New', lastName: 'Example' }]),
+            ).rejects.toThrow(/household no longer exists/i);
+            expect(mockSupabase.rpc).not.toHaveBeenCalled();
+        });
+
+        it('rejects an existing guest name and points staff to the existing-guest flow', async () => {
+            await expect(
+                useGuestsStore.getState().addFamilyMembers('family-1', [{ firstName: 'Guardian', lastName: 'Example' }]),
+            ).rejects.toThrow(/already exists/i);
+            expect(mockSupabase.rpc).not.toHaveBeenCalled();
+        });
+
+        it('rejects duplicate names inside the same batch', async () => {
+            await expect(
+                useGuestsStore.getState().addFamilyMembers('family-1', [
+                    { firstName: 'New', lastName: 'Example' },
+                    { firstName: 'New', lastName: 'Example' },
+                ]),
+            ).rejects.toThrow(/more than once/i);
+            expect(mockSupabase.rpc).not.toHaveBeenCalled();
+        });
+
+        it('surfaces database errors', async () => {
+            mockSupabase.rpc.mockResolvedValueOnce({ data: null, error: { message: 'database unavailable' } });
+
+            await expect(
+                useGuestsStore.getState().addFamilyMembers('family-1', [{ firstName: 'New', lastName: 'Example' }]),
+            ).rejects.toThrow('database unavailable');
+        });
+    });
+
     describe('getWarningsForGuest', () => {
         it('returns only active warnings', () => {
             useGuestsStore.setState({

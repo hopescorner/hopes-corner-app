@@ -26,6 +26,7 @@ import {
     Square,
     Pencil,
     Zap,
+    UserPlus,
 } from 'lucide-react';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
@@ -40,6 +41,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { HandshakeIcon } from '@/components/icons/HandshakeIcon';
 import { ServiceDayNote } from './ServiceDayNote';
 import { ServiceDatePicker } from './ServiceDatePicker';
+import { AddFamilyMembersModal } from '@/components/modals/AddFamilyMembersModal';
 import type React from 'react';
 import { useSession } from 'next-auth/react';
 import { isPrivilegedServiceRole } from '@/lib/auth/types';
@@ -83,6 +85,7 @@ export function MealsSection() {
     const [selectedFamilyIds, setSelectedFamilyIds] = useState<Set<string>>(new Set());
     const [familyMealCounts, setFamilyMealCounts] = useState<Record<string, number>>({});
     const [isAddingFamilyMeals, setIsAddingFamilyMeals] = useState(false);
+    const [addMembersFamilyId, setAddMembersFamilyId] = useState<string | null>(null);
     const { data: session } = useSession();
     const userRole = session?.user?.role || '';
     const canUseCalendarPicker = isPrivilegedServiceRole(userRole);
@@ -1125,20 +1128,30 @@ const proxyPickerIds = new Set<string>();
                                                             )}
                                                         </span>
                                                     </button>
-                                                    <div className="flex items-center gap-2 sm:w-56">
-                                                        <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Per Person</label>
-                                                        <input
-                                                            type="number"
-                                                            min={1}
-                                                            value={mealsPerMember}
-                                                            onChange={(event) => {
-                                                                const next = Math.max(1, parseInt(event.target.value) || 1);
-                                                                setFamilyMealCounts((prev) => ({ ...prev, [row.family.id]: next }));
-                                                            }}
-                                                            className="w-16 rounded-xl border border-gray-200 bg-white p-2 text-center text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
-                                                            aria-label={`Meals per member for ${getGuestDisplayName(row.primaryGuest)} household`}
-                                                        />
-                                                        <span className="text-xs font-bold text-emerald-700">{totalMeals} total</span>
+                                                    <div className="flex flex-col gap-2 sm:w-56">
+                                                        <div className="flex items-center gap-2">
+                                                            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Per Person</label>
+                                                            <input
+                                                                type="number"
+                                                                min={1}
+                                                                value={mealsPerMember}
+                                                                onChange={(event) => {
+                                                                    const next = Math.max(1, parseInt(event.target.value) || 1);
+                                                                    setFamilyMealCounts((prev) => ({ ...prev, [row.family.id]: next }));
+                                                                }}
+                                                                className="w-16 rounded-xl border border-gray-200 bg-white p-2 text-center text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                                                                aria-label={`Meals per member for ${getGuestDisplayName(row.primaryGuest)} household`}
+                                                            />
+                                                            <span className="text-xs font-bold text-emerald-700">{totalMeals} total</span>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setAddMembersFamilyId(row.family.id)}
+                                                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-teal-200 bg-white px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-teal-700 transition-colors hover:bg-teal-50"
+                                                        >
+                                                            <UserPlus size={12} />
+                                                            Add members
+                                                        </button>
                                                     </div>
                                                 </div>
                                             );
@@ -1562,6 +1575,13 @@ const proxyPickerIds = new Set<string>();
                     )}
                 </div>
             </div>
+
+            {addMembersFamilyId && (
+                <AddFamilyMembersModal
+                    familyId={addMembersFamilyId}
+                    onClose={() => setAddMembersFamilyId(null)}
+                />
+            )}
         </div>
     );
 }

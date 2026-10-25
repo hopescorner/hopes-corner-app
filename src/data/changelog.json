@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.49.0",
+    "date": "October 24, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Add Family Members Without the Full Guest Form",
+        "description": "Households now have an Add members action on the Meals tab and in Edit Guest. Staff can add several new people at once, inherit the primary's last name and contact details, link an existing guest, and enroll the household automatically."
+      },
+      {
+        "type": "improvement",
+        "title": "Fewer Duplicate Guests",
+        "description": "Possible existing matches appear as staff type, with a one-click way to add the existing guest to the household instead of creating a second record."
+      }
+    ]
+  },
+  {
     "version": "0.48.4",
     "date": "October 24, 2026",
     "highlights": [

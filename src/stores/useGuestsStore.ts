@@ -137,6 +137,19 @@ export interface GuestFamilyMember {
     createdAt?: string;
 }
 
+export interface NewFamilyMemberInput {
+    firstName: string;
+    lastName: string;
+    preferredName?: string;
+    age?: string;
+    gender?: string;
+    housingStatus?: string;
+    location?: string;
+    notes?: string;
+    bicycleDescription?: string;
+    shelterGuest?: boolean;
+}
+
 export interface GuestRecordCounts {
     meals: number;
     showers: number;
@@ -187,6 +200,8 @@ interface GuestsState {
 
     syncGuests: (externalGuests: Guest[]) => void;
     addGuest: (guest: any) => Promise<Guest>;
+    /** Create several household members atomically and enroll the household. */
+    addFamilyMembers: (familyId: string, members: NewFamilyMemberInput[]) => Promise<Guest[]>;
     checkGuestHasRecords: (guestId: string) => Promise<GuestRecordCounts>;
     transferGuestRecords: (fromGuestId: string, toGuestId: string) => Promise<boolean>;
     deleteGuestWithTransfer: (guestId: string, transferToGuestId?: string) => Promise<boolean>;
@@ -417,6 +432,112 @@ export const useGuestsStore = create<GuestsState>()(
                     }
                     clearSearchIndexCache();
                     return mapped as any;
+                },
+
+                addFamilyMembers: async (familyId, members) => {
+                    const family = get().guestFamilies.find((item) => item.id === familyId);
+                    if (!family) {
+                        throw new Error('The selected household no longer exists. Please reload and try again.');
+                    }
+                    if (members.length === 0) {
+                        throw new Error('Add at least one family member.');
+                    }
+
+                    const normalized = members.map((member) => {
+                        const firstName = toTitleCase((member.firstName || '').trim());
+                        const lastName = toTitleCase((member.lastName || '').trim());
+                        if (!firstName || !lastName) {
+                            throw new Error('Each family member needs a first and last name.');
+                        }
+                        return {
+                            firstName,
+                            lastName,
+                            preferredName: normalizePreferredName(member.preferredName),
+                            age: member.age || 'Child 0-17',
+                            gender: member.gender || 'Unknown',
+                            housingStatus: normalizeHousingStatus(member.housingStatus),
+                            location: member.location || 'Mountain View',
+                            notes: member.notes || '',
+                            bicycleDescription: normalizeBicycleDescription(member.bicycleDescription),
+                            shelterGuest: Boolean(member.shelterGuest),
+                        };
+                    });
+
+                    const seen = new Set<string>();
+                    for (const member of normalized) {
+                        const key = `${member.firstName.toLowerCase()}|${member.lastName.toLowerCase()}`;
+                        if (seen.has(key)) {
+                            throw new Error(`"${member.firstName} ${member.lastName}" appears more than once. Remove the duplicate row.`);
+                        }
+                        seen.add(key);
+
+                        const existing = get().guests.find(
+                            (guest) =>
+                                (guest.firstName || '').toLowerCase().trim() === member.firstName.toLowerCase() &&
+                                (guest.lastName || '').toLowerCase().trim() === member.lastName.toLowerCase(),
+                        );
+                        if (existing) {
+                            throw new Error(
+                                `A guest named "${member.firstName} ${member.lastName}" already exists. Add them from the Existing guest tab instead.`,
+                            );
+                        }
+                    }
+
+                    const payload = normalized.map((member) => ({
+                        first_name: member.firstName,
+                        last_name: member.lastName,
+                        full_name: `${member.firstName} ${member.lastName}`.trim(),
+                        preferred_name: member.preferredName,
+                        housing_status: member.housingStatus,
+                        age_group: member.age,
+                        gender: member.gender,
+                        location: member.location,
+                        notes: member.notes,
+                        bicycle_description: member.bicycleDescription,
+                        shelter_guest: member.shelterGuest,
+                    }));
+
+                    const supabase = createClient();
+                    const { data, error } = await supabase.rpc('create_family_members', {
+                        p_family_id: familyId,
+                        p_members: payload,
+                    });
+
+                    if (error) {
+                        console.error('Failed to add family members in Supabase:', error);
+                        throw new Error(error.message || 'Unable to add family members.');
+                    }
+
+                    const result = data as { guests?: any[]; members?: any[] } | any[] | null;
+                    const guestRows = Array.isArray(result) ? result : result?.guests || [];
+                    const memberRows = Array.isArray(result) ? [] : result?.members || [];
+                    const mappedGuests = guestRows.map((row) => mapGuestRow(row)) as Guest[];
+                    const mappedMembers = memberRows.map((row) => mapGuestFamilyMemberRow(row));
+
+                    if (mappedGuests.length !== normalized.length) {
+                        throw new Error('The household was updated, but the new members could not be read. Please reload.');
+                    }
+
+                    set((state) => {
+                        const newGuestIds = new Set(mappedGuests.map((guest) => guest.id));
+                        state.guests = [
+                            ...mappedGuests,
+                            ...state.guests.filter((guest) => !newGuestIds.has(guest.id)),
+                        ];
+                        if (mappedMembers.length > 0) {
+                            const newMemberIds = new Set(mappedMembers.map((member) => member.id));
+                            state.guestFamilyMembers = [
+                                ...mappedMembers,
+                                ...state.guestFamilyMembers.filter((member) => !newMemberIds.has(member.id)),
+                            ];
+                        }
+                        state.guestFamilies = state.guestFamilies.map((item) =>
+                            item.id === familyId ? { ...item, enrolledInFamilyMeal: true } : item,
+                        );
+                        state.familiesLoaded = true;
+                    });
+                    clearSearchIndexCache();
+                    return mappedGuests;
                 },
 
                 updateGuest: async (id, updates) => {
