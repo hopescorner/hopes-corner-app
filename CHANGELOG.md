@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.49.1] - 2026-10-24
+
+### Added
+
+- The Family Meal Program now supports **Select all** for the visible households, **Clear**, and a bulk **Meals per member** control with **Apply to selected**. Staff can assign the same count to every selected household, then adjust individual households before saving.
+- Selected households remain selected across searches, and the selected summary now shows both the household count and total meals.
+
+### Changed
+
+- Redesigned the household list as a fixed-column table with a header row: Household, Per person, Total, and Actions. Inputs, totals, checkboxes, and Add buttons now align across rows instead of shifting with longer household names.
+- Household names wrap to two lines rather than truncating to a few characters, and member previews include the full roster in a tooltip.
+- Replaced the large per-row Add members button with a compact Add action in the Actions column.
+- The save button now says **Save N Households** and reports the selected total meals.
+
+### Tests
+
+- Added coverage for select-all, bulk meal count application, different counts per household, search-scoped select-all, clearing the selection, and saving multiple households.
+
 ## [0.49.0] - 2026-10-24
 
 ### Added

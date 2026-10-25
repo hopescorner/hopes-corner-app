@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import toast from 'react-hot-toast';
 import React from 'react';
@@ -15,6 +15,7 @@ vi.mock('next-auth/react', () => ({
 
 const mockDeleteBulkMealRecord = vi.fn().mockResolvedValue(true);
 const mockAddMealRecord = vi.fn().mockResolvedValue({ id: 'meal-new' });
+const mockAddFamilyMealRecord = vi.fn().mockResolvedValue({ id: 'family-meal-new' });
 const mockUpdateAutoMealAdditionsEnabled = vi.fn().mockResolvedValue(undefined);
 const mockLoadSettings = vi.fn().mockResolvedValue(undefined);
 let mockAutoMealAdditionsEnabled = true;
@@ -62,6 +63,7 @@ vi.mock('@/stores/useMealsStore', () => ({
             dayWorkerMealRecords: [],
             unitedEffortMealRecords: [],
             lunchBagRecords: mockLunchBagRecords,
+            familyMealRecords: [],
             selectedDate: '2026-01-08',
             updateMealRecord: vi.fn().mockResolvedValue(true),
             deleteMealRecord: vi.fn().mockResolvedValue(true),
@@ -72,6 +74,7 @@ vi.mock('@/stores/useMealsStore', () => ({
             updateBulkMealRecord: vi.fn().mockResolvedValue(true),
             checkAndAddAutomaticMeals: mockCheckAndAddAutomaticMeals,
             addMealRecord: mockAddMealRecord,
+            addFamilyMealRecord: mockAddFamilyMealRecord,
         };
         return typeof selector === 'function' ? selector(state) : state;
     }),
@@ -83,6 +86,16 @@ vi.mock('@/stores/useGuestsStore', () => ({
             guests: [
                 { id: 'g1', name: 'John Doe', preferredName: 'Johnny' },
                 { id: 'g2', name: 'Jane Smith', preferredName: '' },
+                { id: 'g3', name: 'Child Example', preferredName: '' },
+            ],
+            guestFamilies: [
+                { id: 'family-1', primaryGuestId: 'g1', enrolledInFamilyMeal: true },
+                { id: 'family-2', primaryGuestId: 'g2', enrolledInFamilyMeal: true },
+            ],
+            guestFamilyMembers: [
+                { id: 'fm1', familyId: 'family-1', guestId: 'g1' },
+                { id: 'fm2', familyId: 'family-1', guestId: 'g3' },
+                { id: 'fm3', familyId: 'family-2', guestId: 'g2' },
             ],
         };
         return typeof selector === 'function' ? selector(state) : state;
@@ -132,6 +145,7 @@ describe('MealsSection Component', () => {
         ];
         mockUpdateAutoMealAdditionsEnabled.mockResolvedValue(undefined);
         mockLoadSettings.mockResolvedValue(undefined);
+        mockAddFamilyMealRecord.mockResolvedValue({ id: 'family-meal-new' });
     });
 
     describe('Rendering', () => {
@@ -511,6 +525,72 @@ describe('MealsSection Component', () => {
             expect(toast.error).toHaveBeenCalledWith(
                 'Guest already has 2 base meals today (max 2)'
             );
+        });
+    });
+
+    describe('Family Meal Program selection', () => {
+        const openFamilyPanel = async () => {
+            const user = userEvent.setup();
+            render(<MealsSection />);
+            await user.click(screen.getByRole('button', { name: /add bulk meals/i }));
+            await screen.findByText('Family Meal Program');
+            return user;
+        };
+
+        it('selects all visible households and applies one meal count to all of them', async () => {
+            const user = await openFamilyPanel();
+
+            await user.click(screen.getByLabelText('Select all visible households'));
+            expect(screen.getByText(/2 households selected · 3 total meals/i)).toBeDefined();
+
+            const bulkInput = screen.getByLabelText('Bulk meals per member for selected households');
+            await user.clear(bulkInput);
+            await user.type(bulkInput, '3');
+            await user.click(screen.getByRole('button', { name: /apply to selected/i }));
+
+            expect((screen.getByLabelText('Meals per member for Johnny household') as HTMLInputElement).value).toBe('3');
+            expect((screen.getByLabelText('Meals per member for Jane Smith household') as HTMLInputElement).value).toBe('3');
+            expect(screen.getByText(/2 households selected · 9 total meals/i)).toBeDefined();
+
+            await user.click(screen.getByRole('button', { name: /save 2 households/i }));
+            await waitFor(() => {
+                expect(mockAddFamilyMealRecord).toHaveBeenCalledWith('family-1', 3, 2, '2026-01-08');
+                expect(mockAddFamilyMealRecord).toHaveBeenCalledWith('family-2', 3, 1, '2026-01-08');
+            });
+        });
+
+        it('supports different meal counts for different households', async () => {
+            const user = await openFamilyPanel();
+
+            await user.click(screen.getByLabelText('Select Johnny household'));
+            fireEvent.change(screen.getByLabelText('Meals per member for Johnny household'), { target: { value: '2' } });
+
+            await user.click(screen.getByLabelText('Select Jane Smith household'));
+            fireEvent.change(screen.getByLabelText('Meals per member for Jane Smith household'), { target: { value: '4' } });
+
+            await user.click(screen.getByRole('button', { name: /save 2 households/i }));
+            await waitFor(() => {
+                expect(mockAddFamilyMealRecord).toHaveBeenCalledWith('family-1', 2, 2, '2026-01-08');
+                expect(mockAddFamilyMealRecord).toHaveBeenCalledWith('family-2', 4, 1, '2026-01-08');
+            });
+        });
+
+        it('select-all respects the household search', async () => {
+            const user = await openFamilyPanel();
+
+            await user.type(screen.getByLabelText('Search family meal program households'), 'John');
+            await user.click(screen.getByLabelText('Select all visible households'));
+
+            expect(screen.getByRole('button', { name: /save 1 household/i })).toBeDefined();
+        });
+
+        it('clears the selection', async () => {
+            const user = await openFamilyPanel();
+
+            await user.click(screen.getByLabelText('Select all visible households'));
+            await user.click(screen.getByRole('button', { name: /^clear$/i }));
+
+            expect(screen.getByRole('button', { name: /select families above/i })).toBeDisabled();
         });
     });
 });

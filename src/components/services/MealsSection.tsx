@@ -84,6 +84,7 @@ export function MealsSection() {
     const [showUnenrolledFamilies, setShowUnenrolledFamilies] = useState(false);
     const [selectedFamilyIds, setSelectedFamilyIds] = useState<Set<string>>(new Set());
     const [familyMealCounts, setFamilyMealCounts] = useState<Record<string, number>>({});
+    const [bulkFamilyMealCount, setBulkFamilyMealCount] = useState('1');
     const [isAddingFamilyMeals, setIsAddingFamilyMeals] = useState(false);
     const [addMembersFamilyId, setAddMembersFamilyId] = useState<string | null>(null);
     const { data: session } = useSession();
@@ -205,8 +206,7 @@ export function MealsSection() {
         return map;
     }, [familyMealRecords, selectedDate]);
 
-    const familyRows = useMemo(() => {
-        const query = familySearch.trim().toLowerCase();
+    const allFamilyRows = useMemo(() => {
         return (guestFamilies || [])
             .filter((family) => showUnenrolledFamilies || family.enrolledInFamilyMeal)
             .map((family) => {
@@ -234,9 +234,31 @@ export function MealsSection() {
                     searchableText,
                 };
             })
-            .filter((row) => !query || row.searchableText.includes(query))
             .sort((a, b) => getGuestDisplayName(a.primaryGuest).localeCompare(getGuestDisplayName(b.primaryGuest)));
-    }, [familySearch, showUnenrolledFamilies, guestFamilies, familyMembersByFamilyId, guestMap, guests, familyMealRecordByFamilyId]);
+    }, [showUnenrolledFamilies, guestFamilies, familyMembersByFamilyId, guestMap, guests, familyMealRecordByFamilyId]);
+
+    const familyRows = useMemo(() => {
+        const query = familySearch.trim().toLowerCase();
+        return query
+            ? allFamilyRows.filter((row) => row.searchableText.includes(query))
+            : allFamilyRows;
+    }, [allFamilyRows, familySearch]);
+
+    const visibleFamilyIds = useMemo(
+        () => familyRows.map((row) => row.family.id),
+        [familyRows],
+    );
+    const allVisibleFamiliesSelected = visibleFamilyIds.length > 0
+        && visibleFamilyIds.every((id) => selectedFamilyIds.has(id));
+    const someVisibleFamiliesSelected = visibleFamilyIds.some((id) => selectedFamilyIds.has(id));
+    const selectedFamilyTotalMeals = useMemo(
+        () => allFamilyRows.reduce((total, row) => {
+            if (!selectedFamilyIds.has(row.family.id)) return total;
+            const mealsPerMember = Math.max(1, familyMealCounts[row.family.id] ?? row.existingRecord?.mealsPerMember ?? 1);
+            return total + (mealsPerMember * row.memberCount);
+        }, 0),
+        [allFamilyRows, selectedFamilyIds, familyMealCounts],
+    );
 
     // RV meals are not distributed on Wednesdays
     const isWednesdayDate = parsePacificDateParts(selectedDate)?.dayOfWeek === 3;
@@ -504,15 +526,49 @@ const proxyPickerIds = new Set<string>();
         }
     };
 
+    const toggleAllVisibleFamilies = () => {
+        setSelectedFamilyIds((prev) => {
+            const next = new Set(prev);
+            if (allVisibleFamiliesSelected) {
+                visibleFamilyIds.forEach((id) => next.delete(id));
+            } else {
+                visibleFamilyIds.forEach((id) => next.add(id));
+            }
+            return next;
+        });
+    };
+
+    const clearFamilySelection = () => {
+        setSelectedFamilyIds(new Set());
+    };
+
+    const applyBulkFamilyMealCount = () => {
+        if (selectedFamilyIds.size === 0) {
+            toast.error('Select at least one household first');
+            return;
+        }
+        const count = Math.max(1, parseInt(bulkFamilyMealCount, 10) || 1);
+        setFamilyMealCounts((prev) => {
+            const next = { ...prev };
+            selectedFamilyIds.forEach((id) => {
+                next[id] = count;
+            });
+            return next;
+        });
+        toast.success(
+            `Set ${count} meal${count === 1 ? '' : 's'} per member for ${selectedFamilyIds.size} household${selectedFamilyIds.size === 1 ? '' : 's'}`,
+        );
+    };
+
     const handleAddFamilyMeals = async () => {
         if (selectedFamilyIds.size === 0) {
             toast.error('Please select at least one family');
             return;
         }
 
-        const selectedRows = familyRows.filter((row) => selectedFamilyIds.has(row.family.id));
+        const selectedRows = allFamilyRows.filter((row) => selectedFamilyIds.has(row.family.id));
         if (selectedRows.length === 0) {
-            toast.error('No visible selected families');
+            toast.error('No selected families found');
             return;
         }
 
@@ -1075,90 +1131,184 @@ const proxyPickerIds = new Set<string>();
                                         />
                                     </div>
 
-                                    <div className="max-h-60 overflow-y-auto rounded-xl border border-gray-200 bg-white divide-y divide-gray-50 mb-3">
-                                    {familyRows.length === 0 ? (
-                                        <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">
-                                            {showUnenrolledFamilies ? 'No families found' : 'No enrolled families found'}
-                                        </p>
-                                    ) : (
-                                        familyRows.map((row) => {
-                                            const checked = selectedFamilyIds.has(row.family.id);
-                                            const mealsPerMember = Math.max(1, familyMealCounts[row.family.id] ?? row.existingRecord?.mealsPerMember ?? 1);
-                                            const totalMeals = mealsPerMember * row.memberCount;
-                                            const memberPreview = row.memberNames.slice(0, 3).join(', ');
-                                            return (
-                                                <div
-                                                    key={row.family.id}
-                                                    className={cn(
-                                                        "flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-center",
-                                                        checked ? "bg-emerald-50" : "hover:bg-gray-50"
-                                                    )}
-                                                >
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSelectedFamilyIds((prev) => {
-                                                                const next = new Set(prev);
-                                                                if (next.has(row.family.id)) next.delete(row.family.id);
-                                                                else next.add(row.family.id);
-                                                                return next;
-                                                            });
-                                                        }}
-                                                        className="flex flex-1 items-start gap-3 text-left"
-                                                        aria-pressed={checked}
-                                                    >
-                                                        {checked
-                                                            ? <CheckSquare size={16} className="mt-0.5 shrink-0 text-emerald-600" />
-                                                            : <Square size={16} className="mt-0.5 shrink-0 text-gray-300" />
-                                                        }
-                                                        <span className="min-w-0 flex-1">
-                                                            <span className="block text-sm font-black text-gray-900 truncate">{getGuestDisplayName(row.primaryGuest)} Household</span>
-                                                            <span className="mt-0.5 block text-xs font-medium text-gray-500 truncate">
-                                                                {row.memberCount} member{row.memberCount !== 1 ? 's' : ''}{memberPreview ? ` · ${memberPreview}` : ''}
-                                                            </span>
-                                                            {row.existingRecord && (
-                                                                <span className="mt-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-                                                                    Existing: {row.existingRecord.count} meal{row.existingRecord.count !== 1 ? 's' : ''}
-                                                                </span>
-                                                            )}
-                                                            {!row.family.enrolledInFamilyMeal && (
-                                                                <span className="ml-2 mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
-                                                                    Unenrolled
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                    </button>
-                                                    <div className="flex flex-col gap-2 sm:w-56">
-                                                        <div className="flex items-center gap-2">
-                                                            <label className="text-[10px] font-bold uppercase tracking-wider text-gray-500">Per Person</label>
-                                                            <input
-                                                                type="number"
-                                                                min={1}
-                                                                value={mealsPerMember}
-                                                                onChange={(event) => {
-                                                                    const next = Math.max(1, parseInt(event.target.value) || 1);
-                                                                    setFamilyMealCounts((prev) => ({ ...prev, [row.family.id]: next }));
-                                                                }}
-                                                                className="w-16 rounded-xl border border-gray-200 bg-white p-2 text-center text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
-                                                                aria-label={`Meals per member for ${getGuestDisplayName(row.primaryGuest)} household`}
-                                                            />
-                                                            <span className="text-xs font-bold text-emerald-700">{totalMeals} total</span>
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setAddMembersFamilyId(row.family.id)}
-                                                            className="inline-flex items-center justify-center gap-1 rounded-lg border border-teal-200 bg-white px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-teal-700 transition-colors hover:bg-teal-50"
-                                                        >
-                                                            <UserPlus size={12} />
-                                                            Add members
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    )}
+                                    <div className="mb-2 flex flex-wrap items-center gap-3">
+                                        <label className="inline-flex items-center gap-2 text-[11px] font-bold text-gray-700">
+                                            <input
+                                                type="checkbox"
+                                                checked={allVisibleFamiliesSelected}
+                                                ref={(element) => {
+                                                    if (element) {
+                                                        element.indeterminate = someVisibleFamiliesSelected && !allVisibleFamiliesSelected;
+                                                    }
+                                                }}
+                                                onChange={toggleAllVisibleFamilies}
+                                                disabled={visibleFamilyIds.length === 0}
+                                                className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                                aria-label="Select all visible households"
+                                            />
+                                            Select all ({visibleFamilyIds.length})
+                                        </label>
+                                        {selectedFamilyIds.size > 0 && (
+                                            <button
+                                                type="button"
+                                                onClick={clearFamilySelection}
+                                                className="text-[11px] font-black uppercase tracking-wider text-gray-500 transition-colors hover:text-gray-700"
+                                            >
+                                                Clear
+                                            </button>
+                                        )}
+                                        <span className="text-[11px] font-bold text-emerald-700">
+                                            {selectedFamilyIds.size} selected
+                                        </span>
                                     </div>
 
+                                    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50/60 p-2.5">
+                                        <label htmlFor="bulk-family-meals" className="text-[10px] font-black uppercase tracking-wider text-emerald-800">
+                                            Meals per member
+                                        </label>
+                                        <input
+                                            id="bulk-family-meals"
+                                            type="number"
+                                            min={1}
+                                            value={bulkFamilyMealCount}
+                                            onChange={(event) => setBulkFamilyMealCount(event.target.value.replace(/[^\d]/g, ''))}
+                                            className="w-16 rounded-lg border border-emerald-200 bg-white p-2 text-center text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                                            aria-label="Bulk meals per member for selected households"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={applyBulkFamilyMealCount}
+                                            disabled={selectedFamilyIds.size === 0}
+                                            className={cn(
+                                                "rounded-lg px-3 py-2 text-[11px] font-black uppercase tracking-wider transition-colors",
+                                                selectedFamilyIds.size > 0
+                                                    ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                                                    : "cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400",
+                                            )}
+                                        >
+                                            Apply to selected
+                                        </button>
+                                        <span className="text-[11px] font-medium text-emerald-800">
+                                            {selectedFamilyIds.size > 0
+                                                ? `Same count for ${selectedFamilyIds.size} selected household${selectedFamilyIds.size === 1 ? '' : 's'}`
+                                                : 'Select households first'}
+                                        </span>
+                                    </div>
+
+                                    <div className="mb-3 overflow-hidden rounded-xl border border-gray-200 bg-white">
+                                        <div className="hidden grid-cols-[1.25rem_minmax(0,1fr)_5.75rem_3.5rem_4.75rem] items-center gap-x-3 border-b border-gray-100 bg-gray-50/80 px-3 py-2 sm:grid">
+                                            <span aria-hidden="true" />
+                                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-400">Household</span>
+                                            <span className="text-center text-[10px] font-black uppercase tracking-wider text-gray-400">Per person</span>
+                                            <span className="text-right text-[10px] font-black uppercase tracking-wider text-gray-400">Total</span>
+                                            <span className="text-right text-[10px] font-black uppercase tracking-wider text-gray-400">Actions</span>
+                                        </div>
+                                        <div className="max-h-80 divide-y divide-gray-100 overflow-y-auto">
+                                            {familyRows.length === 0 ? (
+                                                <p className="py-8 text-center text-xs font-bold uppercase tracking-widest text-gray-400">
+                                                    {showUnenrolledFamilies ? 'No families found' : 'No enrolled families found'}
+                                                </p>
+                                            ) : (
+                                                familyRows.map((row) => {
+                                                    const displayName = getGuestDisplayName(row.primaryGuest);
+                                                    const checked = selectedFamilyIds.has(row.family.id);
+                                                    const mealsPerMember = Math.max(1, familyMealCounts[row.family.id] ?? row.existingRecord?.mealsPerMember ?? 1);
+                                                    const totalMeals = mealsPerMember * row.memberCount;
+                                                    const memberPreview = row.memberNames.slice(0, 3).join(', ');
+                                                    return (
+                                                        <div
+                                                            key={row.family.id}
+                                                            className={cn(
+                                                                "grid grid-cols-[1.25rem_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-2 px-3 py-3 transition-colors sm:min-h-[64px] sm:grid-cols-[1.25rem_minmax(0,1fr)_5.75rem_3.5rem_4.75rem] sm:items-center sm:gap-x-3",
+                                                                checked ? "bg-emerald-50/70" : "hover:bg-gray-50/80",
+                                                            )}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={checked}
+                                                                onChange={(event) => {
+                                                                    const isChecked = event.target.checked;
+                                                                    setSelectedFamilyIds((prev) => {
+                                                                        const next = new Set(prev);
+                                                                        if (isChecked) next.add(row.family.id);
+                                                                        else next.delete(row.family.id);
+                                                                        return next;
+                                                                    });
+                                                                }}
+                                                                className="col-start-1 row-start-1 mt-0.5 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 sm:mt-0"
+                                                                aria-label={`Select ${displayName} household`}
+                                                            />
+
+                                                            <div className="col-start-2 row-start-1 min-w-0">
+                                                                <p className="line-clamp-2 break-words text-sm font-black text-gray-900" title={`${displayName} Household`}>
+                                                                    {displayName} Household
+                                                                </p>
+                                                                <p className="mt-0.5 truncate text-xs font-medium text-gray-500" title={row.memberNames.join(', ') || undefined}>
+                                                                    {row.memberCount} member{row.memberCount !== 1 ? 's' : ''}{memberPreview ? ` · ${memberPreview}` : ''}
+                                                                </p>
+                                                                {(row.existingRecord || !row.family.enrolledInFamilyMeal) && (
+                                                                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                                                        {row.existingRecord && (
+                                                                            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                                                                                Existing: {row.existingRecord.count} meal{row.existingRecord.count !== 1 ? 's' : ''}
+                                                                            </span>
+                                                                        )}
+                                                                        {!row.family.enrolledInFamilyMeal && (
+                                                                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-700">
+                                                                                Unenrolled
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="col-start-2 row-start-2 flex items-center gap-2 sm:col-start-3 sm:row-start-1 sm:justify-center">
+                                                                <label htmlFor={`family-meals-${row.family.id}`} className="text-[10px] font-black uppercase tracking-wider text-gray-400 sm:hidden">
+                                                                    Per person
+                                                                </label>
+                                                                <input
+                                                                    id={`family-meals-${row.family.id}`}
+                                                                    type="number"
+                                                                    min={1}
+                                                                    value={mealsPerMember}
+                                                                    onChange={(event) => {
+                                                                        const next = Math.max(1, parseInt(event.target.value) || 1);
+                                                                        setFamilyMealCounts((prev) => ({ ...prev, [row.family.id]: next }));
+                                                                    }}
+                                                                    className="w-16 rounded-lg border border-gray-200 bg-white p-2 text-center text-sm font-bold tabular-nums text-gray-900 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                                                    aria-label={`Meals per member for ${displayName} household`}
+                                                                />
+                                                            </div>
+
+                                                            <div className="col-start-3 row-start-2 flex items-center justify-end gap-2 sm:col-start-4 sm:row-start-1">
+                                                                <span className="text-[10px] font-black uppercase tracking-wider text-gray-400 sm:hidden">Total</span>
+                                                                <span className="text-sm font-black tabular-nums text-emerald-700">{totalMeals}</span>
+                                                            </div>
+
+                                                            <div className="col-start-3 row-start-1 flex justify-end sm:col-start-5 sm:row-start-1">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setAddMembersFamilyId(row.family.id)}
+                                                                    className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-white px-2.5 py-1.5 text-[10px] font-black uppercase tracking-wider text-teal-700 transition-colors hover:bg-teal-50"
+                                                                    aria-label={`Add family members to ${displayName} household`}
+                                                                    title="Add family members"
+                                                                >
+                                                                    <UserPlus size={13} />
+                                                                    Add
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {selectedFamilyIds.size > 0 && (
+                                        <p className="mb-2 text-center text-[11px] font-semibold text-emerald-800">
+                                            {selectedFamilyIds.size} household{selectedFamilyIds.size === 1 ? '' : 's'} selected · {selectedFamilyTotalMeals} total meal{selectedFamilyTotalMeals === 1 ? '' : 's'}
+                                        </p>
+                                    )}
                                     <button
                                         type="button"
                                         onClick={handleAddFamilyMeals}
@@ -1173,7 +1323,7 @@ const proxyPickerIds = new Set<string>();
                                         {isAddingFamilyMeals
                                             ? 'Saving...'
                                             : selectedFamilyIds.size > 0
-                                                ? `Save ${selectedFamilyIds.size} Family Meal${selectedFamilyIds.size > 1 ? 's' : ''}`
+                                                ? `Save ${selectedFamilyIds.size} Household${selectedFamilyIds.size > 1 ? 's' : ''}`
                                                 : 'Select Families Above'}
                                     </button>
                                 </section>

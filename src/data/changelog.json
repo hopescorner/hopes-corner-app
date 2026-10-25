@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.49.1",
+    "date": "October 24, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Select Multiple Family Households at Once",
+        "description": "The Family Meal Program now has Select all, Clear, and a bulk meals-per-member control. Select several households, apply the same count to all of them, then adjust individual households before saving."
+      },
+      {
+        "type": "improvement",
+        "title": "Aligned Family Meal Rows",
+        "description": "Households now render in fixed columns with a header row, aligned meal counts, clear checkboxes, and a compact Add action, so long names no longer push the meal numbers out of line."
+      }
+    ]
+  },
+  {
     "version": "0.49.0",
     "date": "October 24, 2026",
     "highlights": [
