@@ -471,19 +471,20 @@ describe('MealsSection Component', () => {
             await user.click(addBtn);
 
             // Scope to the Individual Meal Entry section
-            const individualSection = screen.getByText('Individual Meal Entry').closest('div')!;
+            const individualSection = screen.getByText('Individual Meal Entry').closest('section')!;
 
-            // Select guest g1 (Johnny) who already has 2 meals
-            const guestSelect = within(individualSection).getByDisplayValue('Select guest');
-            await user.selectOptions(guestSelect, 'g1');
+            // Click on Johnny (g1) who already has 2 meals
+            const guestList = within(individualSection).getByTestId('individual-guest-list');
+            const johnnyButton = within(guestList).getByRole('button', { name: /Johnny/ });
+            await user.click(johnnyButton);
 
             // Click the add button inside the individual section
-            const submitBtn = within(individualSection).getByRole('button', { name: /add/i });
+            const submitBtn = within(individualSection).getByRole('button', { name: /add.*guest/i });
             await user.click(submitBtn);
 
             // Should show a specific error toast, NOT call the store
             expect(toast.error).toHaveBeenCalledWith(
-                'Guest already has 2 base meals today (max 2)'
+                'All 1 selected guest already at the 2 base meals/day limit'
             );
             expect(mockAddMealRecord).not.toHaveBeenCalled();
         });
@@ -496,11 +497,12 @@ describe('MealsSection Component', () => {
             const addBtn = screen.getByText('Add Bulk Meals');
             await user.click(addBtn);
 
-            const individualSection = screen.getByText('Individual Meal Entry').closest('div')!;
-            const guestSelect = within(individualSection).getByDisplayValue('Select guest');
-            await user.selectOptions(guestSelect, 'g2');
+            const individualSection = screen.getByText('Individual Meal Entry').closest('section')!;
+            const guestList = within(individualSection).getByTestId('individual-guest-list');
+            const janeButton = within(guestList).getByRole('button', { name: /Jane Smith/ });
+            await user.click(janeButton);
 
-            const submitBtn = within(individualSection).getByRole('button', { name: /add/i });
+            const submitBtn = within(individualSection).getByRole('button', { name: /add.*guest/i });
             await user.click(submitBtn);
 
             expect(toast.error).not.toHaveBeenCalled();
@@ -515,16 +517,16 @@ describe('MealsSection Component', () => {
             const addBtn = screen.getByText('Add Bulk Meals');
             await user.click(addBtn);
 
-            const individualSection = screen.getByText('Individual Meal Entry').closest('div')!;
-            const guestSelect = within(individualSection).getByDisplayValue('Select guest');
-            await user.selectOptions(guestSelect, 'g2');
+            const individualSection = screen.getByText('Individual Meal Entry').closest('section')!;
+            const guestList = within(individualSection).getByTestId('individual-guest-list');
+            const janeButton = within(guestList).getByRole('button', { name: /Jane Smith/ });
+            await user.click(janeButton);
 
-            const submitBtn = within(individualSection).getByRole('button', { name: /add/i });
+            const submitBtn = within(individualSection).getByRole('button', { name: /add.*guest/i });
             await user.click(submitBtn);
 
-            expect(toast.error).toHaveBeenCalledWith(
-                'Guest already has 2 base meals today (max 2)'
-            );
+            // With multiple guest handler, failures are counted and reported as a count
+            expect(toast.error).toHaveBeenCalledWith('1 guest failed to update');
         });
     });
 

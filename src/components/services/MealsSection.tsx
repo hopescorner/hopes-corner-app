@@ -80,6 +80,11 @@ export function MealsSection() {
     const [bulkGuestMealCount, setBulkGuestMealCount] = useState(1);
     const [isBulkAddingGuests, setIsBulkAddingGuests] = useState(false);
 
+    // Individual meal entry multi-select state
+    const [individualGuestSearch, setIndividualGuestSearch] = useState('');
+    const [selectedIndividualGuestIds, setSelectedIndividualGuestIds] = useState<Set<string>>(new Set());
+    const [isAddingIndividualMultiple, setIsAddingIndividualMultiple] = useState(false);
+
     const [familySearch, setFamilySearch] = useState('');
     const [showUnenrolledFamilies, setShowUnenrolledFamilies] = useState(false);
     const [selectedFamilyIds, setSelectedFamilyIds] = useState<Set<string>>(new Set());
@@ -313,6 +318,26 @@ export function MealsSection() {
             return aName.localeCompare(bName);
         });
     }, [guests, bulkGuestSearch, bulkGuestMealFilter, guestsWithMealOnDateSet]);
+
+    // Filtered + sorted guest list for individual meal entry multi-select
+    const filteredIndividualGuests = useMemo(() => {
+        let list = [...guests]
+            .filter((g): g is (typeof guests)[number] => !!g && !g.bannedFromMeals);
+
+        if (individualGuestSearch.trim()) {
+            const query = individualGuestSearch.toLowerCase();
+            list = list.filter((g) => {
+                const name = (g.preferredName || g.name || `${g.firstName || ''} ${g.lastName || ''}`).toLowerCase();
+                return name.includes(query);
+            });
+        }
+
+        return [...list].sort((a, b) => {
+            const aName = (a.preferredName || a.name || `${a.firstName || ''} ${a.lastName || ''}`).toLowerCase();
+            const bName = (b.preferredName || b.name || `${b.firstName || ''} ${b.lastName || ''}`).toLowerCase();
+            return aName.localeCompare(bName);
+        });
+    }, [guests, individualGuestSearch]);
 
     // Editing state
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -645,6 +670,63 @@ const proxyPickerIds = new Set<string>();
         }
     };
 
+    const handleAddMultipleIndividualMeals = async () => {
+        if (selectedIndividualGuestIds.size === 0) {
+            toast.error('Please select at least one guest');
+            return;
+        }
+
+        if (individualMealCount <= 0) {
+            toast.error('Meal count must be at least 1');
+            return;
+        }
+
+        // Pre-filter: skip guests already at the base meal limit
+        const allSelected = [...selectedIndividualGuestIds];
+        const eligible = allSelected.filter((guestId) => {
+            const currentCount = guestMealCountOnDate.get(guestId) || 0;
+            return currentCount + individualMealCount <= MAX_BASE_MEALS_PER_DAY;
+        });
+        const skippedCount = allSelected.length - eligible.length;
+
+        if (eligible.length === 0) {
+            toast.error(`All ${allSelected.length} selected guest${allSelected.length > 1 ? 's' : ''} already at the ${MAX_BASE_MEALS_PER_DAY} base meals/day limit`);
+            return;
+        }
+
+        setIsAddingIndividualMultiple(true);
+
+        // Process in small batches to avoid overwhelming Supabase
+        const BATCH_SIZE = 10;
+        let successCount = 0;
+        let failCount = 0;
+        for (let i = 0; i < eligible.length; i += BATCH_SIZE) {
+            const batch = eligible.slice(i, i + BATCH_SIZE);
+            const results = await Promise.allSettled(
+                batch.map((guestId) =>
+                    addMealRecord(guestId, individualMealCount, null, selectedDate)
+                )
+            );
+            successCount += results.filter((r) => r.status === 'fulfilled').length;
+            failCount += results.filter((r) => r.status === 'rejected').length;
+        }
+
+        setIsAddingIndividualMultiple(false);
+
+        if (successCount > 0) {
+            const parts: string[] = [];
+            parts.push(`Added ${individualMealCount} meal${individualMealCount > 1 ? 's' : ''} to ${successCount} guest${successCount > 1 ? 's' : ''}${!isToday ? ` for ${selectedDate}` : ''}`);
+            if (skippedCount > 0) {
+                parts.push(`${skippedCount} already at ${MAX_BASE_MEALS_PER_DAY} base meals/day limit`);
+            }
+            toast.success(parts.join('. '));
+            setSelectedIndividualGuestIds(new Set());
+        }
+        if (failCount > 0) {
+            toast.error(`${failCount} guest${failCount > 1 ? 's' : ''} failed to update`);
+        }
+    };
+
     const shiftDate = (days: number) => {
         const d = new Date(selectedDate + 'T12:00:00');
         d.setDate(d.getDate() + days);
@@ -904,50 +986,133 @@ const proxyPickerIds = new Set<string>();
                                         <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1 flex items-center gap-1.5">
                                             <User size={13} /> Individual Meal Entry
                                         </p>
-                                        <p className="text-[11px] text-gray-400 mb-3">Log a meal for one guest. Max 2 base meals per guest per day.</p>
-                                        <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_160px] gap-3">
-                                            <select
-                                                value={individualGuestId}
-                                                onChange={(e) => setIndividualGuestId(e.target.value)}
-                                                className="w-full p-2.5 rounded-xl border border-gray-200 bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
-                                            >
-                                                <option value="">Select guest</option>
-                                                {guests
-                                                    .filter((guest) => guest?.id)
-                                                    .sort((firstGuest, secondGuest) => {
-                                                        const firstName = (firstGuest.preferredName || firstGuest.name || `${firstGuest.firstName || ''} ${firstGuest.lastName || ''}`).toString();
-                                                        const secondName = (secondGuest.preferredName || secondGuest.name || `${secondGuest.firstName || ''} ${secondGuest.lastName || ''}`).toString();
-                                                        return firstName.localeCompare(secondName);
-                                                    })
-                                                    .map((guest) => {
-                                                        const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
-                                                        return (
-                                                            <option key={guest.id} value={guest.id}>
-                                                                {displayName}
-                                                            </option>
-                                                        );
-                                                    })}
-                                            </select>
-                                            <input
-                                                type="number"
-                                                min={1}
-                                                value={individualMealCount}
-                                                onChange={(e) => setIndividualMealCount(Math.max(1, parseInt(e.target.value) || 1))}
-                                                className="w-full p-2.5 rounded-xl border border-gray-200 bg-white text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
-                                                aria-label="Individual meal quantity"
-                                            />
-                                            <button
-                                                onClick={handleAddIndividualMeal}
-                                                disabled={!individualGuestId || isPendingIndividual}
-                                                className={cn(
-                                                    "w-full py-2.5 rounded-xl text-xs font-bold transition-all",
-                                                    !individualGuestId || isPendingIndividual
-                                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                                                        : "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
+                                        <p className="text-[11px] text-gray-400 mb-3">Log meals for one or more guests. Max 2 base meals per guest per day.</p>
+                                        
+                                        {/* Search input */}
+                                        <div className="mb-3">
+                                            <div className="relative">
+                                                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Search guests…"
+                                                    value={individualGuestSearch}
+                                                    onChange={(e) => setIndividualGuestSearch(e.target.value)}
+                                                    className="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-200 bg-white text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                                                    aria-label="Search guests for individual meal add"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Select all / deselect all */}
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[11px] text-gray-600 font-bold uppercase tracking-wide">
+                                                {filteredIndividualGuests.length} guest{filteredIndividualGuests.length !== 1 ? 's' : ''} shown
+                                                {selectedIndividualGuestIds.size > 0 && ` · ${selectedIndividualGuestIds.size} selected`}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSelectedIndividualGuestIds(new Set(filteredIndividualGuests.map((g) => g.id)))}
+                                                    disabled={filteredIndividualGuests.length === 0}
+                                                    className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 hover:text-emerald-700 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+                                                    aria-label="Select all visible guests"
+                                                >
+                                                    Select All
+                                                </button>
+                                                {selectedIndividualGuestIds.size > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedIndividualGuestIds(new Set())}
+                                                        className="text-[11px] font-black uppercase tracking-wider text-gray-500 hover:text-gray-700 transition-colors"
+                                                        aria-label="Deselect all guests"
+                                                    >
+                                                        Clear
+                                                    </button>
                                                 )}
-                                            >
-                                                {isPendingIndividual ? 'Adding...' : `Add${!isToday ? ` for ${selectedDate}` : ''}`}
-                                            </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Guest list */}
+                                        <div data-testid="individual-guest-list" className="max-h-48 overflow-y-auto rounded-xl border border-gray-200 bg-white divide-y divide-gray-50 mb-3">
+                                            {filteredIndividualGuests.length === 0 ? (
+                                                <p className="py-6 text-center text-xs font-bold text-gray-400 uppercase tracking-widest">No guests found</p>
+                                            ) : (
+                                                filteredIndividualGuests.map((guest) => {
+                                                    const displayName = guest.preferredName || guest.name || `${guest.firstName || ''} ${guest.lastName || ''}`.trim() || 'Guest';
+                                                    const mealCount = guestMealCountOnDate.get(guest.id) || 0;
+                                                    const atLimit = mealCount >= MAX_BASE_MEALS_PER_DAY;
+                                                    const checked = selectedIndividualGuestIds.has(guest.id);
+                                                    return (
+                                                        <button
+                                                            key={guest.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedIndividualGuestIds((prev) => {
+                                                                    const next = new Set(prev);
+                                                                    if (next.has(guest.id)) next.delete(guest.id);
+                                                                    else next.add(guest.id);
+                                                                    return next;
+                                                                });
+                                                            }}
+                                                            className={cn(
+                                                                "w-full flex items-center gap-3 px-3 py-2 text-left transition-colors",
+                                                                checked ? "bg-emerald-50" : "hover:bg-gray-50"
+                                                            )}
+                                                            aria-pressed={checked}
+                                                        >
+                                                            {checked
+                                                                ? <CheckSquare size={16} className="shrink-0 text-emerald-600" />
+                                                                : <Square size={16} className="shrink-0 text-gray-300" />
+                                                            }
+                                                            <span className="flex-1 text-sm font-medium text-gray-900 truncate">{displayName}</span>
+                                                            {mealCount > 0 && (
+                                                                <span className={cn(
+                                                                    "shrink-0 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full",
+                                                                    atLimit
+                                                                        ? "text-amber-600 bg-amber-50"
+                                                                        : "text-emerald-600 bg-emerald-50"
+                                                                )}>
+                                                                    {mealCount} meal{mealCount !== 1 ? 's' : ''}{atLimit ? ' (limit)' : ''}
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+
+                                        {/* Quantity + submit row */}
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex items-center gap-3">
+                                                <label className="text-xs font-black uppercase tracking-wider text-gray-500 shrink-0">Add meals</label>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    value={individualMealCount}
+                                                    onChange={(e) => setIndividualMealCount(Math.max(1, parseInt(e.target.value) || 1))}
+                                                    className="w-20 p-2 rounded-xl border border-gray-200 bg-white text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
+                                                    aria-label="Meals per guest"
+                                                />
+                                                <button
+                                                    onClick={selectedIndividualGuestIds.size > 0 ? handleAddMultipleIndividualMeals : handleAddIndividualMeal}
+                                                    disabled={selectedIndividualGuestIds.size === 0 && !individualGuestId || isAddingIndividualMultiple || isPendingIndividual}
+                                                    className={cn(
+                                                        "flex-1 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2",
+                                                        (selectedIndividualGuestIds.size > 0 || individualGuestId) && !isAddingIndividualMultiple && !isPendingIndividual
+                                                            ? "bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95"
+                                                            : "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                                                    )}
+                                                >
+                                                    {isAddingIndividualMultiple || isPendingIndividual
+                                                        ? 'Adding…'
+                                                        : selectedIndividualGuestIds.size > 0
+                                                            ? `Add ${individualMealCount} to ${selectedIndividualGuestIds.size} Guest${selectedIndividualGuestIds.size > 1 ? 's' : ''}`
+                                                            : 'Select Guests Above'}
+                                                </button>
+                                            </div>
+                                            <p className="text-[10px] text-gray-400 italic">
+                                                Adds {individualMealCount} additional meal{individualMealCount !== 1 ? 's' : ''} per guest (e.g. guest with 1 meal → {1 + individualMealCount} meals). Max 2 base meals per guest per day.
+                                            </p>
                                         </div>
                                     </section>
 
