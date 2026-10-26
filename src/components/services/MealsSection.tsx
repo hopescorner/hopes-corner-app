@@ -977,7 +977,6 @@ const proxyPickerIds = new Set<string>();
                                             if (value === 'all' || value === 'has_meal' || value === 'can_add_more') {
                                                 setBulkGuestMealFilter(value);
                                             }
-                                            setSelectedGuestIds(new Set());
                                         }}
                                         className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400"
                                         aria-label="Filter by meal status"

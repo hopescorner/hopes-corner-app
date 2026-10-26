@@ -411,5 +411,33 @@ test.describe('MealsSection', () => {
       await component.getByLabel('Filter by meal status').selectOption('has_meal');
       await expect(component.getByText('2 guests shown')).toBeVisible();
     });
+
+    test('selections persist when changing the filter', async ({ mount }) => {
+      const component = await mount(
+        <MealsSectionStory
+          guests={sampleGuests}
+          mealRecords={[
+            { id: 'm1', guestId: 'g1', count: 1, date: todayDate, createdAt: todayDate },
+            { id: 'm2', guestId: 'g2', count: 2, date: todayDate, createdAt: todayDate },
+          ]}
+        />
+      );
+      await component.getByRole('button', { name: 'Add Bulk Meals' }).click();
+      // Start with "All from This Date" filter, select Johnny (g1)
+      await expect(component.getByText('2 guests shown')).toBeVisible();
+      const guestList = component.getByTestId('multi-guest-list');
+      const johnnyButton = guestList.getByRole('button', { name: /Johnny/ });
+      await johnnyButton.click();
+      // Verify Johnny is selected
+      await expect(component.getByText('2 guests shown · 1 selected')).toBeVisible();
+      // Change to "Can Add More" filter
+      await component.getByLabel('Filter by meal status').selectOption('can_add_more');
+      // Selection should persist - only Johnny (g1) should still be visible since g2 is at the limit
+      await expect(component.getByText('1 guest shown · 1 selected')).toBeVisible();
+      // Change back to "All from This Date"
+      await component.getByLabel('Filter by meal status').selectOption('all');
+      // Both guests should be visible again, and selection should still be there
+      await expect(component.getByText('2 guests shown · 1 selected')).toBeVisible();
+    });
   });
 });
