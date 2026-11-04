@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.50.1",
+    "date": "November 4, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Translated Holiday Form Validation",
+        "description": "The public holiday form now uses its own Spanish, English, or Mandarin validation messages instead of the browser's native tooltip, and scrolls the message into view when a field needs attention."
+      }
+    ]
+  },
+  {
     "version": "0.50.0",
     "date": "November 4, 2026",
     "highlights": [

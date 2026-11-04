@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.50.1] - 2026-11-04
+
+### Fixed
+
+- The public holiday form now shows its own translated validation messages instead of the browser's native "Please fill out this field" bubble, which appeared in the device language on the Spanish form. When validation fails, the page also scrolls the translated error into view.
+
+### Tests
+
+- Added coverage that native browser validation is disabled on the public form and that the Spanish school-name error appears on submit.
+
 ## [0.50.0] - 2026-11-04
 
 ### Added
