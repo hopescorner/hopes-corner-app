@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.50.0",
+    "date": "November 4, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Holiday Registration Opens in Spanish",
+        "description": "The public holiday registration form now starts in Spanish, with English and Mandarin one tap away. School name is required for every child, and online registration is limited to three children per family, with a clear message pointing larger families to the in-person table."
+      },
+      {
+        "type": "improvement",
+        "title": "Complete Walk-In Records and Localized Tickets",
+        "description": "Walk-in registration now captures each child's birthdate, calculates the age automatically, and records the school name. Tickets and PDFs are generated in the language the family used on the form."
+      }
+    ]
+  },
+  {
     "version": "0.49.1",
     "date": "October 24, 2026",
     "highlights": [

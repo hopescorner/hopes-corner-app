@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.50.0] - 2026-11-04
+
+### Added
+
+- The public holiday registration form now opens in Spanish by default, with English and Mandarin one tap away.
+- School name is now required for every child, on the public form and in the in-app walk-in form.
+- Online registration accepts up to three children per family. Trying to add a fourth shows a notice directing families with more than three children to register in person at the Hope's Corner table.
+- Walk-in registration now records each child's birthdate, auto-calculates the age from it, and records the school name.
+
+### Changed
+
+- Generated ticket images and PDFs now follow the language the family used on the form, so a Spanish registration produces a Spanish ticket instead of an English one.
+
+### Tests
+
+- Added coverage for the Spanish default language, the mandatory school field, the three-child online limit and its message, walk-in birthdate/age/school capture, localized API validation, and Spanish and Mandarin ticket output.
+
 ## [0.49.1] - 2026-10-24
 
 ### Added
