@@ -15,7 +15,10 @@ export async function POST(req: NextRequest) {
         if (!authorization.authorized) return authorization.response;
 
         const body: HolidayRegistrationInput = await req.json();
-        const validationError = holidayRegistrationValidationError(body);
+        const validationError = holidayRegistrationValidationError(body, {
+            requireBirthdate: true,
+            requireSchool: true,
+        });
         if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
 
         const supabase = getHolidayServiceClient();

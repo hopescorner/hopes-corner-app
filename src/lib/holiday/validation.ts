@@ -21,7 +21,10 @@ function optionalStringIsValid(value: unknown, maxLength: number): boolean {
     return value === undefined || value === null || (typeof value === 'string' && value.length <= maxLength);
 }
 
-export function holidayRegistrationValidationError(input: unknown, options?: { requireBirthdate?: boolean }): string | null {
+export function holidayRegistrationValidationError(
+    input: unknown,
+    options?: { requireBirthdate?: boolean; requireSchool?: boolean; maxChildren?: number }
+): string | null {
     if (!input || typeof input !== 'object') return 'Invalid registration payload';
 
     const body = input as Partial<HolidayRegistrationInput>;
@@ -54,8 +57,8 @@ export function holidayRegistrationValidationError(input: unknown, options?: { r
     if (!Array.isArray(body.children) || body.children.length === 0) {
         return 'At least one child is required';
     }
-    if (body.children.length > MAX_HOLIDAY_CHILDREN) {
-        return `No more than ${MAX_HOLIDAY_CHILDREN} children may be registered`;
+    if (body.children.length > (options?.maxChildren ?? MAX_HOLIDAY_CHILDREN)) {
+        return `No more than ${options?.maxChildren ?? MAX_HOLIDAY_CHILDREN} children may be registered`;
     }
 
     for (const child of body.children) {
@@ -66,6 +69,9 @@ export function holidayRegistrationValidationError(input: unknown, options?: { r
             return 'Child age must be a whole number between 0 and 18';
         }
         if (!optionalStringIsValid(child.school, MAX_SCHOOL_LENGTH)) return 'School name is too long';
+        if (options?.requireSchool && (typeof child.school !== 'string' || !child.school.trim())) {
+            return 'Child school name is required';
+        }
         if (!optionalStringIsValid(child.gender, MAX_GENDER_LENGTH)) return 'Gender value is too long';
         if (options?.requireBirthdate && (!child.birthdate || typeof child.birthdate !== 'string')) {
             return 'Child birthdate is required';

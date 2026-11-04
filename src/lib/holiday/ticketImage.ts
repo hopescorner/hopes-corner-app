@@ -1,3 +1,7 @@
+import type { HolidayLanguage } from '@/types/holiday';
+import { HOLIDAY_EVENT_YEAR } from './constants';
+import { formatHolidayTicketString, getHolidayTicketText } from './ticketText';
+
 export interface GenerateTicketImageOptions {
     ticketNumber: number;
     timeSlot: string;
@@ -6,6 +10,7 @@ export interface GenerateTicketImageOptions {
     city: string;
     qrCodeDataUrl?: string | null;
     childrenCount: number;
+    language?: HolidayLanguage;
 }
 
 function drawRoundedRect(
@@ -58,6 +63,8 @@ export async function createTicketCanvas(
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
+    const text = getHolidayTicketText(options.language);
+
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(0, 0, 800, 1000);
 
@@ -77,11 +84,11 @@ export async function createTicketCanvas(
     ctx.fillStyle = '#a7f3d0';
     ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText("HOPE'S CORNER • HOLIDAY TOY & GIFT PROGRAM 2026", 400, 75);
+    ctx.fillText(formatHolidayTicketString(text.brand, { year: HOLIDAY_EVENT_YEAR }), 400, 75);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 28px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('Official Event Guest Ticket', 400, 115);
+    ctx.fillText(text.title, 400, 115);
     ctx.restore();
 
     ctx.fillStyle = '#ecfdf5';
@@ -94,7 +101,7 @@ export async function createTicketCanvas(
     ctx.fillStyle = '#065f46';
     ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('YOUR TICKET NUMBER', 400, 225);
+    ctx.fillText(text.ticketNumberLabel, 400, 225);
 
     ctx.fillStyle = '#022c22';
     ctx.font = '900 64px -apple-system, BlinkMacSystemFont, monospace';
@@ -128,7 +135,7 @@ export async function createTicketCanvas(
     ctx.fillStyle = '#065f46';
     ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('SHOW THIS QR CODE AT CHECK-IN', 400, 722);
+    ctx.fillText(text.checkInInstruction, 400, 722);
 
     ctx.beginPath();
     ctx.moveTo(80, 745);
@@ -140,12 +147,12 @@ export async function createTicketCanvas(
     ctx.textAlign = 'left';
     ctx.font = 'bold 16px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.fillStyle = '#1e293b';
-    ctx.fillText(`Parent: ${options.parentName}`, 90, 780);
-    ctx.fillText(`Phone: ${options.phone}`, 90, 810);
+    ctx.fillText(`${text.parentLabel}: ${options.parentName}`, 90, 780);
+    ctx.fillText(`${text.phoneLabel}: ${options.phone}`, 90, 810);
 
     ctx.textAlign = 'right';
-    ctx.fillText(`City: ${options.city}`, 710, 780);
-    ctx.fillText(`Children: ${options.childrenCount} Registered`, 710, 810);
+    ctx.fillText(`${text.cityLabel}: ${options.city}`, 710, 780);
+    ctx.fillText(formatHolidayTicketString(text.childrenLabel, { count: options.childrenCount }), 710, 810);
 
     ctx.fillStyle = '#f1f5f9';
     drawRoundedRect(ctx, 70, 840, 660, 95, 14);
@@ -154,11 +161,11 @@ export async function createTicketCanvas(
     ctx.fillStyle = '#0f172a';
     ctx.font = 'bold 14px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText("Event Location: Hope's Corner • 748 Mercy St, Mountain View, CA", 400, 872);
+    ctx.fillText(text.locationLabel, 400, 872);
 
     ctx.fillStyle = '#475569';
     ctx.font = '13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    ctx.fillText('Please arrive 10 minutes before your assigned time slot with this ticket.', 400, 902);
+    ctx.fillText(text.arrivalNote, 400, 902);
 
     return canvas;
 }
@@ -178,11 +185,12 @@ export async function downloadTicketImage(
             if (blob && typeof File !== 'undefined') {
                 const file = new File([blob], fileName, { type: 'image/png' });
                 if (navigator.canShare({ files: [file] })) {
+                    const text = getHolidayTicketText(options.language);
                     try {
                         await navigator.share({
                             files: [file],
-                            title: `Hope's Corner Ticket #${options.ticketNumber}`,
-                            text: `Ticket #${options.ticketNumber} for Hope's Corner Holiday Gift Program`,
+                            title: formatHolidayTicketString(text.shareTitle, { ticketNumber: options.ticketNumber }),
+                            text: formatHolidayTicketString(text.shareText, { ticketNumber: options.ticketNumber }),
                         });
                         return true;
                     } catch (err: unknown) {

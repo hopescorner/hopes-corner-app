@@ -46,6 +46,7 @@ import {
     isTeen14Plus,
     getHolidayAgeGroup,
     calculateRecommendedCards,
+    calculateAge,
 } from '@/lib/holiday/ageGroups';
 import { HolidayQRScannerModal } from '@/components/services/HolidayQRScannerModal';
 import { HolidayShopperQRModal } from '@/components/services/HolidayShopperQRModal';
@@ -134,8 +135,8 @@ export function HolidayProgramSection() {
     const [walkInIncome, setWalkInIncome] = useState<HolidayIncomeRange>('0_40k');
     const [walkInSlot, setWalkInSlot] = useState<string>(HOLIDAY_TIME_SLOTS[0].id);
     const [walkInChildren, setWalkInChildren] = useState<
-        Array<{ name: string; age: number; school: string }>
-    >([{ name: '', age: 0, school: '' }]);
+        Array<{ name: string; birthdate: string; age: number; school: string }>
+    >([{ name: '', birthdate: '', age: 0, school: '' }]);
 
     const metrics = useMemo(() => selectHolidayMetrics(registrations), [registrations]);
     const slotCounts = useMemo(() => selectSlotCounts(registrations), [registrations]);
@@ -197,7 +198,7 @@ export function HolidayProgramSection() {
     };
 
     const handleAddWalkInChild = () => {
-        setWalkInChildren((prev) => [...prev, { name: '', age: 0, school: '' }]);
+        setWalkInChildren((prev) => [...prev, { name: '', birthdate: '', age: 0, school: '' }]);
     };
 
     const handleRemoveWalkInChild = (idx: number) => {
@@ -216,6 +217,24 @@ export function HolidayProgramSection() {
             toast.error('Please enter a valid 10-digit phone number');
             return;
         }
+        for (const [index, child] of walkInChildren.entries()) {
+            if (!child.name.trim()) {
+                toast.error(`Please enter the name for child ${index + 1}`);
+                return;
+            }
+            if (!child.birthdate) {
+                toast.error(`Please enter the birthdate for child ${index + 1}`);
+                return;
+            }
+            if (!child.school.trim()) {
+                toast.error(`Please enter the school name for child ${index + 1}`);
+                return;
+            }
+            if (child.age > 18) {
+                toast.error(`Child ${index + 1} is older than 18 and is not eligible`);
+                return;
+            }
+        }
 
         const input: HolidayRegistrationInput = {
             parentName: walkInParentName.trim(),
@@ -226,9 +245,10 @@ export function HolidayProgramSection() {
             timeSlot: walkInSlot,
             language: 'en' as HolidayLanguage,
             children: walkInChildren.map((c) => ({
-                name: c.name.trim() || 'Child',
+                name: c.name.trim(),
+                birthdate: c.birthdate,
                 age: c.age,
-                school: c.school.trim() || undefined,
+                school: c.school.trim(),
             })),
         };
 
@@ -238,7 +258,7 @@ export function HolidayProgramSection() {
             setIsWalkInModalOpen(false);
             setWalkInParentName('');
             setWalkInPhone('');
-            setWalkInChildren([{ name: '', age: 0, school: '' }]);
+            setWalkInChildren([{ name: '', birthdate: '', age: 0, school: '' }]);
         } else {
             toast.error('Failed to add walk-in registration');
         }
@@ -1324,48 +1344,79 @@ export function HolidayProgramSection() {
                                     </button>
                                 </div>
                                 {walkInChildren.map((c, i) => (
-                                    <div key={i} className="flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Child Name"
-                                            required
-                                            value={c.name}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                setWalkInChildren((prev) => {
-                                                    const n = [...prev];
-                                                    n[i].name = val;
-                                                    return n;
-                                                });
-                                            }}
-                                            className="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900"
-                                        />
-                                        <input
-                                            type="number"
-                                            placeholder="Age"
-                                            min={0}
-                                            max={18}
-                                            required
-                                            value={c.age}
-                                            onChange={(e) => {
-                                                const val = parseInt(e.target.value, 10) || 0;
-                                                setWalkInChildren((prev) => {
-                                                    const n = [...prev];
-                                                    n[i].age = val;
-                                                    return n;
-                                                });
-                                            }}
-                                            className="w-16 border border-slate-300 rounded-lg px-2 py-1.5 text-xs text-center text-slate-900"
-                                        />
-                                        {walkInChildren.length > 1 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveWalkInChild(i)}
-                                                className="text-slate-400 hover:text-rose-600 p-1"
-                                            >
-                                                <X className="w-4 h-4" />
-                                            </button>
-                                        )}
+                                    <div key={i} className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                                                Child {i + 1}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="rounded-md bg-white px-2 py-0.5 text-[11px] font-semibold text-slate-600 ring-1 ring-inset ring-slate-200">
+                                                    {c.birthdate ? `Age ${c.age}` : 'Age —'}
+                                                </span>
+                                                {walkInChildren.length > 1 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveWalkInChild(i)}
+                                                        className="text-slate-400 hover:text-rose-600 p-1"
+                                                        title="Remove child"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            <input
+                                                type="text"
+                                                placeholder="Child Name"
+                                                required
+                                                value={c.name}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setWalkInChildren((prev) => {
+                                                        const n = [...prev];
+                                                        n[i] = { ...n[i], name: val };
+                                                        return n;
+                                                    });
+                                                }}
+                                                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900"
+                                            />
+                                            <input
+                                                type="date"
+                                                title="Birthdate"
+                                                aria-label={`Child ${i + 1} birthdate`}
+                                                required
+                                                value={c.birthdate}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setWalkInChildren((prev) => {
+                                                        const n = [...prev];
+                                                        n[i] = {
+                                                            ...n[i],
+                                                            birthdate: val,
+                                                            age: val ? calculateAge(val, new Date(), 120) : 0,
+                                                        };
+                                                        return n;
+                                                    });
+                                                }}
+                                                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900"
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="School Name"
+                                                required
+                                                value={c.school}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setWalkInChildren((prev) => {
+                                                        const n = [...prev];
+                                                        n[i] = { ...n[i], school: val };
+                                                        return n;
+                                                    });
+                                                }}
+                                                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 sm:col-span-2"
+                                            />
+                                        </div>
                                     </div>
                                 ))}
                             </div>

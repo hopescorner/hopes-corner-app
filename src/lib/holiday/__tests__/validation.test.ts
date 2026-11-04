@@ -22,4 +22,29 @@ describe('holidayRegistrationValidationError', () => {
             children: [{ name: 'Ineligible Adult', age: 19 }],
         })).toBe('Child age must be a whole number between 0 and 18');
     });
+
+    it('requires a school name when the school requirement is enabled', () => {
+        expect(holidayRegistrationValidationError(
+            { ...validRegistration, children: [{ name: 'Child A', age: 7 }] },
+            { requireSchool: true }
+        )).toBe('Child school name is required');
+    });
+
+    it('accepts three children but rejects a fourth when a three-child limit is set', () => {
+        const children = Array.from({ length: 4 }, (_, index) => ({
+            name: `Child ${index + 1}`,
+            age: 7,
+            school: 'Mountain View High',
+        }));
+
+        expect(holidayRegistrationValidationError(
+            { ...validRegistration, children: children.slice(0, 3) },
+            { requireSchool: true, maxChildren: 3 }
+        )).toBeNull();
+
+        expect(holidayRegistrationValidationError(
+            { ...validRegistration, children },
+            { requireSchool: true, maxChildren: 3 }
+        )).toBe('No more than 3 children may be registered');
+    });
 });

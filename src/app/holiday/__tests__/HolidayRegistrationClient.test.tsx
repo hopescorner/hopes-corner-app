@@ -10,11 +10,16 @@ vi.mock('@/lib/holiday/ticketImage', () => ({
 
 global.fetch = vi.fn();
 
+function switchToEnglish() {
+    fireEvent.click(screen.getByRole('button', { name: 'English' }));
+}
+
 describe('HolidayRegistrationClient', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         (global.fetch as any).mockImplementation((url: string, opts?: any) => {
             if (url.includes('/api/holiday/register') && opts?.method === 'POST') {
+                const payload = JSON.parse(opts.body || '{}');
                 return Promise.resolve({
                     ok: true,
                     json: async () => ({
@@ -28,19 +33,17 @@ describe('HolidayRegistrationClient', () => {
                             housingStatus: 'house_apartment',
                             incomeRange: '0_40k',
                             timeSlot: '09:00 AM - 09:20 AM',
-                            language: 'en',
+                            language: payload.language || 'es',
                             status: 'registered',
                             groceryCards: 1,
                             teenCards: 1,
                             qrCodeDataUrl: 'data:image/png;base64,mockqrdata',
-                            children: [
-                                {
-                                    id: 'c1',
-                                    name: 'Child 1',
-                                    age: 14,
-                                    ageGroup: 'teen_14',
-                                },
-                            ],
+                            children: (payload.children || []).map((child: any, index: number) => ({
+                                id: `c${index + 1}`,
+                                name: child.name,
+                                age: child.age,
+                                ageGroup: 'child',
+                            })),
                             createdAt: '2026-11-01T12:00:00Z',
                             updatedAt: '2026-11-01T12:00:00Z',
                         },
@@ -55,38 +58,31 @@ describe('HolidayRegistrationClient', () => {
         });
     });
 
-    it('renders the public registration form in English by default with dynamic year and gift icon', async () => {
+    it('renders the public registration form in Spanish by default', () => {
         render(<HolidayRegistrationClient />);
 
-        const currentYear = new Date().getFullYear();
-        const page = screen.getByTestId('holiday-registration-page');
-        expect(page.className).toContain('bg-slate-50');
-        expect(page.className).toContain('text-slate-900');
-        expect(page.className).not.toContain('bg-slate-950');
+        expect(screen.getByTestId('holiday-registration-page')).toBeDefined();
         expect(screen.getByTestId('holiday-gift-icon')).toBeDefined();
-        expect(screen.getByText(new RegExp(`${currentYear} HOLIDAY TOY DISTRIBUTION`, 'i'))).toBeDefined();
-        expect(screen.getByTestId('how-it-works-illustration')).toBeDefined();
-        expect(screen.getByText(/How It Works/i)).toBeDefined();
-        expect(screen.getByText(/^Register$/i)).toBeDefined();
-        expect(screen.getByText(/Get Your Ticket/i)).toBeDefined();
-        expect(screen.getByText(/Pick Up Gifts/i)).toBeDefined();
-        expect(screen.getByText(/Good to Know/i)).toBeDefined();
-        expect(screen.getByText(/Parent \/ Guardian Information/i)).toBeDefined();
-        expect(screen.getByText(/Automatic Arrival Window/i)).toBeDefined();
-        expect(screen.getByText(/Complete Registration & Get Ticket/i)).toBeDefined();
-    });
-
-    it('switches languages dynamically to Spanish and Mandarin including instructions', async () => {
-        render(<HolidayRegistrationClient />);
-
-        // Switch to Spanish
-        const esBtn = screen.getByRole('button', { name: 'Español' });
-        fireEvent.click(esBtn);
         expect(screen.getByText(/DISTRIBUCIÓN DE JUGUETES NAVIDEÑOS/i)).toBeDefined();
         expect(screen.getByText(/Cómo Funciona/i)).toBeDefined();
         expect(screen.getByText(/^Regístrese$/i)).toBeDefined();
+        expect(screen.getByText(/Reciba Su Boleto/i)).toBeDefined();
+        expect(screen.getByText(/Recoja Regalos/i)).toBeDefined();
         expect(screen.getByText(/Información del Padre \/ Tutor/i)).toBeDefined();
         expect(screen.getByText(/Horario de Llegada Automático/i)).toBeDefined();
+        expect(screen.getByRole('button', { name: /Completar Registro y Obtener Boleto/i })).toBeDefined();
+        expect(screen.queryByText(/How It Works/i)).toBeNull();
+    });
+
+    it('switches languages dynamically to English and Mandarin including instructions', () => {
+        render(<HolidayRegistrationClient />);
+
+        switchToEnglish();
+        expect(screen.getByText(/HOLIDAY TOY DISTRIBUTION/i)).toBeDefined();
+        expect(screen.getByText(/How It Works/i)).toBeDefined();
+        expect(screen.getByText(/^Register$/i)).toBeDefined();
+        expect(screen.getByText(/Parent \/ Guardian Information/i)).toBeDefined();
+        expect(screen.getByText(/Automatic Arrival Window/i)).toBeDefined();
 
         // Switch to Mandarin
         const zhBtn = screen.getByRole('button', { name: /中文/i });
@@ -98,8 +94,9 @@ describe('HolidayRegistrationClient', () => {
         expect(screen.getByText(/自动分配到场时间段/i)).toBeDefined();
     });
 
-    it('allows adding and removing children', async () => {
+    it('allows adding and removing children', () => {
         render(<HolidayRegistrationClient />);
+        switchToEnglish();
 
         const addChildBtn = screen.getByRole('button', { name: /Add Another Child/i });
         fireEvent.click(addChildBtn);
@@ -107,8 +104,54 @@ describe('HolidayRegistrationClient', () => {
         expect(screen.getByText(/Child #2/i)).toBeDefined();
     });
 
+    it('stops at three children and tells families to register in person', () => {
+        render(<HolidayRegistrationClient />);
+        switchToEnglish();
+
+        const addChildBtn = screen.getByRole('button', { name: /Add Another Child/i });
+        fireEvent.click(addChildBtn);
+        fireEvent.click(addChildBtn);
+
+        expect(screen.getByText(/Child #3/i)).toBeDefined();
+        expect(screen.queryByRole('alert')).toBeNull();
+
+        // The fourth click is refused, and the family is sent to the table.
+        fireEvent.click(addChildBtn);
+
+        expect(screen.queryByText(/Child #4/i)).toBeNull();
+        expect(screen.getByRole('alert').textContent).toMatch(/more than 3 children must register in person/i);
+    });
+
+    it('requires a school name for every child', async () => {
+        render(<HolidayRegistrationClient />);
+        switchToEnglish();
+
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i), {
+            target: { value: '650-555-1111' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Alexander Gonzalez/i), {
+            target: { value: 'Child 1' },
+        });
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        fireEvent.change(birthdateInput, { target: { value: '2015-06-01' } });
+
+        const schoolInput = screen.getByPlaceholderText(/e\.g\. Mountain View High/i);
+        expect((schoolInput as HTMLInputElement).required).toBe(true);
+
+        fireEvent.submit(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }).closest('form')!);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Please enter the school name for each child\./i)).toBeDefined();
+        });
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
     it('submits registration without manual slot selection and displays assigned 20-min slot on ticket', async () => {
         render(<HolidayRegistrationClient />);
+        switchToEnglish();
 
         // Fill Parent Name
         const nameInput = screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i);
@@ -126,6 +169,11 @@ describe('HolidayRegistrationClient', () => {
         const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
         fireEvent.change(birthdateInput, { target: { value: '2012-05-15' } });
 
+        // Fill School (now required)
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Mountain View High/i), {
+            target: { value: 'Mountain View High' },
+        });
+
         // Submit form directly without slot selection
         const submitBtn = screen.getByRole('button', { name: /Complete Registration & Get Ticket/i });
         fireEvent.click(submitBtn);
@@ -142,11 +190,16 @@ describe('HolidayRegistrationClient', () => {
             expect(screen.getByText(/Please arrive 10 minutes before your assigned time slot and bring your ticket confirmation on your phone\./i)).toBeDefined();
             expect(screen.getByText(/Official Event Check-In QR Code/i)).toBeDefined();
             expect(screen.getByAltText(/Ticket QR Code/i)).toBeDefined();
+
+            const requestBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
+            expect(requestBody.language).toBe('en');
+            expect(requestBody.children[0].school).toBe('Mountain View High');
         });
     });
 
     it('requires child birthdate and shows error when missing', async () => {
         render(<HolidayRegistrationClient />);
+        switchToEnglish();
 
         fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
             target: { value: 'Test Parent' },
@@ -169,6 +222,7 @@ describe('HolidayRegistrationClient', () => {
 
     it('auto-populates read-only age when birthdate is entered', () => {
         render(<HolidayRegistrationClient />);
+        switchToEnglish();
 
         const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
         expect(birthdateInput.required).toBe(true);
@@ -185,6 +239,7 @@ describe('HolidayRegistrationClient', () => {
 
     it('allows an 18-year-old child to register', async () => {
         render(<HolidayRegistrationClient />);
+        switchToEnglish();
 
         fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
             target: { value: 'Test Parent' },
@@ -198,6 +253,9 @@ describe('HolidayRegistrationClient', () => {
         const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
         const currentYear = new Date().getFullYear();
         fireEvent.change(birthdateInput, { target: { value: `${currentYear - 18}-01-01` } });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Mountain View High/i), {
+            target: { value: 'Mountain View High' },
+        });
 
         const submitBtn = screen.getByRole('button', { name: /Complete Registration & Get Ticket/i });
         fireEvent.submit(submitBtn.closest('form')!);
@@ -214,7 +272,6 @@ describe('HolidayRegistrationClient', () => {
     it('shows the over-age error in Spanish when Spanish is selected', async () => {
         render(<HolidayRegistrationClient />);
 
-        fireEvent.click(screen.getByRole('button', { name: 'Español' }));
         fireEvent.change(screen.getByPlaceholderText(/ej\. María González/i), {
             target: { value: 'Test Parent' },
         });
@@ -227,6 +284,9 @@ describe('HolidayRegistrationClient', () => {
         const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
         const currentYear = new Date().getFullYear();
         fireEvent.change(birthdateInput, { target: { value: `${currentYear - 19}-01-01` } });
+        fireEvent.change(screen.getByPlaceholderText(/ej\. Mountain View High/i), {
+            target: { value: 'Escuela Primaria' },
+        });
 
         const submitBtn = screen.getByRole('button', { name: /Completar Registro/i });
         fireEvent.submit(submitBtn.closest('form')!);
@@ -251,6 +311,8 @@ describe('HolidayRegistrationClient', () => {
 
     it('sends the hidden website field so automated form fillers are rejected server-side', async () => {
         const { container } = render(<HolidayRegistrationClient />);
+        switchToEnglish();
+
         const websiteInput = container.querySelector<HTMLInputElement>('input[name="website"]');
         expect(websiteInput).not.toBeNull();
 
@@ -266,6 +328,9 @@ describe('HolidayRegistrationClient', () => {
         });
         const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
         fireEvent.change(birthdateInput, { target: { value: '2015-06-01' } });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Mountain View High/i), {
+            target: { value: 'Mountain View High' },
+        });
 
         fireEvent.click(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }));
 
@@ -277,7 +342,7 @@ describe('HolidayRegistrationClient', () => {
     it('limits phone number to 10 digits and formats standard US display', () => {
         render(<HolidayRegistrationClient />);
 
-        const phoneInput = screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i) as HTMLInputElement;
+        const phoneInput = screen.getByPlaceholderText(/ej\. \(650\) 555-0123/i) as HTMLInputElement;
 
         // Type 12 digits — should be capped at 10 digits
         fireEvent.change(phoneInput, { target: { value: '650555123499' } });
@@ -286,6 +351,7 @@ describe('HolidayRegistrationClient', () => {
 
     it('shows error when phone number has fewer than 10 digits', async () => {
         render(<HolidayRegistrationClient />);
+        switchToEnglish();
 
         fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
             target: { value: 'Test Parent' },
@@ -299,7 +365,7 @@ describe('HolidayRegistrationClient', () => {
         const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
         fireEvent.change(birthdateInput, { target: { value: '2015-06-01' } });
 
-        fireEvent.click(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }));
+        fireEvent.submit(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }).closest('form')!);
 
         await waitFor(() => {
             expect(screen.getByText(/Please enter a valid phone number\./i)).toBeDefined();
@@ -309,6 +375,7 @@ describe('HolidayRegistrationClient', () => {
     it('supports saving ticket as image and downloading as PDF', async () => {
         const { downloadTicketImage, downloadTicketPdf } = await import('@/lib/holiday/ticketImage');
         render(<HolidayRegistrationClient />);
+        switchToEnglish();
 
         fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
             target: { value: 'Test Parent' },
@@ -321,6 +388,9 @@ describe('HolidayRegistrationClient', () => {
         });
         const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
         fireEvent.change(birthdateInput, { target: { value: '2015-06-01' } });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Mountain View High/i), {
+            target: { value: 'Mountain View High' },
+        });
 
         fireEvent.click(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }));
 
@@ -352,6 +422,42 @@ describe('HolidayRegistrationClient', () => {
         await waitFor(() => {
             expect(downloadTicketPdf).toHaveBeenCalledWith(
                 expect.objectContaining({ ticketNumber: 88 })
+            );
+        });
+    });
+
+    it('keeps the ticket in the language the family used on the form', async () => {
+        const { downloadTicketImage } = await import('@/lib/holiday/ticketImage');
+        render(<HolidayRegistrationClient />);
+
+        fireEvent.change(screen.getByPlaceholderText(/ej\. María González/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/ej\. \(650\) 555-0123/i), {
+            target: { value: '650-555-1111' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/ej\. Alexander González/i), {
+            target: { value: 'Child 1' },
+        });
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        fireEvent.change(birthdateInput, { target: { value: '2015-06-01' } });
+        fireEvent.change(screen.getByPlaceholderText(/ej\. Mountain View High/i), {
+            target: { value: 'Escuela Primaria' },
+        });
+
+        fireEvent.click(screen.getByRole('button', { name: /Completar Registro y Obtener Boleto/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText('#88')).toBeDefined();
+        });
+
+        const requestBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
+        expect(requestBody.language).toBe('es');
+
+        await waitFor(() => {
+            expect(downloadTicketImage).toHaveBeenCalledWith(
+                expect.objectContaining({ ticketNumber: 88, language: 'es' }),
+                { auto: true }
             );
         });
     });

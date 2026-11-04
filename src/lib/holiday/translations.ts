@@ -51,11 +51,15 @@ export interface HolidayTranslation {
     childNamePlaceholder: string;
     childBirthdateLabel: string;
     childAgeLabel: string;
+    childAgeShortLabel: string;
     childSchoolLabel: string;
     childSchoolPlaceholder: string;
+    childLimitNotice: string;
     addChildButton: string;
     removeChildButton: string;
     childNumberLabel: string;
+    childCountOne: string;
+    childCountMany: string;
 
     arrivalInfoTitle: string;
     arrivalInfoNotice: string;
@@ -80,6 +84,8 @@ export interface HolidayTranslation {
     importantNotesText: string;
     downloadImageButton: string;
     downloadPdfButton: string;
+    savingAction: string;
+    generatingAction: string;
     printTicketButton: string;
     registerAnotherButton: string;
 
@@ -90,8 +96,10 @@ export interface HolidayTranslation {
         atLeastOneChild: string;
         childNameRequired: string;
         childBirthdateRequired: string;
+        childSchoolRequired: string;
         childAgeRange: string;
         childOverAge: string;
+        childLimitReached: string;
         slotRequired: string;
         allSlotsFull: string;
         submissionFailed: string;
@@ -149,11 +157,15 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         childNamePlaceholder: "e.g. Alexander Gonzalez",
         childBirthdateLabel: "Birthdate",
         childAgeLabel: "Age (0–18)",
-        childSchoolLabel: "School (Optional)",
+        childAgeShortLabel: "Age",
+        childSchoolLabel: "School Name",
         childSchoolPlaceholder: "e.g. Mountain View High",
+        childLimitNotice: "Families with more than 3 children must register in person at the Hope's Corner table. Online registration is not available for families with more than 3 children.",
         addChildButton: "Add Another Child",
         removeChildButton: "Remove",
         childNumberLabel: "Child",
+        childCountOne: "{count} Child",
+        childCountMany: "{count} Children",
 
         arrivalInfoTitle: "Automatic Arrival Window",
         arrivalInfoNotice: "To ensure minimal wait times and smooth distribution, your 20-minute arrival window (between 09:00 AM – 02:00 PM) and ticket number will be automatically assigned upon registration.",
@@ -178,6 +190,8 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         importantNotesText: "Please arrive 10 minutes before your assigned time slot and bring your ticket confirmation on your phone.",
         downloadImageButton: "Save / Download Image",
         downloadPdfButton: "Download PDF",
+        savingAction: "Saving...",
+        generatingAction: "Generating...",
         printTicketButton: "Print Ticket",
         registerAnotherButton: "Register Another Family",
 
@@ -188,8 +202,10 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
             atLeastOneChild: "Please add at least one child (age 0–18).",
             childNameRequired: "Please enter the child's name.",
             childBirthdateRequired: "Please enter the child's birthdate.",
+            childSchoolRequired: "Please enter the school name for each child.",
             childAgeRange: "Age must be between 0 and 18 years old.",
             childOverAge: "{name} is older than 18 and is not eligible. This program is only for children age 18 or younger.",
+            childLimitReached: "Families with more than 3 children must register in person at the Hope's Corner table. Online registration is not available for families with more than 3 children.",
             slotRequired: "Please select an available time slot.",
             allSlotsFull: "All arrival time slots are full. Registration is currently closed.",
             submissionFailed: "Failed to submit registration. Please verify your info and try again.",
@@ -246,11 +262,15 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         childNamePlaceholder: "ej. Alexander González",
         childBirthdateLabel: "Fecha de Nacimiento",
         childAgeLabel: "Edad (0–18)",
-        childSchoolLabel: "Escuela (Opcional)",
+        childAgeShortLabel: "Edad",
+        childSchoolLabel: "Nombre de la Escuela",
         childSchoolPlaceholder: "ej. Mountain View High",
+        childLimitNotice: "Las familias con más de 3 niños deben registrarse en persona en la mesa de Hope's Corner. El registro en línea no está disponible para familias con más de 3 niños.",
         addChildButton: "Agregar Otro Niño/a",
         removeChildButton: "Eliminar",
         childNumberLabel: "Niño/a",
+        childCountOne: "{count} Niño",
+        childCountMany: "{count} Niños",
 
         arrivalInfoTitle: "Horario de Llegada Automático",
         arrivalInfoNotice: "Para garantizar tiempos de espera mínimos y una distribución organizada, su ventana de llegada de 20 minutos (entre 09:00 AM – 02:00 PM) y su número de boleto se asignarán automáticamente al registrarse.",
@@ -275,6 +295,8 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         importantNotesText: "Por favor llegue 10 minutos antes de su horario asignado y traiga la confirmación de su boleto en su teléfono.",
         downloadImageButton: "Guardar / Descargar Imagen",
         downloadPdfButton: "Descargar PDF",
+        savingAction: "Guardando...",
+        generatingAction: "Generando...",
         printTicketButton: "Imprimir Boleto",
         registerAnotherButton: "Registrar Otra Familia",
 
@@ -285,8 +307,10 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
             atLeastOneChild: "Por favor agregue al menos un niño/a (edad 0–18).",
             childNameRequired: "Por favor ingrese el nombre del niño/a.",
             childBirthdateRequired: "Por favor ingrese la fecha de nacimiento del niño/a.",
+            childSchoolRequired: "Por favor ingrese el nombre de la escuela de cada niño/a.",
             childAgeRange: "La edad debe estar entre 0 y 18 años.",
             childOverAge: "{name} tiene más de 18 años y no es elegible. Este programa es solo para jóvenes de 18 años o menos.",
+            childLimitReached: "Las familias con más de 3 niños deben registrarse en persona en la mesa de Hope's Corner. El registro en línea no está disponible para familias con más de 3 niños.",
             slotRequired: "Por favor seleccione un horario disponible.",
             allSlotsFull: "Todos los horarios están llenos. El registro está cerrado actualmente.",
             submissionFailed: "Error al enviar el registro. Por favor revise sus datos e intente de nuevo.",
@@ -343,11 +367,15 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         childNamePlaceholder: "例：Alexander Zhang",
         childBirthdateLabel: "出生日期",
         childAgeLabel: "年龄 (0–18)",
-        childSchoolLabel: "就读学校（选填）",
+        childAgeShortLabel: "年龄",
+        childSchoolLabel: "就读学校",
         childSchoolPlaceholder: "例：Mountain View High",
+        childLimitNotice: "有超过3名儿童的家庭请前往Hope's Corner服务台现场登记。此在线登记表不适用于有超过3名儿童的家庭。",
         addChildButton: "添加另一位儿童",
         removeChildButton: "删除",
         childNumberLabel: "儿童",
+        childCountOne: "{count} 名儿童",
+        childCountMany: "{count} 名儿童",
 
         arrivalInfoTitle: "自动分配到场时间段",
         arrivalInfoNotice: "为减少现场等待时间并保障分发顺畅，系统将在提交登记后自动为您分配 20 分钟的到场时间段（上午 09:00 至 下午 02:00 之间）及入场票号。",
@@ -372,6 +400,8 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         importantNotesText: "请在您被分配的时间段前 10 分钟到达，并出示手机上的凭证确认页面。",
         downloadImageButton: "保存 / 下载图片",
         downloadPdfButton: "下载 PDF",
+        savingAction: "正在保存...",
+        generatingAction: "正在生成...",
         printTicketButton: "打印门票",
         registerAnotherButton: "登记另一个家庭",
 
@@ -382,8 +412,10 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
             atLeastOneChild: "请至少添加一名儿童（0–18岁）。",
             childNameRequired: "请输入儿童姓名。",
             childBirthdateRequired: "请输入儿童出生日期。",
+            childSchoolRequired: "请输入每位儿童的学校名称。",
             childAgeRange: "儿童年龄须在 0 至 18 岁之间。",
             childOverAge: "{name}已超过18岁，不符合资格。本活动仅限18岁及以下青少年参加。",
+            childLimitReached: "有超过3名儿童的家庭请前往Hope's Corner服务台现场登记。此在线登记表不适用于有超过3名儿童的家庭。",
             slotRequired: "请选择一个有效的时间段。",
             allSlotsFull: "所有到场时间段均已满额，登记通道已关闭。",
             submissionFailed: "提交登记失败，请检查填写信息后重试。",

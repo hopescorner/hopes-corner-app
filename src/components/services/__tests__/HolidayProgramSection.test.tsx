@@ -149,7 +149,10 @@ describe('HolidayProgramSection', () => {
         });
     });
 
-    it('allows staff to enter age 18 in the walk-in registration modal', async () => {
+    it('captures birthdate, auto-calculated age, and school name for walk-in children', async () => {
+        const addSpy = vi.fn().mockResolvedValue(mockRegistrations[0]);
+        useHolidayStore.setState({ addWalkInRegistration: addSpy });
+
         render(<HolidayProgramSection />);
 
         const walkInBtn = screen.getByRole('button', { name: /Add Walk-In/i });
@@ -159,7 +162,72 @@ describe('HolidayProgramSection', () => {
             expect(screen.getByText('Register Family On-Site')).toBeDefined();
         });
 
-        expect(screen.getByPlaceholderText('Age')).toHaveAttribute('max', '18');
+        const currentYear = new Date().getFullYear();
+        const birthdate = `${currentYear - 9}-01-01`;
+        fireEvent.change(screen.getByLabelText(/Child 1 birthdate/i), {
+            target: { value: birthdate },
+        });
+
+        expect(screen.getByText('Age 9')).toBeDefined();
+
+        fireEvent.change(screen.getByPlaceholderText('Child Name'), {
+            target: { value: 'Kid One' },
+        });
+        fireEvent.change(screen.getByPlaceholderText('School Name'), {
+            target: { value: 'Castro Elementary' },
+        });
+        fireEvent.change(screen.getByLabelText(/Parent Name/i), {
+            target: { value: 'Walk In Parent' },
+        });
+        fireEvent.change(screen.getByLabelText(/^Phone/i), {
+            target: { value: '(650) 555-1234' },
+        });
+
+        fireEvent.submit(screen.getByRole('button', { name: /Save Walk-In/i }).closest('form')!);
+
+        await waitFor(() => {
+            expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({
+                parentName: 'Walk In Parent',
+                children: [
+                    expect.objectContaining({
+                        name: 'Kid One',
+                        birthdate,
+                        age: 9,
+                        school: 'Castro Elementary',
+                    }),
+                ],
+            }));
+        });
+    });
+
+    it('blocks a walk-in submission until every child has a birthdate and school', async () => {
+        const addSpy = vi.fn().mockResolvedValue(mockRegistrations[0]);
+        useHolidayStore.setState({ addWalkInRegistration: addSpy });
+        const toast = await import('react-hot-toast');
+
+        render(<HolidayProgramSection />);
+        fireEvent.click(screen.getByRole('button', { name: /Add Walk-In/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText('Register Family On-Site')).toBeDefined();
+        });
+
+        fireEvent.change(screen.getByLabelText(/Parent Name/i), {
+            target: { value: 'Walk In Parent' },
+        });
+        fireEvent.change(screen.getByLabelText(/^Phone/i), {
+            target: { value: '(650) 555-1234' },
+        });
+        fireEvent.change(screen.getByPlaceholderText('Child Name'), {
+            target: { value: 'Kid One' },
+        });
+
+        fireEvent.submit(screen.getByRole('button', { name: /Save Walk-In/i }).closest('form')!);
+
+        await waitFor(() => {
+            expect(toast.default.error).toHaveBeenCalledWith('Please enter the birthdate for child 1');
+        });
+        expect(addSpy).not.toHaveBeenCalled();
     });
 
     it('shows edit buttons only for registrations waiting for check-in', () => {

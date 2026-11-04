@@ -77,6 +77,24 @@ describe('ticketImage helper', () => {
         }
     });
 
+    it('prints the ticket in Spanish when the family registered in Spanish', async () => {
+        await createTicketCanvas({ ...defaultOptions, language: 'es' });
+
+        expect(mockContext.fillText).toHaveBeenCalledWith('SU NÚMERO DE BOLETO', 400, 225);
+        expect(mockContext.fillText).toHaveBeenCalledWith('Boleto Oficial del Evento', 400, 115);
+        expect(mockContext.fillText).toHaveBeenCalledWith('Padre/Tutor: Jane Doe', 90, 780);
+        expect(mockContext.fillText).toHaveBeenCalledWith('Niños: 2 registrados', 710, 810);
+        expect(mockContext.fillText).not.toHaveBeenCalledWith('YOUR TICKET NUMBER', 400, 225);
+    });
+
+    it('prints the ticket in Mandarin when the family registered in Mandarin', async () => {
+        await createTicketCanvas({ ...defaultOptions, language: 'zh' });
+
+        expect(mockContext.fillText).toHaveBeenCalledWith('您的票号', 400, 225);
+        expect(mockContext.fillText).toHaveBeenCalledWith('官方活动入场凭证', 400, 115);
+        expect(mockContext.fillText).toHaveBeenCalledWith('家长: Jane Doe', 90, 780);
+    });
+
     it('handles downloadTicketImage via anchor click fallback', async () => {
         const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
         const result = await downloadTicketImage(defaultOptions, { auto: true });

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac } from 'node:crypto';
 import { getHolidayServiceClient } from '@/lib/holiday/server';
 import { HolidayRegistrationInput } from '@/types/holiday';
-import { HOLIDAY_EVENT_YEAR } from '@/lib/holiday/constants';
+import { HOLIDAY_EVENT_YEAR, MAX_PUBLIC_HOLIDAY_CHILDREN } from '@/lib/holiday/constants';
 import { holidayRegistrationValidationError } from '@/lib/holiday/validation';
+import { HOLIDAY_TRANSLATIONS } from '@/lib/holiday/translations';
 import { generateHolidayTicketToken, generateTicketQRCodeDataUrl } from '@/lib/holiday/ticketToken';
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +47,21 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Invalid submission' }, { status: 400 });
         }
 
-        const validationError = holidayRegistrationValidationError(body, { requireBirthdate: true });
+        // Families with more than three children register in person at the table.
+        // Reject before validation so the message is localized to the form language.
+        if (Array.isArray(body.children) && body.children.length > MAX_PUBLIC_HOLIDAY_CHILDREN) {
+            const language = body.language && HOLIDAY_TRANSLATIONS[body.language] ? body.language : 'en';
+            return NextResponse.json(
+                { error: HOLIDAY_TRANSLATIONS[language].errors.childLimitReached },
+                { status: 400 }
+            );
+        }
+
+        const validationError = holidayRegistrationValidationError(body, {
+            requireBirthdate: true,
+            requireSchool: true,
+            maxChildren: MAX_PUBLIC_HOLIDAY_CHILDREN,
+        });
         if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
 
         // Call transactional atomic RPC on server

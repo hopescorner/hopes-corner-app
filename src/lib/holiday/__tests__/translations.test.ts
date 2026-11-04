@@ -46,6 +46,9 @@ describe('Holiday translations', () => {
             'downloadImageButton',
             'downloadPdfButton',
             'printTicketButton',
+            'childLimitNotice',
+            'childCountOne',
+            'childCountMany',
         ] as const;
 
         languages.forEach((lang) => {
@@ -70,6 +73,8 @@ describe('Holiday translations', () => {
             expect(translation.errors.cityRequired).toBeTypeOf('string');
             expect(translation.errors.atLeastOneChild).toBeTypeOf('string');
             expect(translation.errors.allSlotsFull).toBeTypeOf('string');
+            expect(translation.errors.childSchoolRequired).toBeTypeOf('string');
+            expect(translation.errors.childLimitReached).toBeTypeOf('string');
         });
     });
 

@@ -108,7 +108,7 @@ describe('Holiday API Routes', () => {
             expect(mockRpc).not.toHaveBeenCalledWith('register_holiday_family', expect.anything());
         });
 
-        it('rejects registrations with more than 20 children', async () => {
+        it('rejects online registrations with more than three children and explains the in-person option in the form language', async () => {
             const { POST } = await import('../register/route');
             const req = new NextRequest('http://localhost:3000/api/holiday/register', {
                 method: 'POST',
@@ -116,9 +116,12 @@ describe('Holiday API Routes', () => {
                     parentName: 'Jane Doe',
                     phone: '6505551234',
                     city: 'Mountain View',
-                    children: Array.from({ length: 21 }, (_, index) => ({
+                    language: 'es',
+                    children: Array.from({ length: 4 }, (_, index) => ({
                         name: `Child ${index + 1}`,
+                        birthdate: '2019-03-15',
                         age: 7,
+                        school: 'Mountain View High',
                     })),
                 }),
             });
@@ -126,6 +129,82 @@ describe('Holiday API Routes', () => {
             const res = await POST(req);
 
             expect(res.status).toBe(400);
+            const json = await res.json();
+            expect(json.error).toMatch(/más de 3 niños/i);
+            expect(mockRpc).not.toHaveBeenCalledWith('register_holiday_family', expect.anything());
+        });
+
+        it('accepts exactly three children online', async () => {
+            mockRpc.mockImplementation((functionName: string) => Promise.resolve(
+                functionName === 'consume_holiday_registration_attempt'
+                    ? { data: true, error: null }
+                    : {
+                        data: {
+                            id: 'reg-three-kids',
+                            ticketNumber: 4,
+                            eventYear: 2026,
+                            parentName: 'Jane Doe',
+                            phone: '6505551234',
+                            city: 'Mountain View',
+                            housingStatus: 'house_apartment',
+                            incomeRange: '0_40k',
+                            timeSlot: '09:00 AM - 09:20 AM',
+                            language: 'en',
+                            status: 'registered',
+                            groceryCards: 1,
+                            teenCards: 0,
+                            children: [
+                                { id: 'c-1', name: 'Child 1', age: 7, ageGroup: 'child' },
+                                { id: 'c-2', name: 'Child 2', age: 8, ageGroup: 'child' },
+                                { id: 'c-3', name: 'Child 3', age: 9, ageGroup: 'child' },
+                            ],
+                            createdAt: '2026-11-01T12:00:00Z',
+                            updatedAt: '2026-11-01T12:00:00Z',
+                        },
+                        error: null,
+                    }
+            ));
+
+            const { POST } = await import('../register/route');
+            const req = new NextRequest('http://localhost:3000/api/holiday/register', {
+                method: 'POST',
+                body: JSON.stringify({
+                    parentName: 'Jane Doe',
+                    phone: '6505551234',
+                    city: 'Mountain View',
+                    children: [1, 2, 3].map((n) => ({
+                        name: `Child ${n}`,
+                        birthdate: '2019-03-15',
+                        age: 7,
+                        school: 'Mountain View High',
+                    })),
+                }),
+            });
+
+            const res = await POST(req);
+
+            expect(res.status).toBe(200);
+            expect(mockRpc).toHaveBeenCalledWith('register_holiday_family', expect.anything());
+        });
+
+        it('requires a school name for every child on the public form', async () => {
+            const { POST } = await import('../register/route');
+            const req = new NextRequest('http://localhost:3000/api/holiday/register', {
+                method: 'POST',
+                body: JSON.stringify({
+                    parentName: 'Jane Doe',
+                    phone: '6505551234',
+                    city: 'Mountain View',
+                    children: [{ name: 'Child A', birthdate: '2019-03-15', age: 7 }],
+                }),
+            });
+
+            const res = await POST(req);
+
+            expect(res.status).toBe(400);
+            const json = await res.json();
+            expect(json.error).toMatch(/school name is required/i);
+            expect(mockRpc).not.toHaveBeenCalledWith('register_holiday_family', expect.anything());
         });
 
         it('rejects a non-string arrival time slot as malformed input', async () => {
@@ -180,7 +259,7 @@ describe('Holiday API Routes', () => {
                     phone: '6505551234',
                     city: 'Mountain View',
                     language: 'en',
-                    children: [{ name: 'Child A', birthdate: '2019-03-15', age: 7 }],
+                    children: [{ name: 'Child A', birthdate: '2019-03-15', age: 7, school: 'Mountain View High' }],
                 }),
             });
 
@@ -212,7 +291,7 @@ describe('Holiday API Routes', () => {
                     parentName: 'Late Parent',
                     phone: '6505550000',
                     city: 'Mountain View',
-                    children: [{ name: 'Child C', birthdate: '2021-04-10', age: 5 }],
+                    children: [{ name: 'Child C', birthdate: '2021-04-10', age: 5, school: 'Castro Elementary' }],
                 }),
             });
 
@@ -237,7 +316,7 @@ describe('Holiday API Routes', () => {
                     phone: '6505550000',
                     city: 'Mountain View',
                     timeSlot: '09:00 AM - 09:20 AM',
-                    children: [{ name: 'Child C', birthdate: '2021-04-10', age: 5 }],
+                    children: [{ name: 'Child C', birthdate: '2021-04-10', age: 5, school: 'Castro Elementary' }],
                 }),
             });
 
@@ -388,6 +467,86 @@ describe('Holiday API Routes', () => {
                 expect(res.status).toBe(200);
                 const json = await res.json();
                 expect(json.success).toBe(true);
+            });
+        });
+
+        describe('POST /api/holiday/staff/walk-in', () => {
+            it('records birthdate and school name for each child', async () => {
+                mockRpc.mockResolvedValueOnce({
+                    data: {
+                        id: 'reg-walkin',
+                        ticketNumber: 7,
+                        eventYear: 2026,
+                        parentName: 'Walk In Parent',
+                        phone: '6505551234',
+                        city: 'Mountain View',
+                        housingStatus: 'house_apartment',
+                        incomeRange: '0_40k',
+                        timeSlot: '09:00 AM - 09:20 AM',
+                        language: 'en',
+                        status: 'registered',
+                        groceryCards: 1,
+                        teenCards: 0,
+                        children: [
+                            {
+                                id: 'c-walkin',
+                                name: 'Walk In Kid',
+                                birthdate: '2016-04-01',
+                                age: 9,
+                                school: 'Castro Elementary',
+                                ageGroup: 'child',
+                            },
+                        ],
+                        createdAt: '2026-11-01T12:00:00Z',
+                        updatedAt: '2026-11-01T12:00:00Z',
+                    },
+                    error: null,
+                });
+
+                const { POST } = await import('../staff/walk-in/route');
+                const req = new NextRequest('http://localhost:3000/api/holiday/staff/walk-in', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        parentName: 'Walk In Parent',
+                        phone: '6505551234',
+                        city: 'Mountain View',
+                        children: [{
+                            name: 'Walk In Kid',
+                            birthdate: '2016-04-01',
+                            age: 9,
+                            school: 'Castro Elementary',
+                        }],
+                    }),
+                });
+
+                const res = await POST(req);
+
+                expect(res.status).toBe(200);
+                expect(mockRpc).toHaveBeenCalledWith('register_holiday_family', expect.objectContaining({
+                    p_children: [expect.objectContaining({
+                        birthdate: '2016-04-01',
+                        school: 'Castro Elementary',
+                        age: 9,
+                    })],
+                }));
+            });
+
+            it('rejects a walk-in child without a birthdate or school', async () => {
+                const { POST } = await import('../staff/walk-in/route');
+                const req = new NextRequest('http://localhost:3000/api/holiday/staff/walk-in', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        parentName: 'Walk In Parent',
+                        phone: '6505551234',
+                        city: 'Mountain View',
+                        children: [{ name: 'Walk In Kid', age: 9 }],
+                    }),
+                });
+
+                const res = await POST(req);
+
+                expect(res.status).toBe(400);
+                expect(mockRpc).not.toHaveBeenCalledWith('register_holiday_family', expect.anything());
             });
         });
 

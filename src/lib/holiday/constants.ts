@@ -1,5 +1,7 @@
 export const HOLIDAY_EVENT_YEAR = new Date().getFullYear();
 export const MAX_PARENTS_PER_HOLIDAY_SLOT = 16;
+/** Families with more children than this must register in person at the table. */
+export const MAX_PUBLIC_HOLIDAY_CHILDREN = 3;
 
 export const HOLIDAY_TIME_SLOTS = [
     { id: '09:00 AM - 09:20 AM', label: '09:00 AM - 09:20 AM' },

@@ -24,7 +24,7 @@ import {
     HolidayTimeSlotInfo,
 } from '@/types/holiday';
 import { HOLIDAY_TRANSLATIONS } from '@/lib/holiday/translations';
-import { HOLIDAY_CITIES } from '@/lib/holiday/constants';
+import { HOLIDAY_CITIES, MAX_PUBLIC_HOLIDAY_CHILDREN } from '@/lib/holiday/constants';
 import { calculateAge, getHolidayAgeGroup, formatAgeGroupLabel } from '@/lib/holiday/ageGroups';
 import { downloadTicketImage, downloadTicketPdf } from '@/lib/holiday/ticketImage';
 
@@ -44,7 +44,7 @@ export default function HolidayRegistrationClient() {
     const housingId = useId();
     const incomeId = useId();
 
-    const [language, setLanguage] = useState<HolidayLanguage>('en');
+    const [language, setLanguage] = useState<HolidayLanguage>('es');
     const t = HOLIDAY_TRANSLATIONS[language];
 
     const [parentName, setParentName] = useState('');
@@ -61,6 +61,7 @@ export default function HolidayRegistrationClient() {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [childLimitNotice, setChildLimitNotice] = useState(false);
     const [confirmedRegistration, setConfirmedRegistration] = useState<HolidayRegistration | null>(null);
     const [isSavingImage, setIsSavingImage] = useState(false);
     const [isSavingPdf, setIsSavingPdf] = useState(false);
@@ -76,6 +77,7 @@ export default function HolidayRegistrationClient() {
                 city: confirmedRegistration.city,
                 qrCodeDataUrl: confirmedRegistration.qrCodeDataUrl,
                 childrenCount: confirmedRegistration.children?.length || 0,
+                language: confirmedRegistration.language,
             },
             { auto: true }
         );
@@ -94,6 +96,7 @@ export default function HolidayRegistrationClient() {
                     city: confirmedRegistration.city,
                     qrCodeDataUrl: confirmedRegistration.qrCodeDataUrl,
                     childrenCount: confirmedRegistration.children?.length || 0,
+                    language: confirmedRegistration.language,
                 },
                 { auto: false }
             );
@@ -114,6 +117,7 @@ export default function HolidayRegistrationClient() {
                 city: confirmedRegistration.city,
                 qrCodeDataUrl: confirmedRegistration.qrCodeDataUrl,
                 childrenCount: confirmedRegistration.children?.length || 0,
+                language: confirmedRegistration.language,
             });
         } finally {
             setIsSavingPdf(false);
@@ -122,6 +126,11 @@ export default function HolidayRegistrationClient() {
 
 
     const handleAddChild = () => {
+        if (children.length >= MAX_PUBLIC_HOLIDAY_CHILDREN) {
+            setChildLimitNotice(true);
+            return;
+        }
+        setChildLimitNotice(false);
         setChildren((prev) => [
             ...prev,
             { id: String(Date.now()), name: '', birthdate: '', age: 0, school: '' },
@@ -141,6 +150,7 @@ export default function HolidayRegistrationClient() {
 
     const handleRemoveChild = (index: number) => {
         if (children.length <= 1) return;
+        setChildLimitNotice(false);
         setChildren((prev) => prev.filter((_, i) => i !== index));
     };
 
@@ -180,6 +190,10 @@ export default function HolidayRegistrationClient() {
             setErrorMessage(t.errors.atLeastOneChild);
             return;
         }
+        if (children.length > MAX_PUBLIC_HOLIDAY_CHILDREN) {
+            setErrorMessage(t.errors.childLimitReached);
+            return;
+        }
         for (const child of children) {
             if (!child.name.trim()) {
                 setErrorMessage(t.errors.childNameRequired);
@@ -187,6 +201,10 @@ export default function HolidayRegistrationClient() {
             }
             if (!child.birthdate || !child.birthdate.trim()) {
                 setErrorMessage(t.errors.childBirthdateRequired);
+                return;
+            }
+            if (!child.school.trim()) {
+                setErrorMessage(t.errors.childSchoolRequired);
                 return;
             }
             if (child.age < 0) {
@@ -230,6 +248,9 @@ export default function HolidayRegistrationClient() {
             }
 
             setConfirmedRegistration(data.registration);
+            if (data.registration?.language) {
+                setLanguage(data.registration.language);
+            }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
             console.error('Submission exception:', err);
@@ -251,6 +272,7 @@ export default function HolidayRegistrationClient() {
         setWebsite('');
         setChildren([{ id: '1', name: '', birthdate: '', age: 0, school: '' }]);
         setErrorMessage(null);
+        setChildLimitNotice(false);
     };
 
 
@@ -347,7 +369,7 @@ export default function HolidayRegistrationClient() {
                                                 <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
                                                     {formatAgeGroupLabel(child.ageGroup)}
                                                 </span>
-                                                <span className="text-xs font-medium text-slate-600">Age {child.age}</span>
+                                                <span className="text-xs font-medium text-slate-600">{t.childAgeShortLabel} {child.age}</span>
                                             </div>
                                         </div>
                                     ))}
@@ -377,7 +399,7 @@ export default function HolidayRegistrationClient() {
                                         className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-800 active:scale-95 disabled:opacity-50"
                                     >
                                         <Download className="h-4 w-4" />
-                                        <span>{isSavingImage ? 'Saving...' : t.downloadImageButton}</span>
+                                        <span>{isSavingImage ? t.savingAction : t.downloadImageButton}</span>
                                     </button>
                                     <button
                                         type="button"
@@ -386,7 +408,7 @@ export default function HolidayRegistrationClient() {
                                         className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-700 bg-emerald-50 px-5 py-3.5 text-sm font-bold text-emerald-900 transition-all hover:bg-emerald-100 active:scale-95 disabled:opacity-50"
                                     >
                                         <FileText className="h-4 w-4" />
-                                        <span>{isSavingPdf ? 'Generating...' : t.downloadPdfButton}</span>
+                                        <span>{isSavingPdf ? t.generatingAction : t.downloadPdfButton}</span>
                                     </button>
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-3">
@@ -680,7 +702,7 @@ export default function HolidayRegistrationClient() {
                                 <p className="mt-1 text-sm text-slate-500">{t.childSectionSubtitle}</p>
                             </div>
                             <span className="shrink-0 rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
-                                {children.length} {children.length === 1 ? 'Child' : 'Children'}
+                                {(children.length === 1 ? t.childCountOne : t.childCountMany).replace('{count}', String(children.length))}
                             </span>
                         </div>
 
@@ -754,7 +776,7 @@ export default function HolidayRegistrationClient() {
                                                         type="text"
                                                         readOnly
                                                         tabIndex={-1}
-                                                        value={child.birthdate ? `${child.age} ${child.age === 1 ? 'yr' : 'yrs'}` : '—'}
+                                                        value={child.birthdate ? `${child.age}` : '—'}
                                                         aria-label={`${t.childAgeLabel}: ${child.birthdate ? child.age : 'not entered'}`}
                                                         className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-center text-sm font-semibold text-slate-700 select-none cursor-not-allowed"
                                                     />
@@ -763,10 +785,11 @@ export default function HolidayRegistrationClient() {
 
                                             <div className="sm:col-span-2 space-y-1">
                                                 <label className="block text-sm font-medium text-slate-700">
-                                                    {t.childSchoolLabel}
+                                                    {t.childSchoolLabel} <span className="text-rose-600">*</span>
                                                 </label>
                                                 <input
                                                     type="text"
+                                                    required
                                                     value={child.school}
                                                     onChange={(e) => handleChildChange(index, 'school', e.target.value)}
                                                     placeholder={t.childSchoolPlaceholder}
@@ -787,6 +810,16 @@ export default function HolidayRegistrationClient() {
                             <Plus className="w-4 h-4" />
                             <span>{t.addChildButton}</span>
                         </button>
+
+                        {childLimitNotice && (
+                            <div
+                                role="alert"
+                                className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
+                            >
+                                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                                <span>{t.errors.childLimitReached}</span>
+                            </div>
+                        )}
                     </section>
 
                     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
