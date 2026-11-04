@@ -149,6 +149,35 @@ describe('HolidayRegistrationClient', () => {
         expect(global.fetch).not.toHaveBeenCalled();
     });
 
+    it('uses its own translated validation instead of the browser language bubble', async () => {
+        const { container } = render(<HolidayRegistrationClient />);
+        const form = container.querySelector('form')!;
+
+        // Native browser validation is disabled so its tooltip cannot appear in
+        // the device language on the Spanish form.
+        expect(form.noValidate).toBe(true);
+
+        fireEvent.change(screen.getByPlaceholderText(/ej\. María González/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/ej\. \(650\) 555-0123/i), {
+            target: { value: '650-555-1111' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/ej\. Alexander González/i), {
+            target: { value: 'Child 1' },
+        });
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        fireEvent.change(birthdateInput, { target: { value: '2015-06-01' } });
+
+        // School intentionally left blank.
+        fireEvent.submit(form);
+
+        await waitFor(() => {
+            expect(screen.getByText(/Por favor ingrese el nombre de la escuela de cada niño\/a\./i)).toBeDefined();
+        });
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
     it('submits registration without manual slot selection and displays assigned 20-min slot on ticket', async () => {
         render(<HolidayRegistrationClient />);
         switchToEnglish();

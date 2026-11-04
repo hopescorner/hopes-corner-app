@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState, useEffect } from 'react';
+import { useId, useRef, useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
     Clock,
@@ -65,6 +65,17 @@ export default function HolidayRegistrationClient() {
     const [confirmedRegistration, setConfirmedRegistration] = useState<HolidayRegistration | null>(null);
     const [isSavingImage, setIsSavingImage] = useState(false);
     const [isSavingPdf, setIsSavingPdf] = useState(false);
+    const errorRef = useRef<HTMLDivElement | null>(null);
+
+    // Keep our translated validation visible when the form is submitted from
+    // the bottom of the page. Browser validation bubbles are disabled below.
+    useEffect(() => {
+        if (!errorMessage) return;
+        const node = errorRef.current;
+        if (node && typeof node.scrollIntoView === 'function') {
+            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, [errorMessage]);
 
     useEffect(() => {
         if (!confirmedRegistration) return;
@@ -554,7 +565,7 @@ export default function HolidayRegistrationClient() {
                     </div>
                 </section>
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                     <div className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">
                         <label htmlFor="holiday-website">Website</label>
                         <input
@@ -569,7 +580,7 @@ export default function HolidayRegistrationClient() {
                     </div>
                     {/* Error Banner */}
                     {errorMessage && (
-                        <div className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+                        <div ref={errorRef} className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
                             <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
                             <span>{errorMessage}</span>
                         </div>
