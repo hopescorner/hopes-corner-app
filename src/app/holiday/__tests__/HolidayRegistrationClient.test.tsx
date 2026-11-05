@@ -227,6 +227,7 @@ describe('HolidayRegistrationClient', () => {
             expect(screen.getByText(/Event Date/i)).toBeDefined();
             expect(screen.getByRole('button', { name: /Add to Calendar/i })).toBeDefined();
             expect(screen.getByRole('link', { name: /Get Directions/i })).toBeDefined();
+            expect(screen.getByText(/ticket image is saving automatically/i)).toBeDefined();
 
             const requestBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
             expect(requestBody.language).toBe('en');

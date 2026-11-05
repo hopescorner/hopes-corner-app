@@ -637,6 +637,33 @@ export default function HolidayRegistrationClient() {
                                 )}
                             </div>
 
+                            <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 print:hidden">
+                                <p className="flex items-start gap-2 text-sm leading-6 text-emerald-950">
+                                    <Download className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                                    <span>{t.autoSaveNotice}</span>
+                                </p>
+                                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadImage}
+                                        disabled={isSavingImage}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-800 active:scale-95 disabled:opacity-50"
+                                    >
+                                        <Download className="h-4 w-4" />
+                                        <span>{isSavingImage ? t.savingAction : t.downloadImageButton}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadPdf}
+                                        disabled={isSavingPdf}
+                                        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-700 bg-white px-5 py-3.5 text-sm font-bold text-emerald-900 transition-all hover:bg-emerald-100 active:scale-95 disabled:opacity-50"
+                                    >
+                                        <FileText className="h-4 w-4" />
+                                        <span>{isSavingPdf ? t.generatingAction : t.downloadPdfButton}</span>
+                                    </button>
+                                </div>
+                            </div>
+
                             <div className="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm sm:grid-cols-2">
                                 <div>
                                     <span className="block text-xs font-medium text-slate-500">{t.parentNameLabel}</span>
@@ -723,26 +750,6 @@ export default function HolidayRegistrationClient() {
                             </div>
 
                             <div className="space-y-3 pt-1">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 print:hidden">
-                                    <button
-                                        type="button"
-                                        onClick={handleDownloadImage}
-                                        disabled={isSavingImage}
-                                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-emerald-800 active:scale-95 disabled:opacity-50"
-                                    >
-                                        <Download className="h-4 w-4" />
-                                        <span>{isSavingImage ? t.savingAction : t.downloadImageButton}</span>
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={handleDownloadPdf}
-                                        disabled={isSavingPdf}
-                                        className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-emerald-700 bg-emerald-50 px-5 py-3.5 text-sm font-bold text-emerald-900 transition-all hover:bg-emerald-100 active:scale-95 disabled:opacity-50"
-                                    >
-                                        <FileText className="h-4 w-4" />
-                                        <span>{isSavingPdf ? t.generatingAction : t.downloadPdfButton}</span>
-                                    </button>
-                                </div>
                                 <div className="flex flex-col sm:flex-row gap-3 print:hidden">
                                     <button
                                         type="button"

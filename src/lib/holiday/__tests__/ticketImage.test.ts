@@ -103,6 +103,41 @@ describe('ticketImage helper', () => {
         clickSpy.mockRestore();
     });
 
+    it('uses a blob URL for automatic downloads when the browser supports it', async () => {
+        const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+        const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+        HTMLCanvasElement.prototype.toBlob = vi.fn((callback: BlobCallback) => {
+            callback(new Blob(['fake-png'], { type: 'image/png' }));
+        }) as unknown as typeof HTMLCanvasElement.prototype.toBlob;
+
+        const originalCreateObjectURL = (URL as unknown as { createObjectURL?: unknown }).createObjectURL;
+        const originalRevokeObjectURL = (URL as unknown as { revokeObjectURL?: unknown }).revokeObjectURL;
+        const createObjectURL = vi.fn(() => 'blob:mock-ticket');
+        const revokeObjectURL = vi.fn();
+        (URL as unknown as { createObjectURL: unknown }).createObjectURL = createObjectURL;
+        (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = revokeObjectURL;
+
+        const result = await downloadTicketImage(defaultOptions, { auto: true });
+
+        expect(result).toBe(true);
+        expect(createObjectURL).toHaveBeenCalled();
+        expect(clickSpy).toHaveBeenCalled();
+
+        HTMLCanvasElement.prototype.toBlob = originalToBlob;
+        if (originalCreateObjectURL) {
+            (URL as unknown as { createObjectURL: unknown }).createObjectURL = originalCreateObjectURL;
+        } else {
+            delete (URL as unknown as { createObjectURL?: unknown }).createObjectURL;
+        }
+        if (originalRevokeObjectURL) {
+            (URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevokeObjectURL;
+        } else {
+            delete (URL as unknown as { revokeObjectURL?: unknown }).revokeObjectURL;
+        }
+        clickSpy.mockRestore();
+    });
+
     it('handles downloadTicketImage with native share if available and file shareable', async () => {
         const shareSpy = vi.fn().mockResolvedValue(undefined);
         const canShareSpy = vi.fn().mockReturnValue(true);

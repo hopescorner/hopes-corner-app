@@ -88,6 +88,7 @@ export interface HolidayTranslation {
     downloadPdfButton: string;
     savingAction: string;
     generatingAction: string;
+    autoSaveNotice: string;
     printTicketButton: string;
     registerAnotherButton: string;
 
@@ -230,6 +231,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         downloadPdfButton: "Download PDF",
         savingAction: "Saving...",
         generatingAction: "Generating...",
+        autoSaveNotice: "Your ticket image is saving automatically. If it does not appear in your downloads or photos, tap Save / Download Image.",
         printTicketButton: "Print Ticket",
         registerAnotherButton: "Register Another Family",
 
@@ -371,6 +373,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         downloadPdfButton: "Descargar PDF",
         savingAction: "Guardando...",
         generatingAction: "Generando...",
+        autoSaveNotice: "La imagen de su boleto se está guardando automáticamente. Si no aparece en sus descargas o fotos, toque Guardar / Descargar Imagen.",
         printTicketButton: "Imprimir Boleto",
         registerAnotherButton: "Registrar Otra Familia",
 
@@ -512,6 +515,7 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         downloadPdfButton: "下载 PDF",
         savingAction: "正在保存...",
         generatingAction: "正在生成...",
+        autoSaveNotice: "票券图片正在自动保存。如果没有出现在下载或相册中，请点击“保存 / 下载图片”。",
         printTicketButton: "打印门票",
         registerAnotherButton: "登记另一个家庭",
 

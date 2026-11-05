@@ -202,14 +202,54 @@ export async function downloadTicketImage(
             }
         }
 
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        return true;
+        const dataUrlFallback = () => {
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.href = dataUrl;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            return true;
+        };
+
+        let blob: Blob | null = null;
+        if (typeof canvas.toBlob === 'function') {
+            blob = await new Promise<Blob | null>((resolve) => {
+                let settled = false;
+                let timeout: ReturnType<typeof setTimeout> | null = null;
+                const settle = (value: Blob | null) => {
+                    if (settled) return;
+                    settled = true;
+                    if (timeout !== null) clearTimeout(timeout);
+                    resolve(value);
+                };
+
+                // Some embedded browsers expose toBlob but never call back.
+                timeout = setTimeout(() => settle(null), 1_000);
+                try {
+                    canvas.toBlob((value) => settle(value), 'image/png');
+                } catch {
+                    settle(null);
+                }
+            });
+        }
+
+        // Blob URLs respect the download attribute much more reliably on
+        // mobile browsers than large data URLs do.
+        if (blob && typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function') {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+            return true;
+        }
+
+        return dataUrlFallback();
     } catch {
         return false;
     }

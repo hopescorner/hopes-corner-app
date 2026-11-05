@@ -45,6 +45,7 @@ describe('Holiday translations', () => {
             'yourTimeSlot',
             'downloadImageButton',
             'downloadPdfButton',
+            'autoSaveNotice',
             'printTicketButton',
             'childLimitNotice',
             'childCountOne',
