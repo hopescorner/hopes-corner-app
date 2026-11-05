@@ -3,6 +3,10 @@ import path from "node:path";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  experimental: {
+    // Keep automated upgrades scoped to published security fixes.
+    agentUpgrade: 'security',
+  },
   turbopack: {
     // Pin the workspace root to this project. Without this, Next/Turbopack can
     // infer the wrong root when a stray lockfile exists in a parent directory
