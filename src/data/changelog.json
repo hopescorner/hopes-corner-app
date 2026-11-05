@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.51.1",
+    "date": "November 5, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Reliable Ticket Image Saving",
+        "description": "Ticket images now save through a mobile-friendly blob download. A note and prominent buttons under the QR code let families save the image or PDF if their phone blocks the automatic download."
+      }
+    ]
+  },
+  {
     "version": "0.51.0",
     "date": "November 5, 2026",
     "highlights": [

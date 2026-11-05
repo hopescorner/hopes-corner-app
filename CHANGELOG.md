@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.51.1] - 2026-11-05
+
+### Fixed
+
+- Ticket images now download through a blob URL instead of a large data URL, which mobile browsers handle more reliably.
+- The confirmation page shows a translated note that the ticket image is saving automatically, and the Save / Download Image and Download PDF buttons now sit directly under the ticket QR code as an obvious fallback when a phone blocks automatic downloads.
+
+### Tests
+
+- Added blob-download coverage and confirmation notice assertions.
+
 ## [0.51.0] - 2026-11-05
 
 ### Added
