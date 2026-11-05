@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createHmac } from 'node:crypto';
 import { getHolidayServiceClient } from '@/lib/holiday/server';
-import { HolidayRegistrationInput } from '@/types/holiday';
+import { HolidayLanguage, HolidayRegistrationInput } from '@/types/holiday';
 import { HOLIDAY_EVENT_YEAR, MAX_PUBLIC_HOLIDAY_CHILDREN } from '@/lib/holiday/constants';
-import { holidayRegistrationValidationError } from '@/lib/holiday/validation';
+import {
+    holidayRegistrationValidationErrorCode,
+    holidayValidationMessage,
+} from '@/lib/holiday/validation';
 import { HOLIDAY_TRANSLATIONS } from '@/lib/holiday/translations';
 import { generateHolidayTicketToken, generateTicketQRCodeDataUrl } from '@/lib/holiday/ticketToken';
 
@@ -15,8 +18,18 @@ function hashClientIp(ip: string): string {
     return createHmac('sha256', secret).update(ip).digest('hex');
 }
 
+function resolveLanguage(value: unknown): HolidayLanguage {
+    return value === 'es' || value === 'zh' || value === 'en' ? value : 'en';
+}
+
 export async function POST(req: NextRequest) {
+    let language: HolidayLanguage = 'en';
+
     try {
+        const body: HolidayRegistrationInput & { website?: string; hp_field?: string } = await req.json();
+        language = resolveLanguage(body.language);
+        const t = HOLIDAY_TRANSLATIONS[language];
+
         const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
             req.headers.get('x-real-ip') ||
             'unknown-client';
@@ -28,41 +41,33 @@ export async function POST(req: NextRequest) {
         );
         if (rateLimitError) {
             console.error('[holiday-register] Rate limiter error:', rateLimitError);
-            return NextResponse.json(
-                { error: 'Registration is temporarily unavailable. Please try again shortly.' },
-                { status: 503 }
-            );
+            return NextResponse.json({ error: t.errors.temporarilyUnavailable }, { status: 503 });
         }
         if (allowed !== true) {
-            return NextResponse.json(
-                { error: 'Too many registration requests. Please wait a few minutes and try again.' },
-                { status: 429 }
-            );
+            return NextResponse.json({ error: t.errors.rateLimited }, { status: 429 });
         }
-
-        const body: HolidayRegistrationInput & { website?: string; hp_field?: string } = await req.json();
 
         // Bot honeypot check
         if (body.website || body.hp_field) {
-            return NextResponse.json({ error: 'Invalid submission' }, { status: 400 });
+            return NextResponse.json({ error: t.errors.invalidSubmission }, { status: 400 });
         }
 
         // Families with more than three children register in person at the table.
-        // Reject before validation so the message is localized to the form language.
         if (Array.isArray(body.children) && body.children.length > MAX_PUBLIC_HOLIDAY_CHILDREN) {
-            const language = body.language && HOLIDAY_TRANSLATIONS[body.language] ? body.language : 'en';
-            return NextResponse.json(
-                { error: HOLIDAY_TRANSLATIONS[language].errors.childLimitReached },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: t.errors.childLimitReached }, { status: 400 });
         }
 
-        const validationError = holidayRegistrationValidationError(body, {
+        const validationCode = holidayRegistrationValidationErrorCode(body, {
             requireBirthdate: true,
             requireSchool: true,
             maxChildren: MAX_PUBLIC_HOLIDAY_CHILDREN,
         });
-        if (validationError) return NextResponse.json({ error: validationError }, { status: 400 });
+        if (validationCode) {
+            return NextResponse.json(
+                { error: holidayValidationMessage(validationCode, language) },
+                { status: 400 }
+            );
+        }
 
         // Call transactional atomic RPC on server
         const { data, error } = await supabase.rpc('register_holiday_family', {
@@ -86,24 +91,15 @@ export async function POST(req: NextRequest) {
             console.error('[holiday-register] Error in register_holiday_family RPC:', error);
             const msg = error.message || '';
             if (msg.includes('ALL_SLOTS_FULL')) {
-                return NextResponse.json(
-                    { error: 'Registration is currently at full capacity for all arrival time slots.' },
-                    { status: 409 }
-                );
+                return NextResponse.json({ error: t.errors.allSlotsFull }, { status: 409 });
             }
             if (msg.includes('SLOT_FULL')) {
-                return NextResponse.json(
-                    { error: 'The specified time slot is full. Please pick another slot.' },
-                    { status: 409 }
-                );
+                return NextResponse.json({ error: t.errors.slotFull }, { status: 409 });
             }
             if (msg.includes('INVALID_TIME_SLOT')) {
-                return NextResponse.json(
-                    { error: 'Invalid time slot specified.' },
-                    { status: 400 }
-                );
+                return NextResponse.json({ error: t.errors.slotRequired }, { status: 400 });
             }
-            return NextResponse.json({ error: error.message || 'Failed to create registration record' }, { status: 500 });
+            return NextResponse.json({ error: t.errors.submissionFailed }, { status: 500 });
         }
 
         const ticketToken = generateHolidayTicketToken({
@@ -126,6 +122,9 @@ export async function POST(req: NextRequest) {
         });
     } catch (error) {
         console.error('[holiday-register] Unexpected error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json(
+            { error: HOLIDAY_TRANSLATIONS[language].errors.submissionFailed },
+            { status: 500 }
+        );
     }
 }

@@ -3,6 +3,26 @@ export const MAX_PARENTS_PER_HOLIDAY_SLOT = 16;
 /** Families with more children than this must register in person at the table. */
 export const MAX_PUBLIC_HOLIDAY_CHILDREN = 3;
 
+/** Stored in holiday_children.school when a child is not in school yet. */
+export const HOLIDAY_NO_SCHOOL_VALUE = 'not_in_school';
+
+export const HOLIDAY_EVENT_LOCATION =
+    "Hope's Corner (Trinity United Methodist Church), 748 Mercy St, Mountain View, CA 94041";
+
+const HOLIDAY_EVENT_MONTH_DAY_PATTERN = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+/**
+ * Optional MM-DD event date. The year always comes from the system clock so a
+ * new season only needs the month and day configured.
+ */
+export function getHolidayEventDate(now: Date = new Date()): Date | null {
+    const configured = process.env.NEXT_PUBLIC_HOLIDAY_EVENT_MONTH_DAY?.trim();
+    if (!configured || !HOLIDAY_EVENT_MONTH_DAY_PATTERN.test(configured)) return null;
+
+    const [month, day] = configured.split('-').map(Number);
+    return new Date(now.getFullYear(), month - 1, day, 9, 0, 0);
+}
+
 export const HOLIDAY_TIME_SLOTS = [
     { id: '09:00 AM - 09:20 AM', label: '09:00 AM - 09:20 AM' },
     { id: '09:20 AM - 09:40 AM', label: '09:20 AM - 09:40 AM' },

@@ -42,7 +42,7 @@ describe('Holiday API Routes', () => {
             const res = await POST(req);
             expect(res.status).toBe(400);
             const json = await res.json();
-            expect(json.error).toMatch(/Parent\/Guardian name is required/i);
+            expect(json.error).toMatch(/Please enter the parent\/guardian full name/i);
         });
 
         it('validates at least one child is required', async () => {
@@ -60,7 +60,7 @@ describe('Holiday API Routes', () => {
             const res = await POST(req);
             expect(res.status).toBe(400);
             const json = await res.json();
-            expect(json.error).toMatch(/At least one child is required/i);
+            expect(json.error).toMatch(/Please add at least one child/i);
         });
 
         it('rejects submissions with bot honeypot fields', async () => {
@@ -203,7 +203,7 @@ describe('Holiday API Routes', () => {
 
             expect(res.status).toBe(400);
             const json = await res.json();
-            expect(json.error).toMatch(/school name is required/i);
+            expect(json.error).toMatch(/Please enter the school name for each child/i);
             expect(mockRpc).not.toHaveBeenCalledWith('register_holiday_family', expect.anything());
         });
 
@@ -324,6 +324,186 @@ describe('Holiday API Routes', () => {
             expect(res.status).toBe(409);
             const json = await res.json();
             expect(json.error).toMatch(/specified time slot is full/i);
+        });
+
+        it('returns validation errors in the language the family used', async () => {
+            const { POST } = await import('../register/route');
+            const req = new NextRequest('http://localhost:3000/api/holiday/register', {
+                method: 'POST',
+                body: JSON.stringify({
+                    parentName: 'María López',
+                    phone: '6505551234',
+                    city: 'Mountain View',
+                    language: 'es',
+                    children: [{ name: 'Niño', birthdate: '2019-03-15', age: 7 }],
+                }),
+            });
+
+            const res = await POST(req);
+
+            expect(res.status).toBe(400);
+            const json = await res.json();
+            expect(json.error).toMatch(/nombre de la escuela/i);
+        });
+    });
+
+    describe('POST /api/holiday/lookup', () => {
+        const lookupRow = {
+            id: 'reg-lookup',
+            ticket_number: 77,
+            event_year: 2026,
+            parent_name: 'Maria Lopez',
+            phone: '(650) 555-2222',
+            city: 'Mountain View',
+            time_slot: '10:00 AM - 10:20 AM',
+            language: 'es',
+        };
+
+        function mockLookupSources(rows: any[] = [lookupRow]) {
+            mockFrom.mockImplementation((table: string) => {
+                if (table === 'holiday_registrations') {
+                    return {
+                        select: () => ({
+                            eq: () => ({
+                                order: () => Promise.resolve({ data: rows, error: null }),
+                            }),
+                        }),
+                    };
+                }
+                if (table === 'holiday_children') {
+                    return {
+                        select: () => ({
+                            eq: () => Promise.resolve({
+                                data: [{ id: 'c1' }, { id: 'c2' }],
+                                error: null,
+                            }),
+                        }),
+                    };
+                }
+                return {};
+            });
+        }
+
+        it('returns ticket metadata and never child records', async () => {
+            mockLookupSources();
+
+            const { POST } = await import('../lookup/route');
+            const req = new NextRequest('http://localhost:3000/api/holiday/lookup', {
+                method: 'POST',
+                body: JSON.stringify({
+                    phone: '+1 (650) 555-2222',
+                    parentName: 'maria lopez',
+                    language: 'es',
+                }),
+            });
+
+            const res = await POST(req);
+
+            expect(res.status).toBe(200);
+            const json = await res.json();
+            expect(json.registration.ticketNumber).toBe(77);
+            expect(json.registration.childrenCount).toBe(2);
+            expect(json.registration.language).toBe('es');
+            expect(json.registration.qrCodeDataUrl).toMatch(/^data:image\/png;base64,/);
+            expect(json.registration.children).toBeUndefined();
+            expect(json.registration.phone).toBe('(650) 555-2222');
+        });
+
+        it('returns a localized 404 when the phone and name do not match', async () => {
+            mockLookupSources([]);
+
+            const { POST } = await import('../lookup/route');
+            const req = new NextRequest('http://localhost:3000/api/holiday/lookup', {
+                method: 'POST',
+                body: JSON.stringify({
+                    phone: '(650) 555-2222',
+                    parentName: 'Maria Lopez',
+                    language: 'es',
+                }),
+            });
+
+            const res = await POST(req);
+
+            expect(res.status).toBe(404);
+            const json = await res.json();
+            expect(json.error).toMatch(/No encontramos un boleto/i);
+        });
+
+        it('returns 429 when the lookup limiter rejects the client', async () => {
+            mockRpc.mockImplementation(() => Promise.resolve({ data: false, error: null }));
+
+            const { POST } = await import('../lookup/route');
+            const req = new NextRequest('http://localhost:3000/api/holiday/lookup', {
+                method: 'POST',
+                body: JSON.stringify({
+                    phone: '(650) 555-2222',
+                    parentName: 'Maria Lopez',
+                    language: 'es',
+                }),
+            });
+
+            const res = await POST(req);
+
+            expect(res.status).toBe(429);
+            expect(mockFrom).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('POST /api/holiday/duplicate-check', () => {
+        it('returns only an existence flag for a matching phone', async () => {
+            mockFrom.mockImplementation((table: string) => {
+                if (table === 'holiday_registrations') {
+                    return {
+                        select: () => ({
+                            eq: () => Promise.resolve({
+                                data: [{ phone: '(650) 555-1234' }],
+                                error: null,
+                            }),
+                        }),
+                    };
+                }
+                return {};
+            });
+
+            const { POST } = await import('../duplicate-check/route');
+            const req = new NextRequest('http://localhost:3000/api/holiday/duplicate-check', {
+                method: 'POST',
+                body: JSON.stringify({ phone: '+1 650 555 1234', language: 'es' }),
+            });
+
+            const res = await POST(req);
+
+            expect(res.status).toBe(200);
+            const json = await res.json();
+            expect(json).toEqual({ exists: true });
+        });
+
+        it('returns false when the phone is not registered', async () => {
+            mockFrom.mockImplementation((table: string) => {
+                if (table === 'holiday_registrations') {
+                    return {
+                        select: () => ({
+                            eq: () => Promise.resolve({
+                                data: [{ phone: '(408) 555-9999' }],
+                                error: null,
+                            }),
+                        }),
+                    };
+                }
+                return {};
+            });
+
+            const { POST } = await import('../duplicate-check/route');
+            const req = new NextRequest('http://localhost:3000/api/holiday/duplicate-check', {
+                method: 'POST',
+                body: JSON.stringify({ phone: '6505551234', language: 'en' }),
+            });
+
+            const res = await POST(req);
+
+            expect(res.status).toBe(200);
+            const json = await res.json();
+            expect(json).toEqual({ exists: false });
         });
     });
 

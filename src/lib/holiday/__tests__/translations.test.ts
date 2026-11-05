@@ -49,6 +49,26 @@ describe('Holiday translations', () => {
             'childLimitNotice',
             'childCountOne',
             'childCountMany',
+            'childNotInSchoolLabel',
+            'eventDateLabel',
+            'eventYearLabel',
+            'addToCalendarButton',
+            'directionsButton',
+            'privacyNoticeTitle',
+            'privacyNotice',
+            'duplicateWarning',
+            'findTicketButton',
+            'findTicketTitle',
+            'findTicketDescription',
+            'findTicketPhoneLabel',
+            'findTicketParentNameLabel',
+            'findTicketSubmitButton',
+            'findTicketSearchingButton',
+            'findTicketNotFound',
+            'findTicketMissingFields',
+            'findTicketError',
+            'findTicketResultTitle',
+            'findTicketCloseButton',
         ] as const;
 
         languages.forEach((lang) => {
@@ -75,6 +95,14 @@ describe('Holiday translations', () => {
             expect(translation.errors.allSlotsFull).toBeTypeOf('string');
             expect(translation.errors.childSchoolRequired).toBeTypeOf('string');
             expect(translation.errors.childLimitReached).toBeTypeOf('string');
+            expect(translation.errors.childBirthdateInvalid).toBeTypeOf('string');
+            expect(translation.errors.rateLimited).toBeTypeOf('string');
+            expect(translation.errors.slotFull).toBeTypeOf('string');
+
+            (['infant', 'toddler', 'child', 'teen_13', 'teen_14', 'teen_15', 'teen_16_18'] as const).forEach((group) => {
+                expect(translation.ageGroupLabels[group]).toBeTypeOf('string');
+                expect(translation.ageGroupLabels[group].length).toBeGreaterThan(0);
+            });
         });
     });
 

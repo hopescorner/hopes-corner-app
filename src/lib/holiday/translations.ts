@@ -1,4 +1,4 @@
-import { HolidayLanguage } from '@/types/holiday';
+import { HolidayAgeGroup, HolidayLanguage } from '@/types/holiday';
 import { HOLIDAY_EVENT_YEAR } from './constants';
 
 export interface HolidayTranslation {
@@ -60,6 +60,8 @@ export interface HolidayTranslation {
     childNumberLabel: string;
     childCountOne: string;
     childCountMany: string;
+    childNotInSchoolLabel: string;
+    ageGroupLabels: Record<HolidayAgeGroup, string>;
 
     arrivalInfoTitle: string;
     arrivalInfoNotice: string;
@@ -89,6 +91,27 @@ export interface HolidayTranslation {
     printTicketButton: string;
     registerAnotherButton: string;
 
+    eventDateLabel: string;
+    eventYearLabel: string;
+    addToCalendarButton: string;
+    directionsButton: string;
+    privacyNoticeTitle: string;
+    privacyNotice: string;
+    duplicateWarning: string;
+
+    findTicketButton: string;
+    findTicketTitle: string;
+    findTicketDescription: string;
+    findTicketPhoneLabel: string;
+    findTicketParentNameLabel: string;
+    findTicketSubmitButton: string;
+    findTicketSearchingButton: string;
+    findTicketNotFound: string;
+    findTicketMissingFields: string;
+    findTicketError: string;
+    findTicketResultTitle: string;
+    findTicketCloseButton: string;
+
     errors: {
         parentNameRequired: string;
         phoneRequired: string;
@@ -96,12 +119,17 @@ export interface HolidayTranslation {
         atLeastOneChild: string;
         childNameRequired: string;
         childBirthdateRequired: string;
+        childBirthdateInvalid: string;
         childSchoolRequired: string;
         childAgeRange: string;
         childOverAge: string;
         childLimitReached: string;
         slotRequired: string;
         allSlotsFull: string;
+        slotFull: string;
+        rateLimited: string;
+        temporarilyUnavailable: string;
+        invalidSubmission: string;
         submissionFailed: string;
     };
 }
@@ -166,6 +194,16 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         childNumberLabel: "Child",
         childCountOne: "{count} Child",
         childCountMany: "{count} Children",
+        childNotInSchoolLabel: "Not in school yet",
+        ageGroupLabels: {
+            infant: "Infant (0-1)",
+            toddler: "Toddler (1-4)",
+            child: "Child (5-12)",
+            teen_13: "Teen (13)",
+            teen_14: "Teen (14)",
+            teen_15: "Teen (15)",
+            teen_16_18: "Teen (16-18)",
+        },
 
         arrivalInfoTitle: "Automatic Arrival Window",
         arrivalInfoNotice: "To ensure minimal wait times and smooth distribution, your 20-minute arrival window (between 09:00 AM – 02:00 PM) and ticket number will be automatically assigned upon registration.",
@@ -195,6 +233,27 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         printTicketButton: "Print Ticket",
         registerAnotherButton: "Register Another Family",
 
+        eventDateLabel: "Event Date",
+        eventYearLabel: "Event Year",
+        addToCalendarButton: "Add to Calendar",
+        directionsButton: "Get Directions",
+        privacyNoticeTitle: "How We Use Your Information",
+        privacyNotice: "We use the information you provide only to register your family for the holiday program and prepare gifts. We do not sell or share it.",
+        duplicateWarning: "This phone number may already be registered. If you already have a ticket, use Find My Ticket instead of registering again.",
+
+        findTicketButton: "Already registered? Find My Ticket",
+        findTicketTitle: "Find My Ticket",
+        findTicketDescription: "Enter the phone number and parent/guardian name you used to register.",
+        findTicketPhoneLabel: "Phone Number",
+        findTicketParentNameLabel: "Parent / Guardian Name",
+        findTicketSubmitButton: "Find Ticket",
+        findTicketSearchingButton: "Searching...",
+        findTicketNotFound: "We could not find a ticket with that phone number and parent name. Check the spelling and try again.",
+        findTicketMissingFields: "Please enter both the phone number and the parent/guardian name.",
+        findTicketError: "We could not look up your ticket right now. Please try again.",
+        findTicketResultTitle: "Your Ticket",
+        findTicketCloseButton: "Close",
+
         errors: {
             parentNameRequired: "Please enter the parent/guardian full name.",
             phoneRequired: "Please enter a valid phone number.",
@@ -202,12 +261,17 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
             atLeastOneChild: "Please add at least one child (age 0–18).",
             childNameRequired: "Please enter the child's name.",
             childBirthdateRequired: "Please enter the child's birthdate.",
+            childBirthdateInvalid: "Please enter a valid birthdate that is not in the future.",
             childSchoolRequired: "Please enter the school name for each child.",
             childAgeRange: "Age must be between 0 and 18 years old.",
             childOverAge: "{name} is older than 18 and is not eligible. This program is only for children age 18 or younger.",
             childLimitReached: "Families with more than 3 children must register in person at the Hope's Corner table. Online registration is not available for families with more than 3 children.",
             slotRequired: "Please select an available time slot.",
-            allSlotsFull: "All arrival time slots are full. Registration is currently closed.",
+            allSlotsFull: "All arrival time slots are at full capacity. Registration is currently closed.",
+            slotFull: "The specified time slot is full. Please pick another slot.",
+            rateLimited: "Too many attempts. Please wait a few minutes and try again.",
+            temporarilyUnavailable: "Registration is temporarily unavailable. Please try again shortly.",
+            invalidSubmission: "Invalid submission. Please check your information and try again.",
             submissionFailed: "Failed to submit registration. Please verify your info and try again.",
         },
     },
@@ -271,6 +335,16 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         childNumberLabel: "Niño/a",
         childCountOne: "{count} Niño",
         childCountMany: "{count} Niños",
+        childNotInSchoolLabel: "Aún no asiste a la escuela",
+        ageGroupLabels: {
+            infant: "Bebé (0-1)",
+            toddler: "Niño pequeño (1-4)",
+            child: "Niño/a (5-12)",
+            teen_13: "Adolescente (13)",
+            teen_14: "Adolescente (14)",
+            teen_15: "Adolescente (15)",
+            teen_16_18: "Adolescente (16-18)",
+        },
 
         arrivalInfoTitle: "Horario de Llegada Automático",
         arrivalInfoNotice: "Para garantizar tiempos de espera mínimos y una distribución organizada, su ventana de llegada de 20 minutos (entre 09:00 AM – 02:00 PM) y su número de boleto se asignarán automáticamente al registrarse.",
@@ -300,6 +374,27 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         printTicketButton: "Imprimir Boleto",
         registerAnotherButton: "Registrar Otra Familia",
 
+        eventDateLabel: "Fecha del Evento",
+        eventYearLabel: "Año del Evento",
+        addToCalendarButton: "Agregar al Calendario",
+        directionsButton: "Cómo Llegar",
+        privacyNoticeTitle: "Cómo Usamos Su Información",
+        privacyNotice: "Usamos la información que proporciona solo para inscribir a su familia en el programa navideño y preparar los regalos. No la vendemos ni la compartimos.",
+        duplicateWarning: "Es posible que este número de teléfono ya esté registrado. Si ya tiene un boleto, use Buscar Mi Boleto en lugar de registrarse de nuevo.",
+
+        findTicketButton: "¿Ya se registró? Buscar Mi Boleto",
+        findTicketTitle: "Buscar Mi Boleto",
+        findTicketDescription: "Ingrese el número de teléfono y el nombre del padre o tutor que usó para registrarse.",
+        findTicketPhoneLabel: "Número de Teléfono",
+        findTicketParentNameLabel: "Nombre del Padre / Tutor",
+        findTicketSubmitButton: "Buscar Boleto",
+        findTicketSearchingButton: "Buscando...",
+        findTicketNotFound: "No encontramos un boleto con ese teléfono y nombre. Revise la información e intente de nuevo.",
+        findTicketMissingFields: "Por favor ingrese el número de teléfono y el nombre del padre o tutor.",
+        findTicketError: "No pudimos buscar su boleto en este momento. Por favor intente de nuevo.",
+        findTicketResultTitle: "Su Boleto",
+        findTicketCloseButton: "Cerrar",
+
         errors: {
             parentNameRequired: "Por favor ingrese el nombre del padre o tutor.",
             phoneRequired: "Por favor ingrese un número de teléfono válido.",
@@ -307,12 +402,17 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
             atLeastOneChild: "Por favor agregue al menos un niño/a (edad 0–18).",
             childNameRequired: "Por favor ingrese el nombre del niño/a.",
             childBirthdateRequired: "Por favor ingrese la fecha de nacimiento del niño/a.",
+            childBirthdateInvalid: "Por favor ingrese una fecha de nacimiento válida que no esté en el futuro.",
             childSchoolRequired: "Por favor ingrese el nombre de la escuela de cada niño/a.",
             childAgeRange: "La edad debe estar entre 0 y 18 años.",
             childOverAge: "{name} tiene más de 18 años y no es elegible. Este programa es solo para jóvenes de 18 años o menos.",
             childLimitReached: "Las familias con más de 3 niños deben registrarse en persona en la mesa de Hope's Corner. El registro en línea no está disponible para familias con más de 3 niños.",
             slotRequired: "Por favor seleccione un horario disponible.",
             allSlotsFull: "Todos los horarios están llenos. El registro está cerrado actualmente.",
+            slotFull: "Ese horario está lleno. Intente de nuevo para obtener el próximo horario disponible.",
+            rateLimited: "Demasiados intentos. Por favor espere unos minutos e intente de nuevo.",
+            temporarilyUnavailable: "El registro no está disponible temporalmente. Por favor intente de nuevo en breve.",
+            invalidSubmission: "No pudimos procesar el registro. Revise su información e intente de nuevo.",
             submissionFailed: "Error al enviar el registro. Por favor revise sus datos e intente de nuevo.",
         },
     },
@@ -376,6 +476,16 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         childNumberLabel: "儿童",
         childCountOne: "{count} 名儿童",
         childCountMany: "{count} 名儿童",
+        childNotInSchoolLabel: "尚未入学",
+        ageGroupLabels: {
+            infant: "婴儿 (0-1)",
+            toddler: "幼儿 (1-4)",
+            child: "儿童 (5-12)",
+            teen_13: "青少年 (13)",
+            teen_14: "青少年 (14)",
+            teen_15: "青少年 (15)",
+            teen_16_18: "青少年 (16-18)",
+        },
 
         arrivalInfoTitle: "自动分配到场时间段",
         arrivalInfoNotice: "为减少现场等待时间并保障分发顺畅，系统将在提交登记后自动为您分配 20 分钟的到场时间段（上午 09:00 至 下午 02:00 之间）及入场票号。",
@@ -405,6 +515,27 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
         printTicketButton: "打印门票",
         registerAnotherButton: "登记另一个家庭",
 
+        eventDateLabel: "活动日期",
+        eventYearLabel: "活动年份",
+        addToCalendarButton: "添加到日历",
+        directionsButton: "获取路线",
+        privacyNoticeTitle: "我们如何使用您的信息",
+        privacyNotice: "我们仅使用您提供的信息为您的家庭登记节日活动并准备礼物，不会出售或分享这些信息。",
+        duplicateWarning: "此电话号码可能已经登记。如果您已有票号，请使用“查找我的票号”，无需再次登记。",
+
+        findTicketButton: "已经登记？查找我的票号",
+        findTicketTitle: "查找我的票号",
+        findTicketDescription: "请输入登记时使用的电话号码和家长/监护人姓名。",
+        findTicketPhoneLabel: "联系电话",
+        findTicketParentNameLabel: "家长 / 监护人姓名",
+        findTicketSubmitButton: "查找票号",
+        findTicketSearchingButton: "正在查找...",
+        findTicketNotFound: "未找到与该电话号码和家长姓名匹配的票号。请检查后重试。",
+        findTicketMissingFields: "请输入电话号码和家长/监护人姓名。",
+        findTicketError: "目前无法查找您的票号。请重试。",
+        findTicketResultTitle: "您的票号",
+        findTicketCloseButton: "关闭",
+
         errors: {
             parentNameRequired: "请输入家长/监护人姓名。",
             phoneRequired: "请输入有效的电话号码。",
@@ -412,12 +543,17 @@ export const HOLIDAY_TRANSLATIONS: Record<HolidayLanguage, HolidayTranslation> =
             atLeastOneChild: "请至少添加一名儿童（0–18岁）。",
             childNameRequired: "请输入儿童姓名。",
             childBirthdateRequired: "请输入儿童出生日期。",
+            childBirthdateInvalid: "请输入有效的出生日期，日期不能晚于今天。",
             childSchoolRequired: "请输入每位儿童的学校名称。",
             childAgeRange: "儿童年龄须在 0 至 18 岁之间。",
             childOverAge: "{name}已超过18岁，不符合资格。本活动仅限18岁及以下青少年参加。",
             childLimitReached: "有超过3名儿童的家庭请前往Hope's Corner服务台现场登记。此在线登记表不适用于有超过3名儿童的家庭。",
             slotRequired: "请选择一个有效的时间段。",
             allSlotsFull: "所有到场时间段均已满额，登记通道已关闭。",
+            slotFull: "该时间段已满。请重试以获取下一个可用时间段。",
+            rateLimited: "尝试次数过多。请等待几分钟后重试。",
+            temporarilyUnavailable: "登记服务暂时不可用。请稍后重试。",
+            invalidSubmission: "无法处理此登记。请检查信息后重试。",
             submissionFailed: "提交登记失败，请检查填写信息后重试。",
         },
     },
