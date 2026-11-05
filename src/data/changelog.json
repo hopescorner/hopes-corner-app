@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.51.0",
+    "date": "November 5, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Find My Ticket and Save Your Progress",
+        "description": "Families can look up a lost ticket with their phone number and parent/guardian name, or reopen an unfinished form after a refresh. Children can also be marked not in school yet."
+      },
+      {
+        "type": "improvement",
+        "title": "Fully Translated Holiday Registration",
+        "description": "Age-group labels, server validation messages, and screen-reader language now follow the selected language. Phone fields accept pasted +1 numbers, birthdates reject future dates, and walk-in registration records the family's language."
+      },
+      {
+        "type": "improvement",
+        "title": "Event Day Details and Privacy",
+        "description": "The confirmation page shows the event date or year, adds a calendar download and directions link, and prints just the ticket. A short privacy notice explains how family information is used."
+      }
+    ]
+  },
+  {
     "version": "0.50.1",
     "date": "November 4, 2026",
     "highlights": [

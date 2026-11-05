@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.51.0] - 2026-11-05
+
+### Added
+
+- Families can now use **Find My Ticket** on the public holiday form. A rate-limited lookup by phone number and parent/guardian name returns the ticket number, arrival time, QR code, and downloadable ticket image/PDF. Child records are never returned.
+- The public form saves an unfinished registration on the device and restores it after a refresh or accidental back navigation.
+- Children can be marked **Not in school yet**, so families with infants and toddlers are not forced to enter a school.
+- A duplicate-phone warning appears when a number may already be registered, with a pointer to Find My Ticket.
+- The confirmation page now shows the event date or year, an **Add to Calendar** download, and a Google Maps directions link. Printing now prints the ticket without the action buttons.
+- Walk-in registration has a language selector so staff can record the family's actual language.
+
+### Changed
+
+- Localized the remaining public holiday text: age-group labels on child cards and confirmation, validation errors from the API, rate-limit and slot-full messages, and the document language used by screen readers.
+- Phone fields accept pasted numbers with a `+1` country code instead of turning the `1` into the area code.
+- Birthdate fields are bounded to today and reject future dates, with a translated error.
+- Child name, birthdate, age, and school labels are now associated with their inputs for screen readers, and the city/housing/income option groups use accessible fieldsets with `aria-pressed`.
+- Added a short privacy notice explaining how the collected family information is used.
+
+### Tests
+
+- Added coverage for phone normalization, draft autosave/restore, duplicate warnings, ticket lookup, not-in-school submissions, localized age groups and API errors, birthdate bounds, walk-in language capture, and calendar export.
+
 ## [0.50.1] - 2026-11-04
 
 ### Fixed
