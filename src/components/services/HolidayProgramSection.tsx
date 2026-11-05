@@ -40,6 +40,7 @@ import {
     HOLIDAY_TIME_SLOTS,
     MAX_PARENTS_PER_HOLIDAY_SLOT,
     HOLIDAY_CITIES,
+    HOLIDAY_NO_SCHOOL_VALUE,
 } from '@/lib/holiday/constants';
 import {
     formatAgeGroupLabel,
@@ -48,9 +49,18 @@ import {
     calculateRecommendedCards,
     calculateAge,
 } from '@/lib/holiday/ageGroups';
+import { formatHolidayPhone, normalizeHolidayPhoneDigits } from '@/lib/holiday/phone';
+import { formatHolidaySchoolLabel } from '@/lib/holiday/display';
 import { HolidayQRScannerModal } from '@/components/services/HolidayQRScannerModal';
 import { HolidayShopperQRModal } from '@/components/services/HolidayShopperQRModal';
 import toast from 'react-hot-toast';
+
+function todayIsoDate(): string {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${month}-${day}`;
+}
 
 export function HolidayProgramSection() {
     const searchInputId = useId();
@@ -60,6 +70,7 @@ export function HolidayProgramSection() {
     const walkinHousingId = useId();
     const walkinIncomeId = useId();
     const walkinTimeSlotId = useId();
+    const walkinLanguageId = useId();
     const checkinGroceryCardsId = useId();
     const checkinTeenCardsId = useId();
     const checkinNotesId = useId();
@@ -134,9 +145,10 @@ export function HolidayProgramSection() {
     const [walkInHousing, setWalkInHousing] = useState<HolidayHousingStatus>('house_apartment');
     const [walkInIncome, setWalkInIncome] = useState<HolidayIncomeRange>('0_40k');
     const [walkInSlot, setWalkInSlot] = useState<string>(HOLIDAY_TIME_SLOTS[0].id);
+    const [walkInLanguage, setWalkInLanguage] = useState<HolidayLanguage>('en');
     const [walkInChildren, setWalkInChildren] = useState<
-        Array<{ name: string; birthdate: string; age: number; school: string }>
-    >([{ name: '', birthdate: '', age: 0, school: '' }]);
+        Array<{ name: string; birthdate: string; age: number; school: string; notInSchool: boolean }>
+    >([{ name: '', birthdate: '', age: 0, school: '', notInSchool: false }]);
 
     const metrics = useMemo(() => selectHolidayMetrics(registrations), [registrations]);
     const slotCounts = useMemo(() => selectSlotCounts(registrations), [registrations]);
@@ -198,7 +210,10 @@ export function HolidayProgramSection() {
     };
 
     const handleAddWalkInChild = () => {
-        setWalkInChildren((prev) => [...prev, { name: '', birthdate: '', age: 0, school: '' }]);
+        setWalkInChildren((prev) => [
+            ...prev,
+            { name: '', birthdate: '', age: 0, school: '', notInSchool: false },
+        ]);
     };
 
     const handleRemoveWalkInChild = (idx: number) => {
@@ -212,7 +227,7 @@ export function HolidayProgramSection() {
             toast.error('Please enter parent name');
             return;
         }
-        const phoneDigits = walkInPhone.replace(/\D/g, '');
+        const phoneDigits = normalizeHolidayPhoneDigits(walkInPhone);
         if (!phoneDigits || phoneDigits.length !== 10) {
             toast.error('Please enter a valid 10-digit phone number');
             return;
@@ -226,7 +241,7 @@ export function HolidayProgramSection() {
                 toast.error(`Please enter the birthdate for child ${index + 1}`);
                 return;
             }
-            if (!child.school.trim()) {
+            if (!child.school.trim() && !child.notInSchool) {
                 toast.error(`Please enter the school name for child ${index + 1}`);
                 return;
             }
@@ -243,12 +258,12 @@ export function HolidayProgramSection() {
             housingStatus: walkInHousing,
             incomeRange: walkInIncome,
             timeSlot: walkInSlot,
-            language: 'en' as HolidayLanguage,
+            language: walkInLanguage,
             children: walkInChildren.map((c) => ({
                 name: c.name.trim(),
                 birthdate: c.birthdate,
                 age: c.age,
-                school: c.school.trim(),
+                school: c.notInSchool ? HOLIDAY_NO_SCHOOL_VALUE : c.school.trim(),
             })),
         };
 
@@ -258,7 +273,7 @@ export function HolidayProgramSection() {
             setIsWalkInModalOpen(false);
             setWalkInParentName('');
             setWalkInPhone('');
-            setWalkInChildren([{ name: '', birthdate: '', age: 0, school: '' }]);
+            setWalkInChildren([{ name: '', birthdate: '', age: 0, school: '', notInSchool: false }]);
         } else {
             toast.error('Failed to add walk-in registration');
         }
@@ -312,7 +327,7 @@ export function HolidayProgramSection() {
             toast.error('Please enter parent name');
             return;
         }
-        const phoneDigits = editPhone.replace(/\D/g, '');
+        const phoneDigits = normalizeHolidayPhoneDigits(editPhone);
         if (!phoneDigits || phoneDigits.length !== 10) {
             toast.error('Please enter a valid 10-digit phone number');
             return;
@@ -846,7 +861,7 @@ export function HolidayProgramSection() {
                                                             <span
                                                                 key={child.id || cIdx}
                                                                 className="inline-flex items-center gap-1 bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md font-medium text-[11px]"
-                                                                title={`${child.name} (Age ${child.age})${child.school ? ` - ${child.school}` : ''}`}
+                                                                title={`${child.name} (Age ${child.age})${child.school ? ` - ${formatHolidaySchoolLabel(child.school)}` : ''}`}
                                                             >
                                                                 <span>{child.name}</span>
                                                                 <span className="text-purple-600 font-bold">({child.age}y)</span>
@@ -996,7 +1011,7 @@ export function HolidayProgramSection() {
                                                     <span
                                                         key={child.id || cIdx}
                                                         className="inline-flex items-center gap-1 bg-purple-50 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md font-medium text-[11px]"
-                                                        title={`${child.name} (Age ${child.age})${child.school ? ` - ${child.school}` : ''}`}
+                                                        title={`${child.name} (Age ${child.age})${child.school ? ` - ${formatHolidaySchoolLabel(child.school)}` : ''}`}
                                                     >
                                                         <span>{child.name}</span>
                                                         <span className="text-purple-600 font-bold">({child.age}y)</span>
@@ -1115,7 +1130,7 @@ export function HolidayProgramSection() {
                                         <div key={c.id || i} className="p-2.5 flex items-center justify-between text-xs">
                                             <div>
                                                 <span className="font-bold text-slate-800">{c.name}</span>
-                                                {c.school && <span className="text-[10px] text-slate-500 block">{c.school}</span>}
+                                                {c.school && <span className="text-[10px] text-slate-500 block">{formatHolidaySchoolLabel(c.school)}</span>}
                                             </div>
                                             <div className="flex items-center gap-1.5">
                                                 <span className="bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full text-[10px]">
@@ -1248,19 +1263,10 @@ export function HolidayProgramSection() {
                                         id={walkinPhoneId}
                                         type="tel"
                                         inputMode="numeric"
-                                        maxLength={14}
+                                        maxLength={20}
                                         required
                                         value={walkInPhone}
-                                        onChange={(e) => {
-                                            const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                            if (digits.length <= 3) {
-                                                setWalkInPhone(digits);
-                                            } else if (digits.length <= 6) {
-                                                setWalkInPhone(`(${digits.slice(0, 3)}) ${digits.slice(3)}`);
-                                            } else {
-                                                setWalkInPhone(`(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`);
-                                            }
-                                        }}
+                                        onChange={(e) => setWalkInPhone(formatHolidayPhone(e.target.value))}
                                         placeholder="e.g. (650) 555-0123"
                                         className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900"
                                     />
@@ -1329,6 +1335,19 @@ export function HolidayProgramSection() {
                                         ))}
                                     </select>
                                 </div>
+                                <div className="space-y-1">
+                                    <label htmlFor={walkinLanguageId} className="block text-xs font-bold uppercase text-slate-600">Language</label>
+                                    <select
+                                        id={walkinLanguageId}
+                                        value={walkInLanguage}
+                                        onChange={(e) => setWalkInLanguage(e.target.value as HolidayLanguage)}
+                                        className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900"
+                                    >
+                                        <option value="en">English</option>
+                                        <option value="es">Español</option>
+                                        <option value="zh">中文 (Mandarin)</option>
+                                    </select>
+                                </div>
                             </div>
 
                             {/* Children */}
@@ -1386,6 +1405,7 @@ export function HolidayProgramSection() {
                                                 title="Birthdate"
                                                 aria-label={`Child ${i + 1} birthdate`}
                                                 required
+                                                max={todayIsoDate()}
                                                 value={c.birthdate}
                                                 onChange={(e) => {
                                                     const val = e.target.value;
@@ -1401,21 +1421,44 @@ export function HolidayProgramSection() {
                                                 }}
                                                 className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900"
                                             />
-                                            <input
-                                                type="text"
-                                                placeholder="School Name"
-                                                required
-                                                value={c.school}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    setWalkInChildren((prev) => {
-                                                        const n = [...prev];
-                                                        n[i] = { ...n[i], school: val };
-                                                        return n;
-                                                    });
-                                                }}
-                                                className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 sm:col-span-2"
-                                            />
+                                            <div className="sm:col-span-2 space-y-1">
+                                                <input
+                                                    type="text"
+                                                    placeholder="School Name"
+                                                    required={!c.notInSchool}
+                                                    disabled={c.notInSchool}
+                                                    value={c.notInSchool ? '' : c.school}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setWalkInChildren((prev) => {
+                                                            const n = [...prev];
+                                                            n[i] = { ...n[i], school: val };
+                                                            return n;
+                                                        });
+                                                    }}
+                                                    className="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                                                />
+                                                <label className="flex items-center gap-2 text-[11px] text-slate-600">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={c.notInSchool}
+                                                        onChange={(e) => {
+                                                            const checked = e.target.checked;
+                                                            setWalkInChildren((prev) => {
+                                                                const n = [...prev];
+                                                                n[i] = {
+                                                                    ...n[i],
+                                                                    notInSchool: checked,
+                                                                    school: checked ? HOLIDAY_NO_SCHOOL_VALUE : '',
+                                                                };
+                                                                return n;
+                                                            });
+                                                        }}
+                                                        className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
+                                                    />
+                                                    Not in school yet
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -1486,19 +1529,10 @@ export function HolidayProgramSection() {
                                         id={editPhoneId}
                                         type="tel"
                                         inputMode="numeric"
-                                        maxLength={14}
+                                        maxLength={20}
                                         required
                                         value={editPhone}
-                                        onChange={(e) => {
-                                            const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                                            if (digits.length <= 3) {
-                                                setEditPhone(digits);
-                                            } else if (digits.length <= 6) {
-                                                setEditPhone(`(${digits.slice(0, 3)}) ${digits.slice(3)}`);
-                                            } else {
-                                                setEditPhone(`(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`);
-                                            }
-                                        }}
+                                        onChange={(e) => setEditPhone(formatHolidayPhone(e.target.value))}
                                         placeholder="e.g. (650) 555-0123"
                                         className="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900"
                                     />

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import React from 'react';
 import HolidayRegistrationClient from '../HolidayRegistrationClient';
 
@@ -17,6 +17,7 @@ function switchToEnglish() {
 describe('HolidayRegistrationClient', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        process.env.NEXT_PUBLIC_HOLIDAY_EVENT_MONTH_DAY = '12-20';
         (global.fetch as any).mockImplementation((url: string, opts?: any) => {
             if (url.includes('/api/holiday/register') && opts?.method === 'POST') {
                 const payload = JSON.parse(opts.body || '{}');
@@ -56,6 +57,10 @@ describe('HolidayRegistrationClient', () => {
                 json: async () => ({ error: 'Not found' }),
             });
         });
+    });
+
+    afterEach(() => {
+        delete process.env.NEXT_PUBLIC_HOLIDAY_EVENT_MONTH_DAY;
     });
 
     it('renders the public registration form in Spanish by default', () => {
@@ -218,7 +223,10 @@ describe('HolidayRegistrationClient', () => {
             expect(screen.queryByText(/Family Grocery Card/i)).toBeNull();
             expect(screen.getByText(/Please arrive 10 minutes before your assigned time slot and bring your ticket confirmation on your phone\./i)).toBeDefined();
             expect(screen.getByText(/Official Event Check-In QR Code/i)).toBeDefined();
-            expect(screen.getByAltText(/Ticket QR Code/i)).toBeDefined();
+            expect(screen.getByAltText(/Official Event Check-In QR Code/i)).toBeDefined();
+            expect(screen.getByText(/Event Date/i)).toBeDefined();
+            expect(screen.getByRole('button', { name: /Add to Calendar/i })).toBeDefined();
+            expect(screen.getByRole('link', { name: /Get Directions/i })).toBeDefined();
 
             const requestBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
             expect(requestBody.language).toBe('en');
@@ -489,5 +497,199 @@ describe('HolidayRegistrationClient', () => {
                 { auto: true }
             );
         });
+    });
+
+    it('shows age group labels in the selected language', () => {
+        render(<HolidayRegistrationClient />);
+
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        const currentYear = new Date().getFullYear();
+        fireEvent.change(birthdateInput, { target: { value: `${currentYear - 8}-01-01` } });
+
+        expect(screen.getByText('Niño/a (5-12)')).toBeDefined();
+    });
+
+    it('strips a pasted +1 country code from the phone number', () => {
+        render(<HolidayRegistrationClient />);
+        switchToEnglish();
+
+        const phoneInput = screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i) as HTMLInputElement;
+        fireEvent.change(phoneInput, { target: { value: '+1 (650) 555-1234' } });
+
+        expect(phoneInput.value).toBe('(650) 555-1234');
+    });
+
+    it('bounds the birthdate field and rejects a future date', async () => {
+        render(<HolidayRegistrationClient />);
+        switchToEnglish();
+
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        const today = new Date();
+        const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        expect(birthdateInput.max).toBe(todayIso);
+        expect(birthdateInput.min).toBeDefined();
+
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i), {
+            target: { value: '650-555-1111' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Alexander Gonzalez/i), {
+            target: { value: 'Child 1' },
+        });
+
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const futureIso = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+        fireEvent.change(birthdateInput, { target: { value: futureIso } });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Mountain View High/i), {
+            target: { value: 'Mountain View High' },
+        });
+
+        fireEvent.submit(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }).closest('form')!);
+
+        await waitFor(() => {
+            expect(screen.getByText(/valid birthdate that is not in the future/i)).toBeDefined();
+        });
+        expect(global.fetch).not.toHaveBeenCalled();
+    });
+
+    it('submits the not-in-school marker when a child has no school yet', async () => {
+        render(<HolidayRegistrationClient />);
+        switchToEnglish();
+
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Maria Gonzalez/i), {
+            target: { value: 'Test Parent' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i), {
+            target: { value: '650-555-1111' },
+        });
+        fireEvent.change(screen.getByPlaceholderText(/e\.g\. Alexander Gonzalez/i), {
+            target: { value: 'Toddler' },
+        });
+
+        const currentYear = new Date().getFullYear();
+        const birthdateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+        fireEvent.change(birthdateInput, { target: { value: `${currentYear - 2}-01-01` } });
+
+        fireEvent.click(screen.getByLabelText(/Not in school yet/i));
+
+        const schoolInput = screen.getByPlaceholderText(/e\.g\. Mountain View High/i) as HTMLInputElement;
+        expect(schoolInput.disabled).toBe(true);
+
+        fireEvent.submit(screen.getByRole('button', { name: /Complete Registration & Get Ticket/i }).closest('form')!);
+
+        await waitFor(() => {
+            expect(global.fetch).toHaveBeenCalledWith(
+                '/api/holiday/register',
+                expect.anything()
+            );
+        });
+
+        const requestBody = JSON.parse((global.fetch as any).mock.calls[0][1].body);
+        expect(requestBody.children[0].school).toBe('not_in_school');
+    });
+
+    it('saves an unfinished registration and restores it on the next visit', async () => {
+        const firstRender = render(<HolidayRegistrationClient />);
+
+        fireEvent.change(screen.getByPlaceholderText(/ej\. María González/i), {
+            target: { value: 'Draft Parent' },
+        });
+
+        await waitFor(() => {
+            expect(localStorage.setItem).toHaveBeenCalled();
+        });
+
+        const lastCall = (localStorage.setItem as any).mock.calls.at(-1);
+        expect(lastCall[0]).toContain('holiday-registration-draft');
+        expect(lastCall[1]).toContain('Draft Parent');
+
+        firstRender.unmount();
+        render(<HolidayRegistrationClient />);
+
+        expect(screen.getByDisplayValue('Draft Parent')).toBeDefined();
+    });
+
+    it('warns when the phone number may already be registered', async () => {
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/api/holiday/duplicate-check')) {
+                return Promise.resolve({ ok: true, json: async () => ({ exists: true }) });
+            }
+            return Promise.resolve({ ok: false, json: async () => ({}) });
+        });
+
+        render(<HolidayRegistrationClient />);
+        switchToEnglish();
+
+        const phoneInput = screen.getByPlaceholderText(/e\.g\. \(650\) 555-0123/i);
+        fireEvent.change(phoneInput, { target: { value: '6505551111' } });
+        fireEvent.blur(phoneInput);
+
+        await waitFor(() => {
+            expect(screen.getByText(/may already be registered/i)).toBeDefined();
+        });
+
+        const duplicateCall = (global.fetch as any).mock.calls.find(
+            (call: any[]) => String(call[0]).includes('/api/holiday/duplicate-check')
+        );
+        expect(JSON.parse(duplicateCall[1].body).phone).toBe('(650) 555-1111');
+    });
+
+    it('finds an existing ticket by phone and parent name', async () => {
+        (global.fetch as any).mockImplementation((url: string) => {
+            if (url.includes('/api/holiday/lookup')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: async () => ({
+                        registration: {
+                            ticketNumber: 77,
+                            timeSlot: '10:00 AM - 10:20 AM',
+                            parentName: 'Maria Lopez',
+                            phone: '(650) 555-2222',
+                            city: 'Mountain View',
+                            childrenCount: 2,
+                            language: 'es',
+                            qrCodeDataUrl: 'data:image/png;base64,mockqr',
+                        },
+                    }),
+                });
+            }
+            return Promise.resolve({ ok: false, json: async () => ({}) });
+        });
+
+        render(<HolidayRegistrationClient />);
+
+        fireEvent.click(screen.getByRole('button', { name: /Buscar Mi Boleto/i }));
+
+        const dialog = screen.getByRole('dialog');
+        fireEvent.change(within(dialog).getByLabelText(/Nombre del Padre \/ Tutor/i), {
+            target: { value: 'Maria Lopez' },
+        });
+        fireEvent.change(within(dialog).getByLabelText(/Número de Teléfono/i), {
+            target: { value: '650-555-2222' },
+        });
+
+        fireEvent.submit(within(dialog).getByRole('button', { name: /Buscar Boleto/i }).closest('form')!);
+
+        await waitFor(() => {
+            expect(screen.getByText('#77')).toBeDefined();
+            expect(screen.getByText('10:00 AM - 10:20 AM')).toBeDefined();
+        });
+
+        const lookupCall = (global.fetch as any).mock.calls.find(
+            (call: any[]) => String(call[0]).includes('/api/holiday/lookup')
+        );
+        const lookupBody = JSON.parse(lookupCall[1].body);
+        expect(lookupBody.language).toBe('es');
+        expect(lookupBody.parentName).toBe('Maria Lopez');
+    });
+
+    it('shows the privacy notice about the information collected', () => {
+        render(<HolidayRegistrationClient />);
+
+        expect(screen.getByText(/Cómo Usamos Su Información/i)).toBeDefined();
+        expect(screen.getByText(/No la vendemos ni la compartimos/i)).toBeDefined();
     });
 });

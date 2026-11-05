@@ -230,6 +230,55 @@ describe('HolidayProgramSection', () => {
         expect(addSpy).not.toHaveBeenCalled();
     });
 
+    it('records the family language and not-in-school marker for walk-ins', async () => {
+        const addSpy = vi.fn().mockResolvedValue(mockRegistrations[0]);
+        useHolidayStore.setState({ addWalkInRegistration: addSpy });
+
+        render(<HolidayProgramSection />);
+        fireEvent.click(screen.getByRole('button', { name: /Add Walk-In/i }));
+
+        await waitFor(() => {
+            expect(screen.getByText('Register Family On-Site')).toBeDefined();
+        });
+
+        fireEvent.change(screen.getByLabelText(/Parent Name/i), {
+            target: { value: 'Familia López' },
+        });
+        const phoneInput = screen.getByLabelText(/^Phone/i) as HTMLInputElement;
+        fireEvent.change(phoneInput, { target: { value: '+1 (650) 555-1234' } });
+        expect(phoneInput.value).toBe('(650) 555-1234');
+
+        fireEvent.change(screen.getByLabelText(/Language/i), {
+            target: { value: 'es' },
+        });
+
+        fireEvent.change(screen.getByPlaceholderText('Child Name'), {
+            target: { value: 'Niño Pequeño' },
+        });
+        const currentYear = new Date().getFullYear();
+        const birthdate = `${currentYear - 3}-01-01`;
+        fireEvent.change(screen.getByLabelText(/Child 1 birthdate/i), {
+            target: { value: birthdate },
+        });
+
+        fireEvent.click(screen.getByLabelText(/Not in school yet/i));
+
+        fireEvent.submit(screen.getByRole('button', { name: /Save Walk-In/i }).closest('form')!);
+
+        await waitFor(() => {
+            expect(addSpy).toHaveBeenCalledWith(expect.objectContaining({
+                language: 'es',
+                children: [
+                    expect.objectContaining({
+                        name: 'Niño Pequeño',
+                        birthdate,
+                        school: 'not_in_school',
+                    }),
+                ],
+            }));
+        });
+    });
+
     it('shows edit buttons only for registrations waiting for check-in', () => {
         render(<HolidayProgramSection />);
 

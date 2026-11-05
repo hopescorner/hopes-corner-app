@@ -15,18 +15,30 @@ import {
     Info,
     Download,
     FileText,
+    CalendarDays,
+    Search,
+    X,
+    Navigation,
 } from 'lucide-react';
 import {
+    HolidayChild,
     HolidayLanguage,
     HolidayHousingStatus,
     HolidayIncomeRange,
     HolidayRegistration,
-    HolidayTimeSlotInfo,
 } from '@/types/holiday';
 import { HOLIDAY_TRANSLATIONS } from '@/lib/holiday/translations';
-import { HOLIDAY_CITIES, MAX_PUBLIC_HOLIDAY_CHILDREN } from '@/lib/holiday/constants';
-import { calculateAge, getHolidayAgeGroup, formatAgeGroupLabel } from '@/lib/holiday/ageGroups';
+import {
+    HOLIDAY_CITIES,
+    HOLIDAY_EVENT_YEAR,
+    HOLIDAY_NO_SCHOOL_VALUE,
+    MAX_PUBLIC_HOLIDAY_CHILDREN,
+    getHolidayEventDate,
+} from '@/lib/holiday/constants';
+import { calculateAge, getHolidayAgeGroup } from '@/lib/holiday/ageGroups';
 import { downloadTicketImage, downloadTicketPdf } from '@/lib/holiday/ticketImage';
+import { formatHolidayPhone, normalizeHolidayPhoneDigits } from '@/lib/holiday/phone';
+import { downloadHolidayEventIcs } from '@/lib/holiday/calendar';
 
 interface ChildFormState {
     id: string;
@@ -34,15 +46,47 @@ interface ChildFormState {
     birthdate: string;
     age: number;
     school: string;
+    notInSchool: boolean;
+}
+
+interface HolidayTicketLookupResult {
+    ticketNumber: number;
+    timeSlot: string;
+    parentName: string;
+    phone: string;
+    city: string;
+    childrenCount: number;
+    language: HolidayLanguage;
+    qrCodeDataUrl?: string;
+}
+
+type LookupStatus = 'idle' | 'searching' | 'not_found' | 'error';
+
+const DRAFT_STORAGE_KEY = `holiday-registration-draft-${HOLIDAY_EVENT_YEAR}`;
+const HOLIDAY_DIRECTIONS_URL =
+    'https://www.google.com/maps/dir/?api=1&destination=748+Mercy+St,+Mountain+View,+CA+94041';
+
+function toIsoDate(date: Date): string {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function emptyChild(id: string): ChildFormState {
+    return { id, name: '', birthdate: '', age: 0, school: '', notInSchool: false };
+}
+
+function resolveLanguage(value: unknown): HolidayLanguage {
+    return value === 'en' || value === 'zh' || value === 'es' ? value : 'es';
 }
 
 export default function HolidayRegistrationClient() {
     const parentNameId = useId();
     const phoneId = useId();
-    const cityId = useId();
     const otherCityId = useId();
-    const housingId = useId();
-    const incomeId = useId();
+    const childFieldsId = useId();
+    const lookupParentNameId = useId();
+    const lookupPhoneId = useId();
 
     const [language, setLanguage] = useState<HolidayLanguage>('es');
     const t = HOLIDAY_TRANSLATIONS[language];
@@ -55,17 +99,53 @@ export default function HolidayRegistrationClient() {
     const [incomeRange, setIncomeRange] = useState<HolidayIncomeRange>('0_40k');
     const [website, setWebsite] = useState('');
 
-    const [children, setChildren] = useState<ChildFormState[]>([
-        { id: '1', name: '', birthdate: '', age: 0, school: '' },
-    ]);
+    const [children, setChildren] = useState<ChildFormState[]>([emptyChild('1')]);
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [errorField, setErrorField] = useState<string | null>(null);
     const [childLimitNotice, setChildLimitNotice] = useState(false);
     const [confirmedRegistration, setConfirmedRegistration] = useState<HolidayRegistration | null>(null);
     const [isSavingImage, setIsSavingImage] = useState(false);
     const [isSavingPdf, setIsSavingPdf] = useState(false);
+    const [duplicateWarning, setDuplicateWarning] = useState(false);
+    const [draftLoaded, setDraftLoaded] = useState(false);
+
+    const [lookupOpen, setLookupOpen] = useState(false);
+    const [lookupParentName, setLookupParentName] = useState('');
+    const [lookupPhone, setLookupPhone] = useState('');
+    const [lookupStatus, setLookupStatus] = useState<LookupStatus>('idle');
+    const [lookupMessage, setLookupMessage] = useState<string | null>(null);
+    const [lookupResult, setLookupResult] = useState<HolidayTicketLookupResult | null>(null);
+
     const errorRef = useRef<HTMLDivElement | null>(null);
+    const lastDuplicateCheckRef = useRef('');
+
+    const now = new Date();
+    const todayIso = toIsoDate(now);
+    const minBirthdateIso = toIsoDate(
+        new Date(now.getFullYear() - 19, now.getMonth(), now.getDate())
+    );
+    const eventDate = getHolidayEventDate(now);
+    const eventDateLabel = eventDate
+        ? new Intl.DateTimeFormat(language, { dateStyle: 'long' }).format(eventDate)
+        : String(HOLIDAY_EVENT_YEAR);
+
+    const childFieldId = (index: number, field: 'name' | 'birthdate' | 'age' | 'school') =>
+        `${childFieldsId}-${field}-${index}`;
+
+    const showError = (message: string, fieldId?: string) => {
+        setErrorMessage(message);
+        setErrorField(fieldId ?? null);
+        if (fieldId) {
+            window.setTimeout(() => document.getElementById(fieldId)?.focus(), 0);
+        }
+    };
+
+    const clearError = () => {
+        setErrorMessage(null);
+        setErrorField(null);
+    };
 
     // Keep our translated validation visible when the form is submitted from
     // the bottom of the page. Browser validation bubbles are disabled below.
@@ -76,6 +156,91 @@ export default function HolidayRegistrationClient() {
             node.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }, [errorMessage]);
+
+    // Screen readers should pronounce the form in the selected language.
+    useEffect(() => {
+        const previous = document.documentElement.lang;
+        document.documentElement.lang = language;
+        return () => {
+            document.documentElement.lang = previous;
+        };
+    }, [language]);
+
+    // Restore an unfinished form from this device.
+    useEffect(() => {
+        try {
+            const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
+            if (raw) {
+                const draft = JSON.parse(raw) as Record<string, unknown>;
+                if (draft && typeof draft === 'object') {
+                    setLanguage(resolveLanguage(draft.language));
+                    if (typeof draft.parentName === 'string') setParentName(draft.parentName);
+                    if (typeof draft.phone === 'string') setPhone(draft.phone);
+                    if (typeof draft.selectedCity === 'string') setSelectedCity(draft.selectedCity);
+                    if (typeof draft.otherCity === 'string') setOtherCity(draft.otherCity);
+                    if (draft.housingStatus === 'house_apartment' || draft.housingStatus === 'vehicle_rv_camper' || draft.housingStatus === 'temp_shelter_motel' || draft.housingStatus === 'outside') {
+                        setHousingStatus(draft.housingStatus);
+                    }
+                    if (draft.incomeRange === '0_40k' || draft.incomeRange === '41_65k' || draft.incomeRange === '66_90k' || draft.incomeRange === 'over_90k') {
+                        setIncomeRange(draft.incomeRange);
+                    }
+                    if (Array.isArray(draft.children) && draft.children.length > 0) {
+                        setChildren(
+                            draft.children.slice(0, MAX_PUBLIC_HOLIDAY_CHILDREN).map((child, index) => {
+                                const stored = (child ?? {}) as Record<string, unknown>;
+                                return {
+                                    id: typeof stored.id === 'string' ? stored.id : String(index + 1),
+                                    name: typeof stored.name === 'string' ? stored.name : '',
+                                    birthdate: typeof stored.birthdate === 'string' ? stored.birthdate : '',
+                                    age: typeof stored.age === 'number' ? stored.age : 0,
+                                    school: typeof stored.school === 'string' ? stored.school : '',
+                                    notInSchool: Boolean(stored.notInSchool),
+                                };
+                            })
+                        );
+                    }
+                }
+            }
+        } catch {
+            window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } finally {
+            setDraftLoaded(true);
+        }
+    }, []);
+
+    // Save the draft as the family types so a refresh or accidental back does
+    // not lose a long form.
+    useEffect(() => {
+        if (!draftLoaded || confirmedRegistration) return;
+        try {
+            window.localStorage.setItem(
+                DRAFT_STORAGE_KEY,
+                JSON.stringify({
+                    language,
+                    parentName,
+                    phone,
+                    selectedCity,
+                    otherCity,
+                    housingStatus,
+                    incomeRange,
+                    children,
+                })
+            );
+        } catch {
+            // Storage can be unavailable in private mode; the form still works.
+        }
+    }, [
+        draftLoaded,
+        confirmedRegistration,
+        language,
+        parentName,
+        phone,
+        selectedCity,
+        otherCity,
+        housingStatus,
+        incomeRange,
+        children,
+    ]);
 
     useEffect(() => {
         if (!confirmedRegistration) return;
@@ -135,7 +300,6 @@ export default function HolidayRegistrationClient() {
         }
     };
 
-
     const handleAddChild = () => {
         if (children.length >= MAX_PUBLIC_HOLIDAY_CHILDREN) {
             setChildLimitNotice(true);
@@ -144,18 +308,34 @@ export default function HolidayRegistrationClient() {
         setChildLimitNotice(false);
         setChildren((prev) => [
             ...prev,
-            { id: String(Date.now()), name: '', birthdate: '', age: 0, school: '' },
+            emptyChild(typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : String(Date.now())),
         ]);
     };
 
     const handlePhoneChange = (val: string) => {
-        const digits = val.replace(/\D/g, '').slice(0, 10);
-        if (digits.length <= 3) {
-            setPhone(digits);
-        } else if (digits.length <= 6) {
-            setPhone(`(${digits.slice(0, 3)}) ${digits.slice(3)}`);
-        } else {
-            setPhone(`(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`);
+        setDuplicateWarning(false);
+        setPhone(formatHolidayPhone(val));
+    };
+
+    const handlePhoneBlur = async () => {
+        const digits = normalizeHolidayPhoneDigits(phone);
+        if (digits.length !== 10 || lastDuplicateCheckRef.current === digits) return;
+
+        lastDuplicateCheckRef.current = digits;
+        try {
+            const res = await fetch('/api/holiday/duplicate-check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, language }),
+            });
+            if (!res.ok) {
+                lastDuplicateCheckRef.current = '';
+                return;
+            }
+            const data = await res.json();
+            setDuplicateWarning(Boolean(data.exists));
+        } catch {
+            lastDuplicateCheckRef.current = '';
         }
     };
 
@@ -178,53 +358,69 @@ export default function HolidayRegistrationClient() {
         });
     };
 
+    const handleNotInSchoolChange = (index: number, checked: boolean) => {
+        setChildren((prev) => {
+            const next = [...prev];
+            next[index] = {
+                ...next[index],
+                notInSchool: checked,
+                school: checked ? HOLIDAY_NO_SCHOOL_VALUE : '',
+            };
+            return next;
+        });
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setErrorMessage(null);
+        clearError();
 
         // Validation
         if (!parentName.trim()) {
-            setErrorMessage(t.errors.parentNameRequired);
+            showError(t.errors.parentNameRequired, parentNameId);
             return;
         }
-        const phoneDigits = phone.replace(/\D/g, '');
+        const phoneDigits = normalizeHolidayPhoneDigits(phone);
         if (!phoneDigits || phoneDigits.length !== 10) {
-            setErrorMessage(t.errors.phoneRequired);
+            showError(t.errors.phoneRequired, phoneId);
             return;
         }
         const effectiveCity = selectedCity === 'Other' ? otherCity.trim() : selectedCity;
         if (!effectiveCity) {
-            setErrorMessage(t.errors.cityRequired);
+            showError(t.errors.cityRequired, otherCityId);
             return;
         }
         if (children.length === 0) {
-            setErrorMessage(t.errors.atLeastOneChild);
+            showError(t.errors.atLeastOneChild);
             return;
         }
         if (children.length > MAX_PUBLIC_HOLIDAY_CHILDREN) {
-            setErrorMessage(t.errors.childLimitReached);
+            showError(t.errors.childLimitReached);
             return;
         }
-        for (const child of children) {
+        for (const [index, child] of children.entries()) {
             if (!child.name.trim()) {
-                setErrorMessage(t.errors.childNameRequired);
+                showError(t.errors.childNameRequired, childFieldId(index, 'name'));
                 return;
             }
             if (!child.birthdate || !child.birthdate.trim()) {
-                setErrorMessage(t.errors.childBirthdateRequired);
+                showError(t.errors.childBirthdateRequired, childFieldId(index, 'birthdate'));
                 return;
             }
-            if (!child.school.trim()) {
-                setErrorMessage(t.errors.childSchoolRequired);
+            if (child.birthdate > todayIso) {
+                showError(t.errors.childBirthdateInvalid, childFieldId(index, 'birthdate'));
+                return;
+            }
+            if (!child.notInSchool && !child.school.trim()) {
+                showError(t.errors.childSchoolRequired, childFieldId(index, 'school'));
                 return;
             }
             if (child.age < 0) {
-                setErrorMessage(t.errors.childAgeRange);
+                showError(t.errors.childAgeRange, childFieldId(index, 'birthdate'));
                 return;
             }
             if (child.age > 18) {
                 const name = child.name.trim() || 'This child';
-                setErrorMessage(t.errors.childOverAge.replace('{name}', name));
+                showError(t.errors.childOverAge.replace('{name}', name), childFieldId(index, 'birthdate'));
                 return;
             }
         }
@@ -246,18 +442,23 @@ export default function HolidayRegistrationClient() {
                         name: c.name.trim(),
                         birthdate: c.birthdate || undefined,
                         age: c.age,
-                        school: c.school.trim() || undefined,
+                        school: c.notInSchool ? HOLIDAY_NO_SCHOOL_VALUE : c.school.trim(),
                     })),
                 }),
             });
 
             const data = await res.json();
             if (!res.ok) {
-                setErrorMessage(data.error || t.errors.submissionFailed);
+                showError(data.error || t.errors.submissionFailed);
                 setIsSubmitting(false);
                 return;
             }
 
+            try {
+                window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+            } catch {
+                // Ignore storage failures.
+            }
             setConfirmedRegistration(data.registration);
             if (data.registration?.language) {
                 setLanguage(data.registration.language);
@@ -265,12 +466,11 @@ export default function HolidayRegistrationClient() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
             console.error('Submission exception:', err);
-            setErrorMessage(t.errors.submissionFailed);
+            showError(t.errors.submissionFailed);
         } finally {
             setIsSubmitting(false);
         }
     };
-
 
     const handleReset = () => {
         setConfirmedRegistration(null);
@@ -281,17 +481,110 @@ export default function HolidayRegistrationClient() {
         setHousingStatus('house_apartment');
         setIncomeRange('0_40k');
         setWebsite('');
-        setChildren([{ id: '1', name: '', birthdate: '', age: 0, school: '' }]);
+        setChildren([emptyChild('1')]);
         setErrorMessage(null);
+        setErrorField(null);
         setChildLimitNotice(false);
+        setDuplicateWarning(false);
+        lastDuplicateCheckRef.current = '';
+        try {
+            window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch {
+            // Ignore storage failures.
+        }
     };
 
+    const closeLookup = () => {
+        setLookupOpen(false);
+        setLookupResult(null);
+        setLookupStatus('idle');
+        setLookupMessage(null);
+        setLookupParentName('');
+        setLookupPhone('');
+    };
+
+    const openLookup = () => {
+        if (!lookupParentName && parentName) setLookupParentName(parentName);
+        if (!lookupPhone && phone) setLookupPhone(phone);
+        setLookupOpen(true);
+    };
+
+    const handleLookup = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLookupResult(null);
+        setLookupMessage(null);
+
+        const digits = normalizeHolidayPhoneDigits(lookupPhone);
+        if (digits.length !== 10 || !lookupParentName.trim()) {
+            setLookupStatus('error');
+            setLookupMessage(t.findTicketMissingFields);
+            return;
+        }
+
+        setLookupStatus('searching');
+        try {
+            const res = await fetch('/api/holiday/lookup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: lookupPhone,
+                    parentName: lookupParentName.trim(),
+                    language,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setLookupStatus(res.status === 404 ? 'not_found' : 'error');
+                setLookupMessage(data.error || t.findTicketError);
+                return;
+            }
+            setLookupResult(data.registration as HolidayTicketLookupResult);
+            setLookupStatus('idle');
+        } catch {
+            setLookupStatus('error');
+            setLookupMessage(t.findTicketError);
+        }
+    };
+
+    const lookupLanguage = lookupResult?.language ?? language;
+    const lookupT = HOLIDAY_TRANSLATIONS[lookupLanguage];
+
+    const handleDownloadLookupImage = async () => {
+        if (!lookupResult) return;
+        await downloadTicketImage({
+            ticketNumber: lookupResult.ticketNumber,
+            timeSlot: lookupResult.timeSlot,
+            parentName: lookupResult.parentName,
+            phone: lookupResult.phone,
+            city: lookupResult.city,
+            qrCodeDataUrl: lookupResult.qrCodeDataUrl,
+            childrenCount: lookupResult.childrenCount,
+            language: lookupResult.language,
+        });
+    };
+
+    const handleDownloadLookupPdf = async () => {
+        if (!lookupResult) return;
+        await downloadTicketPdf({
+            ticketNumber: lookupResult.ticketNumber,
+            timeSlot: lookupResult.timeSlot,
+            parentName: lookupResult.parentName,
+            phone: lookupResult.phone,
+            city: lookupResult.city,
+            qrCodeDataUrl: lookupResult.qrCodeDataUrl,
+            childrenCount: lookupResult.childrenCount,
+            language: lookupResult.language,
+        });
+    };
 
     if (confirmedRegistration) {
+        const confirmedChild = (child: HolidayChild) =>
+            child.school === HOLIDAY_NO_SCHOOL_VALUE ? t.childNotInSchoolLabel : child.school;
+
         return (
-            <div data-testid="holiday-registration-page" className="min-h-screen bg-slate-50 text-slate-900 px-4 py-8 sm:py-12">
+            <div data-testid="holiday-registration-page" className="min-h-screen bg-slate-50 text-slate-900 px-4 py-8 sm:py-12 print:bg-white print:py-0">
                 <div className="mx-auto w-full max-w-2xl">
-                    <div className="mb-6 flex items-center justify-center">
+                    <div className="mb-6 flex items-center justify-center print:hidden">
                         <Image
                             src="/hope-corner-logo-v2.svg"
                             alt="Hope's Corner"
@@ -302,7 +595,7 @@ export default function HolidayRegistrationClient() {
                         />
                     </div>
 
-                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm print:border-0 print:shadow-none">
                         <div className="border-b border-slate-200 px-6 py-7 text-center sm:px-8">
                             <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
                                 <CheckCircle2 className="h-6 w-6" />
@@ -327,7 +620,7 @@ export default function HolidayRegistrationClient() {
                                         <div className="relative h-44 w-44 overflow-hidden rounded-lg border border-slate-100 bg-white p-1">
                                             <Image
                                                 src={confirmedRegistration.qrCodeDataUrl}
-                                                alt="Ticket QR Code"
+                                                alt={t.ticketQrTitle}
                                                 width={176}
                                                 height={176}
                                                 className="h-full w-full object-contain"
@@ -374,11 +667,11 @@ export default function HolidayRegistrationClient() {
                                         <div key={child.id || idx} className="flex items-center justify-between gap-4 p-3.5 text-sm">
                                             <div>
                                                 <span className="font-semibold text-slate-900">{child.name}</span>
-                                                {child.school && <span className="block text-xs text-slate-500">{child.school}</span>}
+                                                {child.school && <span className="block text-xs text-slate-500">{confirmedChild(child)}</span>}
                                             </div>
                                             <div className="flex flex-wrap items-center justify-end gap-2">
                                                 <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-800">
-                                                    {formatAgeGroupLabel(child.ageGroup)}
+                                                    {t.ageGroupLabels[child.ageGroup]}
                                                 </span>
                                                 <span className="text-xs font-medium text-slate-600">{t.childAgeShortLabel} {child.age}</span>
                                             </div>
@@ -395,6 +688,34 @@ export default function HolidayRegistrationClient() {
                                         <span className="text-xs text-slate-600">{t.eventLocationValue}</span>
                                     </div>
                                 </div>
+                                <div className="flex items-start gap-2 border-t border-slate-200 pt-3 text-slate-900">
+                                    <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+                                    <div>
+                                        <span className="block font-semibold">{eventDate ? t.eventDateLabel : t.eventYearLabel}</span>
+                                        <span className="text-xs text-slate-600">{eventDate ? eventDateLabel : String(HOLIDAY_EVENT_YEAR)}</span>
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap gap-2 pt-1 print:hidden">
+                                    {eventDate && (
+                                        <button
+                                            type="button"
+                                            onClick={() => downloadHolidayEventIcs(language, eventDate)}
+                                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                                        >
+                                            <CalendarDays className="h-3.5 w-3.5" />
+                                            {t.addToCalendarButton}
+                                        </button>
+                                    )}
+                                    <a
+                                        href={HOLIDAY_DIRECTIONS_URL}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                    >
+                                        <Navigation className="h-3.5 w-3.5" />
+                                        {t.directionsButton}
+                                    </a>
+                                </div>
                                 <div className="border-t border-slate-200 pt-3 text-xs leading-5 text-slate-600">
                                     <span className="font-semibold text-slate-800">{t.importantNotesTitle}: </span>
                                     {t.importantNotesText}
@@ -402,7 +723,7 @@ export default function HolidayRegistrationClient() {
                             </div>
 
                             <div className="space-y-3 pt-1">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 print:hidden">
                                     <button
                                         type="button"
                                         onClick={handleDownloadImage}
@@ -422,7 +743,7 @@ export default function HolidayRegistrationClient() {
                                         <span>{isSavingPdf ? t.generatingAction : t.downloadPdfButton}</span>
                                     </button>
                                 </div>
-                                <div className="flex flex-col sm:flex-row gap-3">
+                                <div className="flex flex-col sm:flex-row gap-3 print:hidden">
                                     <button
                                         type="button"
                                         onClick={() => window.print()}
@@ -459,23 +780,34 @@ export default function HolidayRegistrationClient() {
                         className="h-14 w-auto"
                         priority
                     />
-                    <div className="flex items-center gap-2">
-                        <Globe className="h-4 w-4 shrink-0 text-slate-500" />
-                        <span className="sr-only">{t.languageLabel}</span>
-                        <div className="inline-flex rounded-lg border border-slate-300 bg-white p-1" aria-label={t.languageLabel}>
-                            {(['en', 'es', 'zh'] as HolidayLanguage[]).map((lang) => (
-                                <button
-                                    key={lang}
-                                    type="button"
-                                    onClick={() => setLanguage(lang)}
-                                    className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${language === lang
-                                        ? 'bg-emerald-700 text-white'
-                                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                                        }`}
-                                >
-                                    {lang === 'en' ? 'English' : lang === 'es' ? 'Español' : '中文 (Mandarin)'}
-                                </button>
-                            ))}
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={openLookup}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                        >
+                            <Search className="h-3.5 w-3.5" />
+                            {t.findTicketButton}
+                        </button>
+                        <div className="flex items-center gap-2">
+                            <Globe className="h-4 w-4 shrink-0 text-slate-500" />
+                            <span className="sr-only">{t.languageLabel}</span>
+                            <div className="inline-flex rounded-lg border border-slate-300 bg-white p-1" aria-label={t.languageLabel}>
+                                {(['en', 'es', 'zh'] as HolidayLanguage[]).map((lang) => (
+                                    <button
+                                        key={lang}
+                                        type="button"
+                                        onClick={() => setLanguage(lang)}
+                                        aria-pressed={language === lang}
+                                        className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${language === lang
+                                            ? 'bg-emerald-700 text-white'
+                                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                                            }`}
+                                    >
+                                        {lang === 'en' ? 'English' : lang === 'es' ? 'Español' : '中文 (Mandarin)'}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -580,7 +912,7 @@ export default function HolidayRegistrationClient() {
                     </div>
                     {/* Error Banner */}
                     {errorMessage && (
-                        <div ref={errorRef} className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
+                        <div id="holiday-form-error" ref={errorRef} className="flex items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800" role="alert">
                             <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
                             <span>{errorMessage}</span>
                         </div>
@@ -600,9 +932,12 @@ export default function HolidayRegistrationClient() {
                                     id={parentNameId}
                                     type="text"
                                     required
+                                    autoComplete="name"
                                     value={parentName}
                                     onChange={(e) => setParentName(e.target.value)}
                                     placeholder={t.parentNamePlaceholder}
+                                    aria-invalid={errorField === parentNameId || undefined}
+                                    aria-describedby={errorField === parentNameId ? 'holiday-form-error' : undefined}
                                     className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
                                 />
                             </div>
@@ -615,27 +950,38 @@ export default function HolidayRegistrationClient() {
                                     id={phoneId}
                                     type="tel"
                                     inputMode="numeric"
-                                    maxLength={14}
+                                    autoComplete="tel"
+                                    maxLength={20}
                                     required
                                     value={phone}
                                     onChange={(e) => handlePhoneChange(e.target.value)}
+                                    onBlur={handlePhoneBlur}
                                     placeholder={t.phonePlaceholder}
+                                    aria-invalid={errorField === phoneId || undefined}
+                                    aria-describedby={errorField === phoneId ? 'holiday-form-error' : undefined}
                                     className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 transition-colors focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
                                 />
+                                {duplicateWarning && (
+                                    <p role="status" className="flex items-start gap-1.5 text-xs leading-5 text-amber-800">
+                                        <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                        {t.duplicateWarning}
+                                    </p>
+                                )}
                             </div>
                         </div>
 
                         {/* City */}
-                        <div className="space-y-1.5">
-                            <label htmlFor={cityId} className="block text-sm font-medium text-slate-700">
+                        <fieldset className="space-y-1.5">
+                            <legend className="block text-sm font-medium text-slate-700">
                                 {t.cityLabel} <span className="text-rose-600">*</span>
-                            </label>
+                            </legend>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {HOLIDAY_CITIES.map((city) => (
                                     <button
                                         key={city}
                                         type="button"
                                         onClick={() => setSelectedCity(city)}
+                                        aria-pressed={selectedCity === city}
                                         className={`rounded-lg border px-3 py-2.5 text-center text-xs font-medium transition-colors ${selectedCity === city
                                             ? 'border-emerald-700 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-700'
                                             : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -653,14 +999,16 @@ export default function HolidayRegistrationClient() {
                                     value={otherCity}
                                     onChange={(e) => setOtherCity(e.target.value)}
                                     placeholder={t.otherCityPlaceholder}
+                                    aria-invalid={errorField === otherCityId || undefined}
+                                    aria-describedby={errorField === otherCityId ? 'holiday-form-error' : undefined}
                                     className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
                                 />
                             )}
-                        </div>
+                        </fieldset>
 
                         {/* Housing Status */}
-                        <div className="space-y-2">
-                            <label htmlFor={housingId} className="block text-sm font-medium text-slate-700">{t.housingLabel}</label>
+                        <fieldset className="space-y-2">
+                            <legend className="block text-sm font-medium text-slate-700">{t.housingLabel}</legend>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {(
                                     [
@@ -674,6 +1022,7 @@ export default function HolidayRegistrationClient() {
                                         key={status}
                                         type="button"
                                         onClick={() => setHousingStatus(status)}
+                                        aria-pressed={housingStatus === status}
                                         className={`rounded-lg border p-3 text-left text-xs font-medium transition-colors ${housingStatus === status
                                             ? 'border-emerald-700 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-700'
                                             : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -683,17 +1032,18 @@ export default function HolidayRegistrationClient() {
                                     </button>
                                 ))}
                             </div>
-                        </div>
+                        </fieldset>
 
                         {/* Annual Income */}
-                        <div className="space-y-2">
-                            <label htmlFor={incomeId} className="block text-sm font-medium text-slate-700">{t.incomeLabel}</label>
+                        <fieldset className="space-y-2">
+                            <legend className="block text-sm font-medium text-slate-700">{t.incomeLabel}</legend>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                 {(['0_40k', '41_65k', '66_90k', 'over_90k'] as HolidayIncomeRange[]).map((inc) => (
                                     <button
                                         key={inc}
                                         type="button"
                                         onClick={() => setIncomeRange(inc)}
+                                        aria-pressed={incomeRange === inc}
                                         className={`rounded-lg border p-2.5 text-center text-xs font-medium transition-colors ${incomeRange === inc
                                             ? 'border-emerald-700 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-700'
                                             : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -703,7 +1053,7 @@ export default function HolidayRegistrationClient() {
                                     </button>
                                 ))}
                             </div>
-                        </div>
+                        </fieldset>
                     </section>
 
                     <section className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
@@ -736,7 +1086,7 @@ export default function HolidayRegistrationClient() {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <span className="rounded-md bg-white px-2.5 py-1 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-200">
-                                                    {formatAgeGroupLabel(ageGroup)}
+                                                    {t.ageGroupLabels[ageGroup]}
                                                 </span>
                                                 {children.length > 1 && (
                                                     <button
@@ -753,59 +1103,82 @@ export default function HolidayRegistrationClient() {
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="space-y-1">
-                                                <label className="block text-sm font-medium text-slate-700">
+                                                <label htmlFor={childFieldId(index, 'name')} className="block text-sm font-medium text-slate-700">
                                                     {t.childNameLabel} <span className="text-rose-600">*</span>
                                                 </label>
                                                 <input
+                                                    id={childFieldId(index, 'name')}
                                                     type="text"
                                                     required
                                                     value={child.name}
                                                     onChange={(e) => handleChildChange(index, 'name', e.target.value)}
                                                     placeholder={t.childNamePlaceholder}
+                                                    aria-invalid={errorField === childFieldId(index, 'name') || undefined}
+                                                    aria-describedby={errorField === childFieldId(index, 'name') ? 'holiday-form-error' : undefined}
                                                     className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
                                                 />
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div className="space-y-1">
-                                                    <label className="block text-sm font-medium text-slate-700">
+                                                    <label htmlFor={childFieldId(index, 'birthdate')} className="block text-sm font-medium text-slate-700">
                                                         {t.childBirthdateLabel} <span className="text-rose-600">*</span>
                                                     </label>
                                                     <input
+                                                        id={childFieldId(index, 'birthdate')}
                                                         type="date"
                                                         required
+                                                        autoComplete="bday"
+                                                        min={minBirthdateIso}
+                                                        max={todayIso}
                                                         value={child.birthdate}
                                                         onChange={(e) => handleChildChange(index, 'birthdate', e.target.value)}
+                                                        aria-invalid={errorField === childFieldId(index, 'birthdate') || undefined}
+                                                        aria-describedby={errorField === childFieldId(index, 'birthdate') ? 'holiday-form-error' : undefined}
                                                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
                                                     />
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <label className="block text-sm font-medium text-slate-700">
+                                                    <label htmlFor={childFieldId(index, 'age')} className="block text-sm font-medium text-slate-700">
                                                         {t.childAgeLabel}
                                                     </label>
                                                     <input
+                                                        id={childFieldId(index, 'age')}
                                                         type="text"
                                                         readOnly
                                                         tabIndex={-1}
                                                         value={child.birthdate ? `${child.age}` : '—'}
-                                                        aria-label={`${t.childAgeLabel}: ${child.birthdate ? child.age : 'not entered'}`}
+                                                        aria-label={`${t.childAgeLabel}: ${child.birthdate ? child.age : '—'}`}
                                                         className="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-center text-sm font-semibold text-slate-700 select-none cursor-not-allowed"
                                                     />
                                                 </div>
                                             </div>
 
                                             <div className="sm:col-span-2 space-y-1">
-                                                <label className="block text-sm font-medium text-slate-700">
+                                                <label htmlFor={childFieldId(index, 'school')} className="block text-sm font-medium text-slate-700">
                                                     {t.childSchoolLabel} <span className="text-rose-600">*</span>
                                                 </label>
                                                 <input
+                                                    id={childFieldId(index, 'school')}
                                                     type="text"
-                                                    required
-                                                    value={child.school}
+                                                    required={!child.notInSchool}
+                                                    disabled={child.notInSchool}
+                                                    value={child.notInSchool ? '' : child.school}
                                                     onChange={(e) => handleChildChange(index, 'school', e.target.value)}
                                                     placeholder={t.childSchoolPlaceholder}
-                                                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+                                                    aria-invalid={errorField === childFieldId(index, 'school') || undefined}
+                                                    aria-describedby={errorField === childFieldId(index, 'school') ? 'holiday-form-error' : undefined}
+                                                    className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
                                                 />
+                                                <label className="mt-1 flex items-center gap-2 text-xs text-slate-600">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={child.notInSchool}
+                                                        onChange={(e) => handleNotInSchoolChange(index, e.target.checked)}
+                                                        className="h-4 w-4 rounded border-slate-300 text-emerald-700 focus:ring-emerald-600"
+                                                    />
+                                                    {t.childNotInSchoolLabel}
+                                                </label>
                                             </div>
                                         </div>
                                     </div>
@@ -849,6 +1222,16 @@ export default function HolidayRegistrationClient() {
                         </div>
                     </section>
 
+                    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
+                        <div className="space-y-1">
+                            <h2 className="text-base font-semibold text-slate-950 sm:text-lg">
+                                {t.privacyNoticeTitle}
+                            </h2>
+                            <p className="text-sm leading-6 text-slate-600">
+                                {t.privacyNotice}
+                            </p>
+                        </div>
+                    </section>
 
                     {/* Submit Button */}
                     <div className="pb-6 pt-1">
@@ -869,6 +1252,144 @@ export default function HolidayRegistrationClient() {
                     </div>
                 </form>
             </div>
+
+            {/* Find My Ticket */}
+            {lookupOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-xs">
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="holiday-lookup-title"
+                        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl border border-slate-200 bg-white shadow-2xl"
+                    >
+                        <div className="flex items-center justify-between border-b border-slate-200 p-5">
+                            <div className="flex items-center gap-2">
+                                <Search className="h-5 w-5 text-emerald-700" />
+                                <h2 id="holiday-lookup-title" className="text-lg font-bold text-slate-950">{t.findTicketTitle}</h2>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeLookup}
+                                aria-label={t.findTicketCloseButton}
+                                className="rounded-lg p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {lookupResult ? (
+                            <div className="space-y-4 p-5">
+                                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+                                    <div className="text-xs font-semibold uppercase tracking-wider text-emerald-800">{lookupT.ticketNumberLabel}</div>
+                                    <div className="mt-1 font-mono text-4xl font-bold text-emerald-950">#{lookupResult.ticketNumber}</div>
+                                    <div className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-700 px-3 py-1.5 text-sm font-semibold text-white">
+                                        <Clock className="h-4 w-4" />
+                                        <span>{lookupResult.timeSlot}</span>
+                                    </div>
+                                    {lookupResult.qrCodeDataUrl && (
+                                        <div className="mx-auto mt-4 h-40 w-40 overflow-hidden rounded-lg border border-emerald-200 bg-white p-1">
+                                            <Image
+                                                src={lookupResult.qrCodeDataUrl}
+                                                alt={lookupT.ticketQrTitle}
+                                                width={160}
+                                                height={160}
+                                                className="h-full w-full object-contain"
+                                                unoptimized
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex flex-col gap-2 sm:flex-row">
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadLookupImage}
+                                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-800"
+                                    >
+                                        <Download className="h-4 w-4" />
+                                        {lookupT.downloadImageButton}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleDownloadLookupPdf}
+                                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-emerald-700 bg-emerald-50 px-4 py-2.5 text-xs font-bold text-emerald-900 hover:bg-emerald-100"
+                                    >
+                                        <FileText className="h-4 w-4" />
+                                        {lookupT.downloadPdfButton}
+                                    </button>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={closeLookup}
+                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                                >
+                                    {t.findTicketCloseButton}
+                                </button>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleLookup} className="space-y-4 p-5" noValidate>
+                                <p className="text-sm leading-6 text-slate-600">{t.findTicketDescription}</p>
+
+                                {lookupMessage && (
+                                    <div role="alert" className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+                                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                        <span>{lookupMessage}</span>
+                                    </div>
+                                )}
+
+                                <div className="space-y-1">
+                                    <label htmlFor={lookupParentNameId} className="block text-sm font-medium text-slate-700">
+                                        {t.findTicketParentNameLabel}
+                                    </label>
+                                    <input
+                                        id={lookupParentNameId}
+                                        type="text"
+                                        required
+                                        autoComplete="name"
+                                        value={lookupParentName}
+                                        onChange={(e) => setLookupParentName(e.target.value)}
+                                        className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label htmlFor={lookupPhoneId} className="block text-sm font-medium text-slate-700">
+                                        {t.findTicketPhoneLabel}
+                                    </label>
+                                    <input
+                                        id={lookupPhoneId}
+                                        type="tel"
+                                        inputMode="numeric"
+                                        autoComplete="tel"
+                                        maxLength={20}
+                                        required
+                                        value={lookupPhone}
+                                        onChange={(e) => setLookupPhone(formatHolidayPhone(e.target.value))}
+                                        className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-600/20"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+                                    <button
+                                        type="submit"
+                                        disabled={lookupStatus === 'searching'}
+                                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 py-3 text-sm font-bold text-white hover:bg-emerald-800 disabled:opacity-50"
+                                    >
+                                        <Search className="h-4 w-4" />
+                                        {lookupStatus === 'searching' ? t.findTicketSearchingButton : t.findTicketSubmitButton}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={closeLookup}
+                                        className="inline-flex flex-1 items-center justify-center rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                                    >
+                                        {t.findTicketCloseButton}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
