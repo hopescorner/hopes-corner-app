@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.52.0",
+    "date": "November 6, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Faster Donation Logging for Repeat Items",
+        "description": "Item names now use autocomplete with canonical suggestions, the form keeps the last item and donor loaded for quick re-entry, trays and weight have plus/minus steppers, and any donation card can be duplicated in one tap. Extra spaces and capitalization no longer split the same item or donor into separate counts."
+      }
+    ]
+  },
+  {
     "version": "0.51.1",
     "date": "November 5, 2026",
     "highlights": [

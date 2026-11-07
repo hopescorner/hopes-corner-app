@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.52.0] - 2026-11-06
+
+### Added
+
+- Donation item names now use autocomplete backed by a canonical suggestion list, the same pattern as the donor field. Typing a fragment like "chick" suggests the full canonical name, and whitespace/capitalization variants no longer create separate entries when counting or grouping items and donors.
+- Each donation card now has a Duplicate button that re-logs the same entry for the selected date in one tap, including on every row of an expanded multi-entry group.
+- Trays and weight fields have plus/minus steppers so staff can bump amounts without typing.
+
+### Changed
+
+- After saving, the donation form keeps the last item, donor, and amounts loaded so staff can immediately save another batch and adjust with the steppers instead of retyping the whole entry.
+
+### Tests
+
+- Added coverage for donation key normalization, item/donor suggestion deduping and ranking, item datalist canonical names, keep-last-entry behavior, trays/weight steppers, and duplicate re-logging in unit and component tests.
+
 ## [0.51.1] - 2026-11-05
 
 ### Fixed
