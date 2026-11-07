@@ -180,4 +180,53 @@ test.describe('DonationsSection', () => {
     await expect(component.getByText('3 trays total')).toBeVisible();
     await expect(component.getByText('~60 servings').first()).toBeVisible();
   });
+
+  test('item autocomplete datalist suggests canonical names', async ({ mount }) => {
+    const component = await mount(
+      <DonationsSectionStory
+        donationRecords={[
+          {
+            id: 'd1', type: 'Protein', itemName: 'Chicken Breast', trays: 2,
+            weightLbs: 10, servings: 40, donor: 'Waymo', date: todayISO,
+            dateKey: todayKey, donatedAt: todayISO, createdAt: todayISO,
+          },
+        ]}
+      />
+    );
+    const itemInput = component.getByPlaceholder('e.g. Chicken breast');
+    await expect(itemInput).toHaveAttribute('list', 'donation-item-list');
+    await expect(component.locator('#donation-item-list option[value="Chicken Breast"]')).toHaveCount(1);
+  });
+
+  test('trays and weight steppers adjust values', async ({ mount }) => {
+    const component = await mount(<DonationsSectionStory />);
+    const traysInput = component.getByPlaceholder('0', { exact: true });
+    await expect(traysInput).toHaveValue('');
+    await component.getByLabel('Increase trays').click();
+    await expect(traysInput).toHaveValue('1');
+    await component.getByLabel('Decrease trays').click();
+    await expect(traysInput).toHaveValue('0');
+    const weightInput = component.getByPlaceholder('0.0', { exact: true });
+    await component.getByLabel('Increase weight').click();
+    await expect(weightInput).toHaveValue('0.5');
+  });
+
+  test('duplicate button re-logs the entry for today', async ({ mount }) => {
+    const component = await mount(
+      <DonationsSectionStory
+        donationRecords={[
+          {
+            id: 'd1', type: 'Protein', itemName: 'Chicken Breast', trays: 2,
+            weightLbs: 10, servings: 40, donor: 'Waymo', date: todayISO,
+            dateKey: todayKey, donatedAt: todayISO, createdAt: todayISO,
+          },
+        ]}
+      />
+    );
+    const duplicateButtons = component.getByLabel('Duplicate entry');
+    await expect(duplicateButtons.first()).toBeVisible();
+    await duplicateButtons.first().click();
+    // After duplicate, grouped card shows 2 entries for the same item
+    await expect(component.getByText('2 entries')).toBeVisible();
+  });
 });

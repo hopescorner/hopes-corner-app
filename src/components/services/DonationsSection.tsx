@@ -27,6 +27,10 @@ import {
     formatProteinAndCarbsClipboardText,
     formatDonationsClipboardText,
     DENSITY_SERVINGS,
+    normalizeDonationDisplay,
+    normalizeDonationKey,
+    getDonorSuggestions,
+    getItemSuggestions,
 } from '@/lib/utils/donationUtils';
 import { todayPacificDateString, pacificDateStringFrom, formatTimeInPacific } from '@/lib/utils/date';
 import { cn } from '@/lib/utils/cn';
@@ -82,7 +86,7 @@ export const groupDonationsByItem = (records: DonationRecord[]): GroupedDonation
     const groups = new Map<string, GroupedDonation>();
 
     for (const record of records) {
-        const itemName = (record.itemName || '').trim().toLowerCase();
+        const itemName = normalizeDonationKey(record.itemName);
         const type = record.type || '';
         const key = `${type}|${itemName}`;
 
@@ -90,7 +94,7 @@ export const groupDonationsByItem = (records: DonationRecord[]): GroupedDonation
             groups.set(key, {
                 key,
                 type,
-                itemName: record.itemName || '',
+                itemName: normalizeDonationDisplay(record.itemName),
                 entries: [],
                 totalTrays: 0,
                 totalWeight: 0,
@@ -133,7 +137,7 @@ export const groupDonationsByDonor = (records: DonationRecord[]): DonorGroup[] =
     const donorMap = new Map<string, DonationRecord[]>();
 
     for (const record of records) {
-        const donorKey = (record.donor || '').trim().toLowerCase() || '__no_donor__';
+        const donorKey = normalizeDonationKey(record.donor) || '__no_donor__';
         if (!donorMap.has(donorKey)) {
             donorMap.set(donorKey, []);
         }
@@ -142,7 +146,7 @@ export const groupDonationsByDonor = (records: DonationRecord[]): DonorGroup[] =
 
     const groups: DonorGroup[] = [];
     for (const [, donorRecords] of donorMap) {
-        const displayDonor = donorRecords[0].donor?.trim() || '';
+        const displayDonor = normalizeDonationDisplay(donorRecords[0].donor || '');
         const itemGroups = groupDonationsByItem(donorRecords);
 
         groups.push({
@@ -177,10 +181,11 @@ export const getRecentItemNames = (records: DonationRecord[], limit = 5): QuickS
     withTime.sort((a, b) => b.time - a.time);
 
     for (const { record } of withTime) {
-        const name = (record.itemName || '').trim();
-        if (name && !seen.has(name.toLowerCase())) {
-            seen.add(name.toLowerCase());
-            recent.push({ itemName: name, donor: (record.donor || '').trim() });
+        const name = normalizeDonationDisplay(record.itemName);
+        const key = normalizeDonationKey(record.itemName);
+        if (key && !seen.has(key)) {
+            seen.add(key);
+            recent.push({ itemName: name, donor: normalizeDonationDisplay(record.donor) });
             if (recent.length >= limit) break;
         }
     }
@@ -200,10 +205,14 @@ const GroupedDonationCard = memo(function GroupedDonationCard({
     group,
     onEdit,
     onDelete,
+    onDuplicate,
+    duplicatingId,
 }: {
     group: GroupedDonation;
     onEdit: (record: DonationRecord) => void;
     onDelete: (record: DonationRecord) => void;
+    onDuplicate: (record: DonationRecord) => void;
+    duplicatingId?: string | null;
 }) {
     const [isExpanded, setIsExpanded] = useState(group.entries.length === 1);
     const hasMultipleEntries = group.entries.length > 1;
@@ -248,6 +257,16 @@ const GroupedDonationCard = memo(function GroupedDonationCard({
                             {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                         </button>
                     )}
+                    <button
+                        type="button"
+                        onClick={() => onDuplicate(group.entries[0])}
+                        disabled={duplicatingId === group.entries[0]?.id}
+                        className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:opacity-60"
+                        aria-label="Duplicate entry"
+                        title="Duplicate entry for today"
+                    >
+                        <Copy size={16} />
+                    </button>
                     {!hasMultipleEntries && (
                         <>
                             <button
@@ -303,6 +322,16 @@ const GroupedDonationCard = memo(function GroupedDonationCard({
                             <div className="flex gap-1 shrink-0">
                                 <button
                                     type="button"
+                                    onClick={() => onDuplicate(entry)}
+                                    disabled={duplicatingId === entry.id}
+                                    className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:opacity-60"
+                                    aria-label="Duplicate entry"
+                                    title="Duplicate entry for today"
+                                >
+                                    <Copy size={14} />
+                                </button>
+                                <button
+                                    type="button"
                                     onClick={() => onEdit(entry)}
                                     className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-blue-50 text-blue-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-blue-600"
                                     aria-label="Edit entry"
@@ -333,12 +362,16 @@ const DonorGroupCard = memo(function DonorGroupCard({
     onToggle,
     onEdit,
     onDelete,
+    onDuplicate,
+    duplicatingId,
 }: {
     donorGroup: DonorGroup;
     expanded: boolean;
     onToggle: () => void;
     onEdit: (record: DonationRecord) => void;
     onDelete: (record: DonationRecord) => void;
+    onDuplicate: (record: DonationRecord) => void;
+    duplicatingId?: string | null;
 }) {
     const donorLabel = donorGroup.donor || 'Unknown Donor';
     const regionId = `donor-items-${(donorGroup.donor || 'unknown').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}`;
@@ -384,6 +417,8 @@ const DonorGroupCard = memo(function DonorGroupCard({
                             group={group}
                             onEdit={onEdit}
                             onDelete={onDelete}
+                            onDuplicate={onDuplicate}
+                            duplicatingId={duplicatingId}
                         />
                     ))}
                 </div>
@@ -416,7 +451,7 @@ const QuickSelectItems = memo(function QuickSelectItems({
                         title={item.donor ? `Donor: ${item.donor}` : undefined}
                         className={cn(
                             'px-2.5 py-1 rounded-lg text-xs font-medium transition-all border',
-                            currentValue.toLowerCase() === item.itemName.toLowerCase()
+                            normalizeDonationKey(currentValue) === normalizeDonationKey(item.itemName)
                                 ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
                                 : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200'
                         )}
@@ -468,6 +503,7 @@ function formDataFromRecord(record: DonationRecord | null): DonationFormData {
 const DonationForm = memo(function DonationForm({
     editingRecord,
     recentItems,
+    itemSuggestions,
     donorSuggestions,
     saving,
     onSubmit,
@@ -475,6 +511,7 @@ const DonationForm = memo(function DonationForm({
 }: {
     editingRecord: DonationRecord | null;
     recentItems: QuickSelectItem[];
+    itemSuggestions: string[];
     donorSuggestions: string[];
     saving: boolean;
     onSubmit: (data: { type: DonationTypeEnum; itemName: string; trays: number; weightLbs: number; density: 'light' | 'medium' | 'high'; donor: string; temperature: string }) => Promise<void>;
@@ -490,6 +527,24 @@ const DonationForm = memo(function DonationForm({
             itemName: item.itemName,
             ...(item.donor ? { donor: item.donor } : {}),
         }));
+    }, []);
+
+    const adjustTrays = useCallback((delta: number) => {
+        setForm((prev) => {
+            const current = Number(prev.trays);
+            const base = Number.isFinite(current) ? current : 0;
+            const next = Math.max(0, Math.round(base + delta));
+            return { ...prev, trays: String(next) };
+        });
+    }, []);
+
+    const adjustWeight = useCallback((delta: number) => {
+        setForm((prev) => {
+            const current = Number(prev.weightLbs);
+            const base = Number.isFinite(current) ? current : 0;
+            const next = Math.max(0, Math.round((base + delta) * 10) / 10);
+            return { ...prev, weightLbs: String(next) };
+        });
     }, []);
 
     const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -521,9 +576,8 @@ const DonationForm = memo(function DonationForm({
             donor: form.donor.trim(),
             temperature: form.temperature.trim(),
         });
-        if (!isEditing) {
-            setForm((prev) => ({ ...prev, itemName: '', trays: '', weightLbs: '', temperature: '' }));
-        }
+        // Keep last item/donor (and amounts) loaded so staff can save
+        // "another" batch with steppers instead of retyping.
     }, [form, isEditing, onSubmit]);
 
     return (
@@ -566,11 +620,17 @@ const DonationForm = memo(function DonationForm({
                     id="donation-item"
                     type="text"
                     required
+                    list="donation-item-list"
                     className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
                     value={form.itemName}
                     onChange={e => setForm({ ...form, itemName: e.target.value })}
                     placeholder="e.g. Chicken breast"
                 />
+                <datalist id="donation-item-list">
+                    {itemSuggestions.map((s) => (
+                        <option key={s} value={s} />
+                    ))}
+                </datalist>
                 {/* Quick Select for Recent Items */}
                 <QuickSelectItems
                     recentItems={recentItems}
@@ -581,31 +641,67 @@ const DonationForm = memo(function DonationForm({
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label htmlFor="donation-trays" className="block text-xs font-bold text-gray-500 uppercase mb-1">Trays</label>
-                    <input
-                        id="donation-trays"
-                        type="number"
-                        min="0"
-                        step="1"
-                        inputMode="numeric"
-                        className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
-                        value={form.trays}
-                        onChange={e => setForm({ ...form, trays: e.target.value })}
-                        placeholder="0"
-                    />
+                    <div className="flex gap-1">
+                        <button
+                            type="button"
+                            onClick={() => adjustTrays(-1)}
+                            aria-label="Decrease trays"
+                            className="min-h-[40px] min-w-[40px] px-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                        >
+                            −
+                        </button>
+                        <input
+                            id="donation-trays"
+                            type="number"
+                            min="0"
+                            step="1"
+                            inputMode="numeric"
+                            className="flex-1 min-w-0 p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                            value={form.trays}
+                            onChange={e => setForm({ ...form, trays: e.target.value })}
+                            placeholder="0"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => adjustTrays(1)}
+                            aria-label="Increase trays"
+                            className="min-h-[40px] min-w-[40px] px-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                        >
+                            +
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label htmlFor="donation-weight" className="block text-xs font-bold text-gray-500 uppercase mb-1">Weight (lbs)</label>
-                    <input
-                        id="donation-weight"
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        inputMode="decimal"
-                        className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
-                        value={form.weightLbs}
-                        onChange={e => setForm({ ...form, weightLbs: e.target.value })}
-                        placeholder="0.0"
-                    />
+                    <div className="flex gap-1">
+                        <button
+                            type="button"
+                            onClick={() => adjustWeight(-0.5)}
+                            aria-label="Decrease weight"
+                            className="min-h-[40px] min-w-[40px] px-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                        >
+                            −
+                        </button>
+                        <input
+                            id="donation-weight"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            inputMode="decimal"
+                            className="flex-1 min-w-0 p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                            value={form.weightLbs}
+                            onChange={e => setForm({ ...form, weightLbs: e.target.value })}
+                            placeholder="0.0"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => adjustWeight(0.5)}
+                            aria-label="Increase weight"
+                            className="min-h-[40px] min-w-[40px] px-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                        >
+                            +
+                        </button>
+                    </div>
                 </div>
             </div>
             <div>
@@ -771,6 +867,7 @@ export const DonationsSection = () => {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<DonationRecord | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
     const [collapsedDonors, setCollapsedDonors] = useState<Set<string>>(() => new Set());
     const isToday = selectedDate === todayKey;
 
@@ -788,40 +885,32 @@ export const DonationsSection = () => {
             totalWeight += Number((r as DonationRecord).weightLbs) || 0;
             totalTrays += Number((r as DonationRecord).trays) || 0;
             totalServings += Number((r as DonationRecord).servings) || 0;
-            donorKeys.add(((r as DonationRecord).donor || '').trim().toLowerCase());
+            donorKeys.add(normalizeDonationKey((r as DonationRecord).donor));
         }
 
-        const q = donorQuery.trim().toLowerCase();
+        const q = normalizeDonationKey(donorQuery);
         const filtered = displayed.filter((r) => {
             if (typeFilter !== 'All' && r.type !== typeFilter) return false;
             if (!q) return true;
             return (
-                (r.donor || '').toLowerCase().includes(q)
-                || (r.itemName || '').toLowerCase().includes(q)
-                || (r.type || '').toLowerCase().includes(q)
+                normalizeDonationKey(r.donor).includes(q)
+                || normalizeDonationKey(r.itemName).includes(q)
+                || normalizeDonationKey(r.type).includes(q)
             );
         });
 
         const donorGroups = groupDonationsByDonor(filtered);
         const itemGroups = groupDonationsByItem(displayed);
         const recentItems = getRecentItemNames(records, 5);
-
-        const donorTotals = new Map<string, number>();
-        for (const r of records) {
-            const d = (r.donor || '').trim();
-            if (!d) continue;
-            donorTotals.set(d, (donorTotals.get(d) ?? 0) + 1);
-        }
-        const donorSuggestions = Array.from(donorTotals.entries())
-            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-            .slice(0, 10)
-            .map(([d]) => d);
+        const itemSuggestions = getItemSuggestions(records, 20);
+        const donorSuggestions = getDonorSuggestions(records, 10);
 
         return {
             displayed,
             filtered,
             donorGroups,
             recentItems,
+            itemSuggestions,
             donorSuggestions,
             totals: {
                 totalWeight,
@@ -834,7 +923,7 @@ export const DonationsSection = () => {
         };
     }, [records, selectedDate, donorQuery, typeFilter]);
 
-    const { displayed, filtered, donorGroups, recentItems, donorSuggestions, totals } = pipeline;
+    const { displayed, filtered, donorGroups, recentItems, itemSuggestions, donorSuggestions, totals } = pipeline;
     const isFiltering = donorQuery.trim() !== '' || typeFilter !== 'All';
 
     const editingRecord = useMemo(
@@ -910,6 +999,36 @@ export const DonationsSection = () => {
     const handleDeleteRequest = useCallback((record: DonationRecord) => {
         setDeleteTarget(record);
     }, []);
+
+    const handleDuplicate = useCallback(async (record: DonationRecord) => {
+        if (!record) return;
+        setDuplicatingId(record.id);
+        try {
+            const trays = Number(record.trays) || 0;
+            const weight = Number(record.weightLbs ?? (record as any).weight_lbs) || 0;
+            const type = ((record.type || 'Protein') as DonationTypeEnum);
+            const density = ((record.density as 'light' | 'medium' | 'high') || 'medium');
+            const servings = calculateServings(type, weight, trays, density);
+            await addDonation({
+                donation_type: type,
+                item_name: normalizeDonationDisplay(record.itemName),
+                trays,
+                weight_lbs: weight,
+                density,
+                donor: normalizeDonationDisplay(record.donor),
+                temperature: record.temperature || '',
+                servings,
+                date_key: selectedDate,
+                donated_at: new Date().toISOString()
+            } as any);
+            toast.success('Duplicated donation');
+        } catch (err) {
+            console.error(err);
+            toast.error('Failed to duplicate');
+        } finally {
+            setDuplicatingId(null);
+        }
+    }, [addDonation, selectedDate]);
 
     const handleConfirmDelete = useCallback(async () => {
         if (!deleteTarget) return;
@@ -1135,6 +1254,7 @@ export const DonationsSection = () => {
                             key={editingId ?? 'new'}
                             editingRecord={editingRecord}
                             recentItems={recentItems}
+                            itemSuggestions={itemSuggestions}
                             donorSuggestions={donorSuggestions}
                             saving={saving}
                             onSubmit={handleFormSubmit}
@@ -1201,6 +1321,8 @@ export const DonationsSection = () => {
                                         onToggle={() => toggleDonor(donorKey)}
                                         onEdit={handleEdit}
                                         onDelete={handleDeleteRequest}
+                                        onDuplicate={handleDuplicate}
+                                        duplicatingId={duplicatingId}
                                     />
                                 );
                             })

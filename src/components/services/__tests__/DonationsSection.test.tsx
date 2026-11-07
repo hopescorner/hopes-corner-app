@@ -47,7 +47,35 @@ vi.mock('@/lib/utils/donationUtils', () => ({
     formatDonationCurrency: (value: number) => `$${value.toFixed(2)}`,
     formatProteinAndCarbsClipboardText: () => 'Mock clipboard text',
     formatDonationsClipboardText: () => 'Mock clipboard text',
-    DENSITY_SERVINGS: { light: 10, medium: 20, high: 30 }
+    DENSITY_SERVINGS: { light: 10, medium: 20, high: 30 },
+    normalizeDonationKey: (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' ').toLowerCase(),
+    normalizeDonationDisplay: (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' '),
+    getItemSuggestions: (records: any[] = [], limit = 20) => {
+        const byKey = new Map();
+        for (const r of records || []) {
+            const key = String(r?.itemName ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+            if (!key) continue;
+            const display = String(r?.itemName ?? '').trim().replace(/\s+/g, ' ');
+            const time = new Date(r?.donatedAt || r?.createdAt || 0).getTime();
+            const existing = byKey.get(key);
+            if (!existing) byKey.set(key, { count: 1, display, lastTime: time });
+            else { existing.count += 1; if (time >= existing.lastTime) { existing.lastTime = time; existing.display = display; } }
+        }
+        return Array.from(byKey.values()).sort((a, b) => b.count - a.count || b.lastTime - a.lastTime).slice(0, limit).map((v) => v.display);
+    },
+    getDonorSuggestions: (records: any[] = [], limit = 10) => {
+        const byKey = new Map();
+        for (const r of records || []) {
+            const key = String(r?.donor ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+            if (!key) continue;
+            const display = String(r?.donor ?? '').trim().replace(/\s+/g, ' ');
+            const time = new Date(r?.donatedAt || r?.createdAt || 0).getTime();
+            const existing = byKey.get(key);
+            if (!existing) byKey.set(key, { count: 1, display, lastTime: time });
+            else { existing.count += 1; if (time >= existing.lastTime) { existing.lastTime = time; existing.display = display; } }
+        }
+        return Array.from(byKey.values()).sort((a, b) => b.count - a.count || b.lastTime - a.lastTime).slice(0, limit).map((v) => v.display);
+    },
 }));
 
 vi.mock('react-hot-toast', () => ({
@@ -1035,6 +1063,173 @@ describe('DonationsSection Component', () => {
             expect(appendFahrenheit('165')).toBe('165°F');
             expect(appendFahrenheit('165°F')).toBe('165°F');
             expect(appendFahrenheit('')).toBe('');
+        });
+    });
+
+    describe('Normalized keys', () => {
+        it('groups whitespace/case variants of the same item together', () => {
+            const records: DonationRecord[] = [
+                createDonationRecord({ type: 'Protein', itemName: 'Chicken Breast', weightLbs: 5 }),
+                createDonationRecord({ type: 'Protein', itemName: 'chicken   breast ', weightLbs: 3 }),
+                createDonationRecord({ type: 'Protein', itemName: '  CHICKEN BREAST', weightLbs: 4 }),
+            ];
+            const grouped = groupDonationsByItem(records);
+            expect(grouped).toHaveLength(1);
+            expect(grouped[0].entries).toHaveLength(3);
+            expect(grouped[0].totalWeight).toBe(12);
+        });
+
+        it('groups donors with extra whitespace together', () => {
+            const records: DonationRecord[] = [
+                createDonationRecord({ donor: 'Waymo', weightLbs: 5 }),
+                createDonationRecord({ donor: '  waymo   ', weightLbs: 3 }),
+            ];
+            const groups = groupDonationsByDonor(records);
+            expect(groups).toHaveLength(1);
+            expect(groups[0].entries).toHaveLength(2);
+        });
+
+        it('getRecentItemNames dedupes whitespace variants', () => {
+            const records: DonationRecord[] = [
+                createDonationRecord({ itemName: 'Chicken Breast', donatedAt: '2024-01-15T12:00:00Z' }),
+                createDonationRecord({ itemName: 'chicken   breast ', donatedAt: '2024-01-15T11:00:00Z' }),
+            ];
+            expect(getRecentItemNames(records, 5)).toHaveLength(1);
+        });
+    });
+
+    describe('Item autocomplete', () => {
+        it('offers canonical item names in a datalist, deduped by normalized key', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ itemName: 'Chicken Breast', donor: 'Waymo', donatedAt: '2024-01-15T12:00:00Z' }),
+                createDonationRecord({ itemName: 'chicken   breast ', donor: 'waymo', donatedAt: '2024-01-14T10:00:00Z' }),
+                createDonationRecord({ itemName: 'Rice', donor: 'LinkedIn', donatedAt: '2024-01-13T10:00:00Z' }),
+            ];
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            const itemInput = screen.getByPlaceholderText('e.g. Chicken breast') as HTMLInputElement;
+            expect(itemInput.getAttribute('list')).toBe('donation-item-list');
+            const options = Array.from(document.querySelectorAll('#donation-item-list option')).map((o) => o.getAttribute('value'));
+            expect(options).toContain('Chicken Breast');
+            expect(options).toContain('Rice');
+            expect(options.filter((v) => (v || '').toLowerCase() === 'chicken breast')).toHaveLength(1);
+            // Typing a fragment keeps the typed value; the datalist still holds canonical names
+            await act(async () => {
+                fireEvent.change(itemInput, { target: { value: 'chick' } });
+            });
+            expect(itemInput.value).toBe('chick');
+            expect(Array.from(document.querySelectorAll('#donation-item-list option')).map((o) => o.getAttribute('value'))).toContain('Chicken Breast');
+        });
+    });
+
+    describe('Add-another (keep last entry)', () => {
+        it('keeps item and donor loaded after saving so staff can add another batch', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            const itemNameInput = screen.getByPlaceholderText('e.g. Chicken breast') as HTMLInputElement;
+            const traysInput = screen.getByPlaceholderText('0') as HTMLInputElement;
+            const weightInput = screen.getByPlaceholderText('0.0') as HTMLInputElement;
+            const donorInput = screen.getByPlaceholderText('e.g., Waymo, LinkedIn, Anonymous') as HTMLInputElement;
+            await act(async () => {
+                fireEvent.change(itemNameInput, { target: { value: 'Chicken Breast' } });
+                fireEvent.change(traysInput, { target: { value: '3' } });
+                fireEvent.change(weightInput, { target: { value: '7.5' } });
+                fireEvent.change(donorInput, { target: { value: 'Waymo' } });
+            });
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: /Save Record/ }));
+            });
+            expect(mockDonationsStore.addDonation).toHaveBeenCalledWith(expect.objectContaining({ item_name: 'Chicken Breast' }));
+            expect(itemNameInput.value).toBe('Chicken Breast');
+            expect(donorInput.value).toBe('Waymo');
+            expect(traysInput.value).toBe('3');
+            expect(weightInput.value).toBe('7.5');
+        });
+    });
+
+    describe('Trays and weight steppers', () => {
+        it('increments and decrements trays and weight without typing', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            const traysInput = screen.getByPlaceholderText('0') as HTMLInputElement;
+            const weightInput = screen.getByPlaceholderText('0.0') as HTMLInputElement;
+            expect(traysInput.value).toBe('');
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Increase trays'));
+            });
+            expect(traysInput.value).toBe('1');
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Increase trays'));
+            });
+            expect(traysInput.value).toBe('2');
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Decrease trays'));
+            });
+            expect(traysInput.value).toBe('1');
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Decrease trays'));
+                fireEvent.click(screen.getByLabelText('Decrease trays'));
+            });
+            expect(traysInput.value).toBe('0');
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Increase weight'));
+            });
+            expect(weightInput.value).toBe('0.5');
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Increase weight'));
+            });
+            expect(weightInput.value).toBe('1');
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Decrease weight'));
+            });
+            expect(weightInput.value).toBe('0.5');
+        });
+    });
+
+    describe('Duplicate entry', () => {
+        it('re-logs the same entry to the selected date', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ id: 'dup-1', itemName: 'Chicken Breast', type: 'Protein', trays: 4, weightLbs: 9.5, donor: 'Waymo' }),
+            ];
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            const duplicateButtons = screen.getAllByLabelText('Duplicate entry');
+            expect(duplicateButtons.length).toBeGreaterThan(0);
+            await act(async () => {
+                fireEvent.click(duplicateButtons[0]);
+            });
+            expect(mockDonationsStore.addDonation).toHaveBeenCalledWith(expect.objectContaining({
+                item_name: 'Chicken Breast',
+                trays: 4,
+                weight_lbs: 9.5,
+                donation_type: 'Protein',
+                donor: 'Waymo',
+                date_key: '2024-01-15',
+            }));
+        });
+
+        it('shows a duplicate button on each expanded row of a grouped card', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ id: 'e1', itemName: 'Chicken', donor: 'Waymo', weightLbs: 5 }),
+                createDonationRecord({ id: 'e2', itemName: 'Chicken', donor: 'Waymo', weightLbs: 3 }),
+            ];
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Expand entries'));
+            });
+            const duplicateButtons = screen.getAllByLabelText('Duplicate entry');
+            // Header duplicate (latest) + one per expanded row
+            expect(duplicateButtons.length).toBe(3);
+            await act(async () => {
+                fireEvent.click(duplicateButtons[1]);
+            });
+            expect(mockDonationsStore.addDonation).toHaveBeenCalledWith(expect.objectContaining({ item_name: 'Chicken' }));
         });
     });
 });

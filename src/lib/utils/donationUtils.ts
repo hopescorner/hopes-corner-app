@@ -8,6 +8,72 @@ export const DENSITY_SERVINGS = {
 export const MINIMAL_TYPES = new Set(["School Lunch", "Pastries", "Deli Foods"]);
 export const DONATION_VALUE_PER_POUND = 1.97;
 
+// Normalize a donation key (item or donor) for counting/grouping: trim,
+// collapse internal whitespace, lowercase. "Chicken Breast", "chicken breast "
+// and "chicken   breast" all map to "chicken breast" so counts don't fragment.
+export const normalizeDonationKey = (value: unknown): string =>
+    String(value ?? '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+// Normalize display text (trim + collapse whitespace, preserve case) so
+// suggestions use one canonical form per key.
+export const normalizeDonationDisplay = (value: unknown): string =>
+    String(value ?? '').trim().replace(/\s+/g, ' ');
+
+// Canonical item suggestions: dedupe by normalized key, pick the most recent
+// display form, rank by frequency then recency. Powers the item datalist so
+// typing "chick" suggests canonical names.
+export const getItemSuggestions = (records: any[] = [], limit = 20): string[] => {
+    const byKey = new Map<string, { count: number; display: string; lastTime: number }>();
+    for (const r of records || []) {
+        const raw = String(r?.itemName ?? r?.item_name ?? '');
+        const key = normalizeDonationKey(raw);
+        if (!key) continue;
+        const parsed = new Date(r?.donatedAt || r?.donated_at || r?.createdAt || r?.created_at || 0).getTime();
+        const time = Number.isFinite(parsed) ? parsed : 0;
+        const existing = byKey.get(key);
+        if (!existing) {
+            byKey.set(key, { count: 1, display: normalizeDonationDisplay(raw), lastTime: time });
+        } else {
+            existing.count += 1;
+            if (time >= existing.lastTime) {
+                existing.lastTime = time;
+                existing.display = normalizeDonationDisplay(raw);
+            }
+        }
+    }
+    return Array.from(byKey.values())
+        .sort((a, b) => b.count - a.count || b.lastTime - a.lastTime || a.display.localeCompare(b.display))
+        .slice(0, limit)
+        .map((v) => v.display);
+};
+
+// Canonical donor suggestions: case/whitespace-insensitive counting (see
+// getItemSuggestions). Powers the existing donor datalist.
+export const getDonorSuggestions = (records: any[] = [], limit = 10): string[] => {
+    const byKey = new Map<string, { count: number; display: string; lastTime: number }>();
+    for (const r of records || []) {
+        const raw = String(r?.donor ?? '');
+        const key = normalizeDonationKey(raw);
+        if (!key) continue;
+        const parsed = new Date(r?.donatedAt || r?.donated_at || r?.createdAt || r?.created_at || 0).getTime();
+        const time = Number.isFinite(parsed) ? parsed : 0;
+        const existing = byKey.get(key);
+        if (!existing) {
+            byKey.set(key, { count: 1, display: normalizeDonationDisplay(raw), lastTime: time });
+        } else {
+            existing.count += 1;
+            if (time >= existing.lastTime) {
+                existing.lastTime = time;
+                existing.display = normalizeDonationDisplay(raw);
+            }
+        }
+    }
+    return Array.from(byKey.values())
+        .sort((a, b) => b.count - a.count || b.lastTime - a.lastTime || a.display.localeCompare(b.display))
+        .slice(0, limit)
+        .map((v) => v.display);
+};
+
 const formatLocalDateKey = (date: Date) => {
     if (Number.isNaN(date.getTime())) return null;
     const year = date.getFullYear();

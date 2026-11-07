@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateDonationLineItemValue, calculateDonationValue, calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, formatDonationsClipboardText, DENSITY_SERVINGS, MINIMAL_TYPES } from '../donationUtils';
+import { calculateDonationLineItemValue, calculateDonationValue, calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, formatDonationsClipboardText, DENSITY_SERVINGS, MINIMAL_TYPES, normalizeDonationKey, normalizeDonationDisplay, getItemSuggestions, getDonorSuggestions } from '../donationUtils';
 
 describe('donationUtils', () => {
     describe('calculateDonationValue', () => {
@@ -337,6 +337,54 @@ describe('donationUtils', () => {
 
         it('returns None for empty input', () => {
             expect(formatDonationsClipboardText([])).toContain('None');
+        });
+    });
+
+    describe('normalizeDonationKey / normalizeDonationDisplay', () => {
+        it('trims, lowercases, and collapses whitespace for keys', () => {
+            expect(normalizeDonationKey('  Chicken   Breast ')).toBe('chicken breast');
+            expect(normalizeDonationKey('Waymo\tInc')).toBe('waymo inc');
+            expect(normalizeDonationKey(null)).toBe('');
+            expect(normalizeDonationKey('')).toBe('');
+        });
+
+        it('trims and collapses whitespace but preserves case for display', () => {
+            expect(normalizeDonationDisplay('  Chicken   Breast ')).toBe('Chicken Breast');
+            expect(normalizeDonationDisplay('WayMo  Inc')).toBe('WayMo Inc');
+        });
+    });
+
+    describe('getItemSuggestions / getDonorSuggestions', () => {
+        it('dedupes whitespace/case variants and picks most recent display', () => {
+            const records = [
+                { itemName: 'Chicken Breast', donatedAt: '2024-01-10T10:00:00Z' },
+                { itemName: 'chicken   breast ', donatedAt: '2024-01-15T10:00:00Z' },
+                { itemName: 'Rice', donatedAt: '2024-01-12T10:00:00Z' },
+            ];
+            const suggestions = getItemSuggestions(records);
+            expect(suggestions).toEqual(['chicken breast', 'Rice']);
+        });
+
+        it('ranks frequent items first and respects the limit', () => {
+            const records = [
+                { itemName: 'Beans', donatedAt: '2024-01-10T10:00:00Z' },
+                { itemName: 'Rice', donatedAt: '2024-01-11T10:00:00Z' },
+                { itemName: 'Rice', donatedAt: '2024-01-12T10:00:00Z' },
+                { itemName: 'rice ', donatedAt: '2024-01-13T10:00:00Z' },
+            ];
+            expect(getItemSuggestions(records)).toEqual(['rice', 'Beans']);
+            expect(getItemSuggestions(records, 1)).toEqual(['rice']);
+            expect(getItemSuggestions([{ itemName: '  ' }])).toEqual([]);
+        });
+
+        it('counts donors case/whitespace-insensitively', () => {
+            const records = [
+                { donor: 'Waymo', donatedAt: '2024-01-10T10:00:00Z' },
+                { donor: ' waymo ', donatedAt: '2024-01-14T10:00:00Z' },
+                { donor: 'WayMo   Inc', donatedAt: '2024-01-12T10:00:00Z' },
+                { donor: '' },
+            ];
+            expect(getDonorSuggestions(records)).toEqual(['waymo', 'WayMo Inc']);
         });
     });
 });
