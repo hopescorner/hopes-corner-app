@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.53.0] - 2026-11-06
+
+### Added
+
+- Donation entry on phones is now a 3-field flow — item, trays/weight, donor — with type, density, and temperature behind a Details toggle on small screens (always visible on laptops) and auto-filled from the last entry.
+- Quick Select chips are larger touch targets (6 items) and fill the full last template — type, density, temperature, trays, and weight — not just the name and donor.
+- Every save and duplicate now shows an Undo option via the toast so a mis-tap can be reversed without opening the list.
+- The date bar swipes to change days, shows a "Yesterday: X lbs" comparison line, and the daily summary sticks while scrolling so totals stay in view.
+- All steppers, date arrows, card actions, and inputs use 48px+ touch targets and 16px text to prevent iOS zoom.
+
+### Changed
+
+- The Save button is sticky at the bottom of the form for thumb reach, Enter advances Item → Trays → Weight, and focus returns to Trays after saving for the next batch.
+- The Duplicate action is now a labeled "Duplicate" pill instead of an icon-only button.
+
+### Tests
+
+- Added coverage for quick-select full-template fill, Details toggling, Enter-to-advance focus, yesterday hint plus swipe-to-change-day, Undo in the duplicate toast, and sticky Save positioning in unit and component tests.
+
 ## [0.52.0] - 2026-11-06
 
 ### Added

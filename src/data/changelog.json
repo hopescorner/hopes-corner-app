@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.53.0",
+    "date": "November 6, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Faster Donation Entry on Phones and Laptops",
+        "description": "The donation form now focuses on item, amount, and donor with details tucked behind a toggle, offers large tap targets, a sticky Save button, one-tap Duplicate pills, swipeable dates with yesterday totals, and Undo on every save."
+      }
+    ]
+  },
+  {
     "version": "0.52.0",
     "date": "November 6, 2026",
     "highlights": [
