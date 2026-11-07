@@ -81,7 +81,9 @@ vi.mock('@/lib/utils/donationUtils', () => ({
 vi.mock('react-hot-toast', () => ({
     default: {
         success: vi.fn(),
-        error: vi.fn()
+        error: vi.fn(),
+        custom: vi.fn(),
+        dismiss: vi.fn(),
     }
 }));
 
@@ -392,6 +394,15 @@ describe('getRecentItemNames', () => {
         expect(recent[0].donor).toBe('Latest Donor');
         expect(recent[1].donor).toBe('');
     });
+
+    it('returns the full last template for quick re-entry', () => {
+        const records: DonationRecord[] = [
+            createDonationRecord({ itemName: 'Beans', type: 'Carbs', density: 'high', temperature: 'Hot', trays: 3, weightLbs: 7.5, donatedAt: '2024-01-15T12:00:00Z' }),
+        ];
+        const recent = getRecentItemNames(records, 5);
+        expect(recent).toHaveLength(1);
+        expect(recent[0]).toMatchObject({ itemName: 'Beans', type: 'Carbs', density: 'high', temperature: 'Hot', trays: 3, weightLbs: 7.5 });
+    });
 });
 
 describe('DonationsSection Component', () => {
@@ -558,25 +569,26 @@ describe('DonationsSection Component', () => {
             expect(itemAButton).toHaveClass('bg-emerald-100');
         });
 
-        it('limits quick select to 5 recent items', async () => {
+        it('limits quick select to 6 recent items', async () => {
             mockDonationsStore.donationRecords = [
                 createDonationRecord({ itemName: 'Item 1', donatedAt: '2024-01-15T10:00:00Z' }),
                 createDonationRecord({ itemName: 'Item 2', donatedAt: '2024-01-15T09:00:00Z' }),
                 createDonationRecord({ itemName: 'Item 3', donatedAt: '2024-01-15T08:00:00Z' }),
                 createDonationRecord({ itemName: 'Item 4', donatedAt: '2024-01-15T07:00:00Z' }),
                 createDonationRecord({ itemName: 'Item 5', donatedAt: '2024-01-15T06:00:00Z' }),
-                createDonationRecord({ itemName: 'Item 6', donatedAt: '2024-01-15T05:00:00Z' })
+                createDonationRecord({ itemName: 'Item 6', donatedAt: '2024-01-15T05:00:00Z' }),
+                createDonationRecord({ itemName: 'Item 7', donatedAt: '2024-01-15T04:00:00Z' }),
             ];
 
             await act(async () => {
                 render(<DonationsSection />);
             });
 
-            const quickSelectButtons = screen.getAllByRole('button').filter(btn => 
+            const quickSelectButtons = screen.getAllByRole('button').filter(btn =>
                 btn.textContent?.startsWith('Item ')
             );
-            expect(quickSelectButtons).toHaveLength(5);
-            expect(screen.queryByRole('button', { name: 'Item 6' })).not.toBeInTheDocument();
+            expect(quickSelectButtons).toHaveLength(6);
+            expect(screen.queryByRole('button', { name: 'Item 7' })).not.toBeInTheDocument();
         });
     });
 
@@ -1230,6 +1242,94 @@ describe('DonationsSection Component', () => {
                 fireEvent.click(duplicateButtons[1]);
             });
             expect(mockDonationsStore.addDonation).toHaveBeenCalledWith(expect.objectContaining({ item_name: 'Chicken' }));
+        });
+
+        it('shows an Undo action in the success toast after duplicating', async () => {
+            const toastModule = await import('react-hot-toast');
+            mockDonationsStore.addDonation.mockResolvedValue({ id: 'dup-new-id' });
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ id: 'dup-2', itemName: 'Rice', type: 'Carbs', trays: 1, weightLbs: 2 }),
+            ];
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            await act(async () => {
+                fireEvent.click(screen.getAllByLabelText('Duplicate entry')[0]);
+            });
+            expect((toastModule.default.custom as any).mock ?? toastModule.default.custom).toBeDefined();
+            expect((toastModule.default.custom as any).mock?.calls?.length ?? 0).toBeGreaterThan(0);
+        });
+    });
+
+    describe('Mobile fast entry', () => {
+        it('toggles Details to reveal type/density/temp on small screens', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            const toggle = screen.getByRole('button', { name: /Details|Hide details/ });
+            expect(toggle).toHaveAttribute('aria-expanded', 'false');
+            await act(async () => {
+                fireEvent.click(toggle);
+            });
+            expect(screen.getByRole('button', { name: /Details|Hide details/ })).toHaveAttribute('aria-expanded', 'true');
+        });
+
+        it('quick select fills the full last template (type/density/temp/amounts)', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ itemName: 'Beans', type: 'Carbs', density: 'high', temperature: 'Hot', trays: 3, weightLbs: 7.5, donor: 'Bakery', donatedAt: '2024-01-15T12:00:00Z' }),
+            ];
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Beans' }));
+            });
+            expect((screen.getByPlaceholderText('e.g. Chicken breast') as HTMLInputElement).value).toBe('Beans');
+            expect((screen.getByPlaceholderText('e.g., Waymo, LinkedIn, Anonymous') as HTMLInputElement).value).toBe('Bakery');
+            expect((screen.getByPlaceholderText('0') as HTMLInputElement).value).toBe('3');
+            expect((screen.getByPlaceholderText('0.0') as HTMLInputElement).value).toBe('7.5');
+            // Temperature lives inside Details; still present in the DOM
+            expect((screen.getByPlaceholderText(/165/) as HTMLInputElement).value).toBe('Hot');
+        });
+
+        it('Enter in Item advances focus to Trays and Trays to Weight', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            const itemInput = screen.getByPlaceholderText('e.g. Chicken breast') as HTMLInputElement;
+            const traysInput = screen.getByPlaceholderText('0') as HTMLInputElement;
+            const weightInput = screen.getByPlaceholderText('0.0') as HTMLInputElement;
+            itemInput.focus();
+            await act(async () => {
+                fireEvent.keyDown(itemInput, { key: 'Enter' });
+            });
+            expect(document.activeElement).toBe(traysInput);
+            await act(async () => {
+                fireEvent.keyDown(traysInput, { key: 'Enter' });
+            });
+            expect(document.activeElement).toBe(weightInput);
+        });
+
+        it('shows yesterday total hint in the date bar and swipes to change day', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ itemName: 'Chicken', weightLbs: 10, dateKey: '2024-01-15' }),
+                createDonationRecord({ itemName: 'Rice', weightLbs: 6, dateKey: '2024-01-14' }),
+                createDonationRecord({ itemName: 'Bread', weightLbs: 4, dateKey: '2024-01-14' }),
+            ];
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+            expect(screen.getByText('Yesterday: 10.0 lbs')).toBeInTheDocument();
+            // Swipe left (dx < 0) goes to next day
+            const dateBar = screen.getByText(/January 15, 2024/).closest('div');
+            const swipeTarget = dateBar?.parentElement ?? dateBar!;
+            await act(async () => {
+                fireEvent.touchStart(swipeTarget, { touches: [{ clientX: 200 }] });
+            });
+            await act(async () => {
+                fireEvent.touchEnd(swipeTarget, { changedTouches: [{ clientX: 0 }] });
+            });
+            expect(screen.getByText(/January 16, 2024/)).toBeInTheDocument();
         });
     });
 });

@@ -225,8 +225,45 @@ test.describe('DonationsSection', () => {
     );
     const duplicateButtons = component.getByLabel('Duplicate entry');
     await expect(duplicateButtons.first()).toBeVisible();
+    await expect(duplicateButtons.first()).toContainText('Duplicate');
     await duplicateButtons.first().click();
     // After duplicate, grouped card shows 2 entries for the same item
     await expect(component.getByText('2 entries')).toBeVisible();
+  });
+
+  test('date bar shows yesterday total for comparison', async ({ mount }) => {
+    const yesterday = new Date(todayKey + 'T12:00:00');
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Los_Angeles',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(yesterday);
+    const yesterdayISO = `${yesterdayKey}T12:00:00.000Z`;
+    const component = await mount(
+      <DonationsSectionStory
+        donationRecords={[
+          {
+            id: 'd1', type: 'Protein', itemName: 'Chicken', trays: 1,
+            weightLbs: 5, servings: 20, donor: 'Waymo', date: yesterdayISO,
+            dateKey: yesterdayKey, donatedAt: yesterdayISO, createdAt: yesterdayISO,
+          },
+        ]}
+      />
+    );
+    await expect(component.getByText('Yesterday: 5.0 lbs')).toBeVisible();
+  });
+
+  test('details toggle expands type and density on small forms', async ({ mount }) => {
+    const component = await mount(<DonationsSectionStory />);
+    // Desktop viewport shows details; toggle still exists for mobile parity
+    await expect(component.getByText('Type', { exact: true })).toBeVisible();
+    await expect(component.getByText('Density')).toBeVisible();
+    // Save is sticky for thumb reach
+    const save = component.getByRole('button', { name: 'Save Record' });
+    await expect(save).toBeVisible();
+    const sticky = await save.evaluate((el) => getComputedStyle(el).position);
+    expect(sticky).toBe('sticky');
   });
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Save,
     Trash2,
@@ -116,10 +116,15 @@ export const groupDonationsByItem = (records: DonationRecord[]): GroupedDonation
     });
 };
 
-// Quick select item with associated donor info
+// Quick select item with associated donor info + last template for full fill.
 export interface QuickSelectItem {
     itemName: string;
     donor: string;
+    type?: string;
+    density?: 'light' | 'medium' | 'high';
+    temperature?: string;
+    trays?: number;
+    weightLbs?: number;
 }
 
 // Interface for donor-level grouping
@@ -170,7 +175,7 @@ export const groupDonationsByDonor = (records: DonationRecord[]): DonorGroup[] =
 // Get unique recent item names (with most-recent donor) for quick selection.
 // Precomputes timestamps once so sorting is O(n log n) on numbers instead of
 // re-parsing date strings on every comparison.
-export const getRecentItemNames = (records: DonationRecord[], limit = 5): QuickSelectItem[] => {
+export const getRecentItemNames = (records: DonationRecord[], limit = 6): QuickSelectItem[] => {
     const seen = new Set<string>();
     const recent: QuickSelectItem[] = [];
 
@@ -185,7 +190,15 @@ export const getRecentItemNames = (records: DonationRecord[], limit = 5): QuickS
         const key = normalizeDonationKey(record.itemName);
         if (key && !seen.has(key)) {
             seen.add(key);
-            recent.push({ itemName: name, donor: normalizeDonationDisplay(record.donor) });
+            recent.push({
+                itemName: name,
+                donor: normalizeDonationDisplay((record as any).donor),
+                type: record.type || undefined,
+                density: record.density as 'light' | 'medium' | 'high' | undefined,
+                temperature: record.temperature || undefined,
+                trays: Number(record.trays) || undefined,
+                weightLbs: Number(record.weightLbs ?? (record as any).weight_lbs) || undefined,
+            });
             if (recent.length >= limit) break;
         }
     }
@@ -252,7 +265,7 @@ const GroupedDonationCard = memo(function GroupedDonationCard({
                             aria-expanded={isExpanded}
                             aria-controls={expandId}
                             aria-label={isExpanded ? 'Collapse entries' : 'Expand entries'}
-                            className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors text-gray-500 focus-visible:outline-2 focus-visible:outline-emerald-600"
+                            className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors text-gray-500 focus-visible:outline-2 focus-visible:outline-emerald-600"
                         >
                             {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                         </button>
@@ -261,29 +274,29 @@ const GroupedDonationCard = memo(function GroupedDonationCard({
                         type="button"
                         onClick={() => onDuplicate(group.entries[0])}
                         disabled={duplicatingId === group.entries[0]?.id}
-                        className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:opacity-60"
+                        className="min-h-[48px] px-4 flex items-center gap-1.5 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:opacity-60"
                         aria-label="Duplicate entry"
                         title="Duplicate entry for today"
                     >
-                        <Copy size={16} />
+                        <Plus size={16} /> Duplicate
                     </button>
                     {!hasMultipleEntries && (
                         <>
                             <button
                                 type="button"
                                 onClick={() => onEdit(group.entries[0])}
-                                className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-blue-50 text-blue-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-blue-600"
+                                className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-blue-50 text-blue-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-blue-600"
                                 aria-label="Edit entry"
                             >
-                                <Pencil size={16} />
+                                <Pencil size={18} />
                             </button>
                             <button
                                 type="button"
                                 onClick={() => onDelete(group.entries[0])}
-                                className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-red-50 text-red-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-red-600"
+                                className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-red-50 text-red-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-red-600"
                                 aria-label="Delete entry"
                             >
-                                <Trash2 size={16} />
+                                <Trash2 size={18} />
                             </button>
                         </>
                     )}
@@ -324,27 +337,27 @@ const GroupedDonationCard = memo(function GroupedDonationCard({
                                     type="button"
                                     onClick={() => onDuplicate(entry)}
                                     disabled={duplicatingId === entry.id}
-                                    className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:opacity-60"
+                                    className="min-h-[48px] px-3 flex items-center gap-1 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600 disabled:opacity-60"
                                     aria-label="Duplicate entry"
                                     title="Duplicate entry for today"
                                 >
-                                    <Copy size={14} />
+                                    <Plus size={14} /> Duplicate
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => onEdit(entry)}
-                                    className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-blue-50 text-blue-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-blue-600"
+                                    className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-blue-50 text-blue-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-blue-600"
                                     aria-label="Edit entry"
                                 >
-                                    <Pencil size={14} />
+                                    <Pencil size={18} />
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => onDelete(entry)}
-                                    className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-red-50 text-red-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-red-600"
+                                    className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-red-50 text-red-600 rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-red-600"
                                     aria-label="Delete entry"
                                 >
-                                    <Trash2 size={14} />
+                                    <Trash2 size={18} />
                                 </button>
                             </div>
                         </div>
@@ -442,7 +455,7 @@ const QuickSelectItems = memo(function QuickSelectItems({
     return (
         <div className="mt-2">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Quick Select</p>
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
                 {recentItems.map((item) => (
                     <button
                         key={item.itemName}
@@ -450,10 +463,10 @@ const QuickSelectItems = memo(function QuickSelectItems({
                         onClick={() => onSelect(item)}
                         title={item.donor ? `Donor: ${item.donor}` : undefined}
                         className={cn(
-                            'px-2.5 py-1 rounded-lg text-xs font-medium transition-all border',
+                            'min-h-[44px] px-3.5 py-2 rounded-xl text-sm font-medium transition-all border',
                             normalizeDonationKey(currentValue) === normalizeDonationKey(item.itemName)
                                 ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                                : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200'
+                                : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200'
                         )}
                     >
                         {item.itemName}
@@ -519,14 +532,39 @@ const DonationForm = memo(function DonationForm({
 }) {
     const [form, setForm] = useState<DonationFormData>(() => formDataFromRecord(editingRecord));
     const [error, setError] = useState<string | null>(null);
+    const [showDetails, setShowDetails] = useState(() => editingRecord != null);
     const isEditing = editingRecord != null;
+    const itemRef = useRef<HTMLInputElement>(null);
+    const traysRef = useRef<HTMLInputElement>(null);
+    const weightRef = useRef<HTMLInputElement>(null);
 
     const handleQuickSelect = useCallback((item: QuickSelectItem) => {
         setForm((prev) => ({
             ...prev,
             itemName: item.itemName,
             ...(item.donor ? { donor: item.donor } : {}),
+            ...(item.type ? { type: item.type as DonationTypeEnum } : {}),
+            ...(item.density ? { density: item.density } : {}),
+            ...(item.temperature ? { temperature: item.temperature } : {}),
+            ...(item.trays != null && item.trays > 0 ? { trays: String(item.trays) } : {}),
+            ...(item.weightLbs != null && item.weightLbs > 0 ? { weightLbs: String(item.weightLbs) } : {}),
         }));
+    }, []);
+
+    const handleItemKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            traysRef.current?.focus();
+            traysRef.current?.select();
+        }
+    }, []);
+
+    const handleTraysKeyDown = useCallback((e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            weightRef.current?.focus();
+            weightRef.current?.select();
+        }
     }, []);
 
     const adjustTrays = useCallback((delta: number) => {
@@ -577,24 +615,42 @@ const DonationForm = memo(function DonationForm({
             temperature: form.temperature.trim(),
         });
         // Keep last item/donor (and amounts) loaded so staff can save
-        // "another" batch with steppers instead of retyping.
+        // "another" batch with steppers instead of retyping. Focus trays
+        // for the next amount.
+        if (!isEditing) {
+            requestAnimationFrame(() => {
+                traysRef.current?.focus();
+                traysRef.current?.select();
+            });
+        }
     }, [form, isEditing, onSubmit]);
 
     return (
-        <form onSubmit={handleSubmit} noValidate className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="bg-white p-4 lg:p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="font-bold text-gray-900">
                     {isEditing ? 'Edit Record' : 'Log New Item'}
                 </h3>
-                {isEditing && (
+                <div className="flex items-center gap-2">
                     <button
                         type="button"
-                        onClick={onCancelEdit}
-                        className="min-h-[40px] px-3 text-xs font-bold text-red-600 hover:underline focus-visible:outline-2 focus-visible:outline-red-600 rounded-lg"
+                        onClick={() => setShowDetails((v) => !v)}
+                        aria-expanded={showDetails}
+                        aria-controls="donation-details"
+                        className="lg:hidden min-h-[48px] px-3 text-xs font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 focus-visible:outline-2 focus-visible:outline-emerald-600"
                     >
-                        Cancel
+                        {showDetails ? 'Hide details' : 'Details'}
                     </button>
-                )}
+                    {isEditing && (
+                        <button
+                            type="button"
+                            onClick={onCancelEdit}
+                            className="min-h-[48px] px-3 text-xs font-bold text-red-600 hover:underline focus-visible:outline-2 focus-visible:outline-red-600 rounded-lg"
+                        >
+                            Cancel
+                        </button>
+                    )}
+                </div>
             </div>
 
             {error && (
@@ -604,24 +660,15 @@ const DonationForm = memo(function DonationForm({
             )}
 
             <div>
-                <label htmlFor="donation-type" className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
-                <select
-                    id="donation-type"
-                    className="w-full p-2 rounded-lg border border-gray-200 bg-gray-50 font-medium focus-visible:outline-2 focus-visible:outline-emerald-600"
-                    value={form.type}
-                    onChange={e => setForm({ ...form, type: e.target.value as DonationTypeEnum })}
-                >
-                    {DONATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-            </div>
-            <div>
                 <label htmlFor="donation-item" className="block text-xs font-bold text-gray-500 uppercase mb-1">Item Name</label>
                 <input
                     id="donation-item"
+                    ref={itemRef}
                     type="text"
                     required
                     list="donation-item-list"
-                    className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    onKeyDown={handleItemKeyDown}
+                    className="w-full min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base"
                     value={form.itemName}
                     onChange={e => setForm({ ...form, itemName: e.target.value })}
                     placeholder="e.g. Chicken breast"
@@ -638,25 +685,27 @@ const DonationForm = memo(function DonationForm({
                     currentValue={form.itemName}
                 />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
                 <div>
                     <label htmlFor="donation-trays" className="block text-xs font-bold text-gray-500 uppercase mb-1">Trays</label>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                         <button
                             type="button"
                             onClick={() => adjustTrays(-1)}
                             aria-label="Decrease trays"
-                            className="min-h-[40px] min-w-[40px] px-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                            className="min-h-[48px] min-w-[48px] px-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-base font-bold text-gray-700 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
                         >
                             −
                         </button>
                         <input
                             id="donation-trays"
+                            ref={traysRef}
                             type="number"
                             min="0"
                             step="1"
                             inputMode="numeric"
-                            className="flex-1 min-w-0 p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                            onKeyDown={handleTraysKeyDown}
+                            className="flex-1 min-w-0 min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base"
                             value={form.trays}
                             onChange={e => setForm({ ...form, trays: e.target.value })}
                             placeholder="0"
@@ -665,7 +714,7 @@ const DonationForm = memo(function DonationForm({
                             type="button"
                             onClick={() => adjustTrays(1)}
                             aria-label="Increase trays"
-                            className="min-h-[40px] min-w-[40px] px-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                            className="min-h-[48px] min-w-[48px] px-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-base font-bold text-gray-700 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
                         >
                             +
                         </button>
@@ -673,22 +722,23 @@ const DonationForm = memo(function DonationForm({
                 </div>
                 <div>
                     <label htmlFor="donation-weight" className="block text-xs font-bold text-gray-500 uppercase mb-1">Weight (lbs)</label>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                         <button
                             type="button"
                             onClick={() => adjustWeight(-0.5)}
                             aria-label="Decrease weight"
-                            className="min-h-[40px] min-w-[40px] px-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                            className="min-h-[48px] min-w-[48px] px-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-base font-bold text-gray-700 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
                         >
                             −
                         </button>
                         <input
                             id="donation-weight"
+                            ref={weightRef}
                             type="number"
                             min="0"
                             step="0.1"
                             inputMode="decimal"
-                            className="flex-1 min-w-0 p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                            className="flex-1 min-w-0 min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base"
                             value={form.weightLbs}
                             onChange={e => setForm({ ...form, weightLbs: e.target.value })}
                             placeholder="0.0"
@@ -697,7 +747,7 @@ const DonationForm = memo(function DonationForm({
                             type="button"
                             onClick={() => adjustWeight(0.5)}
                             aria-label="Increase weight"
-                            className="min-h-[40px] min-w-[40px] px-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                            className="min-h-[48px] min-w-[48px] px-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-base font-bold text-gray-700 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
                         >
                             +
                         </button>
@@ -705,25 +755,12 @@ const DonationForm = memo(function DonationForm({
                 </div>
             </div>
             <div>
-                <label htmlFor="donation-density" className="block text-xs font-bold text-gray-500 uppercase mb-1">Density</label>
-                <select
-                    id="donation-density"
-                    className="w-full p-2 rounded-lg border border-gray-200 bg-gray-50 font-medium focus-visible:outline-2 focus-visible:outline-emerald-600"
-                    value={form.density}
-                    onChange={e => setForm({ ...form, density: e.target.value as 'light' | 'medium' | 'high' })}
-                >
-                    <option value="light">Light ({DENSITY_SERVINGS.light} servings)</option>
-                    <option value="medium">Medium ({DENSITY_SERVINGS.medium} servings)</option>
-                    <option value="high">High ({DENSITY_SERVINGS.high} servings)</option>
-                </select>
-            </div>
-            <div>
                 <label htmlFor="donation-donor" className="block text-xs font-bold text-gray-500 uppercase mb-1">Donor / Source</label>
                 <input
                     id="donation-donor"
                     type="text"
                     list="donation-donor-list"
-                    className="w-full p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base"
                     value={form.donor}
                     onChange={e => setForm({ ...form, donor: e.target.value })}
                     placeholder="e.g., Waymo, LinkedIn, Anonymous"
@@ -734,35 +771,61 @@ const DonationForm = memo(function DonationForm({
                     ))}
                 </datalist>
             </div>
-            <div>
-                <label htmlFor="donation-temperature" className="block text-xs font-bold text-gray-500 uppercase mb-1">Temperature (Optional)</label>
-                <div className="flex gap-2">
-                    <input
-                        id="donation-temperature"
-                        type="text"
-                        className="flex-1 p-2 rounded-lg border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
-                        value={form.temperature}
-                        onChange={e => setForm({ ...form, temperature: e.target.value })}
-                        placeholder="e.g., 165°F, Hot, Cold, Room temp"
-                    />
-                    <button
-                        type="button"
-                        onClick={() => setForm((prev) => ({ ...prev, temperature: appendFahrenheit(prev.temperature) }))}
-                        className="min-h-[40px] px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
-                        title="Add °F symbol"
+            <div id="donation-details" className={cn('space-y-4', !showDetails && 'hidden lg:block')}>
+                <div>
+                    <label htmlFor="donation-type" className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
+                    <select
+                        id="donation-type"
+                        className="w-full min-h-[48px] p-3 rounded-xl border border-gray-200 bg-gray-50 font-medium focus-visible:outline-2 focus-visible:outline-emerald-600"
+                        value={form.type}
+                        onChange={e => setForm({ ...form, type: e.target.value as DonationTypeEnum })}
                     >
-                        °F
-                    </button>
+                        {DONATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">Tip: Click °F button to add the symbol</p>
+                <div>
+                    <label htmlFor="donation-density" className="block text-xs font-bold text-gray-500 uppercase mb-1">Density</label>
+                    <select
+                        id="donation-density"
+                        className="w-full min-h-[48px] p-3 rounded-xl border border-gray-200 bg-gray-50 font-medium focus-visible:outline-2 focus-visible:outline-emerald-600"
+                        value={form.density}
+                        onChange={e => setForm({ ...form, density: e.target.value as 'light' | 'medium' | 'high' })}
+                    >
+                        <option value="light">Light ({DENSITY_SERVINGS.light} servings)</option>
+                        <option value="medium">Medium ({DENSITY_SERVINGS.medium} servings)</option>
+                        <option value="high">High ({DENSITY_SERVINGS.high} servings)</option>
+                    </select>
+                </div>
+                <div>
+                    <label htmlFor="donation-temperature" className="block text-xs font-bold text-gray-500 uppercase mb-1">Temperature (Optional)</label>
+                    <div className="flex gap-2">
+                        <input
+                            id="donation-temperature"
+                            type="text"
+                            className="flex-1 min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base"
+                            value={form.temperature}
+                            onChange={e => setForm({ ...form, temperature: e.target.value })}
+                            placeholder="e.g., 165°F, Hot, Cold, Room temp"
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setForm((prev) => ({ ...prev, temperature: appendFahrenheit(prev.temperature) }))}
+                            className="min-h-[48px] px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-bold text-gray-600 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                            title="Add °F symbol"
+                        >
+                            °F
+                        </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Tip: Click °F button to add the symbol</p>
+                </div>
             </div>
 
             <button
                 disabled={saving}
                 type="submit"
-                className="w-full min-h-[48px] py-3 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-emerald-800"
+                className="w-full min-h-[56px] py-3 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-emerald-800 sticky bottom-2 z-10"
             >
-                {isEditing ? <Pencil size={18} /> : <Save size={18} />}
+                {isEditing ? <Pencil size={20} /> : <Save size={20} />}
                 {saving ? 'Saving…' : isEditing ? 'Update Record' : 'Save Record'}
             </button>
         </form>
@@ -879,8 +942,15 @@ export const DonationsSection = () => {
         let totalTrays = 0;
         let totalServings = 0;
         const donorKeys = new Set<string>();
+        let yesterdayWeight = 0;
+        const yesterdayDate = new Date(selectedDate + 'T12:00:00');
+        yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+        let yesterdayKey = '';
+        try { yesterdayKey = pacificDateStringFrom(yesterdayDate); } catch { yesterdayKey = ''; }
         for (const r of records) {
-            if (deriveDonationDateKey(r) !== selectedDate) continue;
+            const dk = deriveDonationDateKey(r);
+            if (dk === yesterdayKey) yesterdayWeight += Number((r as any).weightLbs ?? (r as any).weight_lbs) || 0;
+            if (dk !== selectedDate) continue;
             displayed.push(r as DonationRecord);
             totalWeight += Number((r as DonationRecord).weightLbs) || 0;
             totalTrays += Number((r as DonationRecord).trays) || 0;
@@ -901,7 +971,7 @@ export const DonationsSection = () => {
 
         const donorGroups = groupDonationsByDonor(filtered);
         const itemGroups = groupDonationsByItem(displayed);
-        const recentItems = getRecentItemNames(records, 5);
+        const recentItems = getRecentItemNames(records, 6);
         const itemSuggestions = getItemSuggestions(records, 20);
         const donorSuggestions = getDonorSuggestions(records, 10);
 
@@ -912,6 +982,7 @@ export const DonationsSection = () => {
             recentItems,
             itemSuggestions,
             donorSuggestions,
+            yesterdayWeight,
             totals: {
                 totalWeight,
                 donationValue: calculateDonationValue(displayed as DonationRecord[]),
@@ -923,8 +994,35 @@ export const DonationsSection = () => {
         };
     }, [records, selectedDate, donorQuery, typeFilter]);
 
-    const { displayed, filtered, donorGroups, recentItems, itemSuggestions, donorSuggestions, totals } = pipeline;
+    const { displayed, filtered, donorGroups, recentItems, itemSuggestions, donorSuggestions, yesterdayWeight, totals } = pipeline;
     const isFiltering = donorQuery.trim() !== '' || typeFilter !== 'All';
+    const touchStartX = useRef<number | null>(null);
+
+    const showWithUndo = useCallback((msg: string, newId?: string) => {
+        const t = toast as any;
+        if (newId && typeof t.custom === 'function') {
+            t.custom(
+                (tt: any) => (
+                    <div className="flex items-center gap-3 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-lg">
+                        <span className="text-sm font-medium">{msg}</span>
+                        <button
+                            type="button"
+                            onClick={async () => {
+                                try { await deleteDonation(newId); } catch { /* noop */ }
+                                t.dismiss?.(tt.id);
+                            }}
+                            className="min-h-[36px] px-3 text-sm font-bold bg-white/15 hover:bg-white/25 rounded-lg"
+                        >
+                            Undo
+                        </button>
+                    </div>
+                ),
+                { duration: 5000 },
+            );
+        } else {
+            t.success(msg, { duration: 5000 });
+        }
+    }, [deleteDonation]);
 
     const editingRecord = useMemo(
         () => records.find((r) => r.id === editingId) ?? null,
@@ -973,7 +1071,7 @@ export const DonationsSection = () => {
                 toast.success('Updated donation');
                 setEditingId(null);
             } else {
-                await addDonation({
+                const created = await addDonation({
                     donation_type: data.type,
                     item_name: data.itemName,
                     trays: data.trays,
@@ -985,7 +1083,7 @@ export const DonationsSection = () => {
                     date_key: selectedDate,
                     donated_at: new Date().toISOString()
                 } as any);
-                toast.success('Logged donation');
+                showWithUndo('Logged donation', (created as any)?.id);
             }
         } catch (err) {
             console.error(err);
@@ -994,7 +1092,7 @@ export const DonationsSection = () => {
         } finally {
             setSaving(false);
         }
-    }, [addDonation, editingId, selectedDate, updateDonation]);
+    }, [addDonation, editingId, selectedDate, showWithUndo, updateDonation]);
 
     const handleDeleteRequest = useCallback((record: DonationRecord) => {
         setDeleteTarget(record);
@@ -1009,7 +1107,7 @@ export const DonationsSection = () => {
             const type = ((record.type || 'Protein') as DonationTypeEnum);
             const density = ((record.density as 'light' | 'medium' | 'high') || 'medium');
             const servings = calculateServings(type, weight, trays, density);
-            await addDonation({
+            const created = await addDonation({
                 donation_type: type,
                 item_name: normalizeDonationDisplay(record.itemName),
                 trays,
@@ -1021,14 +1119,14 @@ export const DonationsSection = () => {
                 date_key: selectedDate,
                 donated_at: new Date().toISOString()
             } as any);
-            toast.success('Duplicated donation');
+            showWithUndo('Duplicated donation', (created as any)?.id);
         } catch (err) {
             console.error(err);
             toast.error('Failed to duplicate');
         } finally {
             setDuplicatingId(null);
         }
-    }, [addDonation, selectedDate]);
+    }, [addDonation, selectedDate, showWithUndo]);
 
     const handleConfirmDelete = useCallback(async () => {
         if (!deleteTarget) return;
@@ -1136,43 +1234,60 @@ export const DonationsSection = () => {
             </div>
 
             {/* Date Selector */}
-            <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
-                <button type="button" onClick={() => shiftDate(-1)} className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-white rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600" title="Previous day" aria-label="Previous day"><ChevronLeft size={20} /></button>
-                <div className="flex items-center gap-3">
-                    <span className="font-bold text-gray-900">{formatDisplayDate(selectedDate)}</span>
-                    {!isToday && (
-                        <button
-                            type="button"
-                            onClick={goToday}
-                            className="px-2.5 py-1 min-h-[32px] text-xs font-bold bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
-                        >
-                            Today
-                        </button>
+            <div
+                className="flex justify-between items-center bg-gray-50 p-2 lg:p-3 rounded-xl border border-gray-200 touch-pan-y"
+                onTouchStart={(e) => { touchStartX.current = e.touches[0]?.clientX ?? null; }}
+                onTouchEnd={(e) => {
+                    const startX = touchStartX.current;
+                    const endX = e.changedTouches[0]?.clientX ?? null;
+                    touchStartX.current = null;
+                    if (startX == null || endX == null) return;
+                    const dx = endX - startX;
+                    if (Math.abs(dx) < 50) return;
+                    shiftDate(dx < 0 ? 1 : -1);
+                }}
+            >
+                <button type="button" onClick={() => shiftDate(-1)} className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-white rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600" title="Previous day" aria-label="Previous day"><ChevronLeft size={24} /></button>
+                <div className="flex flex-col items-center gap-0.5 min-w-0">
+                    <div className="flex items-center gap-3">
+                        <span className="font-bold text-gray-900 text-center">{formatDisplayDate(selectedDate)}</span>
+                        {!isToday && (
+                            <button
+                                type="button"
+                                onClick={goToday}
+                                className="px-3 py-2 min-h-[44px] text-xs font-bold bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-200 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                            >
+                                Today
+                            </button>
+                        )}
+                    </div>
+                    {yesterdayWeight > 0 && (
+                        <span className="text-xs font-medium text-gray-500">Yesterday: {yesterdayWeight.toFixed(1)} lbs</span>
                     )}
                 </div>
-                <button type="button" onClick={() => shiftDate(1)} className="min-h-[40px] min-w-[40px] flex items-center justify-center hover:bg-white rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600" title="Next day" aria-label="Next day"><ChevronRight size={20} /></button>
+                <button type="button" onClick={() => shiftDate(1)} className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-white rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600" title="Next day" aria-label="Next day"><ChevronRight size={24} /></button>
             </div>
 
             {/* Search + type filter */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-3">
                 <div className="relative">
-                    <Search size={16} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Search size={18} aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                         type="search"
                         aria-label="Search donations"
                         value={donorQuery}
                         onChange={(e) => setDonorQuery(e.target.value)}
                         placeholder="Search donors or items..."
-                        className="w-full pl-9 pr-9 py-2 min-h-[44px] rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-sm"
+                        className="w-full pl-10 pr-10 py-3 min-h-[48px] rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base"
                     />
                     {donorQuery && (
                         <button
                             type="button"
                             onClick={() => setDonorQuery('')}
                             aria-label="Clear search"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[32px] min-w-[32px] flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
                         >
-                            <X size={16} />
+                            <X size={18} />
                         </button>
                     )}
                 </div>
@@ -1184,7 +1299,7 @@ export const DonationsSection = () => {
                             aria-pressed={typeFilter === t}
                             onClick={() => setTypeFilter(t)}
                             className={cn(
-                                'shrink-0 px-3 py-1.5 min-h-[36px] rounded-full text-xs font-bold border transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600',
+                                'shrink-0 px-4 py-2 min-h-[44px] rounded-full text-xs font-bold border transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600',
                                 typeFilter === t
                                     ? 'bg-gray-900 text-white border-gray-900'
                                     : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:text-gray-700'
@@ -1212,35 +1327,35 @@ export const DonationsSection = () => {
 
             {/* Daily Summary */}
             {displayed.length > 0 && (
-                <div className="rounded-xl p-4 bg-emerald-50 border border-emerald-200">
-                    <div className="flex flex-wrap gap-6 items-center justify-center">
+                <div className="rounded-xl p-3 lg:p-4 bg-emerald-50 border border-emerald-200 sticky top-2 z-20 shadow-sm">
+                    <div className="flex flex-wrap gap-3 lg:gap-6 items-center justify-center">
                         <div className="text-center">
-                            <p className="text-2xl font-bold text-gray-900">{totals.totalWeight.toFixed(1)}</p>
-                            <p className="text-xs font-medium text-gray-500 uppercase">lbs total</p>
+                            <p className="text-lg lg:text-2xl font-bold text-gray-900">{totals.totalWeight.toFixed(1)}</p>
+                            <p className="text-[10px] lg:text-xs font-medium text-gray-500 uppercase">lbs total</p>
                         </div>
                         <div className="text-center">
-                            <p className="text-2xl font-bold text-emerald-700">{formatDonationCurrency(totals.donationValue)}</p>
-                            <p className="text-xs font-medium text-gray-500 uppercase">donation value</p>
+                            <p className="text-lg lg:text-2xl font-bold text-emerald-700">{formatDonationCurrency(totals.donationValue)}</p>
+                            <p className="text-[10px] lg:text-xs font-medium text-gray-500 uppercase">donation value</p>
                         </div>
                         {totals.totalTrays > 0 && (
                             <div className="text-center">
-                                <p className="text-2xl font-bold text-gray-900">{totals.totalTrays}</p>
-                                <p className="text-xs font-medium text-gray-500 uppercase">trays</p>
+                                <p className="text-lg lg:text-2xl font-bold text-gray-900">{totals.totalTrays}</p>
+                                <p className="text-[10px] lg:text-xs font-medium text-gray-500 uppercase">trays</p>
                             </div>
                         )}
                         {totals.totalServings > 0 && (
                             <div className="text-center">
-                                <p className="text-2xl font-bold text-emerald-600">~{totals.totalServings}</p>
-                                <p className="text-xs font-medium text-gray-500 uppercase">servings</p>
+                                <p className="text-lg lg:text-2xl font-bold text-emerald-600">~{totals.totalServings}</p>
+                                <p className="text-[10px] lg:text-xs font-medium text-gray-500 uppercase">servings</p>
                             </div>
                         )}
                         <div className="text-center">
-                            <p className="text-2xl font-bold text-gray-900">{totals.uniqueItems}</p>
-                            <p className="text-xs font-medium text-gray-500 uppercase">unique items</p>
+                            <p className="text-lg lg:text-2xl font-bold text-gray-900">{totals.uniqueItems}</p>
+                            <p className="text-[10px] lg:text-xs font-medium text-gray-500 uppercase">unique items</p>
                         </div>
                         <div className="text-center">
-                            <p className="text-2xl font-bold text-gray-900">{totals.uniqueDonors}</p>
-                            <p className="text-xs font-medium text-gray-500 uppercase">donors</p>
+                            <p className="text-lg lg:text-2xl font-bold text-gray-900">{totals.uniqueDonors}</p>
+                            <p className="text-[10px] lg:text-xs font-medium text-gray-500 uppercase">donors</p>
                         </div>
                     </div>
                 </div>
