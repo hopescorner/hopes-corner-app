@@ -25,7 +25,7 @@ import { EndServiceDayPanel } from './EndServiceDayPanel';
 import { ServiceDatePicker } from './ServiceDatePicker';
 import { ServiceDayNote } from './ServiceDayNote';
 import { LayoutGrid, List, Settings, ChevronDown } from 'lucide-react';
-import { useServiceViewState } from '@/hooks/useServiceViewState';
+import { useServiceViewDate, useServiceViewState } from '@/hooks/useServiceViewState';
 import { useServiceScrollPosition } from '@/hooks/useServiceScrollPosition';
 import { useServiceClock } from '@/hooks/useServiceClock';
 import { useSession } from 'next-auth/react';
@@ -40,7 +40,7 @@ export function ShowersSection() {
     const { data: session } = useSession();
 
     const today = todayPacificDateString();
-    const [selectedDate, setSelectedDate] = useServiceViewState('showers-date', today);
+    const [selectedDate, setSelectedDate] = useServiceViewDate('showers-date', today);
     const [search, setSearch] = useServiceViewState<string>('showers-search', '');
     const query = useDeferredValue(search.trim().toLowerCase());
     const now = useServiceClock();

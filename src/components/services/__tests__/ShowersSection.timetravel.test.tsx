@@ -20,8 +20,9 @@ vi.mock('framer-motion', () => ({
 }));
 
 // Mock date utilities
+const mockDay = vi.hoisted(() => ({ value: '2024-01-15' }));
 vi.mock('@/lib/utils/date', () => ({
-    todayPacificDateString: () => '2024-01-15',
+    todayPacificDateString: () => mockDay.value,
     pacificDateStringFrom: (date: string) => date.split('T')[0],
     formatTimeInPacific: () => '12:00 PM',
     formatPacificTimeString: (timeStr: string) => timeStr,
@@ -121,7 +122,16 @@ import { ShowersSection } from '../ShowersSection';
 describe('ShowersSection Time Travel', () => {
     beforeEach(() => {
         mockRole = 'admin';
+        mockDay.value = '2024-01-15';
         vi.clearAllMocks();
+    });
+
+    it('keeps Today on the current service day while the page stays open', () => {
+        const { rerender } = render(<ShowersSection />);
+        mockDay.value = '2024-01-16';
+        rerender(<ShowersSection />);
+        expect(screen.getByTestId('selected-date')).toHaveTextContent('2024-01-16');
+        expect(screen.queryByText('Viewing Historical Data')).not.toBeInTheDocument();
     });
 
     it('allows staff to use historical add actions', () => {

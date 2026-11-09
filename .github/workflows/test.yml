@@ -17,6 +17,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Typecheck
+        run: npm run typecheck
+
   vitest:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -43,14 +46,14 @@ jobs:
         uses: actions/cache@v6.1.0
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ steps.playwright-version.outputs.version }}
+          key: ${{ runner.os }}-playwright-chromium-webkit-${{ steps.playwright-version.outputs.version }}
 
       - name: Install Playwright system dependencies
-        run: npx playwright install-deps chromium
+        run: npx playwright install-deps chromium webkit
 
       - name: Install Playwright browser
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install chromium
+        run: npx playwright install chromium webkit
 
       - name: Run Playwright component tests
         run: npm run test:ct
@@ -91,7 +94,7 @@ jobs:
           docker exec -e PGPASSWORD ${{ job.services.postgres.id }}
           psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1
           -c 'CREATE DATABASE slot_blocking_test OWNER postgres;'
-      - name: Test slot blocking in Postgres
+      - name: Test service rules and competing bookings in Postgres
         run: bash scripts/testSlotBlockingDb.sh
 
   ci-pass:

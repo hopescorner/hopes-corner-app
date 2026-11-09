@@ -131,13 +131,16 @@ export default function ServicesPage() {
         }
     }, [markPerf]);
 
-    const { ensureLoaded: ensureServicesLoaded, loadFromSupabase: reloadServices, showerRecords, laundryRecords, bicycleRecords } = useServicesStore(
+    const { ensureLoaded: ensureServicesLoaded, loadFromSupabase: reloadServices, showerRecords, laundryRecords, bicycleRecords, loadError, isLoading: servicesLoading, isLoaded: servicesLoaded } = useServicesStore(
         useShallow((s) => ({
             ensureLoaded: s.ensureLoaded,
             loadFromSupabase: s.loadFromSupabase,
             showerRecords: s.showerRecords,
             laundryRecords: s.laundryRecords,
             bicycleRecords: s.bicycleRecords,
+            loadError: s.loadError,
+            isLoading: s.isLoading,
+            isLoaded: s.isLoaded,
         }))
     );
     const { ensureLoaded: ensureGuestsLoaded, guests } = useGuestsStore(
@@ -418,6 +421,18 @@ export default function ServicesPage() {
 
             {/* Main Content Area */}
             <div className="animate-in fade-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
+                {serviceTabDataKeys(activeTab).includes('services') && loadError && (
+                    <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800">
+                        <p className="font-semibold">{loadError}</p>
+                        {servicesLoaded && <p className="mt-1 text-sm">Showing the last loaded bookings.</p>}
+                        <button type="button" disabled={servicesLoading} onClick={() => void reloadServices()} className="mt-3 min-h-11 rounded-lg border border-red-300 bg-white px-4 font-semibold disabled:opacity-50">
+                            Retry loading bookings
+                        </button>
+                    </div>
+                )}
+                {serviceTabDataKeys(activeTab).includes('services') && servicesLoading && !servicesLoaded && (
+                    <p role="status" className="mb-4 rounded-xl border border-gray-200 bg-white p-4 text-gray-700">Loading service bookings…</p>
+                )}
                 {renderContent()}
             </div>
         </div>

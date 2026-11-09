@@ -1,6 +1,6 @@
 {
   "name": "hopes-corner-nextjs",
-  "version": "0.54.3",
+  "version": "0.54.4",
   "private": true,
   "overrides": {
     "eslint-plugin-react-hooks": "7.0.1"
@@ -11,8 +11,10 @@
     "budget:check-in": "node scripts/checkCheckInBudgets.mjs",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "next typegen && tsc --noEmit",
     "version:check": "node scripts/releaseVersion.mjs check",
     "test": "vitest run",
+    "test:db": "bash scripts/testSlotBlockingDb.sh",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ct": "playwright test -c playwright-ct.config.ts",

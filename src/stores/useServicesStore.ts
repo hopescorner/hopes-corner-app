@@ -35,6 +35,20 @@ const getOperationalSince = () => {
     return d.toISOString();
 };
 
+// A refresh must not replace changes received after its requests started.
+function mergeRefreshedRecords<T extends { id: string }>(loaded: T[], before: T[], current: T[]): T[] {
+    const beforeById = new Map(before.map(record => [record.id, record]));
+    const currentById = new Map(current.map(record => [record.id, record]));
+    const loadedIds = new Set(loaded.map(record => record.id));
+    const result: T[] = [];
+    for (const record of loaded) {
+        if (beforeById.has(record.id) && !currentById.has(record.id)) continue;
+        const latest = currentById.get(record.id);
+        result.push(latest && latest !== beforeById.get(record.id) ? latest : record);
+    }
+    return result.concat(current.filter(record => !loadedIds.has(record.id) && record !== beforeById.get(record.id)));
+}
+
 // Client-side blocked-slot guard (defense in depth: the database triggers
 // and the shower RPC are authoritative, but failing fast here avoids a
 // wasted write and gives an instant, specific message).
@@ -143,6 +157,7 @@ interface ServicesState {
     isLoaded: boolean;
     isLoading: boolean;
     lastLoadedAt?: string;
+    loadError: string | null;
 
     addShowerRecord: (guestId: string, time?: string, serviceDate?: string, initialStatus?: 'booked' | 'done') => Promise<ShowerRecord | Partial<ShowerRecord>>;
     addShowerWaitlist: (guestId: string, serviceDate?: string) => Promise<ShowerRecord | Partial<ShowerRecord>>;
@@ -189,6 +204,7 @@ export const useServicesStore = create<ServicesState>()(
                     isLoaded: false,
                     isLoading: false,
                     lastLoadedAt: undefined,
+                    loadError: null,
 
                     // Shower Actions
                     addShowerRecord: async (guestId: string, time: string | null = null, serviceDate?: string, initialStatus: 'booked' | 'done' = 'booked') => {
@@ -584,6 +600,7 @@ export const useServicesStore = create<ServicesState>()(
                                 state.laundryRecords[index].status = status;
                             }
                         });
+                        const optimisticRecord = get().laundryRecords.find(r => r.id === recordId);
 
                         const supabase = createClient();
                         const { error } = await supabase
@@ -595,6 +612,7 @@ export const useServicesStore = create<ServicesState>()(
                             console.error('Failed to update laundry status:', error);
                             // Revert
                             set((state) => {
+                                if (get().laundryRecords.find(r => r.id === recordId) !== optimisticRecord) return;
                                 const index = state.laundryRecords.findIndex((r) => r.id === recordId);
                                 if (index !== -1) state.laundryRecords[index].status = target.status;
                             });
@@ -623,6 +641,7 @@ export const useServicesStore = create<ServicesState>()(
                                 state.laundryRecords[index].bagNumber = bagNumber;
                             }
                         });
+                        const optimisticRecord = get().laundryRecords.find(r => r.id === recordId);
 
                         const supabase = createClient();
                         const { error } = await supabase
@@ -634,6 +653,7 @@ export const useServicesStore = create<ServicesState>()(
                             console.error('Failed to update laundry bag number:', error);
                             // Revert
                             set((state) => {
+                                if (get().laundryRecords.find(r => r.id === recordId) !== optimisticRecord) return;
                                 const index = state.laundryRecords.findIndex((r) => r.id === recordId);
                                 if (index !== -1) state.laundryRecords[index].bagNumber = target.bagNumber;
                             });
@@ -663,6 +683,7 @@ export const useServicesStore = create<ServicesState>()(
                                 state.showerRecords[index].status = displayStatus;
                             }
                         });
+                        const optimisticRecord = get().showerRecords.find(r => r.id === recordId);
 
                         const supabase = createClient();
                         // Map app status to DB status (e.g., 'awaiting' -> 'booked')
@@ -695,6 +716,7 @@ export const useServicesStore = create<ServicesState>()(
                             console.error('Failed to update shower status:', updateError);
                             // Revert
                             set((state) => {
+                                if (get().showerRecords.find(r => r.id === recordId) !== optimisticRecord) return;
                                 const index = state.showerRecords.findIndex((r) => r.id === recordId);
                                 if (index !== -1) {
                                     state.showerRecords[index].status = target.status;
@@ -1065,12 +1087,14 @@ export const useServicesStore = create<ServicesState>()(
                             }
                         }
 
+                        const beforeLoad = get();
                         set((state) => {
                             state.isLoading = true;
+                            state.loadError = null;
                         });
 
-                        const supabase = createClient();
                         try {
+                            const supabase = createClient();
                             const effectiveSince = since || getOperationalSince();
                             const [showerRows, laundryRows, bicycleRows, haircutRows, holidayRows] = await Promise.all([
                                 getCachedShowerRecords({ since: effectiveSince, pageSize: 500 }),
@@ -1099,12 +1123,13 @@ export const useServicesStore = create<ServicesState>()(
                                 }),
                             ]);
 
+                            const current = get();
                             set((state) => {
-                                state.showerRecords = showerRows || [];
-                                state.laundryRecords = laundryRows || [];
-                                state.bicycleRecords = (bicycleRows || []) as any;
-                                state.haircutRecords = (haircutRows || []) as any;
-                                state.holidayRecords = (holidayRows || []) as any;
+                                state.showerRecords = mergeRefreshedRecords(showerRows || [], beforeLoad.showerRecords, current.showerRecords);
+                                state.laundryRecords = mergeRefreshedRecords(laundryRows || [], beforeLoad.laundryRecords, current.laundryRecords);
+                                state.bicycleRecords = mergeRefreshedRecords(bicycleRows || [], beforeLoad.bicycleRecords, current.bicycleRecords);
+                                state.haircutRecords = mergeRefreshedRecords(haircutRows || [], beforeLoad.haircutRecords, current.haircutRecords);
+                                state.holidayRecords = mergeRefreshedRecords(holidayRows || [], beforeLoad.holidayRecords, current.holidayRecords);
                                 state.isLoaded = true;
                                 state.lastLoadedAt = new Date().toISOString();
                             });
@@ -1129,6 +1154,7 @@ export const useServicesStore = create<ServicesState>()(
                             }
                         } catch (error) {
                             console.error('Failed to load service records from Supabase:', error);
+                            set({ loadError: 'Unable to load service bookings. Please try again.' });
                         } finally {
                             set((state) => {
                                 state.isLoading = false;

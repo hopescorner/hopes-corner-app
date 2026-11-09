@@ -138,6 +138,15 @@ Protected routes in `src/app/(protected)/` require authentication.
 
 Test files follow pattern: `*.test.ts` or `*.test.tsx`
 
+### Shower and laundry safeguards
+
+- Use `useServiceViewDate` for the selected service date. Today must follow the Pacific service day; historical selections must stay fixed.
+- Keep slot capacity, blocked slots, and weekly laundry limits enforced in the database. Blocks must preserve existing bookings and allow staff to finish them.
+- Add a regression test for each changed booking rule. Test real UI, store, or database behavior. Arithmetic on test constants does not test database enforcement.
+- Test updates received during a slow refresh or failed save. Newer bookings, status changes, and deletions must survive those requests.
+- Keep `database/schema.sql` and new migrations in agreement. SQL tests and competing-booking checks run in CI on a disposable database.
+- Run `npm run typecheck`, `npm test`, `npm run test:ct`, `npm run build`, and `npm run version:check` before release. Browser tests include Chromium and WebKit with an iPad profile.
+
 ## Scripts
 
 ```bash

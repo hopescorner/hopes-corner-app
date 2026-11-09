@@ -31,5 +31,10 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'webkit-services',
+      testMatch: /(?:services\/(?:ShowersSection|LaundrySection)|modals\/(?:ShowerBookingModal|LaundryBookingModal))\.ct\.tsx$/,
+      use: { ...devices['iPad (gen 7)'] },
+    },
   ],
 });

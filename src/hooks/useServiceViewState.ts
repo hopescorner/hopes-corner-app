@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 
 const changeEvent = 'service-view-change';
 function subscribe(callback: () => void) {
@@ -29,4 +29,14 @@ export function useServiceViewState<T extends string | boolean>(key: string, ini
         } catch { /* Storage may be disabled on a shared iPad. */ }
     }, [key]);
     return [value, update] as const;
+}
+
+/** Today follows the service day; an explicitly chosen historical date stays fixed. */
+export function useServiceViewDate(key: string, today: string) {
+    const [viewDate, setViewDate] = useServiceViewState<string>(key, 'today');
+    useEffect(() => {
+        if (viewDate === today) setViewDate('today');
+    }, [viewDate, today, setViewDate]);
+    const setDate = useCallback((date: string) => setViewDate(date === today ? 'today' : date), [today, setViewDate]);
+    return [viewDate === 'today' ? today : viewDate, setDate] as const;
 }

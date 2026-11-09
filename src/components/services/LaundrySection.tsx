@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef, useDeferredValue, useSyncExternalStore } from 'react';
+import { useState, useMemo, useCallback, useRef, useDeferredValue, useSyncExternalStore } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp, GripVertical, AlertTriangle, CalendarDays } from 'lucide-react';
 import {
@@ -22,7 +22,7 @@ import { getGuestsMap } from '@/lib/utils/guestLookup';
 import { todayPacificDateString, pacificDateStringFrom, formatDateForDisplay } from '@/lib/utils/date';
 import { useShallow } from 'zustand/react/shallow';
 import { useLaundryStatusChange, LAUNDRY_NEXT_ACTION } from './useLaundryStatusChange';
-import { useServiceViewState } from '@/hooks/useServiceViewState';
+import { useServiceViewDate, useServiceViewState } from '@/hooks/useServiceViewState';
 import { useServiceScrollPosition } from '@/hooks/useServiceScrollPosition';
 import { useServiceClock } from '@/hooks/useServiceClock';
 import { generateLaundrySlots } from '@/lib/utils/serviceSlots';
@@ -87,13 +87,7 @@ export function LaundrySection() {
     const { data: session } = useSession();
 
     const today = todayPacificDateString();
-    // Keep Today live when a shared iPad stays open across service days.
-    const [viewDate, setViewDate] = useServiceViewState<string>('laundry-date', 'today');
-    const selectedDate = viewDate === 'today' ? today : viewDate;
-    const setSelectedDate = (date: string) => setViewDate(date === today ? 'today' : date);
-    useEffect(() => {
-        if (viewDate === today) setViewDate('today');
-    }, [viewDate, today, setViewDate]);
+    const [selectedDate, setSelectedDate] = useServiceViewDate('laundry-date', today);
     const [search, setSearch] = useServiceViewState<string>('laundry-search', '');
     const query = useDeferredValue(search.trim().toLowerCase());
     const [readyOnly, setReadyOnly] = useServiceViewState<boolean>('laundry-ready', false);

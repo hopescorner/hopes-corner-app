@@ -40,6 +40,20 @@ test.describe('ShowersSection', () => {
 test.describe('iPad showers', () => {
   test.use({ viewport: { width: 768, height: 1024 }, hasTouch: true });
 
+  test('Today follows the service day after midnight', async ({ mount, page }) => {
+    await page.clock.install({ time: new Date('2026-11-09T23:59:45-08:00') });
+    const component = await mount(<ShowersSectionStory guests={guests} showerRecords={[
+      { id: 's1', guestId: 'g1', date: '2026-11-09', dateKey: '2026-11-09', status: 'booked', time: '09:00' },
+      { id: 's2', guestId: 'g2', date: '2026-11-10', dateKey: '2026-11-10', status: 'booked', time: '09:30' },
+    ]} />);
+    await expect(component.getByText('Johnny', { exact: true })).toBeVisible();
+    await expect(component.getByText('Jane Smith', { exact: true })).toHaveCount(0);
+    await page.clock.fastForward(60_000);
+    await expect(component.getByText('Jane Smith', { exact: true })).toBeVisible();
+    await expect(component.getByText('Johnny', { exact: true })).toHaveCount(0);
+    await expect(component.getByText('Viewing Historical Data')).toHaveCount(0);
+  });
+
   test('searches by legal name and keeps appointment minutes visible', async ({ mount, page }) => {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     const component = await mount(<ShowersSectionStory guests={guests} showerRecords={[

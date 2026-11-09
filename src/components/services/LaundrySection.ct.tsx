@@ -150,7 +150,7 @@ test('ready pickup filter includes carryover and Undo restores a picked-up load'
   await ready.click();
   await expectReadableText(ready);
   await expect(component.getByText('Jane Smith', { exact: true })).toBeVisible();
-  const pickup = component.getByRole('button', { name: 'Mark picked up', exact: true }).last();
+  const pickup = component.getByRole('button', { name: /^(Advance to Picked Up|Mark picked up)$/ }).last();
   const end = component.getByRole('button', { name: /^End Laundry/ });
   expect((await end.boundingBox())!.y).toBeGreaterThan((await pickup.boundingBox())!.y);
   await pickup.click();

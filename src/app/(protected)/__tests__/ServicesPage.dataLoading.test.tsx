@@ -39,10 +39,11 @@ vi.mock('next-auth/react', () => ({
 // Universal chainable query builder: every filter/modifier returns itself and
 // awaiting it resolves with the rows registered for its table.
 const tableRows: Record<string, any[]> = {};
+const tableErrors: Record<string, { message: string }> = {};
 const queriedTables: string[] = [];
 
 const makeBuilder = (table: string) => {
-    const result = { data: tableRows[table] ?? [], error: null, count: (tableRows[table] ?? []).length };
+    const result = { data: tableRows[table] ?? [], error: tableErrors[table] ?? null, count: (tableRows[table] ?? []).length };
     const builder: any = {
         then: (resolve: (value: typeof result) => unknown, reject?: (reason?: unknown) => unknown) =>
             Promise.resolve(result).then(resolve, reject),
@@ -89,10 +90,12 @@ const originalLoaders = {
 beforeEach(() => {
     queriedTables.length = 0;
     for (const key of Object.keys(tableRows)) delete tableRows[key];
+    for (const key of Object.keys(tableErrors)) delete tableErrors[key];
     searchParamsRef.current = new URLSearchParams();
     useServicesStore.setState({
         isLoaded: false,
         isLoading: false,
+        loadError: null,
         showerRecords: [],
         laundryRecords: [],
         bicycleRecords: [],
@@ -108,6 +111,17 @@ afterEach(() => {
 });
 
 describe('ServicesPage data loading (integration, real stores)', () => {
+    it('shows a visible error and lets staff retry a failed booking load', async () => {
+        searchParamsRef.current = new URLSearchParams('tab=laundry');
+        tableErrors.laundry_bookings = { message: 'Offline' };
+        render(<ServicesPage />);
+        expect(await screen.findByRole('alert')).toHaveTextContent('Unable to load service bookings');
+        delete tableErrors.laundry_bookings;
+        fireEvent.click(screen.getByRole('button', { name: 'Retry loading bookings' }));
+        await waitFor(() => expect(useServicesStore.getState().isLoaded).toBe(true));
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
     it('loads laundry bookings from Supabase into the store when the page mounts', async () => {
         const today = todayPacificDateString();
         tableRows['laundry_bookings'] = [

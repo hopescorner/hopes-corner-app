@@ -12,8 +12,8 @@ insert into public.guests (
   ('44444444-4444-4444-8444-444444444444', 'CHECKIN-3', 'Banned', 'Guest', 'Banned Guest', '',
    'Unhoused', 'Adult 18-59', 'Unknown', 'Mountain View', '2026-07-19T15:00:00Z');
 update public.guests set
-  banned_at = '2026-07-18T00:00:00Z',
-  banned_until = '2026-07-21T00:00:00Z',
+  banned_at = now() - interval '1 day',
+  banned_until = now() + interval '1 day',
   banned_from_meals = true,
   ban_reason = 'SQL contract test'
 where id = '44444444-4444-4444-8444-444444444444';
@@ -60,14 +60,14 @@ select is((
 
 select lives_ok(
   $$select public.execute_checkin_meal_command(
-    '22222222-2222-4222-8222-222222222222', '2026-07-19', 1, false,
+    '22222222-2222-4222-8222-222222222222', '2026-07-19', 1::smallint, false,
     '33333333-3333-4333-8333-333333333333'
   )$$,
   'accepts an atomic meal command'
 );
 select lives_ok(
   $$select public.execute_checkin_meal_command(
-    '22222222-2222-4222-8222-222222222222', '2026-07-19', 1, false,
+    '22222222-2222-4222-8222-222222222222', '2026-07-19', 1::smallint, false,
     '33333333-3333-4333-8333-333333333333'
   )$$,
   'returns the canonical receipt for a duplicate command'
@@ -75,7 +75,7 @@ select lives_ok(
 select is((
   select count(*)::integer
   from public.meal_attendance
-  where guest_id = '22222222-2222-4222-8222-222222222222' and served_on = '2026-07-19'
+  where guest_id = '22222222-2222-4222-8222-222222222222' and served_on = '2026-07-19' and meal_type = 'guest'
 ), 1, 'an idempotency key creates exactly one authoritative record');
 select is((
   select count(*)::integer
@@ -85,7 +85,7 @@ select is((
 ), 1, 'auto-adds exactly one guest-attributed lunch bag per person even across duplicate commands');
 select lives_ok(
   $$select public.execute_checkin_meal_command(
-    '22222222-2222-4222-8222-222222222222', '2026-07-19', 1, false,
+    '22222222-2222-4222-8222-222222222222', '2026-07-19', 1::smallint, false,
     '66666666-6666-4666-8666-666666666666'
   )$$,
   'accepts a second meal command for the same guest'
@@ -97,7 +97,7 @@ select is((
 ), 1, 'a second meal for the same person does not add another lunch bag');
 select throws_like(
   $$select public.execute_checkin_meal_command(
-    '44444444-4444-4444-8444-444444444444', '2026-07-19', 1, false,
+    '44444444-4444-4444-8444-444444444444', '2026-07-19', 1::smallint, false,
     '55555555-5555-4555-8555-555555555555'
   )$$,
   '%banned from meals%',

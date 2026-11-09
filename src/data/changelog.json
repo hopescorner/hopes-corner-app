@@ -1,5 +1,26 @@
 [
   {
+    "version": "0.54.4",
+    "date": "November 9, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Keep Newer Service Updates During Refreshes",
+        "description": "Slow refreshes and failed saves now preserve newer shower and laundry bookings, status changes, bag numbers, and deletions. Failed loads show an error and a Retry button while keeping the last loaded bookings."
+      },
+      {
+        "type": "fix",
+        "title": "Consistent Service Dates and Availability",
+        "description": "Showers and laundry now share the same Today behavior across service days. Availability hints use the requested date, including the Saturday schedule."
+      },
+      {
+        "type": "improvement",
+        "title": "Stronger Checks Before Deployment",
+        "description": "CI now checks TypeScript, tests service screens in WebKit with an iPad profile, runs all database test files, and tests competing bookings through separate database connections."
+      }
+    ]
+  },
+  {
     "version": "0.54.3",
     "date": "November 9, 2026",
     "highlights": [

@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.54.4] - 2026-11-09
+
+### Fixed
+
+- Slow service refreshes preserve newer bookings, status changes, and deletions received while requests were pending. Failed shower status, laundry status, and bag-number saves preserve newer updates from another device.
+- Failed service loads show an error with a Retry button and retain the last loaded bookings.
+- Showers and laundry share the same service-date control so Today follows the new Pacific service day. Availability hints use the requested date, including Saturday's schedule.
+
+### Tests and checks
+
+- CI now runs TypeScript checks and tests service screens in Chromium and WebKit with an iPad profile.
+- Database checks run every SQL test file after replaying migrations from the initial Check-In migration onward. New migrations and test files are included automatically. Tests also cover the core schema.
+- Separate database connections compete for the last shower spot, a half-blocked shower spot, an onsite laundry slot, and the weekly laundry allowance. Direct-write tests cover capacity, cancellation, completion, and waitlist promotion.
+- Replaced arithmetic-only capacity tests with database checks. Fixed stale SQL test fixtures and test-plan counts. The database runner rejects incomplete test plans.
+- Documented the required service checks in README.md and AGENTS.md.
+
 ## [0.54.3] - 2026-11-09
 
 ### Fixed

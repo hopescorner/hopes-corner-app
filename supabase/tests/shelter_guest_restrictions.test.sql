@@ -1,5 +1,5 @@
 begin;
-select plan(12);
+select plan(11);
 
 insert into public.guests (
   id, external_id, first_name, last_name, full_name, preferred_name,
@@ -68,7 +68,7 @@ select throws_like(
   'database rejects laundry booking for shelter guest with an expired ban'
 );
 
--- 8. Prior bookings made before enrollment can be created
+-- Create bookings before shelter enrollment.
 insert into public.shower_reservations (id, guest_id, scheduled_for, scheduled_time, status)
 values ('55555555-5555-4555-8555-555555555555', '33333333-3333-4333-8333-333333333333', '2026-10-14', '09:00', 'booked');
 insert into public.laundry_bookings (id, guest_id, laundry_type, scheduled_for, status)
@@ -77,13 +77,13 @@ values ('66666666-6666-4666-8666-666666666666', '33333333-3333-4333-8333-3333333
 -- Enroll guest 3 into shelter program
 update public.guests set shelter_guest = true where id = '33333333-3333-4333-8333-333333333333';
 
--- 9. Existing shower booking can be cancelled after enrollment
+-- 8. Existing shower booking can be cancelled after enrollment
 select lives_ok(
   $$update public.shower_reservations set status = 'cancelled' where id = '55555555-5555-4555-8555-555555555555'$$,
   'existing shower booking can be cancelled after guest is enrolled in shelter'
 );
 
--- 10. Existing laundry booking can be marked done after enrollment
+-- 9. Existing laundry booking can be marked done after enrollment
 select lives_ok(
   $$update public.laundry_bookings set status = 'done' where id = '66666666-6666-4666-8666-666666666666'$$,
   'existing laundry booking can be completed after guest is enrolled in shelter'
@@ -92,14 +92,14 @@ select lives_ok(
 -- Unenroll guest 4
 update public.guests set shelter_guest = false where id = '44444444-4444-4444-8444-444444444444';
 
--- 11. Unenrolled guest can book showers again
+-- 10. Unenrolled guest can book showers again
 select lives_ok(
   $$insert into public.shower_reservations (guest_id, scheduled_for, scheduled_time, status)
     values ('44444444-4444-4444-8444-444444444444', '2026-10-14', '10:00', 'booked')$$,
   'unenrolled guest can book shower again'
 );
 
--- 12. Unenrolled guest can book laundry again
+-- 11. Unenrolled guest can book laundry again
 select lives_ok(
   $$insert into public.laundry_bookings (guest_id, laundry_type, scheduled_for, status)
     values ('44444444-4444-4444-8444-444444444444', 'onsite', '2026-10-14', 'waiting')$$,

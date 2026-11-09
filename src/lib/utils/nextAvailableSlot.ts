@@ -21,7 +21,7 @@ export function findNextAvailableShowerSlot(
     targetDate: string,
     getEffectiveCapacity?: EffectiveCapacityFn
 ): NextAvailableShowerSlot | null {
-    const slots = generateShowerSlots();
+    const slots = generateShowerSlots(new Date(`${targetDate}T12:00:00`));
     const slotCounts = new Map<string, number>();
 
     for (const r of showerRecords || []) {
@@ -68,7 +68,7 @@ export function findNextAvailableLaundrySlot(
     targetDate: string,
     getEffectiveCapacity?: EffectiveCapacityFn
 ): NextAvailableLaundrySlot | null {
-    const slots = generateLaundrySlots();
+    const slots = generateLaundrySlots(new Date(`${targetDate}T12:00:00`));
     const bookedSlots = new Set<string>();
 
     for (const r of laundryRecords || []) {

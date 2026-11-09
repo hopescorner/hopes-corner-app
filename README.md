@@ -8,6 +8,22 @@ A check-in and service management application for Hope's Corner.
 - `npm test`
 - `npm run lint`
 
+## Test service changes
+
+Run these commands before merging changes to showers or laundry:
+
+```bash
+npm run typecheck
+npm test
+npm run test:ct
+npm run build
+npm run version:check
+```
+
+Browser tests cover Chromium and WebKit with an iPad profile. CI also runs every SQL test in `supabase/tests/`. It tests the core schema, then applies migrations from the initial Check-In migration onward. New migrations in that sequence run automatically. Separate database connections compete for the last shower spot, a half-blocked spot, a laundry slot, and the weekly laundry allowance.
+
+To run database tests locally, prepare a fresh Supabase Postgres database named `slot_blocking_test`. Set `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, and `PGDATABASE`, then run `npm run test:db`. CI prepares this database automatically. These tests create tables and sample records, so use a disposable database.
+
 ## User Roles & Access
 
 | Role | Access | Description |

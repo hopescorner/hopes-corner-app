@@ -1,10 +1,19 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { findNextAvailableShowerSlot, findNextAvailableLaundrySlot } from '../nextAvailableSlot';
 import { generateShowerSlots, generateLaundrySlots } from '../serviceSlots';
 import { MAX_GUESTS_PER_SHOWER_SLOT } from '@/lib/constants/constants';
 import { todayPacificDateString } from '@/lib/utils/date';
 
 describe('nextAvailableSlot', () => {
+    afterEach(() => vi.useRealTimers());
+    it.each([
+        ['shower', findNextAvailableShowerSlot, { slotTime: '08:30' }],
+        ['laundry', findNextAvailableLaundrySlot, { slotLabel: '08:30 - 10:00' }],
+    ] as const)('uses the target Saturday schedule for %s even when today is Monday', (_service, find, expected) => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-11-09T18:00:00Z'));
+        expect(find([], () => false, '2026-11-14')).toMatchObject(expected);
+    });
     const today = todayPacificDateString();
     const isSlotBlocked = () => false;
     const showerSlots = generateShowerSlots();

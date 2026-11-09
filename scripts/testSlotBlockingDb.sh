@@ -18,12 +18,20 @@ SQL
 psql -v ON_ERROR_STOP=1 -f database/schema.sql
 
 run_tests() {
+  local phase=$1
   local output
   output=$(mktemp)
-  for test_file in supabase/tests/partial_shower_blocking.test.sql supabase/tests/slot_blocking_regressions.test.sql; do
+  for test_file in supabase/tests/*.test.sql; do
+    # These RPCs are installed by the migration chain, outside the core schema.
+    if [[ "$phase" == schema && ( "$test_file" == */checkin_snapshot.test.sql || "$test_file" == */merge_duplicate_guests.test.sql ) ]]; then continue; fi
     psql -XAt -v ON_ERROR_STOP=1 -f "$test_file" > "$output"
     cat "$output"
-    if grep -Eq '^(not ok|# Looks like you failed)' "$output"; then
+    if grep -Eq '^(not ok|# Looks like you )' "$output" || ! awk '
+      /^1\.\.[0-9]+$/ { planned = substr($0, 4) }
+      /^(not )?ok [0-9]+/ { actual++ }
+      END { exit (!planned || planned != actual) }
+    ' "$output"; then
+      echo "FAIL: $test_file did not complete its pgTAP plan" >&2
       rm "$output"
       return 1
     fi
@@ -32,7 +40,13 @@ run_tests() {
 }
 
 # Verify both a fresh schema and the deployed migration upgrade path.
-run_tests
-psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261109000000_partial_shower_slot_blocking.sql
-psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261109010000_stabilize_slot_blocking.sql
-run_tests
+run_tests schema
+bash scripts/testServiceConcurrency.sh
+# Replay from the initial Check-In migration, which installs the remaining RPCs.
+# Earlier table changes are already represented in the core schema.
+for migration in supabase/migrations/*.sql; do
+  if [[ "${migration##*/}" < "20260720120000" ]]; then continue; fi
+  psql -v ON_ERROR_STOP=1 -f "$migration"
+done
+run_tests migrated
+bash scripts/testServiceConcurrency.sh
