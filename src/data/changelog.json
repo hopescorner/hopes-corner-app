@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.56.1",
+    "date": "November 9, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Cleaner Guest Names on Laundry Cards",
+        "description": "Guest names no longer wrap across two or three lines. Each name now sits on its own single line so cards line up neatly, and hovering shows the full name when it is too long to fit."
+      }
+    ]
+  },
+  {
     "version": "0.56.0",
     "date": "November 9, 2026",
     "highlights": [

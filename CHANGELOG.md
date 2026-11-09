@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.56.1] - 2026-11-09
+
+### Fixed
+
+- Guest names on laundry cards no longer wrap into two or three uneven lines. On the Kanban board the name now has its own full-width row and stays on one line with an ellipsis when space is tight; the full name (including the legal name for guests with a preferred name) is available on hover. The legal name / slot time line is also kept to one line, so every card has the same height.
+- Applied the same single-line treatment to the portrait/list laundry view, including done and off-site rows.
+
+### Tests
+
+- Added an iPad component test with long guest names that checks names stay on one line, expose the full name via a tooltip, and line up at the same height in both portrait list and landscape board layouts (Chromium and WebKit).
+
 ## [0.56.0] - 2026-11-09
 
 ### Added
