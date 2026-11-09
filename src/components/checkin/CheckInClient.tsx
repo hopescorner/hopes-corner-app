@@ -17,6 +17,7 @@ import { TodayStats } from '@/components/checkin/TodayStats';
 import { LiveConnectionPill } from '@/components/checkin/LiveConnectionPill';
 import { RecentCheckinsBar } from '@/components/checkin/RecentCheckinsBar';
 import { UndoTray } from '@/components/checkin/UndoTray';
+import { RunningTurkey } from '@/components/checkin/RunningTurkey';
 import { useModalStore } from '@/stores/useModalStore';
 import { useActionHistoryStore } from '@/stores/useActionHistoryStore';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
@@ -1121,6 +1122,9 @@ export default function CheckInClient({
 
             {/* Undo tray for the most recent action on this page */}
             <UndoTray />
+
+            {/* November running-turkey Easter egg (season-gated, non-interactive) */}
+            <RunningTurkey />
         </div>
     );
 }
