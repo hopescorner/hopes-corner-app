@@ -93,6 +93,16 @@ describe('LaundrySection Component', () => {
     });
 
     describe('Rendering', () => {
+        it('makes saved filters visible and lets staff restore the booking list', async () => {
+            sessionStorage.setItem('service-view:laundry-search', JSON.stringify('no matching guest'));
+            sessionStorage.setItem('service-view:laundry-ready', JSON.stringify(true));
+            render(<LaundrySection />);
+            expect(screen.queryByText('Johnny')).not.toBeInTheDocument();
+            fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+            await waitFor(() => expect(screen.getAllByText('Johnny').length).toBeGreaterThan(0));
+            expect(screen.getByRole('button', { name: /Ready for pickup/ })).toHaveAttribute('aria-pressed', 'false');
+        });
+
         it('renders component without crashing', () => {
             render(<LaundrySection />);
             const container = document.querySelector('.space-y-8');

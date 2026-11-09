@@ -63,9 +63,36 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: public.ecr.aws/supabase/postgres:17.6.1.106
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: slot_blocking_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: slot_blocking_test
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Test slot blocking in Postgres
+        run: bash scripts/testSlotBlockingDb.sh
+
   ci-pass:
     if: ${{ always() }}
-    needs: [lint, vitest, playwright]
+    needs: [lint, vitest, playwright, database]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -73,7 +100,8 @@ jobs:
         run: |
           if [[ "${{ needs.lint.result }}" != "success" || \
                 "${{ needs.vitest.result }}" != "success" || \
-                "${{ needs.playwright.result }}" != "success" ]]; then
+                "${{ needs.playwright.result }}" != "success" || \
+                "${{ needs.database.result }}" != "success" ]]; then
             echo "One or more required jobs failed"
             exit 1
           fi

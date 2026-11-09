@@ -87,121 +87,40 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
     },
 
     blockSlot: async (serviceType, slotTime, date, blockedCount) => {
-        const cap = capacityFor(serviceType);
-        const desiredCount = Math.max(0, Math.min(cap, blockedCount ?? cap));
+        const desiredCount = normalizeBlockedCount(serviceType, blockedCount);
         if (desiredCount === 0) return get().unblockSlot(serviceType, slotTime, date);
-
-        const existing = get().blockedSlots.find(
-            (s) => s.serviceType === serviceType && s.slotTime === slotTime && s.date === date
-        );
-        // Already blocked at this level — nothing to do (avoids a duplicate insert).
-        if (existing && normalizeBlockedCount(serviceType, existing.blockedCount) === desiredCount) {
-            return true;
-        }
-
-        if (existing) {
-            // Adjust an existing block up/down (e.g. 2 ↔ 1) via update.
-            mutationVersion += 1;
-            const originalSlots = get().blockedSlots;
-            set((state) => ({
-                blockedSlots: state.blockedSlots.map((s) =>
-                    s.serviceType === serviceType && s.slotTime === slotTime && s.date === date
-                        ? { ...s, blockedCount: desiredCount }
-                        : s
-                ),
-            }));
-            try {
-                const supabase = createClient();
-                const table: any = supabase.from('blocked_slots');
-                if (typeof table.update === 'function') {
-                    const { error } = await table
-                        .update({ blocked_count: desiredCount })
-                        .match({ service_type: serviceType, slot_time: slotTime, date });
-                    if (error) throw error;
-                } else {
-                    // Fallback for test doubles without update: replace the row.
-                    await supabase.from('blocked_slots').delete().match({
-                        service_type: serviceType,
-                        slot_time: slotTime,
-                        date,
-                    });
-                    const { error } = await supabase.from('blocked_slots').insert({
-                        service_type: serviceType,
-                        slot_time: slotTime,
-                        date,
-                        blocked_count: desiredCount,
-                    }).select().single();
-                    if (error && error.code !== '23505') throw error;
-                }
-                mutationVersion += 1;
-                return true;
-            } catch (error) {
-                mutationVersion += 1;
-                console.error('Error adjusting blocked slot:', error);
-                toast.error('Failed to block slot');
-                set({ blockedSlots: originalSlots });
-                return false;
-            }
-        }
-
-        mutationVersion += 1;
-        const tempId = `temp-${Date.now()}`;
-        const newSlot: BlockedSlot = {
-            id: tempId,
-            serviceType,
-            slotTime,
-            date,
-            blockedCount: desiredCount,
-            createdAt: new Date().toISOString(),
+        const matchesSlot = (s: BlockedSlot) => s.serviceType === serviceType && s.slotTime === slotTime && s.date === date;
+        const originalSlot = get().blockedSlots.find(matchesSlot);
+        const optimisticSlot: BlockedSlot = {
+            ...originalSlot,
+            id: originalSlot?.id ?? crypto.randomUUID(),
+            serviceType, slotTime, date, blockedCount: desiredCount,
         };
-
-        set((state) => ({
-            blockedSlots: [...state.blockedSlots, newSlot],
-        }));
-
+        mutationVersion += 1;
+        set((state) => ({ blockedSlots: [...state.blockedSlots.filter(s => !matchesSlot(s)), optimisticSlot] }));
         try {
-            const supabase = createClient();
-            const { data, error } = await supabase
+            const { data, error } = await createClient()
                 .from('blocked_slots')
-                .insert({
-                    service_type: serviceType,
-                    slot_time: slotTime,
-                    date: date,
-                    blocked_count: desiredCount,
-                })
+                .upsert({ service_type: serviceType, slot_time: slotTime, date, blocked_count: desiredCount },
+                    { onConflict: 'service_type,slot_time,date' })
                 .select()
                 .single();
-
-            if (error) {
-                if (error.code !== '23505') {
-                    throw error;
-                }
-            }
-
+            if (error) throw error;
+            if (!data) throw new Error('No saved block returned');
             mutationVersion += 1;
-            if (data) {
-                set((state) => ({
-                    blockedSlots: state.blockedSlots.map((s) =>
-                        s.id === tempId
-                            ? {
-                                ...s,
-                                id: data.id,
-                                blockedCount: (data as any).blocked_count ?? desiredCount,
-                                createdAt: data.created_at,
-                                blockedBy: data.blocked_by,
-                            }
-                            : s
-                    ),
-                }));
-            }
+            set((state) => ({ blockedSlots: state.blockedSlots.map(s => matchesSlot(s) ? {
+                ...s, id: data.id, blockedCount: data.blocked_count ?? desiredCount,
+                createdAt: data.created_at, blockedBy: data.blocked_by,
+            } : s) }));
             return true;
         } catch (error) {
             mutationVersion += 1;
             console.error('Error blocking slot:', error);
             toast.error('Failed to block slot');
-            set((state) => ({
-                blockedSlots: state.blockedSlots.filter((s) => s.id !== tempId),
-            }));
+            set((state) => ({ blockedSlots: [
+                ...state.blockedSlots.filter(s => !matchesSlot(s)),
+                ...(originalSlot ? [originalSlot] : []),
+            ] }));
             return false;
         }
     },
@@ -215,7 +134,8 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
 
     unblockSlot: async (serviceType, slotTime, date) => {
         mutationVersion += 1;
-        const originalSlots = get().blockedSlots;
+        const originalSlot = get().blockedSlots.find(s =>
+            s.serviceType === serviceType && s.slotTime === slotTime && s.date === date);
 
         set((state) => ({
             blockedSlots: state.blockedSlots.filter(
@@ -246,7 +166,10 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
             mutationVersion += 1;
             console.error('Error unblocking slot:', error);
             toast.error('Failed to unblock slot');
-            set({ blockedSlots: originalSlots });
+            set((state) => ({ blockedSlots: [
+                ...state.blockedSlots.filter(s => !(s.serviceType === serviceType && s.slotTime === slotTime && s.date === date)),
+                ...(originalSlot ? [originalSlot] : []),
+            ] }));
             return false;
         }
     },

@@ -161,9 +161,14 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
         );
 
         const totalSlots = allShowerSlots?.length || 0;
-        const totalCapacity = (totalSlots * MAX_GUESTS_PER_SHOWER_SLOT) - blockedShowerCapacity;
+        const totalCapacity = Math.max(0, (totalSlots * MAX_GUESTS_PER_SHOWER_SLOT) - blockedShowerCapacity);
         const booked = todaysRecords.length;
-        const available = Math.max(totalCapacity - booked, 0);
+        const unavailableBookings = allShowerSlots.reduce((count, slot) => {
+            const occupied = todaysRecords.filter(record => record.time === slot).length;
+            const capacity = effectiveCapacityFor(blockedSlots, 'shower', slot, todayString);
+            return count + Math.min(occupied, capacity);
+        }, 0);
+        const available = Math.max(totalCapacity - unavailableBookings, 0);
         const waitlisted = (showerRecords || []).filter(
             (record: any) =>
                 record.status === 'waitlisted' &&
@@ -178,7 +183,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             isFull: available === 0,
             isNearlyFull: available <= 2 && available > 0,
         };
-    }, [showerRecords, allShowerSlots, todayString, blockedShowerCapacity, showerRecordsLength]);
+    }, [showerRecords, allShowerSlots, todayString, blockedShowerCapacity, blockedSlots, showerRecordsLength]);
 
     // Calculate laundry statistics
     const laundryStats = useMemo(() => {
@@ -187,10 +192,14 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             (record: any) => pacificDateStringFrom(getRecordDate(record) || new Date()) === todayString
         );
         const onsiteSlotsTaken = todaysRecords.filter(
-            (record: any) => (record.laundryType === 'onsite' || !record.laundryType)
+            (record: any) => record.laundryType !== 'offsite' && LAUNDRY_SLOT_OCCUPYING_STATUSES.has(record.status)
+        ).length;
+        const bookingsInBlockedSlots = todaysRecords.filter(
+            record => record.laundryType !== 'offsite' && LAUNDRY_SLOT_OCCUPYING_STATUSES.has(record.status)
+                && isSlotBlocked('laundry', record.time || '', todayString)
         ).length;
         const effectiveMaxSlots = Math.max(maxSlots - blockedLaundrySlotsCount, 0);
-        const onsiteAvailable = Math.max(effectiveMaxSlots - onsiteSlotsTaken, 0);
+        const onsiteAvailable = Math.max(effectiveMaxSlots - onsiteSlotsTaken + bookingsInBlockedSlots, 0);
 
         return {
             totalCapacity: effectiveMaxSlots,
@@ -200,7 +209,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             isFull: onsiteAvailable === 0,
             isNearlyFull: onsiteAvailable === 1,
         };
-    }, [laundryRecords, todayString, targets, blockedLaundrySlotsCount, laundryRecordsLength]);
+    }, [laundryRecords, todayString, targets, blockedLaundrySlotsCount, blockedSlots, isSlotBlocked, laundryRecordsLength]);
 
     // Find next available shower slot (any unbooked slot regardless of time)
     const nextAvailableShowerSlot = useMemo(() => {

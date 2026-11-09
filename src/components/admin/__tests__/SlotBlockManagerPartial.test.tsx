@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { SlotBlockManager } from '../SlotBlockManager';
 import { useServicesStore } from '@/stores/useServicesStore';
+import toast from 'react-hot-toast';
 
 const mockFetchBlockedSlots = vi.fn(() => Promise.resolve());
 const mockBlockSlot = vi.fn(() => Promise.resolve(true as any));
@@ -52,7 +53,9 @@ describe('SlotBlockManager — partial blocking', () => {
         mockIsSlotBlocked.mockReturnValue(false);
         mockGetBlockedCount.mockReturnValue(0);
         mockGetEffectiveCapacity.mockReturnValue(2);
-        mockSetBlockedCount.mockResolvedValue(true as any);
+        mockSetBlockedCount.mockReset().mockResolvedValue(true);
+        mockBlockSlot.mockReset().mockResolvedValue(true);
+        mockUnblockSlot.mockReset().mockResolvedValue(true);
         vi.mocked(useServicesStore).mockReturnValue({
             showerRecords: [],
             laundryRecords: [],
@@ -106,5 +109,53 @@ describe('SlotBlockManager — partial blocking', () => {
 
         await renderLoaded();
         expect(screen.getByText('1 Open')).toBeDefined();
+    });
+
+    it('keeps the laundry booking count visible after its slot is blocked', async () => {
+        mockIsSlotBlocked.mockImplementation((service, slot) => service === 'laundry' && slot === '07:30 - 08:30');
+        mockGetBlockedCount.mockReturnValue(1);
+        vi.mocked(useServicesStore).mockReturnValue({
+            showerRecords: [],
+            laundryRecords: [
+                { id: 'l1', date: '2025-01-06T15:30:00Z', time: '07:30 - 08:30', status: 'waiting', laundryType: 'onsite' },
+                { id: 'l2', date: '2025-01-06', time: '07:30 - 08:30', status: 'cancelled', laundryType: 'onsite' },
+            ],
+        } as any);
+        await act(async () => { render(<SlotBlockManager serviceType="laundry" />); });
+        expect(screen.getByText('1 booked')).toBeVisible();
+    });
+
+    it('does not count cancelled or waitlisted showers as occupied spots', async () => {
+        vi.mocked(useServicesStore).mockReturnValue({
+            laundryRecords: [],
+            showerRecords: [
+                { date: '2025-01-06', time: '07:30', status: 'cancelled' },
+                { date: '2025-01-06', time: '07:30', status: 'waitlisted' },
+            ],
+        } as any);
+        await renderLoaded();
+        expect(screen.queryByTitle('2 active bookings')).not.toBeInTheDocument();
+    });
+
+    it.each(['block', 'unblock', 'half'] as const)('reports a failed %s save without a success message', async (action) => {
+        mockBlockSlot.mockResolvedValueOnce(false);
+        mockUnblockSlot.mockResolvedValueOnce(false);
+        mockSetBlockedCount.mockResolvedValueOnce(false);
+        mockIsSlotBlocked.mockReturnValue(action === 'unblock');
+        await renderLoaded();
+        const button = action === 'half'
+            ? screen.getAllByRole('button', { name: 'Block 1 spot', exact: true })[0]
+            : screen.getAllByRole('button').find(b => b.textContent?.includes('7:30 AM'))!;
+        await act(async () => { fireEvent.click(button); });
+        expect(toast.success).not.toHaveBeenCalled();
+        expect(toast.error).toHaveBeenCalled();
+    });
+
+    it('reports partial bulk failures instead of calling them already blocked', async () => {
+        mockSetBlockedCount.mockResolvedValueOnce(false);
+        await renderLoaded();
+        await act(async () => { fireEvent.click(screen.getByText('Block 1 spot for rest of day')); });
+        expect(toast.success).not.toHaveBeenCalled();
+        expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('1 slot failed'));
     });
 });

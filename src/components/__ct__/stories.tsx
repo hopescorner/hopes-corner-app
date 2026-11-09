@@ -734,6 +734,7 @@ export function ShowersSectionStory({
 
 interface LaundrySectionStoryProps {
   role?: 'checkin' | 'staff' | 'admin';
+  blockedSlots?: Array<{ id: string; serviceType: 'shower' | 'laundry'; slotTime: string; date: string; blockedCount?: number }>;
   laundryRecords?: Array<{
     id: string;
     guestId: string;
@@ -757,6 +758,7 @@ export function LaundrySectionStory({
   role = 'admin',
   laundryRecords = [],
   guests = [],
+  blockedSlots = [],
 }: LaundrySectionStoryProps) {
   const [lastAddPayload, setLastAddPayload] = React.useState('');
 
@@ -804,6 +806,8 @@ export function LaundrySectionStory({
       }) as any,
     });
 
+    useBlockedSlotsStore.setState({ blockedSlots, fetchBlockedSlots: async () => undefined });
+
     useWaiverStore.setState({
       waiverVersion: 0,
       guestNeedsWaiverReminder: (async () => false) as any,
@@ -816,7 +820,7 @@ export function LaundrySectionStory({
       getRemindersForService: (() => []) as any,
       hasActiveReminder: (() => false) as any,
     });
-  }, [guests, laundryRecords, role]);
+  }, [guests, laundryRecords, role, blockedSlots]);
 
   return (
     <>

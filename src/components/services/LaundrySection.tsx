@@ -423,6 +423,7 @@ export function LaundrySection() {
                         <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Guest name or bag number" className="min-h-11 min-w-11 mt-1 w-full rounded-lg border border-gray-300 px-3 text-base" />
                     </label>
                     <button type="button" aria-pressed={readyOnly} onClick={() => setReadyOnly(!readyOnly)} className={cn("min-h-11 rounded-lg border px-3 text-sm font-bold", readyOnly ? "bg-emerald-700 text-white border-emerald-700" : "bg-emerald-50 text-emerald-800 border-emerald-200")}>Ready for pickup ({readyCount})</button>
+                    {(search || readyOnly) && <button type="button" onClick={() => { setSearch(''); setReadyOnly(false); }} className="min-h-11 rounded-lg border border-gray-300 px-4 text-sm font-semibold text-gray-700">Clear filters</button>}
                     {viewMode === 'kanban' && <button type="button" aria-pressed={showPickedUp} onClick={() => setShowPickedUp(!showPickedUp)} className="min-h-11 min-w-11 rounded-lg border px-4 text-base font-medium">{showPickedUp ? 'Hide picked up' : 'Show picked up'}</button>}
                     <button type="button" onClick={() => setViewMode('auto')} aria-pressed={viewPreference === 'auto'} className="min-h-11 min-w-11 rounded-lg border px-4 text-sm">Auto layout</button>
                 </div>

@@ -43,6 +43,38 @@ test.describe('LaundrySection', () => {
 test.describe('iPad laundry workflows', () => {
   test.use({ viewport: { width: 768, height: 1024 }, hasTouch: true });
 
+  test('blocked laundry keeps its booking visible and usable in both layouts', async ({ mount, page }) => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const component = await mount(<LaundrySectionStory guests={guests}
+      blockedSlots={[{ id: 'block1', serviceType: 'laundry', slotTime: '07:30 - 08:30', date: today, blockedCount: 1 }]}
+      laundryRecords={[{ id: 'l1', guestId: 'g1', date: today, status: 'waiting', laundryType: 'onsite', time: '07:30 - 08:30', bagNumber: 'B12' }]} />);
+    await expect(component.getByText('Johnny', { exact: true })).toBeVisible();
+    await component.getByRole('button', { name: 'Manage Slots' }).click();
+    await expect(component.getByText('1 booked', { exact: true })).toBeVisible();
+    await component.getByRole('button', { name: 'Close', exact: true }).click();
+    await component.getByRole('button', { name: 'Advance to Washer' }).click();
+    await expect(component.getByRole('button', { name: 'Advance to Dryer' })).toBeVisible();
+    await page.setViewportSize({ width: 1024, height: 768 });
+    await expect(component.getByText('Johnny', { exact: true })).toBeVisible();
+    await expect(component.getByRole('button', { name: 'Move to dryer' })).toBeVisible();
+    await page.screenshot({ path: '/tmp/hopes-blocked-laundry-ipad.png', fullPage: true });
+  });
+
+  test('saved pickup and search filters can be cleared to recover waiting bookings', async ({ mount, page }) => {
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    await page.evaluate(() => {
+      sessionStorage.setItem('service-view:laundry-ready', 'true');
+      sessionStorage.setItem('service-view:laundry-search', JSON.stringify('missing guest'));
+    });
+    const component = await mount(<LaundrySectionStory guests={guests} laundryRecords={[
+      { id: 'l1', guestId: 'g1', date: today, status: 'waiting', laundryType: 'onsite', time: '07:30 - 08:30', bagNumber: 'B12' },
+    ]} />);
+    await expect(component.getByText('Johnny', { exact: true })).toHaveCount(0);
+    await component.getByRole('button', { name: 'Clear filters' }).click();
+    await expect(component.getByText('Johnny', { exact: true })).toBeVisible();
+    await expect(component.getByRole('button', { name: 'Advance to Washer' })).toBeVisible();
+  });
+
   test('portrait uses a list and landscape offers a board with large touch actions', async ({ mount, page }) => {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     const component = await mount(<LaundrySectionStory guests={guests} laundryRecords={[

@@ -16,6 +16,7 @@ import { useServicesStore } from '@/stores/useServicesStore';
 import { pacificDateStringFrom, todayPacificDateString } from '@/lib/utils/date';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
 import { capacityFor } from '@/lib/utils/blockedSlots';
+import { SHOWER_SLOT_OCCUPYING_STATUSES, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 
@@ -75,9 +76,9 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
 
     const bookingCountFor = (slotLabel: string) => {
         if (serviceType === 'shower') {
-            return showerRecords.filter(r => r.time === slotLabel && r.date?.startsWith(dateStr)).length;
+            return showerRecords.filter(r => r.time === slotLabel && pacificDateStringFrom(r.date) === dateStr && SHOWER_SLOT_OCCUPYING_STATUSES.has(r.status)).length;
         }
-        return laundryRecords.filter(r => r.time === slotLabel && r.laundryType === 'onsite' && r.date?.startsWith(dateStr)).length;
+        return laundryRecords.filter(r => r.time === slotLabel && r.laundryType !== 'offsite' && pacificDateStringFrom(r.date) === dateStr && LAUNDRY_SLOT_OCCUPYING_STATUSES.has(r.status)).length;
     };
 
     const toggleSlotBlock = async (slotLabel: string) => {
@@ -89,7 +90,7 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
         try {
             if (isBlocked) {
                 // Unblock using the same parameters (store handles logic)
-                await unblockSlot(serviceType, slotLabel, dateStr);
+                if (await unblockSlot(serviceType, slotLabel, dateStr) === false) throw new Error('Save failed');
                 toast.success('Slot unblocked successfully');
             } else {
                 // Check if slot has bookings
@@ -105,7 +106,7 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
                     }
                 }
 
-                await blockSlot(serviceType, slotLabel, dateStr);
+                if (await blockSlot(serviceType, slotLabel, dateStr) === false) throw new Error('Save failed');
                 toast.success('Slot blocked successfully');
             }
         } catch (error) {
@@ -132,12 +133,12 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
                         return;
                     }
                 }
-                await setBlockedCountFn(serviceType, slotLabel, dateStr, 1);
+                if (await setBlockedCountFn(serviceType, slotLabel, dateStr, 1) === false) throw new Error('Save failed');
                 toast.success('1 spot blocked');
             } else {
                 // 1 blocked → open; 2 blocked → 1 blocked
                 const next = blocked === 1 ? 0 : 1;
-                await setBlockedCountFn(serviceType, slotLabel, dateStr, next);
+                if (await setBlockedCountFn(serviceType, slotLabel, dateStr, next) === false) throw new Error('Save failed');
                 toast.success(next === 0 ? 'Spot unblocked' : '1 spot unblocked');
             }
         } catch (error) {
@@ -180,6 +181,7 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
         setBulkProcessing(true);
         let changed = 0;
         let skipped = 0;
+        let failed = 0;
         try {
             for (const slot of remaining) {
                 if (getBlockedCountFn(serviceType, slot, dateStr) !== 0) {
@@ -188,9 +190,11 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
                 }
                 const ok = await setBlockedCountFn(serviceType, slot, dateStr, 1);
                 if (ok) changed += 1;
-                else skipped += 1;
+                else failed += 1;
             }
-            toast.success(`Blocked 1 spot at ${changed} slot${changed === 1 ? '' : 's'}${skipped ? ` (${skipped} already blocked)` : ''}`);
+            const message = `Blocked ${serviceType === 'shower' ? '1 spot at ' : ''}${changed} slot${changed === 1 ? '' : 's'}${skipped ? ` (${skipped} already blocked)` : ''}`;
+            if (failed) toast.error(`${message}; ${failed} slot${failed === 1 ? '' : 's'} failed to save. Please retry.`);
+            else toast.success(message);
         } catch (error) {
             console.error('Failed bulk block', error);
             toast.error('Failed to update slots');
@@ -208,13 +212,17 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
         }
         setBulkProcessing(true);
         let changed = 0;
+        let failed = 0;
         try {
             for (const slot of remaining) {
                 if (getBlockedCountFn(serviceType, slot, dateStr) === 0) continue;
                 const ok = await setBlockedCountFn(serviceType, slot, dateStr, 0);
                 if (ok) changed += 1;
+                else failed += 1;
             }
-            toast.success(`Unblocked ${changed} slot${changed === 1 ? '' : 's'}`);
+            const message = `Unblocked ${changed} slot${changed === 1 ? '' : 's'}`;
+            if (failed) toast.error(`${message}; ${failed} slot${failed === 1 ? '' : 's'} failed to save. Please retry.`);
+            else toast.success(message);
         } catch (error) {
             console.error('Failed bulk unblock', error);
             toast.error('Failed to update slots');
@@ -349,7 +357,7 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
                                 >
                                     <button
                                         onClick={() => toggleSlotBlock(slot)}
-                                        disabled={isProcessing || bulkProcessing}
+                                        disabled={!!processingSlot || bulkProcessing}
                                         className="relative flex flex-col items-center justify-center p-3 rounded-lg w-full hover:bg-black/5 transition-colors"
                                     >
                                         <span className="font-bold text-sm tracking-tight">{formatSlotLabel(slot)}</span>
@@ -372,15 +380,15 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
                                             )}
                                         </div>
 
-                                        {hasBookings && !isBlocked && (
-                                            <div className="absolute top-1 right-1">
-                                                <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-600 shadow-sm" title={`${bookingCount} active bookings`}>
-                                                    {bookingCount}
+                                        {hasBookings && (
+                                            <div className="mt-1">
+                                                <div className="rounded-full bg-gray-100 px-1.5 text-xs font-bold text-gray-700 shadow-sm" title={`${bookingCount} active bookings`}>
+                                                    {bookingCount} booked
                                                 </div>
                                             </div>
                                         )}
                                         {hasBookings && isBlocked && (
-                                            <div className="absolute top-1 right-1 text-amber-500" title="Has active bookings despite being blocked!">
+                                            <div className="absolute bottom-1 right-1 text-amber-500" title="Existing bookings are kept; new bookings are blocked">
                                                 <AlertTriangle size={14} fill="currentColor" className="text-amber-100" />
                                             </div>
                                         )}
@@ -389,8 +397,8 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
                                     {serviceType === 'shower' && (
                                         <button
                                             onClick={() => toggleHalfBlock(slot)}
-                                            disabled={isProcessing || bulkProcessing}
-                                            className="w-full px-2 py-1.5 rounded-lg text-[11px] font-bold border border-gray-300 bg-white/70 hover:bg-white disabled:opacity-50"
+                                            disabled={!!processingSlot || bulkProcessing}
+                                            className="min-h-11 w-full px-2 py-1.5 rounded-lg text-xs font-bold border border-gray-300 bg-white/70 hover:bg-white disabled:opacity-50"
                                         >
                                             {blockedCount === 0 ? 'Block 1 spot' : 'Unblock 1 spot'}
                                         </button>

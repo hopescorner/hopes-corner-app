@@ -80,6 +80,34 @@ vi.mock('@/stores/useBlockedSlotsStore', () => ({
 }));
 
 describe('ServiceStatusOverview', () => {
+    it('does not subtract blocked occupied laundry times twice', () => {
+        mockLaundryRecords.push({ date: '2026-01-22', time: '07:30 - 08:30', laundryType: 'onsite', status: 'waiting' });
+        vi.mocked(useBlockedSlotsStore).mockReturnValueOnce({
+            blockedSlots: [{ serviceType: 'laundry', slotTime: '07:30 - 08:30', date: '2026-01-22', blockedCount: 1 }],
+            isSlotBlocked: (service: string, slot: string) => service === 'laundry' && slot === '07:30 - 08:30',
+            fetchBlockedSlots: vi.fn(),
+        } as any);
+        render(<ServiceStatusOverview />);
+        const laundry = screen.getByRole('link', { name: /Laundry/ });
+        expect(within(laundry).getByText('4')).toBeVisible();
+        expect(within(laundry).getByText('1 of 4 booked')).toBeVisible();
+    });
+
+    it('keeps free shower times available when existing bookings exceed a reduced capacity', () => {
+        mockShowerRecords.push(
+            { date: '2026-01-22', time: '07:30', status: 'booked' },
+            { date: '2026-01-22', time: '07:30', status: 'done' },
+        );
+        vi.mocked(useBlockedSlotsStore).mockReturnValueOnce({
+            blockedSlots: [{ serviceType: 'shower', slotTime: '07:30', date: '2026-01-22', blockedCount: 1 }],
+            isSlotBlocked: () => false,
+            fetchBlockedSlots: vi.fn(),
+        } as any);
+        render(<ServiceStatusOverview />);
+        const shower = screen.getByRole('link', { name: /Showers/ });
+        expect(within(shower).getByText('10')).toBeVisible();
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
         mockShowerRecords.length = 0;

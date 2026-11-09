@@ -5,12 +5,14 @@ const mockOrder = vi.fn();
 const mockSingle = vi.fn();
 const mockMatch = vi.fn();
 const mockUpdateMatch = vi.fn();
+const mockUpsert = vi.fn();
 
 vi.mock('@/lib/supabase/client', () => ({
     createClient: () => ({
         from: () => ({
             select: vi.fn().mockReturnThis(),
             insert: vi.fn().mockReturnThis(),
+            upsert: mockUpsert,
             delete: vi.fn().mockReturnThis(),
             update: vi.fn().mockReturnValue({ match: mockUpdateMatch }),
             order: mockOrder,
@@ -42,6 +44,7 @@ describe('useBlockedSlotsStore — partial blocking', () => {
         });
         mockMatch.mockResolvedValue({ error: null });
         mockUpdateMatch.mockResolvedValue({ error: null });
+        mockUpsert.mockReturnValue({ select: () => ({ single: mockSingle }) });
     });
 
     it('half-blocked shower slot is not fully blocked (effective capacity 1)', () => {
@@ -95,8 +98,9 @@ describe('useBlockedSlotsStore — partial blocking', () => {
         });
         const ok = await useBlockedSlotsStore.getState().setBlockedCount('shower', '08:00', '2025-01-06', 1);
         expect(ok).toBe(true);
-        expect(mockUpdateMatch).toHaveBeenCalledWith(
-            expect.objectContaining({ service_type: 'shower', slot_time: '08:00' })
+        expect(mockUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({ service_type: 'shower', slot_time: '08:00', blocked_count: 1 }),
+            { onConflict: 'service_type,slot_time,date' },
         );
         expect(useBlockedSlotsStore.getState().getEffectiveCapacity('shower', '08:00', '2025-01-06')).toBe(1);
     });
@@ -130,5 +134,36 @@ describe('useBlockedSlotsStore — partial blocking', () => {
         await useBlockedSlotsStore.getState().fetchBlockedSlots();
         const { blockedSlots } = useBlockedSlotsStore.getState();
         expect(blockedSlots[0].blockedCount).toBe(1);
+    });
+
+    it('writes the requested count atomically even when another device has already blocked this time', async () => {
+        await useBlockedSlotsStore.getState().setBlockedCount('shower', '08:00', '2025-01-06', 1);
+        expect(mockUpsert).toHaveBeenCalledWith(
+            { service_type: 'shower', slot_time: '08:00', date: '2025-01-06', blocked_count: 1 },
+            { onConflict: 'service_type,slot_time,date' },
+        );
+        expect(useBlockedSlotsStore.getState().getBlockedCount('shower', '08:00', '2025-01-06')).toBe(1);
+    });
+
+    it('does not trust a cached block count when another device may have changed it', async () => {
+        useBlockedSlotsStore.setState({ blockedSlots: [
+            { id: '1', serviceType: 'shower', slotTime: '08:00', date: '2025-01-06', blockedCount: 1 },
+        ] });
+        await useBlockedSlotsStore.getState().setBlockedCount('shower', '08:00', '2025-01-06', 1);
+        expect(mockUpsert).toHaveBeenCalled();
+    });
+
+    it('a failed unblock does not erase a successful change to another time', async () => {
+        useBlockedSlotsStore.setState({ blockedSlots: [
+            { id: '1', serviceType: 'shower', slotTime: '08:00', date: '2025-01-06', blockedCount: 2 },
+        ] });
+        let finishDelete!: (result: any) => void;
+        mockMatch.mockImplementationOnce(() => new Promise(resolve => { finishDelete = resolve; }));
+        const removal = useBlockedSlotsStore.getState().unblockSlot('shower', '08:00', '2025-01-06');
+        await useBlockedSlotsStore.getState().setBlockedCount('shower', '09:00', '2025-01-06', 1);
+        finishDelete({ error: { message: 'Network error' } });
+        expect(await removal).toBe(false);
+        expect(useBlockedSlotsStore.getState().getBlockedCount('shower', '09:00', '2025-01-06')).toBe(1);
+        expect(useBlockedSlotsStore.getState().getBlockedCount('shower', '08:00', '2025-01-06')).toBe(2);
     });
 });

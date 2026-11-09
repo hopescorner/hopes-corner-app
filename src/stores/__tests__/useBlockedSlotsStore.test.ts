@@ -11,6 +11,7 @@ vi.mock('@/lib/supabase/client', () => ({
         from: () => ({
             select: vi.fn().mockReturnThis(),
             insert: vi.fn().mockReturnThis(),
+            upsert: vi.fn().mockReturnThis(),
             delete: vi.fn().mockReturnThis(),
             order: mockOrder,
             match: mockMatch,
@@ -163,7 +164,7 @@ describe('useBlockedSlotsStore', () => {
             expect(blockedSlots[0].blockedBy).toBe('user-123');
         });
 
-        it('ignores duplicate key error (23505)', async () => {
+        it('does not report success when a block was not saved', async () => {
             mockSingle.mockResolvedValueOnce({
                 data: null,
                 error: { code: '23505', message: 'Duplicate key' },
@@ -172,7 +173,8 @@ describe('useBlockedSlotsStore', () => {
             const { blockSlot } = useBlockedSlotsStore.getState();
             const result = await blockSlot('shower', '10:00', '2025-01-06');
 
-            expect(result).toBe(true);
+            expect(result).toBe(false);
+            expect(useBlockedSlotsStore.getState().blockedSlots).toEqual([]);
         });
 
         it('reverts optimistic update on error', async () => {
