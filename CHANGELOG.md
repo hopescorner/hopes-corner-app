@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.56.2] - 2026-11-09
+
+### Fixed
+
+- The **From** and **To** dropdowns in Manage Slots no longer render empty. They previously listed only times still to come today, so once the day's service hours had ended (or a past date was selected) both dropdowns had no options, appeared broken, and showed "0 times". They now always list every time on the selected date and can be changed at any hour; blocking a past date is still prevented.
+- When all of today's times have already passed, an amber note explains that blocking them will not affect new bookings and offers a one-click **Use tomorrow** button.
+
+### Tests
+
+- Added a real-browser component test that changes From / To with `selectOption` and verifies the period narrows and the correct times are blocked, plus a check that both dropdowns always have options and are enabled. Added unit coverage for after-hours dropdowns and the jump-to-tomorrow action.
+
 ## [0.56.1] - 2026-11-09
 
 ### Fixed

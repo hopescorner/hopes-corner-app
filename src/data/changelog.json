@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.56.2",
+    "date": "November 9, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Working From / To Times in Manage Slots",
+        "description": "The From and To dropdowns now always list every time on the selected date, so they work at any hour instead of appearing empty. When today's times have already passed, a note explains this and offers a one-click jump to tomorrow."
+      }
+    ]
+  },
+  {
     "version": "0.56.1",
     "date": "November 9, 2026",
     "highlights": [
