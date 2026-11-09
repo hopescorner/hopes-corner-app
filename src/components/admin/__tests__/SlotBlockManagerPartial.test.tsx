@@ -280,14 +280,34 @@ describe('SlotBlockManager — blocking 1 or both spots in a time period', () =>
         expect(toast.error).toHaveBeenCalled();
     });
 
-    it('explains that there are no times left today instead of showing a range error', async () => {
+    it('keeps the From/To dropdowns usable after today\'s service hours', async () => {
         // 16:00 Pacific on a weekday: every shower time has already passed.
         vi.setSystemTime(new Date('2025-01-07T00:00:00Z'));
         await renderLoaded();
 
-        expect(screen.getByText(/No times left today/)).toBeDefined();
+        // The dropdowns still list the whole day instead of rendering empty.
+        const values = selectableValues();
+        expect(values.length).toBeGreaterThan(3);
+        expect((applyOne() as HTMLButtonElement).disabled).toBe(false);
+        expect(screen.getByText(/All of today's times have passed/)).toBeDefined();
         expect(screen.queryByText(/not after the end time/)).toBeNull();
-        expect((applyOne() as HTMLButtonElement).disabled).toBe(true);
+
+        // And the chosen range is still applied correctly on today.
+        await act(async () => { fireEvent.change(fromSelect(), { target: { value: values[2] } }); });
+        await act(async () => { fireEvent.change(toSelect(), { target: { value: values[5] } }); });
+        await act(async () => { fireEvent.click(applyOne()); });
+        expect(mockSetBlockedCount.mock.calls.map((call) => call[1])).toEqual(values.slice(2, 6));
+    });
+
+    it('offers a one-click jump to tomorrow when today\'s times have passed', async () => {
+        vi.setSystemTime(new Date('2025-01-07T00:00:00Z'));
+        await renderLoaded();
+        expect(screen.getByText(/All of today's times have passed/)).toBeDefined();
+
+        await act(async () => { fireEvent.click(screen.getByRole('button', { name: /Use tomorrow/ })); });
+
+        expect(screen.queryByText(/All of today's times have passed/)).toBeNull();
+        expect((applyOne() as HTMLButtonElement).disabled).toBe(false);
     });
 
     it('disables the period controls for a past date', async () => {

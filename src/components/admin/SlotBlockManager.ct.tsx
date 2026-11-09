@@ -43,6 +43,37 @@ test('shows clear period controls and per-time open-spot states', async ({ mount
   }
 });
 
+test('From/To dropdowns can be changed to narrow the period in a real browser', async ({ mount }) => {
+  const component = await mount(<SlotBlockManagerStory />);
+
+  const from = component.getByRole('combobox', { name: 'From' });
+  const to = component.getByRole('combobox', { name: 'To' });
+  const options = await from.locator('option').evaluateAll(
+    (els) => els.map((el) => (el as HTMLOptionElement).value)
+  );
+  expect(options.length).toBeGreaterThan(3);
+
+  await from.selectOption(options[2]);
+  await to.selectOption(options[5]);
+  await expect(component.getByRole('button', { name: /^Block 1 spot · 4 times$/ })).toBeVisible();
+
+  await component.getByRole('button', { name: /^Block 1 spot ·/ }).click();
+  await expect(component.getByText('1 of 2 spots open')).toHaveCount(4);
+  await expect(component.getByText('2 of 2 spots open')).toHaveCount(options.length - 4);
+});
+
+test('From/To dropdowns always list the day\'s times', async ({ mount }) => {
+  const component = await mount(<SlotBlockManagerStory />);
+  const from = component.getByRole('combobox', { name: 'From' });
+  const to = component.getByRole('combobox', { name: 'To' });
+
+  await expect(from.locator('option').first()).toBeAttached();
+  expect(await from.locator('option').count()).toBeGreaterThan(0);
+  expect(await to.locator('option').count()).toBeGreaterThan(0);
+  await expect(from).toBeEnabled();
+  await expect(to).toBeEnabled();
+});
+
 test('blocking both spots for a period closes every time in that period', async ({ mount, page }) => {
   const component = await mount(<SlotBlockManagerStory />);
 

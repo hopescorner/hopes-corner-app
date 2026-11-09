@@ -96,30 +96,33 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
 
     const slots = isShower ? generateShowerSlots(selectedDate) : generateLaundrySlots(selectedDate);
 
-    /** Times that can still be blocked: whole future days, or today from now on. */
-    const getSelectableSlots = (): string[] => {
-        if (!isTodayOrFuture) return [];
-        if (dateStr > todayStr) return slots;
-        const nowPacific = new Intl.DateTimeFormat('en-GB', {
-            timeZone: 'America/Los_Angeles',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-        }).format(new Date());
-        return slots.filter((slot) => slotStartTime(slot) >= nowPacific);
-    };
-
-    const selectableSlots = getSelectableSlots();
-    const rangeFrom = rangeFromOverride && selectableSlots.includes(rangeFromOverride)
+    /**
+     * From / To always list every time on the selected date. Filtering past
+     * times out of the options left the dropdowns empty (and apparently broken)
+     * whenever today's service hours had ended. Blocking a past DATE is still
+     * prevented; a note offers a one-click jump to tomorrow when today's times
+     * have all passed.
+     */
+    const slotOptions = slots;
+    const rangeFrom = rangeFromOverride && slotOptions.includes(rangeFromOverride)
         ? rangeFromOverride
-        : (selectableSlots[0] ?? '');
-    const rangeTo = rangeToOverride && selectableSlots.includes(rangeToOverride)
+        : (slotOptions[0] ?? '');
+    const rangeTo = rangeToOverride && slotOptions.includes(rangeToOverride)
         ? rangeToOverride
-        : (selectableSlots[selectableSlots.length - 1] ?? '');
-    const rangeSlots = selectableSlots.filter(
+        : (slotOptions[slotOptions.length - 1] ?? '');
+    const rangeSlots = slotOptions.filter(
         (slot) => slotStartTime(slot) >= slotStartTime(rangeFrom) && slotStartTime(slot) <= slotStartTime(rangeTo)
     );
     const rangeInvalid = rangeSlots.length === 0;
+
+    const nowPacific = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Los_Angeles',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    }).format(new Date());
+    const todaysTimesHavePassed = dateStr === todayStr && slotOptions.length > 0
+        && slotOptions.every((slot) => slotStartTime(slot) < nowPacific);
 
     /** Set how many spots are blocked at one time. Increasing a block never cancels existing bookings. */
     const setSlotCount = async (slotLabel: string, target: number) => {
@@ -366,7 +369,7 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
                             disabled={bulkProcessing || !!processingSlot || !isTodayOrFuture}
                             className="min-h-[40px] min-w-[110px] rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 disabled:opacity-50"
                         >
-                            {selectableSlots.map((slot) => (
+                            {slotOptions.map((slot) => (
                                 <option key={slot} value={slot}>{formatSlotLabel(slot)}</option>
                             ))}
                         </select>
@@ -381,7 +384,7 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
                             disabled={bulkProcessing || !!processingSlot || !isTodayOrFuture}
                             className="min-h-[40px] min-w-[110px] rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-xs font-semibold text-gray-700 disabled:opacity-50"
                         >
-                            {selectableSlots.map((slot) => (
+                            {slotOptions.map((slot) => (
                                 <option key={slot} value={slot}>{formatSlotLabel(slot)}</option>
                             ))}
                         </select>
@@ -413,16 +416,31 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
                     </button>
                 </div>
 
-                <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-snug text-gray-500">
-                    <Info size={12} className="mt-0.5 shrink-0" />
-                    {!isTodayOrFuture
-                        ? 'Choose today or a future date to block times.'
-                        : selectableSlots.length === 0
-                            ? 'No times left today. Choose a future date to block times.'
-                            : rangeInvalid
-                                ? 'Choose a start time that is not after the end time.'
-                                : `Covers ${rangeSlots.length} time${rangeSlots.length === 1 ? '' : 's'} from ${formatSlotLabel(rangeFrom)} to ${formatSlotLabel(rangeTo)}. Adjust From / To to block only part of the day. Only NEW bookings are stopped — existing bookings are kept.`}
-                </p>
+                <div className="mt-2 space-y-1">
+                    <p className="flex items-start gap-1.5 text-[11px] leading-snug text-gray-500">
+                        <Info size={12} className="mt-0.5 shrink-0" />
+                        <span>
+                            {!isTodayOrFuture
+                                ? 'Choose today or a future date to block times.'
+                                : rangeInvalid
+                                    ? 'Choose a start time that is not after the end time.'
+                                    : `Covers ${rangeSlots.length} time${rangeSlots.length === 1 ? '' : 's'} from ${formatSlotLabel(rangeFrom)} to ${formatSlotLabel(rangeTo)}. Adjust From / To to block only part of the day. Only NEW bookings are stopped — existing bookings are kept.`}
+                        </span>
+                    </p>
+                    {todaysTimesHavePassed && (
+                        <p className="flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-amber-700">
+                            <AlertTriangle size={12} className="shrink-0" />
+                            All of today&apos;s times have passed, so blocking them will not affect new bookings.
+                            <button
+                                type="button"
+                                onClick={() => handleDateChange(1)}
+                                className="min-h-[40px] rounded-md bg-amber-100 px-2 text-[11px] font-bold text-amber-800 hover:bg-amber-200"
+                            >
+                                Use tomorrow →
+                            </button>
+                        </p>
+                    )}
+                </div>
             </div>
 
             {/* Slots Grid */}
