@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.54.2",
+    "date": "November 9, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Keep Bookings Usable After Blocking Slots",
+        "description": "Blocked laundry times keep their booking counts visible. Existing shower and laundry bookings can still progress and finish after a block. Clear filters restores laundry hidden by saved search or pickup filters."
+      },
+      {
+        "type": "fix",
+        "title": "Reliable Capacity and Block Saving",
+        "description": "Fixed shower booking database errors, Saturday availability, and availability counts for occupied blocked times. Block changes save atomically and failed saves show an error. Database regression checks now run before deployment."
+      }
+    ]
+  },
+  {
     "version": "0.54.1",
     "date": "November 9, 2026",
     "highlights": [

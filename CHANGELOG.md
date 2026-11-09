@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.54.2] - 2026-11-09
+
+### Fixed
+
+- Blocked laundry times keep their booking counts visible in Manage Slots. Cancelled, no-show, and waitlisted records no longer inflate occupied counts. Clear filters restores laundry hidden by saved search or pickup filters.
+- Existing shower and laundry bookings can still progress and finish after their time is blocked. New bookings, moves, and reactivated bookings still respect blocks and reduced capacity. Onsite blocks do not affect offsite laundry.
+- Fixed ambiguous SQL names that prevented shower bookings and availability queries. The availability query now follows Saturday's schedule.
+- Availability counts no longer subtract occupied blocked spots twice. Block changes save atomically across devices, failures are reported accurately, and a failed operation only restores its own slot.
+
+### Tests
+
+- Added UI regression coverage, iPad portrait and landscape booking checks, and Postgres tests for partial blocks, full blocks, existing bookings, and fresh-schema and migration paths. Database checks now gate deployment alongside the existing test suites.
+
 ## [0.54.1] - 2026-11-09
 
 ### Fixed
