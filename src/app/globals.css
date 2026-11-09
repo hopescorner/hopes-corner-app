@@ -157,6 +157,23 @@ select,
   animation: spin 3s linear infinite;
 }
 
+/* Running-turkey Easter egg: single left-to-right crossing when the
+   check-in page is scrolled to the bottom (see RunningTurkey). */
+@keyframes turkey-run-across {
+  from {
+    transform: translateX(-22vw);
+  }
+
+  to {
+    transform: translateX(108vw);
+  }
+}
+
+.turkey-run-across {
+  animation: turkey-run-across 4.2s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+  will-change: transform;
+}
+
 /* Glassmorphism utilities */
 .glass {
   background: rgba(255, 255, 255, 0.8);
