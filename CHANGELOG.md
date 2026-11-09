@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.54.1] - 2026-11-09
+
+### Fixed
+
+- The Add Shower Record backfill picker in Services now reflects per-spot capacity: fully blocked times show Blocked and are disabled, full half-blocked times show Full (1/1) and are disabled, and half-blocked times with a free spot show 1 spot left (0/1) while staying selectable. Waitlist slot assignment now shares the same availability logic.
+
+### Tests
+
+- Added coverage for the backfill picker half-block and blocked option states.
+
 ## [0.54.0] - 2026-11-09
 
 ### Added
