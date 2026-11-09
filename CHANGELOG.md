@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.54.0] - 2026-11-09
+
+### Added
+
+- Staff can now block a single shower spot — 1 of 2 — at a time in **Manage Slots**, for example when one bathroom is down. Each shower time shows Open, 1 Open, or Blocked, with a Block 1 spot / Unblock 1 spot control alongside the full Block / Unblock toggle.
+- New **Block 1 spot for rest of day** bulk action reduces every remaining shower time that day to one open spot in one tap (plus **Unblock all for rest of day** to restore them). For today it applies from the current Pacific time onward; for a future date it covers the whole day, and already fully blocked times are never downgraded.
+
+### Changed
+
+- Shower capacity is now tracked per spot. `blocked_slots` stores `blocked_count`, and the booking RPC and triggers enforce the remaining spots instead of a fixed 2: fully blocked times still show Blocked and reject with `SLOT_BLOCKED`, while half-blocked times show 0/1 or 1/1 and enforce the single remaining spot. Existing bookings are never cancelled by a block. Booking dialogs, waitlist slot assignment, the check-in status overview, and next-available hints all respect the reduced capacity. The new migration (`20261109000000_partial_shower_slot_blocking.sql`) is mirrored in `database/schema.sql`, with a unique index on `(service_type, slot_time, date)` and an update policy for adjusting blocks in place.
+
+### Tests
+
+- Added coverage for the per-spot capacity helpers, store half-block and partial fetch mapping, next-available handling of half-blocked slots, slot manager half-block and bulk controls, capacity-aware booking and status-overview paths, and the migration contract plus pgtap for half-block and fully blocked enforcement.
+
 ## [0.53.0] - 2026-11-06
 
 ### Added
