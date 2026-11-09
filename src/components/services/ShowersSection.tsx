@@ -125,6 +125,20 @@ export function ShowersSection() {
         return generateShowerSlots(selectedDateObject);
     }, [selectedDate]);
 
+    // Per-time availability for the selected date: half-blocked times have
+    // effective capacity 1, fully blocked 0 (see blockedSlots helpers).
+    // Used by both the backfill slot picker and waitlist assign dialog.
+    const slotAvailability = useCallback((slotTime: string) => {
+        const count = selectedDateRecords.filter(
+            (record) => record.time === slotTime && SHOWER_SLOT_OCCUPYING_STATUSES.has(record.status)
+        ).length;
+        const rows = Array.isArray(blockedSlots) ? blockedSlots : [];
+        const effective = effectiveCapacityFor(rows, 'shower', slotTime, selectedDate);
+        const isBlocked = effective === 0;
+        const isFull = !isBlocked && count >= effective;
+        return { count, effective, isBlocked, isFull, disabled: isBlocked || isFull };
+    }, [blockedSlots, selectedDate, selectedDateRecords]);
+
     const selectableGuests = useMemo(() => {
         if (!showAddForm) return [];
         return (guests || [])
@@ -304,11 +318,21 @@ export function ShowersSection() {
                                         className="min-h-11 min-w-11 w-full p-2.5 rounded-lg border border-gray-200 bg-white text-base"
                                     >
                                         <option value="">No slot time</option>
-                                        {selectedDateSlots.map((slotTime) => (
-                                            <option key={slotTime} value={slotTime}>
-                                                {formatSlotLabel(slotTime)}
-                                            </option>
-                                        ))}
+                                        {selectedDateSlots.map((slotTime) => {
+                                            const availability = slotAvailability(slotTime);
+                                            const suffix = availability.isBlocked
+                                                ? ' — Blocked'
+                                                : availability.isFull
+                                                    ? ` — Full (${availability.count}/${availability.effective})`
+                                                    : availability.effective === 1
+                                                        ? ` — 1 spot left (${availability.count}/${availability.effective})`
+                                                        : '';
+                                            return (
+                                                <option key={slotTime} value={slotTime} disabled={availability.disabled}>
+                                                    {formatSlotLabel(slotTime)}{suffix}
+                                                </option>
+                                            );
+                                        })}
                                     </select>
                                 </div>
                                 <div className="flex gap-2">
@@ -490,7 +514,7 @@ export function ShowersSection() {
                 guestName={guestMap.get(assignGuestId)?.preferredName || guestMap.get(assignGuestId)?.name || 'Guest'}
                 slots={selectedDateSlots.map((time) => ({
                     time,
-                    disabled: selectedDateRecords.filter((record) => record.time === time && SHOWER_SLOT_OCCUPYING_STATUSES.has(record.status)).length >= effectiveCapacityFor(blockedSlots ?? [], 'shower', time, selectedDate),
+                    disabled: slotAvailability(time).disabled,
                 }))}
                 onClose={() => setAssignGuestId(null)}
                 onAssign={async (time) => {
