@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.56.0] - 2026-11-09
+
+### Added
+
+- Staff can now block **1 spot or both spots** across a time period in **Manage Shower Slots**, for example when no staff are on-site. The **Block a time period** panel lets you choose how many spots to block and a **From / To** window — the whole remaining day by default, or just part of it. For today it starts at the current Pacific time; for a future date it covers the whole day. **Unblock period** reopens every blocked time in the same window.
+- Applying a full block upgrades half-blocked times to fully blocked, while a 1-spot block never reopens a time that is already more blocked. Existing bookings are never cancelled.
+
+### Changed
+
+- Reworked **Manage Slots** for clarity: each time now shows how many of its 2 shower spots are open (`2 of 2`, `1 of 2`, `0 of 2`) and a single tap-to-set control (`2 open` / `1 open` / `Blocked`) replaces the ambiguous "Open" button and the separate "Block 1 spot" button. Laundry keeps a simpler `Open` / `Blocked` control. The status legend, subtitle, and helper text now explain what blocking does.
+
+### Tests
+
+- Added UI regression coverage for blocking both spots across a period, upgrading half blocks, never downgrading full blocks, custom From / To windows, reversed ranges, unblocking a period, past-date controls, and per-time controls. Added store coverage for writing `blocked_count = 2` and clamping to capacity.
+
 ## [0.55.0] - 2026-11-09
 
 ### Changed

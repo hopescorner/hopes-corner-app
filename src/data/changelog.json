@@ -1,5 +1,21 @@
 [
   {
+    "version": "0.56.0",
+    "date": "November 9, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Block One or Both Shower Spots for a Time Period",
+        "description": "When no staff are on-site, you can now block both shower spots across a time period in one tap, not just one spot. Choose how many spots to block, then pick a From and To time to cover the whole remaining day or just part of it. Unblock period reopens those times."
+      },
+      {
+        "type": "improvement",
+        "title": "Clearer Slot Blocking Controls",
+        "description": "Manage Slots now shows exactly how many shower spots are open at each time and gives one simple control to set 2 open, 1 open, or Blocked. Blocking never cancels existing bookings, and already blocked times are never accidentally reopened."
+      }
+    ]
+  },
+  {
     "version": "0.55.0",
     "date": "November 9, 2026",
     "highlights": [
