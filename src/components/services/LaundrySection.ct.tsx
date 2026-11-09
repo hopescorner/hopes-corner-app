@@ -116,6 +116,42 @@ test.describe('iPad laundry workflows', () => {
     await page.screenshot({ path: '/tmp/hopes-laundry-ipad-landscape.png', fullPage: true });
   });
 
+  test('long guest names stay on one line so cards line up in list and board layouts', async ({ mount, page }) => {
+    const longGuests = [
+      { id: 'g1', firstName: 'Alexander', lastName: 'Montgomery-Johnson', name: 'Alexander Montgomery-Johnson', preferredName: '' },
+      { id: 'g2', firstName: 'Christopher', lastName: 'Bartholomew-Fitzgerald', name: 'Christopher Bartholomew-Fitzgerald', preferredName: '' },
+      { id: 'g3', firstName: 'Al', lastName: 'Jo', name: 'Al Jo', preferredName: '' },
+    ];
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    const component = await mount(<LaundrySectionStory guests={longGuests} laundryRecords={[
+      { id: 'l1', guestId: 'g1', date: today, status: 'waiting', laundryType: 'onsite', time: '07:30 - 08:30', bagNumber: 'B1' },
+      { id: 'l2', guestId: 'g2', date: today, status: 'waiting', laundryType: 'onsite', time: '08:00 - 09:00', bagNumber: 'B2' },
+      { id: 'l3', guestId: 'g3', date: today, status: 'waiting', laundryType: 'onsite', time: '08:30 - 09:45', bagNumber: 'B3' },
+    ]} />);
+
+    // Portrait list view: a long name is a single line and the full name is on hover.
+    const listName = component.getByText('Alexander Montgomery-Johnson', { exact: true }).first();
+    await expect(listName).toBeVisible();
+    await expect(listName).toHaveAttribute('title', 'Alexander Montgomery-Johnson');
+    const listBox = (await listName.boundingBox())!;
+    expect(listBox.height).toBeLessThanOrEqual(28);
+
+    // Landscape board view: the same name is still one line, and short names match its height.
+    await page.setViewportSize({ width: 1024, height: 768 });
+    const boardName = component.getByText('Alexander Montgomery-Johnson', { exact: true }).first();
+    await expect(boardName).toBeVisible();
+    await expect(boardName).toHaveAttribute('title', 'Alexander Montgomery-Johnson');
+    await expect.poll(async () => (await boardName.boundingBox())?.height ?? 0).toBeGreaterThan(0);
+    const boardBox = (await boardName.boundingBox())!;
+    expect(boardBox.height).toBeLessThanOrEqual(28);
+
+    const shortName = component.getByText('Al Jo', { exact: true }).first();
+    await expect(shortName).toBeVisible();
+    await expect.poll(async () => (await shortName.boundingBox())?.height ?? 0).toBeGreaterThan(0);
+    const shortBox = (await shortName.boundingBox())!;
+    expect(Math.abs(shortBox.height - boardBox.height)).toBeLessThanOrEqual(1);
+  });
+
   test('bag dialog retains guest context and supports touch cancellation and save', async ({ mount, page }) => {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     const component = await mount(<LaundrySectionStory guests={guests} laundryRecords={[

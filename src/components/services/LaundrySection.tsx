@@ -982,7 +982,13 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
             )}
         >
             <div>
-                <div className="flex items-center justify-between gap-1.5 mb-2 min-h-[24px]">
+                {/* Name gets the full card width so it stays on one readable line
+                    instead of wrapping into 2–3 uneven lines on narrow boards. */}
+                <div className="font-semibold text-base text-gray-900 leading-tight truncate" title={guestDetails.hasPreferred ? `${guestDetails.preferredName} (${guestDetails.legalName})` : guestDetails.legalName}>
+                    {guestDetails.primaryName}
+                </div>
+
+                <div className="flex items-center justify-between gap-1.5 mt-1.5 mb-2 min-h-[44px]">
                     {!readOnly && (
                         <button type="button" {...dragListeners}
                             className="min-h-11 min-w-11 flex-shrink-0 touch-none cursor-grab text-gray-500"
@@ -991,13 +997,8 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                             <GripVertical size={20} />
                         </button>
                     )}
-                    <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-base text-gray-900 leading-tight break-words" title={guestDetails.hasPreferred ? `${guestDetails.preferredName} (${guestDetails.legalName})` : guestDetails.legalName}>
-                            {guestDetails.primaryName}
-                        </div>
-                        <div className="mt-1 flex items-center gap-2 flex-wrap">
-                            <HousingStatusBadge housingStatus={guestDetails.guest?.housingStatus} />
-                        </div>
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <HousingStatusBadge housingStatus={guestDetails.guest?.housingStatus} />
                     </div>
                     <div className="flex items-center gap-1.5">
                         {/* Waiver indicator for non-completed laundry */}
@@ -1015,9 +1016,12 @@ function LaundryCard({ record, guestDetails, isDragging, dragListeners, onStatus
                     </div>
                 </div>
 
-                {/* Secondary info line */}
+                {/* Secondary info line — kept to one line so every card has the same height */}
                 {(guestDetails.hasPreferred || (!isOffsite && record.time)) && (
-                    <div className="text-sm text-gray-600 mb-2 break-words">
+                    <div
+                        className="text-sm text-gray-600 mb-2 truncate"
+                        title={[guestDetails.hasPreferred ? guestDetails.legalName : null, !isOffsite ? record.time : null].filter(Boolean).join(' • ')}
+                    >
                         {guestDetails.hasPreferred && guestDetails.legalName}
                         {guestDetails.hasPreferred && !isOffsite && record.time && ' • '}
                         {!isOffsite && record.time}

@@ -312,7 +312,7 @@ const ActiveLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { bo
                     {booking.timeLabel}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <span className="font-medium text-gray-900 text-base break-words block">
+                    <span className="font-medium text-gray-900 text-base truncate block" title={booking.name}>
                         {booking.name}
                     </span>
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -384,7 +384,7 @@ const DoneLaundryRow = memo(({ booking, onGuestClick, readOnly = false }: { book
                     {booking.timeLabel}
                 </span>
                 <div className="min-w-0 flex-1">
-                    <span className="font-medium text-gray-700 text-base break-words block">
+                    <span className="font-medium text-gray-700 text-base truncate block" title={booking.name}>
                         {booking.name}
                     </span>
                     <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -436,7 +436,7 @@ const OffsiteActiveRow = memo(({ item, onGuestClick, readOnly = false }: { item:
             )}
         >
             <div className="min-w-0 flex-1">
-                <span className="font-medium text-blue-900 text-base break-words block">
+                <span className="font-medium text-blue-900 text-base truncate block" title={item.name}>
                     {item.name}
                 </span>
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -502,7 +502,7 @@ const OffsiteDoneRow = memo(({ item, onGuestClick, readOnly = false }: { item: L
             )}
         >
             <div className="min-w-0 flex-1">
-                <span className="font-medium text-emerald-900 text-base break-words block">
+                <span className="font-medium text-emerald-900 text-base truncate block" title={item.name}>
                     {item.name}
                 </span>
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
