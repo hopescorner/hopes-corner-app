@@ -43,6 +43,25 @@ test.describe('LaundrySection', () => {
 test.describe('iPad laundry workflows', () => {
   test.use({ viewport: { width: 768, height: 1024 }, hasTouch: true });
 
+  test('Today advances overnight while an explicitly chosen historical date stays selected', async ({ mount, page }) => {
+    await page.clock.install({ time: new Date('2026-11-09T23:59:45-08:00') });
+    const component = await mount(<LaundrySectionStory guests={guests} laundryRecords={[
+      { id: 'l1', guestId: 'g1', date: '2026-11-09', status: 'waiting', laundryType: 'onsite', time: '07:30 - 08:30', bagNumber: 'OLD-DAY' },
+      { id: 'l2', guestId: 'g2', date: '2026-11-10', status: 'waiting', laundryType: 'onsite', time: '08:00 - 09:00', bagNumber: 'NEW-DAY' },
+    ]} />);
+    await expect(component.getByText('Jane Smith', { exact: true })).toHaveCount(0);
+    await page.clock.fastForward(60_000);
+    await expect(component.getByText('Jane Smith', { exact: true })).toBeVisible();
+    await expect(component.getByText('Viewing Historical Data')).toHaveCount(0);
+
+    await component.getByLabel('Previous day').click();
+    await expect(component.getByText('Viewing Historical Data')).toBeVisible();
+    await page.clock.fastForward(86_400_000);
+    await expect(component.getByText('Johnny', { exact: true })).toBeVisible();
+    await expect(component.getByText('Jane Smith', { exact: true })).toHaveCount(0);
+    await expect(component.getByText('Viewing Historical Data')).toBeVisible();
+  });
+
   test('blocked laundry keeps its booking visible and usable in both layouts', async ({ mount, page }) => {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
     const component = await mount(<LaundrySectionStory guests={guests}

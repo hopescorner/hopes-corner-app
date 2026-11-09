@@ -8,7 +8,7 @@ const defaultLaundryRecords = [
     { id: 'l2', guestId: 'g2', status: 'washer', time: '10:00-10:30', bagNumber: '2', date: '2026-01-08', laundryType: 'onsite', createdAt: '2026-01-08T10:00:00Z' },
 ];
 
-const { mockToastError } = vi.hoisted(() => ({ mockToastError: vi.fn() }));
+const { mockToastError, mockServiceDay } = vi.hoisted(() => ({ mockToastError: vi.fn(), mockServiceDay: { value: '2026-01-08' } }));
 
 vi.mock('react-hot-toast', () => ({
     default: {
@@ -68,7 +68,7 @@ vi.mock('@/components/ui/CompactWaiverIndicator', () => ({
 }));
 
 vi.mock('@/lib/utils/date', () => ({
-    todayPacificDateString: () => '2026-01-08',
+    todayPacificDateString: () => mockServiceDay.value,
     pacificDateStringFrom: (date: string) => date ? date.slice(0, 10) : null,
     formatTimeInPacific: () => '12:00 PM',
     formatPacificTimeString: (timeStr: string) => timeStr,
@@ -88,11 +88,30 @@ vi.mock('../admin/SlotBlockModal', () => ({
 describe('LaundrySection Component', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockServiceDay.value = '2026-01-08';
         mockUseServicesStore.mockReturnValue({ ...defaultStoreData });
         mockUseServicesStore.getState.mockReturnValue({ ...defaultStoreData });
     });
 
     describe('Rendering', () => {
+        it.each(['default', 'calendar selection', 'saved current date'])('keeps Today current across service days: %s', (mode) => {
+            if (mode === 'saved current date') sessionStorage.setItem('service-view:laundry-date', JSON.stringify('2026-01-08'));
+            const nextDayRecord = { ...defaultLaundryRecords[0], id: 'next-day', date: '2026-01-09', bagNumber: 'NEXT-DAY' };
+            mockUseServicesStore.mockReturnValue({ ...defaultStoreData, laundryRecords: [...defaultLaundryRecords, nextDayRecord] });
+            const { rerender } = render(<LaundrySection />);
+            if (mode === 'calendar selection') {
+                fireEvent.click(screen.getByRole('button', { name: 'Toggle calendar' }));
+                fireEvent.click(screen.getByRole('button', { name: 'Today', exact: true }));
+            }
+            expect(screen.queryByText('Bag #NEXT-DAY')).not.toBeInTheDocument();
+
+            mockServiceDay.value = '2026-01-09';
+            rerender(<LaundrySection />);
+
+            expect(screen.getByText('Bag #NEXT-DAY')).toBeVisible();
+            expect(screen.queryByText('Viewing Historical Data')).not.toBeInTheDocument();
+        });
+
         it('makes saved filters visible and lets staff restore the booking list', async () => {
             sessionStorage.setItem('service-view:laundry-search', JSON.stringify('no matching guest'));
             sessionStorage.setItem('service-view:laundry-ready', JSON.stringify(true));

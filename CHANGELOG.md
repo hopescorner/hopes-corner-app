@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.54.3] - 2026-11-09
+
+### Fixed
+
+- The Laundry booking list now follows the new service day when Today is selected and an iPad stays open overnight. Returning to Today stores that choice instead of pinning one calendar date. Saved current-day dates from older versions are updated automatically; explicitly selected historical dates stay selected.
+
+### Tests
+
+- Added regression coverage for the default date, selecting Today, saved current-day dates, and an iPad browser crossing midnight while preserving a historical selection.
+
 ## [0.54.2] - 2026-11-09
 
 ### Fixed

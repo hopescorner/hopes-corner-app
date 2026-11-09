@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback, useRef, useDeferredValue, useSyncExternalStore } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, useDeferredValue, useSyncExternalStore } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { WashingMachine, Clock, Wind, Package, CheckCircle, Trash2, User, Timer, Edit3, Save, ChevronDown, ChevronUp, GripVertical, AlertTriangle, CalendarDays } from 'lucide-react';
 import {
@@ -87,7 +87,13 @@ export function LaundrySection() {
     const { data: session } = useSession();
 
     const today = todayPacificDateString();
-    const [selectedDate, setSelectedDate] = useServiceViewState('laundry-date', today);
+    // Keep Today live when a shared iPad stays open across service days.
+    const [viewDate, setViewDate] = useServiceViewState<string>('laundry-date', 'today');
+    const selectedDate = viewDate === 'today' ? today : viewDate;
+    const setSelectedDate = (date: string) => setViewDate(date === today ? 'today' : date);
+    useEffect(() => {
+        if (viewDate === today) setViewDate('today');
+    }, [viewDate, today, setViewDate]);
     const [search, setSearch] = useServiceViewState<string>('laundry-search', '');
     const query = useDeferredValue(search.trim().toLowerCase());
     const [readyOnly, setReadyOnly] = useServiceViewState<boolean>('laundry-ready', false);
