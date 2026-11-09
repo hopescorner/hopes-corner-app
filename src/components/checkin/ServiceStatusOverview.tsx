@@ -11,6 +11,7 @@ import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
 import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { getEffectiveCapacity as effectiveCapacityFor, normalizeBlockedCount } from '@/lib/utils/blockedSlots';
 import { cn } from '@/lib/utils/cn';
 
 // Subscribe to array lengths to ensure re-renders when records change
@@ -136,11 +137,12 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
         fetchBlockedSlots();
     }, [fetchBlockedSlots]);
 
-    // Count blocked shower slots for today
-    const blockedShowerSlotsCount = useMemo(() => {
-        return blockedSlots.filter(
-            (slot) => slot.serviceType === 'shower' && slot.date === todayString
-        ).length;
+    // Blocked shower spots for today (a half-blocked slot counts 1, not 2)
+    const blockedShowerCapacity = useMemo(() => {
+        if (!Array.isArray(blockedSlots)) return 0;
+        return blockedSlots
+            .filter((slot) => slot.serviceType === 'shower' && slot.date === todayString)
+            .reduce((acc, slot) => acc + normalizeBlockedCount('shower', (slot as any).blockedCount), 0);
     }, [blockedSlots, todayString]);
 
     // Count blocked laundry slots for today
@@ -159,8 +161,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
         );
 
         const totalSlots = allShowerSlots?.length || 0;
-        const blockedCapacity = blockedShowerSlotsCount * MAX_GUESTS_PER_SHOWER_SLOT;
-        const totalCapacity = (totalSlots * MAX_GUESTS_PER_SHOWER_SLOT) - blockedCapacity;
+        const totalCapacity = (totalSlots * MAX_GUESTS_PER_SHOWER_SLOT) - blockedShowerCapacity;
         const booked = todaysRecords.length;
         const available = Math.max(totalCapacity - booked, 0);
         const waitlisted = (showerRecords || []).filter(
@@ -177,7 +178,7 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             isFull: available === 0,
             isNearlyFull: available <= 2 && available > 0,
         };
-    }, [showerRecords, allShowerSlots, todayString, blockedShowerSlotsCount, showerRecordsLength]);
+    }, [showerRecords, allShowerSlots, todayString, blockedShowerCapacity, showerRecordsLength]);
 
     // Calculate laundry statistics
     const laundryStats = useMemo(() => {
@@ -215,8 +216,12 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
             if (time) slotCounts[time] = (slotCounts[time] || 0) + 1;
         });
         for (const slot of allShowerSlots) {
-            if (!slot || isSlotBlocked('shower', slot, todayString)) continue;
-            if ((slotCounts[slot] || 0) < MAX_GUESTS_PER_SHOWER_SLOT) return slot;
+            if (!slot) continue;
+            const hasRows = Array.isArray(blockedSlots);
+            const effective = hasRows
+                ? effectiveCapacityFor(blockedSlots as any, 'shower', slot, todayString)
+                : isSlotBlocked('shower', slot, todayString) ? 0 : MAX_GUESTS_PER_SHOWER_SLOT;
+            if ((slotCounts[slot] || 0) < effective) return slot;
         }
         return null;
     }, [allShowerSlots, showerRecords, todayString, showerStats.available, isSlotBlocked, blockedSlots, showerRecordsLength]);

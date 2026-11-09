@@ -22,6 +22,7 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date';
 import { findNextAvailableShowerSlot, findNextAvailableLaundrySlot, type NextAvailableShowerSlot, type NextAvailableLaundrySlot } from '@/lib/utils/nextAvailableSlot';
+import { getEffectiveCapacity as effectiveCapacityFor } from '@/lib/utils/blockedSlots';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
@@ -105,6 +106,7 @@ type PureGuestCardProps = GuestCardProps & {
     addHaircutRecord: (guestId: string, options?: { serviceDate?: string; slotTime?: string; stylistName?: string }) => Promise<any>;
     addHolidayRecord: (guestId: string) => Promise<any>;
     isSlotBlocked?: (serviceType: 'shower' | 'laundry', slot: string, date: string) => boolean;
+    getEffectiveCapacity?: (serviceType: 'shower' | 'laundry', slot: string, date: string) => number;
 
     setShowerPickerGuest: (guest: any) => void;
     setLaundryPickerGuest: (guest: any) => void;
@@ -190,6 +192,7 @@ function PureGuestCard({
     addHaircutRecord,
     addHolidayRecord,
     isSlotBlocked,
+    getEffectiveCapacity,
     setShowerPickerGuest,
     setLaundryPickerGuest,
     setBicyclePickerGuest,
@@ -278,11 +281,12 @@ function PureGuestCard({
     const genderPresentation = getGuestGenderPresentation(guest.gender);
 
     const blockedSlotFn = useMemo(() => isSlotBlocked || (() => false), [isSlotBlocked]);
+    const effectiveCapacityFn = useMemo(() => getEffectiveCapacity, [getEffectiveCapacity]);
 
     const computedNextAvailableShowerSlot = useMemo(() => {
         if (propNextAvailableShowerSlot !== undefined) return null;
-        return findNextAvailableShowerSlot(showerRecords, blockedSlotFn, today);
-    }, [propNextAvailableShowerSlot, showerRecords, blockedSlotFn, today]);
+        return findNextAvailableShowerSlot(showerRecords, blockedSlotFn, today, effectiveCapacityFn);
+    }, [propNextAvailableShowerSlot, showerRecords, blockedSlotFn, effectiveCapacityFn, today]);
 
     const nextAvailableShowerSlot = propNextAvailableShowerSlot !== undefined
         ? propNextAvailableShowerSlot
@@ -290,8 +294,8 @@ function PureGuestCard({
 
     const computedNextAvailableLaundrySlot = useMemo(() => {
         if (propNextAvailableLaundrySlot !== undefined) return null;
-        return findNextAvailableLaundrySlot(laundryRecords, blockedSlotFn, today);
-    }, [propNextAvailableLaundrySlot, laundryRecords, blockedSlotFn, today]);
+        return findNextAvailableLaundrySlot(laundryRecords, blockedSlotFn, today, effectiveCapacityFn);
+    }, [propNextAvailableLaundrySlot, laundryRecords, blockedSlotFn, effectiveCapacityFn, today]);
 
     const nextAvailableLaundrySlot = propNextAvailableLaundrySlot !== undefined
         ? propNextAvailableLaundrySlot
@@ -1238,6 +1242,16 @@ function GuestCardImpl(props: GuestCardProps) {
         },
         [isSlotBlocked, blockedSlots]
     );
+    const effectiveGetEffectiveCapacity = useCallback(
+        (serviceType: 'shower' | 'laundry', slot: string, date: string) => {
+            if (Array.isArray(blockedSlots)) {
+                return effectiveCapacityFor(blockedSlots as any, serviceType, slot, date);
+            }
+            const full = serviceType === 'shower' ? 2 : 1;
+            return typeof isSlotBlocked === 'function' && isSlotBlocked(serviceType, slot, date) ? 0 : full;
+        },
+        [isSlotBlocked, blockedSlots]
+    );
     const { setShowerPickerGuest, setLaundryPickerGuest, setBicyclePickerGuest } = useModalStore(
         useShallow((s) => ({
             setShowerPickerGuest: s.setShowerPickerGuest,
@@ -1312,6 +1326,7 @@ function GuestCardImpl(props: GuestCardProps) {
             addHaircutRecord={addHaircutRecord}
             addHolidayRecord={addHolidayRecord}
             isSlotBlocked={effectiveIsSlotBlocked}
+            getEffectiveCapacity={effectiveGetEffectiveCapacity}
             setShowerPickerGuest={setShowerPickerGuest}
             setLaundryPickerGuest={setLaundryPickerGuest}
             setBicyclePickerGuest={setBicyclePickerGuest}

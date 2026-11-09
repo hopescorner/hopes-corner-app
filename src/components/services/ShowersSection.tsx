@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShowerHead, Clock, CheckCircle, XCircle, ChevronRight, User, AlertCircle, Loader2, RotateCcw } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
-import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 import { useServicesStore } from '@/stores/useServicesStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { getGuestsMap } from '@/lib/utils/guestLookup';
@@ -13,6 +13,7 @@ import { todayPacificDateString, pacificDateStringFrom } from '@/lib/utils/date'
 import { isShowerPendingForEndOfDay } from '@/lib/utils/serviceStatus';
 import { formatSlotLabel } from '@/lib/utils/serviceSlots';
 import { generateShowerSlots } from '@/lib/utils/serviceSlots';
+import { getEffectiveCapacity as effectiveCapacityFor } from '@/lib/utils/blockedSlots';
 import { cn } from '@/lib/utils/cn';
 import toast from 'react-hot-toast';
 import { CompactWaiverIndicator } from '@/components/ui/CompactWaiverIndicator';
@@ -489,7 +490,7 @@ export function ShowersSection() {
                 guestName={guestMap.get(assignGuestId)?.preferredName || guestMap.get(assignGuestId)?.name || 'Guest'}
                 slots={selectedDateSlots.map((time) => ({
                     time,
-                    disabled: blockedSlots.some((slot) => slot.serviceType === 'shower' && slot.date === selectedDate && slot.slotTime === time) || selectedDateRecords.filter((record) => record.time === time && SHOWER_SLOT_OCCUPYING_STATUSES.has(record.status)).length >= MAX_GUESTS_PER_SHOWER_SLOT,
+                    disabled: selectedDateRecords.filter((record) => record.time === time && SHOWER_SLOT_OCCUPYING_STATUSES.has(record.status)).length >= effectiveCapacityFor(blockedSlots ?? [], 'shower', time, selectedDate),
                 }))}
                 onClose={() => setAssignGuestId(null)}
                 onAssign={async (time) => {

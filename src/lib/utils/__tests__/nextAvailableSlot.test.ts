@@ -37,6 +37,27 @@ describe('nextAvailableSlot', () => {
             expect(result?.slotTime).toBe(showerSlots[1]);
         });
 
+        it('treats a half-blocked slot with one occupant as full', () => {
+            const firstSlot = showerSlots[0];
+            const records = [{
+                id: 'rec-1',
+                guestId: 'guest-1',
+                date: today,
+                slotTime: firstSlot,
+                status: 'booked',
+            }];
+            const capacityFn = (_service: any, slot: string) => (slot === firstSlot ? 1 : MAX_GUESTS_PER_SHOWER_SLOT);
+            const result = findNextAvailableShowerSlot(records, () => false, today, capacityFn);
+            expect(result?.slotTime).toBe(showerSlots[1]);
+        });
+
+        it('still offers a half-blocked slot when its one spot is free', () => {
+            const firstSlot = showerSlots[0];
+            const capacityFn = (_service: any, slot: string) => (slot === firstSlot ? 1 : MAX_GUESTS_PER_SHOWER_SLOT);
+            const result = findNextAvailableShowerSlot([], () => false, today, capacityFn);
+            expect(result?.slotTime).toBe(firstSlot);
+        });
+
         it('returns null when all slots are full', () => {
             const records: any[] = [];
             showerSlots.forEach((slot, slotIdx) => {

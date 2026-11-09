@@ -1128,12 +1128,16 @@ create table if not exists public.blocked_slots (
   service_type text not null, -- 'shower' or 'laundry'
   slot_time text not null, -- e.g. '09:00', '10:30 - 12:00'
   date text not null, -- YYYY-MM-DD
+  blocked_count integer check (blocked_count is null or blocked_count between 1 and 2), -- null = legacy fully blocked
   created_at timestamptz default now() not null,
   blocked_by uuid -- references auth.users(id) -- Optional: who blocked it
 );
 
 create index if not exists idx_blocked_slots_lookup 
   on public.blocked_slots(date, service_type);
+
+create unique index if not exists uq_blocked_slots_slot
+  on public.blocked_slots(service_type, slot_time, date);
 
 alter table public.blocked_slots enable row level security;
 
@@ -1154,6 +1158,13 @@ create policy "Enable delete access for authenticated users"
   on public.blocked_slots for delete
   to authenticated, anon
   using (true);
+
+drop policy if exists "Enable update access for authenticated users" on public.blocked_slots;
+create policy "Enable update access for authenticated users"
+  on public.blocked_slots for update
+  to authenticated, anon
+  using (true)
+  with check (true);
 
 create table if not exists public.bicycle_repairs (
   id uuid primary key default gen_random_uuid(),
@@ -1846,19 +1857,28 @@ declare
     v_existing_id uuid;
     v_existing_status public.shower_status_enum;
     v_max_capacity constant integer := 2;
+    v_blocked_count integer;
+    v_effective_capacity integer;
 begin
     perform pg_advisory_xact_lock(
         hashtextextended(p_scheduled_for::text || '_' || coalesce(p_scheduled_time, ''), 0)
     );
 
-    if p_scheduled_time is not null and exists (
-        select 1 from public.blocked_slots
-        where date = p_scheduled_for::text
-          and service_type = 'shower'
-          and slot_time = p_scheduled_time
-    ) then
-        raise exception 'SLOT_BLOCKED: Shower slot % on % is blocked',
-            p_scheduled_time, p_scheduled_for;
+    if p_scheduled_time is not null then
+        select (case when blocked_count is null then 2 else blocked_count end)
+          into v_blocked_count
+          from public.blocked_slots
+         where date = p_scheduled_for::text
+           and service_type = 'shower'
+           and slot_time = p_scheduled_time
+         limit 1;
+        v_effective_capacity := greatest(0, v_max_capacity - coalesce(v_blocked_count, 0));
+        if v_effective_capacity = 0 then
+            raise exception 'SLOT_BLOCKED: Shower slot % on % is blocked',
+                p_scheduled_time, p_scheduled_for;
+        end if;
+    else
+        v_effective_capacity := v_max_capacity;
     end if;
 
     select id, status
@@ -1879,9 +1899,9 @@ begin
       and status in ('booked', 'done')
       and (v_existing_id is null or id <> v_existing_id);
 
-    if v_count >= v_max_capacity then
+    if v_count >= v_effective_capacity then
         raise exception 'This shower slot is full (%/%). Please choose another time.',
-            v_count, v_max_capacity;
+            v_count, v_effective_capacity;
     end if;
 
     if v_existing_id is not null then
@@ -1903,15 +1923,17 @@ end;
 $$;
 
 comment on function public.book_shower_slot(uuid, date, text, text) is
-'Atomically books a shower slot, reusing a waitlisted or cancelled/no-show reservation for the same guest and date. Rejects blocked slots with SLOT_BLOCKED.';
+'Atomically books a shower slot, reusing a waitlisted or cancelled/no-show reservation for the same guest and date. Fully blocked times raise SLOT_BLOCKED; half-blocked times enforce their single remaining spot with the slot-full error.';
 
 -- SHOWER SLOT CAPACITY CONSTRAINT (safety-net trigger)
--- Limits to 2 guests per slot, uses advisory lock for concurrency safety
+-- Limits to 2 guests per slot (or 1 when half-blocked), uses advisory lock for concurrency safety
 create or replace function public.check_shower_slot_capacity()
 returns trigger as $$
 declare
     slot_count integer;
+    blocked_count integer;
     max_per_slot constant integer := 2;
+    effective_capacity integer;
 begin
     if NEW.status not in ('booked', 'done') then
         return NEW;
@@ -1925,6 +1947,16 @@ begin
         hashtextextended(NEW.scheduled_for::text || '_' || NEW.scheduled_time, 0)
     );
 
+    select (case when blocked_count is null then 2 else blocked_count end)
+      into blocked_count
+      from public.blocked_slots
+     where date = NEW.scheduled_for::text
+       and service_type = 'shower'
+       and slot_time = NEW.scheduled_time
+     limit 1;
+
+    effective_capacity := greatest(0, max_per_slot - coalesce(blocked_count, 0));
+
     select count(*) into slot_count
     from public.shower_reservations
     where scheduled_for  = NEW.scheduled_for
@@ -1932,9 +1964,9 @@ begin
       and status in ('booked', 'done')
       and id != NEW.id;
 
-    if slot_count >= max_per_slot then
+    if slot_count >= effective_capacity then
         raise exception 'Shower slot % on % is full (%/% taken)',
-            NEW.scheduled_time, NEW.scheduled_for, slot_count, max_per_slot;
+            NEW.scheduled_time, NEW.scheduled_for, slot_count, effective_capacity;
     end if;
 
     return NEW;
@@ -1949,7 +1981,9 @@ for each row execute function public.check_shower_slot_capacity();
 comment on function public.check_shower_slot_capacity() is 
 'Trigger function to enforce max 2 guests per shower time slot. Uses advisory lock to prevent race conditions.';
 
--- Blocked-slot enforcement: no new/changed booking may occupy a blocked slot.
+-- Blocked-slot enforcement: no new/changed booking may occupy a fully blocked slot.
+-- Half-blocked slots (blocked_count = 1) are admitted here; the capacity
+-- trigger enforces their single remaining spot.
 -- Closing/void transitions are exempt so End-of-Day cancel never fails.
 create or replace function public.check_shower_blocked_slot()
 returns trigger as $$
@@ -1965,6 +1999,7 @@ begin
     where date = NEW.scheduled_for::text
       and service_type = 'shower'
       and slot_time = NEW.scheduled_time
+      and (blocked_count is null or blocked_count >= 2)
   ) then
     raise exception 'SLOT_BLOCKED: Shower slot % on % is blocked',
       NEW.scheduled_time, NEW.scheduled_for;
@@ -2079,13 +2114,22 @@ begin
           and sr.status in ('booked', 'done')
           and sr.scheduled_time is not null
         group by sr.scheduled_time
+    ),
+    blocked as (
+        select
+            slot_time as time_slot,
+            (case when blocked_count is null then 2 else blocked_count end) as blocked_count
+        from public.blocked_slots
+        where date = check_date::text
+          and service_type = 'shower'
     )
     select 
         all_slots.time_slot as slot_time,
         coalesce(booked_slots.booked_count, 0) as current_count,
-        (max_per_slot - coalesce(booked_slots.booked_count, 0))::integer as available_spots
+        greatest(0, (max_per_slot - coalesce(booked_slots.booked_count, 0) - coalesce(blocked.blocked_count, 0)))::integer as available_spots
     from all_slots
     left join booked_slots on all_slots.time_slot = booked_slots.scheduled_time
+    left join blocked on all_slots.time_slot = blocked.time_slot
     order by all_slots.time_slot;
 end;
 $$ language plpgsql;

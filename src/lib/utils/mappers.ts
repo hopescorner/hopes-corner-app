@@ -189,6 +189,7 @@ interface BlockedSlotRow {
   service_type: string;
   slot_time: string;
   date: string;
+  blocked_count?: number | null;
   created_at?: string;
   created_by?: string | null;
 }
@@ -569,6 +570,7 @@ export const mapBlockedSlotRow = (row: BlockedSlotRow) => ({
   serviceType: row.service_type,
   slotTime: row.slot_time,
   date: row.date,
+  blockedCount: row.blocked_count ?? null,
   createdAt: row.created_at,
   createdBy: row.created_by,
 });

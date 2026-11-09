@@ -16,6 +16,7 @@ import { type UserRole } from '@/lib/auth/types';
 import { ShieldAlert } from 'lucide-react';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { getEffectiveCapacity as effectiveCapacityFor } from '@/lib/utils/blockedSlots';
 import toast from 'react-hot-toast';
 import { useEffect } from 'react';
 
@@ -62,15 +63,22 @@ export function ShowerBookingModal() {
                 return guest?.name || "Guest";
             });
 
-            const isBlocked = isSlotBlocked('shower', slotTime, today);
+            const hasRows = Array.isArray(blockedSlots);
+            const effectiveCapacity = hasRows
+                ? effectiveCapacityFor(blockedSlots as any, 'shower', slotTime, today)
+                : isSlotBlocked('shower', slotTime, today)
+                    ? 0
+                    : MAX_GUESTS_PER_SHOWER_SLOT;
+            const isBlocked = effectiveCapacity === 0;
 
             return {
                 slotTime,
                 label: formatSlotLabel(slotTime),
                 count,
                 guests: guestsInSlot,
-                isFull: count >= MAX_GUESTS_PER_SHOWER_SLOT,
-                isNearlyFull: count === MAX_GUESTS_PER_SHOWER_SLOT - 1,
+                effectiveCapacity,
+                isFull: count >= effectiveCapacity,
+                isNearlyFull: effectiveCapacity > 0 && count === effectiveCapacity - 1,
                 isBlocked,
             };
         });
@@ -285,7 +293,7 @@ export function ShowerBookingModal() {
                                                 ) : (
                                                     <div className="flex items-center gap-1 mt-1">
                                                         <Users size={12} className={slot.isFull ? 'text-gray-300' : 'text-sky-500'} />
-                                                        <span className="text-[10px] font-bold text-gray-500">{slot.count}/{MAX_GUESTS_PER_SHOWER_SLOT}</span>
+                                                        <span className="text-[10px] font-bold text-gray-500">{slot.count}/{slot.effectiveCapacity}</span>
                                                     </div>
                                                 )}
                                             </button>

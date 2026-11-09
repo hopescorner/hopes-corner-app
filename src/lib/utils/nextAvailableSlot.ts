@@ -1,5 +1,5 @@
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from './serviceSlots';
-import { MAX_GUESTS_PER_SHOWER_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
+import { MAX_GUESTS_PER_SHOWER_SLOT, MAX_GUESTS_PER_LAUNDRY_SLOT, SHOWER_SLOT_OCCUPYING_STATUSES, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 
 export interface NextAvailableShowerSlot {
@@ -13,10 +13,13 @@ export interface NextAvailableLaundrySlot {
     label: string;
 }
 
+export type EffectiveCapacityFn = (service: 'shower' | 'laundry', slot: string, date: string) => number;
+
 export function findNextAvailableShowerSlot(
     showerRecords: any[] = [],
     isSlotBlocked: (service: 'shower', slot: string, date: string) => boolean,
-    targetDate: string
+    targetDate: string,
+    getEffectiveCapacity?: EffectiveCapacityFn
 ): NextAvailableShowerSlot | null {
     const slots = generateShowerSlots();
     const slotCounts = new Map<string, number>();
@@ -39,10 +42,15 @@ export function findNextAvailableShowerSlot(
     }
 
     for (const slotTime of slots) {
-        if (isSlotBlocked('shower', slotTime, targetDate)) continue;
+        const effective = getEffectiveCapacity
+            ? getEffectiveCapacity('shower', slotTime, targetDate)
+            : isSlotBlocked('shower', slotTime, targetDate)
+                ? 0
+                : MAX_GUESTS_PER_SHOWER_SLOT;
+        if (effective <= 0) continue;
 
         const count = slotCounts.get(slotTime) || 0;
-        if (count < MAX_GUESTS_PER_SHOWER_SLOT) {
+        if (count < effective) {
             return {
                 slotTime,
                 label: formatSlotLabel(slotTime),
@@ -57,7 +65,8 @@ export function findNextAvailableShowerSlot(
 export function findNextAvailableLaundrySlot(
     laundryRecords: any[] = [],
     isSlotBlocked: (service: 'laundry', slot: string, date: string) => boolean,
-    targetDate: string
+    targetDate: string,
+    getEffectiveCapacity?: EffectiveCapacityFn
 ): NextAvailableLaundrySlot | null {
     const slots = generateLaundrySlots();
     const bookedSlots = new Set<string>();
@@ -82,7 +91,12 @@ export function findNextAvailableLaundrySlot(
     }
 
     for (const slotLabel of slots) {
-        if (isSlotBlocked('laundry', slotLabel, targetDate)) continue;
+        const effective = getEffectiveCapacity
+            ? getEffectiveCapacity('laundry', slotLabel, targetDate)
+            : isSlotBlocked('laundry', slotLabel, targetDate)
+                ? 0
+                : MAX_GUESTS_PER_LAUNDRY_SLOT;
+        if (effective <= 0) continue;
 
         if (!bookedSlots.has(slotLabel)) {
             return {

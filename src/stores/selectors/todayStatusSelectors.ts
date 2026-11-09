@@ -20,6 +20,7 @@ import {
     type NextAvailableShowerSlot,
     type NextAvailableLaundrySlot
 } from '@/lib/utils/nextAvailableSlot';
+import { getEffectiveCapacity as effectiveCapacityFor } from '@/lib/utils/blockedSlots';
 
 export type { NextAvailableShowerSlot, NextAvailableLaundrySlot };
 
@@ -346,8 +347,15 @@ export function useNextAvailableSlots(): {
 
     return useMemo(() => {
         const today = todayPacificDateString();
-        const nextShower = findNextAvailableShowerSlot(showerRecords, isSlotBlocked, today);
-        const nextLaundry = findNextAvailableLaundrySlot(laundryRecords, isSlotBlocked, today);
+        // Only use the capacity-aware lookup when we have the blocked rows to
+        // derive it from; test doubles that stub only isSlotBlocked fall back
+        // to the boolean check inside findNextAvailable*.
+        const getEffectiveCapacity = Array.isArray(blockedSlots)
+            ? (service: 'shower' | 'laundry', slot: string, date: string) =>
+                  effectiveCapacityFor(blockedSlots, service, slot, date)
+            : undefined;
+        const nextShower = findNextAvailableShowerSlot(showerRecords, isSlotBlocked, today, getEffectiveCapacity);
+        const nextLaundry = findNextAvailableLaundrySlot(laundryRecords, isSlotBlocked, today, getEffectiveCapacity);
         return {
             nextAvailableShowerSlot: nextShower,
             nextAvailableLaundrySlot: nextLaundry,

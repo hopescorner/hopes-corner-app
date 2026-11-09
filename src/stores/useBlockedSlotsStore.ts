@@ -1,12 +1,21 @@
 import { create } from 'zustand';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'react-hot-toast';
+import {
+  capacityFor,
+  normalizeBlockedCount,
+  getBlockedCount as countFor,
+  getEffectiveCapacity as capacityLeftFor,
+  isFullyBlocked,
+} from '@/lib/utils/blockedSlots';
 
 export interface BlockedSlot {
     id: string;
     serviceType: 'shower' | 'laundry';
     slotTime: string;
     date: string;
+    /** How many spots at this time are blocked. Null/undefined = legacy full block. */
+    blockedCount?: number | null;
     createdAt?: string;
     blockedBy?: string;
 }
@@ -18,9 +27,17 @@ interface BlockedSlotsState {
 
     fetchBlockedSlots: () => Promise<void>;
     ensureLoaded: () => Promise<void>;
-    blockSlot: (serviceType: 'shower' | 'laundry', slotTime: string, date: string) => Promise<boolean>;
+    /** Block the whole slot (or `blockedCount` spots when given). Defaults to full block. */
+    blockSlot: (serviceType: 'shower' | 'laundry', slotTime: string, date: string, blockedCount?: number) => Promise<boolean>;
+    /** Set how many spots are blocked at this time (0 = open). */
+    setBlockedCount: (serviceType: 'shower' | 'laundry', slotTime: string, date: string, blockedCount: number) => Promise<boolean>;
     unblockSlot: (serviceType: 'shower' | 'laundry', slotTime: string, date: string) => Promise<boolean>;
+    /** True only when every spot at this time is blocked (effective capacity 0). */
     isSlotBlocked: (serviceType: 'shower' | 'laundry', slotTime: string, date: string) => boolean;
+    /** How many spots are blocked at this time (0 = open). */
+    getBlockedCount: (serviceType: 'shower' | 'laundry', slotTime: string, date: string) => number;
+    /** Remaining bookable spots at this time (0 = fully blocked). */
+    getEffectiveCapacity: (serviceType: 'shower' | 'laundry', slotTime: string, date: string) => number;
 }
 
 let mutationVersion = 0;
@@ -54,6 +71,7 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
                         serviceType: item.service_type,
                         slotTime: item.slot_time,
                         date: item.date,
+                        blockedCount: item.blocked_count ?? null,
                         createdAt: item.created_at,
                         blockedBy: item.blocked_by,
                     })),
@@ -68,7 +86,64 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
         }
     },
 
-    blockSlot: async (serviceType, slotTime, date) => {
+    blockSlot: async (serviceType, slotTime, date, blockedCount) => {
+        const cap = capacityFor(serviceType);
+        const desiredCount = Math.max(0, Math.min(cap, blockedCount ?? cap));
+        if (desiredCount === 0) return get().unblockSlot(serviceType, slotTime, date);
+
+        const existing = get().blockedSlots.find(
+            (s) => s.serviceType === serviceType && s.slotTime === slotTime && s.date === date
+        );
+        // Already blocked at this level — nothing to do (avoids a duplicate insert).
+        if (existing && normalizeBlockedCount(serviceType, existing.blockedCount) === desiredCount) {
+            return true;
+        }
+
+        if (existing) {
+            // Adjust an existing block up/down (e.g. 2 ↔ 1) via update.
+            mutationVersion += 1;
+            const originalSlots = get().blockedSlots;
+            set((state) => ({
+                blockedSlots: state.blockedSlots.map((s) =>
+                    s.serviceType === serviceType && s.slotTime === slotTime && s.date === date
+                        ? { ...s, blockedCount: desiredCount }
+                        : s
+                ),
+            }));
+            try {
+                const supabase = createClient();
+                const table: any = supabase.from('blocked_slots');
+                if (typeof table.update === 'function') {
+                    const { error } = await table
+                        .update({ blocked_count: desiredCount })
+                        .match({ service_type: serviceType, slot_time: slotTime, date });
+                    if (error) throw error;
+                } else {
+                    // Fallback for test doubles without update: replace the row.
+                    await supabase.from('blocked_slots').delete().match({
+                        service_type: serviceType,
+                        slot_time: slotTime,
+                        date,
+                    });
+                    const { error } = await supabase.from('blocked_slots').insert({
+                        service_type: serviceType,
+                        slot_time: slotTime,
+                        date,
+                        blocked_count: desiredCount,
+                    }).select().single();
+                    if (error && error.code !== '23505') throw error;
+                }
+                mutationVersion += 1;
+                return true;
+            } catch (error) {
+                mutationVersion += 1;
+                console.error('Error adjusting blocked slot:', error);
+                toast.error('Failed to block slot');
+                set({ blockedSlots: originalSlots });
+                return false;
+            }
+        }
+
         mutationVersion += 1;
         const tempId = `temp-${Date.now()}`;
         const newSlot: BlockedSlot = {
@@ -76,6 +151,7 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
             serviceType,
             slotTime,
             date,
+            blockedCount: desiredCount,
             createdAt: new Date().toISOString(),
         };
 
@@ -91,6 +167,7 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
                     service_type: serviceType,
                     slot_time: slotTime,
                     date: date,
+                    blocked_count: desiredCount,
                 })
                 .select()
                 .single();
@@ -109,6 +186,7 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
                             ? {
                                 ...s,
                                 id: data.id,
+                                blockedCount: (data as any).blocked_count ?? desiredCount,
                                 createdAt: data.created_at,
                                 blockedBy: data.blocked_by,
                             }
@@ -126,6 +204,13 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
             }));
             return false;
         }
+    },
+
+    setBlockedCount: async (serviceType, slotTime, date, blockedCount) => {
+        const cap = capacityFor(serviceType);
+        const desired = Math.max(0, Math.min(cap, Math.trunc(Number(blockedCount) || 0)));
+        if (desired === 0) return get().unblockSlot(serviceType, slotTime, date);
+        return get().blockSlot(serviceType, slotTime, date, desired);
     },
 
     unblockSlot: async (serviceType, slotTime, date) => {
@@ -167,14 +252,14 @@ export const useBlockedSlotsStore = create<BlockedSlotsState>((set, get) => ({
     },
 
     isSlotBlocked: (serviceType, slotTime, date) => {
-        const slots = get().blockedSlots;
-        const cleanSlot = slotTime?.trim();
-        const cleanDate = date?.trim();
-        return slots.some(
-            (s) =>
-                s.serviceType === serviceType &&
-                s.slotTime?.trim() === cleanSlot &&
-                s.date?.trim() === cleanDate
-        );
+        return isFullyBlocked(get().blockedSlots, serviceType, slotTime, date);
+    },
+
+    getBlockedCount: (serviceType, slotTime, date) => {
+        return countFor(get().blockedSlots, serviceType, slotTime, date);
+    },
+
+    getEffectiveCapacity: (serviceType, slotTime, date) => {
+        return capacityLeftFor(get().blockedSlots, serviceType, slotTime, date);
     },
 }));
