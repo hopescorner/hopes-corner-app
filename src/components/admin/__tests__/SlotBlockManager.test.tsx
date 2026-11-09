@@ -1,16 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import React from 'react';
 import { SlotBlockManager } from '../SlotBlockManager';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
+import { pacificDateStringFrom } from '@/lib/utils/date';
 import { useServicesStore } from '@/stores/useServicesStore';
 import toast from 'react-hot-toast';
 
 // Mock stores
 const mockFetchBlockedSlots = vi.fn(() => Promise.resolve());
-const mockBlockSlot = vi.fn(() => Promise.resolve());
-const mockUnblockSlot = vi.fn(() => Promise.resolve());
+const mockBlockSlot = vi.fn(() => Promise.resolve(true));
+const mockUnblockSlot = vi.fn(() => Promise.resolve(true));
 const mockIsSlotBlocked = vi.fn((..._args: unknown[]) => false);
+const mockSetBlockedCount = vi.fn(() => Promise.resolve(true));
+// Keep the half/full block state derived from isSlotBlocked unless a test overrides it.
+const mockGetBlockedCount = vi.fn((...args: unknown[]) => mockIsSlotBlocked(...args) ? 2 : 0);
+const mockGetEffectiveCapacity = vi.fn(() => 2);
 
 vi.mock('@/stores/useBlockedSlotsStore', () => ({
     useBlockedSlotsStore: vi.fn(() => ({
@@ -18,6 +23,9 @@ vi.mock('@/stores/useBlockedSlotsStore', () => ({
         blockSlot: mockBlockSlot,
         unblockSlot: mockUnblockSlot,
         isSlotBlocked: mockIsSlotBlocked,
+        setBlockedCount: mockSetBlockedCount,
+        getBlockedCount: mockGetBlockedCount,
+        getEffectiveCapacity: mockGetEffectiveCapacity,
     })),
 }));
 
@@ -42,10 +50,27 @@ async function renderLoaded(ui: React.ReactElement) {
     });
 }
 
+/** The per-time segmented control is uniquely identified by its accessible name. */
+const groupFor = (slot: string) =>
+    screen.getByRole('group', { name: `Blocked spots at ${formatSlotLabel(slot)}` });
+
+function resetStoreMocks() {
+    mockIsSlotBlocked.mockImplementation((..._args: unknown[]) => false);
+    mockBlockSlot.mockReset().mockResolvedValue(true);
+    mockUnblockSlot.mockReset().mockResolvedValue(true);
+    mockSetBlockedCount.mockReset().mockResolvedValue(true);
+    mockGetBlockedCount.mockReset().mockImplementation((...args: unknown[]) => mockIsSlotBlocked(...args) ? 2 : 0);
+    vi.mocked(useServicesStore).mockReturnValue({
+        showerRecords: [],
+        laundryRecords: [],
+    } as any);
+}
+
 describe('SlotBlockManager — day-aware slot generation', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.useFakeTimers({ shouldAdvanceTime: true });
+        resetStoreMocks();
     });
 
     afterEach(() => {
@@ -56,7 +81,7 @@ describe('SlotBlockManager — day-aware slot generation', () => {
         vi.setSystemTime(new Date(2025, 0, 6, 9, 0));
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
 
-        expect(screen.getByText(formatSlotLabel('07:30'))).toBeDefined();
+        expect(groupFor('07:30')).toBeDefined();
     });
 
     it('renders correct Saturday shower slots after navigating to Saturday', async () => {
@@ -64,16 +89,12 @@ describe('SlotBlockManager — day-aware slot generation', () => {
         vi.setSystemTime(new Date(2025, 0, 3, 9, 0));
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
 
-        // Navigate forward one day to Saturday
-        const nextButton = screen.getAllByRole('button').find(b =>
-            b.querySelector('svg') && b.className.includes('border-l')
-        );
-        fireEvent.click(nextButton!);
+        fireEvent.click(screen.getByRole('button', { name: 'Next day' }));
 
         // Saturday shower slots start at 08:30
         const saturdaySlots = generateShowerSlots(new Date(2025, 0, 4));
-        expect(screen.getByText(formatSlotLabel(saturdaySlots[0]))).toBeDefined();
-        expect(screen.getByText(formatSlotLabel('08:30'))).toBeDefined();
+        expect(groupFor(saturdaySlots[0])).toBeDefined();
+        expect(groupFor('08:30')).toBeDefined();
     });
 
     it('renders correct weekday laundry slots', async () => {
@@ -82,21 +103,17 @@ describe('SlotBlockManager — day-aware slot generation', () => {
 
         const weekdaySlots = generateLaundrySlots(new Date(2025, 0, 8));
         expect(weekdaySlots.length).toBe(5);
-        expect(screen.getByText(formatSlotLabel(weekdaySlots[0]))).toBeDefined();
+        expect(groupFor(weekdaySlots[0])).toBeDefined();
     });
 
     it('renders correct Saturday laundry slots after navigating to Saturday', async () => {
         vi.setSystemTime(new Date(2025, 0, 3, 9, 0));
         await renderLoaded(<SlotBlockManager serviceType="laundry" />);
 
-        // Navigate forward one day to Saturday
-        const nextButton = screen.getAllByRole('button').find(b =>
-            b.querySelector('svg') && b.className.includes('border-l')
-        );
-        fireEvent.click(nextButton!);
+        fireEvent.click(screen.getByRole('button', { name: 'Next day' }));
 
         const saturdaySlots = generateLaundrySlots(new Date(2025, 0, 4));
-        expect(screen.getByText(formatSlotLabel(saturdaySlots[0]))).toBeDefined();
+        expect(groupFor(saturdaySlots[0])).toBeDefined();
     });
 
     it('Saturday shower slots differ from weekday shower slots', () => {
@@ -127,24 +144,22 @@ describe('SlotBlockManager — day-aware slot generation', () => {
         expect(screen.getByText('Manage Laundry Slots')).toBeDefined();
     });
 
-    it('renders all slot buttons with Open status by default', async () => {
+    it('shows every shower time as fully open by default', async () => {
         vi.setSystemTime(new Date(2025, 0, 6, 9, 0));
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
 
         const weekdaySlots = generateShowerSlots(new Date(2025, 0, 6));
-        const openBadges = screen.getAllByText('Open');
-        expect(openBadges.length).toBe(weekdaySlots.length);
+        expect(screen.getAllByText('2 of 2 spots open').length).toBe(weekdaySlots.length);
     });
 
-    it('shows Blocked status for blocked slots', async () => {
+    it('shows a fully blocked time as having no open spots', async () => {
         vi.setSystemTime(new Date(2025, 0, 6, 9, 0));
         mockIsSlotBlocked.mockImplementation((...args: unknown[]) => (args[1] as string) === '08:00');
 
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
 
-        // Legend always shows "Blocked", so at least 2 elements expected when a slot is blocked
-        const blockedElements = screen.getAllByText('Blocked');
-        expect(blockedElements.length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText('0 of 2 spots open')).toBeDefined();
+        expect(within(groupFor('08:00')).getByRole('button', { name: 'Blocked' }).getAttribute('aria-pressed')).toBe('true');
     });
 
     it('displays date navigation correctly', async () => {
@@ -156,150 +171,115 @@ describe('SlotBlockManager — day-aware slot generation', () => {
     });
 });
 
-describe('SlotBlockManager — toggle interactions and booking warnings', () => {
+describe('SlotBlockManager — per-time controls and booking warnings', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.useFakeTimers({ shouldAdvanceTime: true });
         vi.setSystemTime(new Date(2025, 0, 6, 9, 0)); // Monday
-        // Reset mock implementations that may have been overridden by previous tests
-        mockIsSlotBlocked.mockImplementation((..._args: unknown[]) => false);
-        mockBlockSlot.mockImplementation(() => Promise.resolve());
-        mockUnblockSlot.mockImplementation(() => Promise.resolve());
-        vi.mocked(useServicesStore).mockReturnValue({
-            showerRecords: [],
-            laundryRecords: [],
-        } as any);
+        resetStoreMocks();
     });
 
     afterEach(() => {
         vi.useRealTimers();
+        vi.restoreAllMocks();
     });
 
-    it('calls blockSlot when clicking an open slot', async () => {
-        mockBlockSlot.mockResolvedValueOnce(undefined);
+    it('renders one explicit control per shower time', async () => {
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
-
-        const slotButtons = screen.getAllByRole('button').filter(b =>
-            b.textContent?.includes('Open')
-        );
-        expect(slotButtons.length).toBeGreaterThan(0);
-
-        await act(async () => {
-            fireEvent.click(slotButtons[0]);
-        });
-
-        expect(mockBlockSlot).toHaveBeenCalledWith('shower', expect.any(String), expect.any(String));
+        const groups = screen.getAllByRole('group', { name: /Blocked spots at/ });
+        expect(groups.length).toBe(generateShowerSlots(new Date(2025, 0, 6)).length);
     });
 
-    it('calls unblockSlot when clicking a blocked slot', async () => {
+    it('blocks 1 spot at a single time', async () => {
+        await renderLoaded(<SlotBlockManager serviceType="shower" />);
+        await act(async () => {
+            fireEvent.click(within(groupFor('07:30')).getByRole('button', { name: '1 open' }));
+        });
+        expect(mockSetBlockedCount).toHaveBeenCalledWith('shower', '07:30', expect.any(String), 1);
+    });
+
+    it('blocks both spots at a single time', async () => {
+        await renderLoaded(<SlotBlockManager serviceType="shower" />);
+        await act(async () => {
+            fireEvent.click(within(groupFor('07:30')).getByRole('button', { name: 'Blocked' }));
+        });
+        expect(mockSetBlockedCount).toHaveBeenCalledWith('shower', '07:30', expect.any(String), 2);
+    });
+
+    it('reopens a fully blocked time', async () => {
         mockIsSlotBlocked.mockImplementation((...args: unknown[]) => (args[1] as string) === '07:30');
-        mockUnblockSlot.mockResolvedValueOnce(undefined);
-
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
-
-        const blockedButtons = screen.getAllByRole('button').filter(b =>
-            b.textContent?.includes('Blocked') && !b.textContent?.includes('Has Bookings')
-        );
-        expect(blockedButtons.length).toBeGreaterThanOrEqual(1);
-
         await act(async () => {
-            fireEvent.click(blockedButtons[0]);
+            fireEvent.click(within(groupFor('07:30')).getByRole('button', { name: '2 open' }));
         });
-
-        expect(mockUnblockSlot).toHaveBeenCalledWith('shower', '07:30', expect.any(String));
+        expect(mockSetBlockedCount).toHaveBeenCalledWith('shower', '07:30', expect.any(String), 0);
     });
 
     it('shows booking count badge when a slot has active bookings', async () => {
-        // Override useServicesStore to return a shower record matching 07:30 on today's date
         vi.mocked(useServicesStore).mockReturnValue({
             showerRecords: [
-                { id: 's1', guestId: 'g1', date: '2025-01-06', status: 'booked', time: '07:30' },
+                { id: 's1', guestId: 'g1', date: pacificDateStringFrom(new Date()), status: 'booked', time: '07:30' },
             ],
             laundryRecords: [],
         } as any);
 
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
 
-        // Should show booking count badge "1"
         expect(screen.getByTitle('1 active bookings')).toBeDefined();
     });
 
     it('shows confirm dialog when blocking a slot with bookings', async () => {
         const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
-        mockBlockSlot.mockResolvedValueOnce(undefined);
-
         vi.mocked(useServicesStore).mockReturnValue({
             showerRecords: [
-                { id: 's1', guestId: 'g1', date: '2025-01-06', status: 'booked', time: '07:30' },
+                { id: 's1', guestId: 'g1', date: pacificDateStringFrom(new Date()), status: 'booked', time: '07:30' },
             ],
             laundryRecords: [],
         } as any);
 
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
+        await act(async () => {
+            fireEvent.click(within(groupFor('07:30')).getByRole('button', { name: 'Blocked' }));
+        });
 
-        // Find the 07:30 slot button (first one, which has a booking)
-        const allButtons = screen.getAllByRole('button');
-        const slotButton = allButtons.find(b =>
-            b.textContent?.includes('7:30') && b.textContent?.includes('Open')
-        );
-
-        if (slotButton) {
-            await act(async () => {
-                fireEvent.click(slotButton);
-            });
-
-            expect(confirmSpy).toHaveBeenCalledWith(
-                expect.stringContaining('active bookings')
-            );
-        }
-
-        confirmSpy.mockRestore();
+        expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('active booking'));
+        expect(mockSetBlockedCount).toHaveBeenCalled();
     });
 
     it('does not block slot when confirm dialog is cancelled', async () => {
-        const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
-
+        vi.spyOn(window, 'confirm').mockReturnValue(false);
         vi.mocked(useServicesStore).mockReturnValue({
             showerRecords: [
-                { id: 's1', guestId: 'g1', date: '2025-01-06', status: 'booked', time: '07:30' },
+                { id: 's1', guestId: 'g1', date: pacificDateStringFrom(new Date()), status: 'booked', time: '07:30' },
             ],
             laundryRecords: [],
         } as any);
 
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
+        await act(async () => {
+            fireEvent.click(within(groupFor('07:30')).getByRole('button', { name: 'Blocked' }));
+        });
 
-        const allButtons = screen.getAllByRole('button');
-        const slotButton = allButtons.find(b =>
-            b.textContent?.includes('7:30') && b.textContent?.includes('Open')
-        );
-
-        if (slotButton) {
-            await act(async () => {
-                fireEvent.click(slotButton);
-            });
-
-            expect(mockBlockSlot).not.toHaveBeenCalled();
-        }
-
-        confirmSpy.mockRestore();
+        expect(mockSetBlockedCount).not.toHaveBeenCalled();
     });
 
-    it('shows error toast when blockSlot fails', async () => {
-        mockBlockSlot.mockRejectedValueOnce(new Error('network'));
-
+    it('shows error toast when a per-time save fails', async () => {
+        mockSetBlockedCount.mockRejectedValueOnce(new Error('network'));
         await renderLoaded(<SlotBlockManager serviceType="shower" />);
-
-        const slotButtons = screen.getAllByRole('button').filter(b =>
-            b.textContent?.includes('Open')
-        );
-        expect(slotButtons.length).toBeGreaterThan(0);
-
         await act(async () => {
-            fireEvent.click(slotButtons[0]);
+            fireEvent.click(within(groupFor('07:30')).getByRole('button', { name: 'Blocked' }));
         });
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Failed to update slot status');
+        expect(toast.success).not.toHaveBeenCalled();
+    });
 
-        await waitFor(() => {
-            expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Failed to update slot status');
+    it('shows error toast when a per-time save returns false', async () => {
+        mockSetBlockedCount.mockResolvedValueOnce(false);
+        await renderLoaded(<SlotBlockManager serviceType="shower" />);
+        await act(async () => {
+            fireEvent.click(within(groupFor('07:30')).getByRole('button', { name: 'Blocked' }));
         });
+        expect(toast.error).toHaveBeenCalledWith('Failed to update slot status');
+        expect(toast.success).not.toHaveBeenCalled();
     });
 });

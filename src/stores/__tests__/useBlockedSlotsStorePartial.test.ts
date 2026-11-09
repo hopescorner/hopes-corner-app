@@ -105,6 +105,37 @@ describe('useBlockedSlotsStore — partial blocking', () => {
         expect(useBlockedSlotsStore.getState().getEffectiveCapacity('shower', '08:00', '2025-01-06')).toBe(1);
     });
 
+    it('setBlockedCount 2 upgrades a half block to a full block (no staff on-site)', async () => {
+        mockSingle.mockResolvedValueOnce({
+            data: { id: 'new-id', blocked_count: 2, created_at: new Date().toISOString(), blocked_by: null },
+            error: null,
+        });
+        useBlockedSlotsStore.setState({
+            blockedSlots: [
+                { id: '1', serviceType: 'shower', slotTime: '08:00', date: '2025-01-06', blockedCount: 1 },
+            ],
+        });
+        const ok = await useBlockedSlotsStore.getState().setBlockedCount('shower', '08:00', '2025-01-06', 2);
+        expect(ok).toBe(true);
+        expect(mockUpsert).toHaveBeenCalledWith(
+            { service_type: 'shower', slot_time: '08:00', date: '2025-01-06', blocked_count: 2 },
+            { onConflict: 'service_type,slot_time,date' },
+        );
+        const state = useBlockedSlotsStore.getState();
+        expect(state.getBlockedCount('shower', '08:00', '2025-01-06')).toBe(2);
+        expect(state.isSlotBlocked('shower', '08:00', '2025-01-06')).toBe(true);
+        expect(state.getEffectiveCapacity('shower', '08:00', '2025-01-06')).toBe(0);
+    });
+
+    it('setBlockedCount clamps a block to the service capacity', async () => {
+        const ok = await useBlockedSlotsStore.getState().setBlockedCount('laundry', '08:00 - 09:00', '2025-01-06', 2);
+        expect(ok).toBe(true);
+        expect(mockUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({ service_type: 'laundry', blocked_count: 1 }),
+            { onConflict: 'service_type,slot_time,date' },
+        );
+    });
+
     it('setBlockedCount 0 unblocks the slot', async () => {
         useBlockedSlotsStore.setState({
             blockedSlots: [

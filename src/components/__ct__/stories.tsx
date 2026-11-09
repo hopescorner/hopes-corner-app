@@ -20,6 +20,7 @@ import { DonationsSection } from '@/components/services/DonationsSection';
 import { BicycleSection } from '@/components/services/BicycleSection';
 import { ShowersSection } from '@/components/services/ShowersSection';
 import { LaundrySection } from '@/components/services/LaundrySection';
+import { SlotBlockManager } from '@/components/admin/SlotBlockManager';
 import { useMealsStore } from '@/stores/useMealsStore';
 import { useGuestsStore } from '@/stores/useGuestsStore';
 import { useModalStore } from '@/stores/useModalStore';
@@ -874,4 +875,63 @@ export function ServiceStatusOverviewStory({
   }, [showerRecords, laundryRecords, blockedSlots]);
 
   return <ServiceStatusOverview />;
+}
+
+// ---------------------------------------------------------------------------
+// SlotBlockManager wrapper
+// ---------------------------------------------------------------------------
+
+interface SlotBlockManagerStoryProps {
+  serviceType?: 'shower' | 'laundry';
+  blockedSlots?: Array<{
+    id: string;
+    serviceType: 'shower' | 'laundry';
+    slotTime: string;
+    date: string;
+    blockedCount?: number;
+  }>;
+  showerRecords?: Array<{
+    id: string;
+    guestId: string;
+    time: string;
+    date: string;
+    status: string;
+  }>;
+}
+
+export function SlotBlockManagerStory({
+  serviceType = 'shower',
+  blockedSlots = [],
+  showerRecords = [],
+}: SlotBlockManagerStoryProps) {
+  useLayoutEffect(() => {
+    useServicesStore.setState({
+      showerRecords: showerRecords as any,
+      laundryRecords: [],
+    });
+    useBlockedSlotsStore.setState({
+      blockedSlots: blockedSlots as any,
+      initialized: true,
+      fetchBlockedSlots: async () => undefined,
+      blockSlot: async () => true,
+      unblockSlot: async () => true,
+      setBlockedCount: (async (type: string, slotTime: string, date: string, count: number) => {
+        useBlockedSlotsStore.setState((state) => {
+          const others = state.blockedSlots.filter(
+            (s) => !(s.serviceType === type && s.slotTime === slotTime && s.date === date)
+          );
+          if (count === 0) return { blockedSlots: others };
+          return {
+            blockedSlots: [
+              ...others,
+              { id: `slot-${slotTime}`, serviceType: type, slotTime, date, blockedCount: count } as any,
+            ],
+          };
+        });
+        return true;
+      }) as any,
+    });
+  }, [blockedSlots, showerRecords]);
+
+  return <SlotBlockManager serviceType={serviceType} />;
 }
