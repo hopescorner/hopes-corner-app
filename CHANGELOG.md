@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.55.0] - 2026-11-09
+
+### Changed
+
+- Routine maintenance and visual polish: consolidated seasonal UI helpers, added shared animation utilities, and applied small styling touch-ups across the check-in page.
+
 ## [0.54.4] - 2026-11-09
 
 ### Fixed
