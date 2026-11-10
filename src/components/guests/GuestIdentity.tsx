@@ -16,8 +16,10 @@ import {
     Scissors,
     ChevronDown,
     ChevronUp,
+    CircleHelp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
+import { HOUSING_STATUS_ICONS, normalizeHousingStatusLabel } from '@/components/ui/housingStatus';
 import { getGuestInitials, getGuestAvatarColor } from '@/lib/utils/guestAvatar';
 import { pacificDateStringFrom } from '@/lib/utils/date';
 import { GuestWarningBadge } from './GuestWarnings';
@@ -86,6 +88,7 @@ export function GuestIdentity({
 }: GuestIdentityProps) {
     const avatarColor = getGuestAvatarColor(guest?.id || displayName);
     const initials = getGuestInitials(guest);
+    const HousingIcon = HOUSING_STATUS_ICONS[normalizeHousingStatusLabel(guest?.housingStatus)] ?? CircleHelp;
     const isNewGuest = guest.createdAt && pacificDateStringFrom(guest.createdAt) === today;
     const isRecent = recentGuestsMap ? recentGuestsMap.has(guest.id) : false;
 
@@ -262,7 +265,7 @@ export function GuestIdentity({
                 {/* Guest details */}
                 <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] font-normal text-gray-400">
                     <span className="inline-flex items-center gap-1">
-                        <Home size={11} className="text-gray-300" aria-hidden="true" />
+                        <HousingIcon size={11} className="text-gray-300" aria-hidden="true" />
                         {guest.housingStatus}
                     </span>
                     {guest.location && (

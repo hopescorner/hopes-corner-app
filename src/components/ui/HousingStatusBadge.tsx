@@ -1,8 +1,8 @@
 'use client';
 
-import { Home } from 'lucide-react';
+import { CircleHelp } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
-import { normalizeHousingStatus } from '@/lib/utils/normalizers';
+import { HOUSING_STATUS_ICONS, normalizeHousingStatusLabel } from '@/components/ui/housingStatus';
 
 type HousingBadgeTone = {
     container: string;
@@ -38,11 +38,9 @@ interface HousingStatusBadgeProps {
 }
 
 export function HousingStatusBadge({ housingStatus, className }: HousingStatusBadgeProps) {
-    const trimmedStatus = housingStatus?.trim();
-    const normalizedStatus = trimmedStatus
-        ? (/^unknown$/i.test(trimmedStatus) ? 'Unknown' : normalizeHousingStatus(trimmedStatus))
-        : 'Unknown';
+    const normalizedStatus = normalizeHousingStatusLabel(housingStatus);
     const tone = HOUSING_STATUS_STYLES[normalizedStatus] || HOUSING_STATUS_STYLES.Unknown;
+    const Icon = HOUSING_STATUS_ICONS[normalizedStatus] ?? CircleHelp;
 
     return (
         <span
@@ -52,7 +50,7 @@ export function HousingStatusBadge({ housingStatus, className }: HousingStatusBa
                 className,
             )}
         >
-            <Home size={10} className={tone.icon} />
+            <Icon size={10} className={tone.icon} aria-hidden="true" />
             {normalizedStatus}
         </span>
     );

@@ -19,6 +19,11 @@ import {
     Search,
     X,
     Navigation,
+    Tent,
+    House,
+    Hotel,
+    Caravan,
+    type LucideIcon,
 } from 'lucide-react';
 import {
     HolidayChild,
@@ -61,6 +66,14 @@ interface HolidayTicketLookupResult {
 }
 
 type LookupStatus = 'idle' | 'searching' | 'not_found' | 'error';
+
+// Icons matching the four main housing categories, mirroring HOUSING_STATUS_ICONS.
+const HOUSING_OPTION_ICONS: Record<HolidayHousingStatus, LucideIcon> = {
+    house_apartment: House,
+    vehicle_rv_camper: Caravan,
+    temp_shelter_motel: Hotel,
+    outside: Tent,
+};
 
 const DRAFT_STORAGE_KEY = `holiday-registration-draft-${HOLIDAY_EVENT_YEAR}`;
 const HOLIDAY_DIRECTIONS_URL =
@@ -1024,20 +1037,24 @@ export default function HolidayRegistrationClient() {
                                         'temp_shelter_motel',
                                         'outside',
                                     ] as HolidayHousingStatus[]
-                                ).map((status) => (
-                                    <button
-                                        key={status}
-                                        type="button"
-                                        onClick={() => setHousingStatus(status)}
-                                        aria-pressed={housingStatus === status}
-                                        className={`rounded-lg border p-3 text-left text-xs font-medium transition-colors ${housingStatus === status
-                                            ? 'border-emerald-700 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-700'
-                                            : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                                            }`}
-                                    >
-                                        {t.housingOptions[status]}
-                                    </button>
-                                ))}
+                                ).map((status) => {
+                                    const HousingOptionIcon = HOUSING_OPTION_ICONS[status];
+                                    return (
+                                        <button
+                                            key={status}
+                                            type="button"
+                                            onClick={() => setHousingStatus(status)}
+                                            aria-pressed={housingStatus === status}
+                                            className={`flex items-center gap-2 rounded-lg border p-3 text-left text-xs font-medium transition-colors ${housingStatus === status
+                                                ? 'border-emerald-700 bg-emerald-50 text-emerald-900 ring-1 ring-emerald-700'
+                                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                                                }`}
+                                        >
+                                            <HousingOptionIcon size={18} className="shrink-0 opacity-70" aria-hidden="true" />
+                                            <span>{t.housingOptions[status]}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </fieldset>
 
