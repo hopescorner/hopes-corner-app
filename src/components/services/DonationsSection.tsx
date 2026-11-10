@@ -15,6 +15,7 @@ import {
     Plus,
     Search,
     X,
+    Heart,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useDonationsStore, DonationRecord } from '@/stores/useDonationsStore';
@@ -685,7 +686,7 @@ const DonationForm = memo(function DonationForm({
                     currentValue={form.itemName}
                 />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label htmlFor="donation-trays" className="block text-xs font-bold text-gray-500 uppercase mb-1">Trays</label>
                     <div className="flex gap-1.5">
@@ -703,9 +704,9 @@ const DonationForm = memo(function DonationForm({
                             type="number"
                             min="0"
                             step="1"
-                            inputMode="numeric"
+                            inputMode="decimal"
                             onKeyDown={handleTraysKeyDown}
-                            className="flex-1 min-w-0 min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base"
+                            className="flex-1 min-w-0 min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             value={form.trays}
                             onChange={e => setForm({ ...form, trays: e.target.value })}
                             placeholder="0"
@@ -738,7 +739,7 @@ const DonationForm = memo(function DonationForm({
                             min="0"
                             step="0.1"
                             inputMode="decimal"
-                            className="flex-1 min-w-0 min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base"
+                            className="flex-1 min-w-0 min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base appearance-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             value={form.weightLbs}
                             onChange={e => setForm({ ...form, weightLbs: e.target.value })}
                             placeholder="0.0"
@@ -772,6 +773,7 @@ const DonationForm = memo(function DonationForm({
                 </datalist>
             </div>
             <div id="donation-details" className={cn('space-y-4', !showDetails && 'hidden lg:block')}>
+                <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                     <label htmlFor="donation-type" className="block text-xs font-bold text-gray-500 uppercase mb-1">Type</label>
                     <select
@@ -796,6 +798,7 @@ const DonationForm = memo(function DonationForm({
                         <option value="high">High ({DENSITY_SERVINGS.high} servings)</option>
                     </select>
                 </div>
+                </div>
                 <div>
                     <label htmlFor="donation-temperature" className="block text-xs font-bold text-gray-500 uppercase mb-1">Temperature (Optional)</label>
                     <div className="flex gap-2">
@@ -805,7 +808,7 @@ const DonationForm = memo(function DonationForm({
                             className="flex-1 min-h-[48px] p-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none text-base"
                             value={form.temperature}
                             onChange={e => setForm({ ...form, temperature: e.target.value })}
-                            placeholder="e.g., 165°F, Hot, Cold, Room temp"
+                            placeholder="e.g., 165°F, Hot, Cold"
                         />
                         <button
                             type="button"
@@ -816,14 +819,13 @@ const DonationForm = memo(function DonationForm({
                             °F
                         </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">Tip: Click °F button to add the symbol</p>
                 </div>
             </div>
 
             <button
                 disabled={saving}
                 type="submit"
-                className="w-full min-h-[56px] py-3 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-emerald-800 sticky bottom-2 z-10"
+                className="w-full min-h-[56px] py-3 rounded-xl font-bold text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200 disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-emerald-800 lg:sticky lg:bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-10"
             >
                 {isEditing ? <Pencil size={20} /> : <Save size={20} />}
                 {saving ? 'Saving…' : isEditing ? 'Update Record' : 'Save Record'}
@@ -1215,14 +1217,14 @@ export const DonationsSection = () => {
     }, []);
 
     return (
-        <div className="space-y-6 max-w-5xl mx-auto">
+        <div className="space-y-6 max-w-7xl mx-auto">
             {/* Header / Date Nav */}
-            <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-emerald-100 text-emerald-600">
+            <div className="bg-white rounded-2xl border border-gray-200 p-4 lg:p-6 shadow-sm flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div className="flex items-center gap-4 min-w-0">
+                    <div className="p-3 rounded-xl bg-emerald-100 text-emerald-600 shrink-0">
                         <Utensils size={24} />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                         <h2 className="text-2xl font-bold text-gray-900">
                             Donations
                         </h2>
@@ -1231,41 +1233,39 @@ export const DonationsSection = () => {
                         </p>
                     </div>
                 </div>
-            </div>
-
-            {/* Date Selector */}
-            <div
-                className="flex justify-between items-center bg-gray-50 p-2 lg:p-3 rounded-xl border border-gray-200 touch-pan-y"
-                onTouchStart={(e) => { touchStartX.current = e.touches[0]?.clientX ?? null; }}
-                onTouchEnd={(e) => {
-                    const startX = touchStartX.current;
-                    const endX = e.changedTouches[0]?.clientX ?? null;
-                    touchStartX.current = null;
-                    if (startX == null || endX == null) return;
-                    const dx = endX - startX;
-                    if (Math.abs(dx) < 50) return;
-                    shiftDate(dx < 0 ? 1 : -1);
-                }}
-            >
-                <button type="button" onClick={() => shiftDate(-1)} className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-white rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600" title="Previous day" aria-label="Previous day"><ChevronLeft size={24} /></button>
-                <div className="flex flex-col items-center gap-0.5 min-w-0">
-                    <div className="flex items-center gap-3">
-                        <span className="font-bold text-gray-900 text-center">{formatDisplayDate(selectedDate)}</span>
-                        {!isToday && (
-                            <button
-                                type="button"
-                                onClick={goToday}
-                                className="px-3 py-2 min-h-[44px] text-xs font-bold bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-200 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
-                            >
-                                Today
-                            </button>
+                <div
+                    className="flex items-center justify-between gap-1.5 bg-gray-50 p-2 rounded-2xl border border-gray-200 touch-pan-y lg:justify-end"
+                    onTouchStart={(e) => { touchStartX.current = e.touches[0]?.clientX ?? null; }}
+                    onTouchEnd={(e) => {
+                        const startX = touchStartX.current;
+                        const endX = e.changedTouches[0]?.clientX ?? null;
+                        touchStartX.current = null;
+                        if (startX == null || endX == null) return;
+                        const dx = endX - startX;
+                        if (Math.abs(dx) < 50) return;
+                        shiftDate(dx < 0 ? 1 : -1);
+                    }}
+                >
+                    <button type="button" onClick={() => shiftDate(-1)} className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-white rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600" title="Previous day" aria-label="Previous day"><ChevronLeft size={24} /></button>
+                    <div className="flex flex-col items-center gap-0.5 min-w-0 px-1">
+                        <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-900 text-center text-sm sm:text-base">{formatDisplayDate(selectedDate)}</span>
+                            {!isToday && (
+                                <button
+                                    type="button"
+                                    onClick={goToday}
+                                    className="px-3 py-1.5 min-h-[36px] text-xs font-bold bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-200 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
+                                >
+                                    Today
+                                </button>
+                            )}
+                        </div>
+                        {yesterdayWeight > 0 && (
+                            <span className="text-xs font-medium text-gray-500">Yesterday: {yesterdayWeight.toFixed(1)} lbs</span>
                         )}
                     </div>
-                    {yesterdayWeight > 0 && (
-                        <span className="text-xs font-medium text-gray-500">Yesterday: {yesterdayWeight.toFixed(1)} lbs</span>
-                    )}
+                    <button type="button" onClick={() => shiftDate(1)} className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-white rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600" title="Next day" aria-label="Next day"><ChevronRight size={24} /></button>
                 </div>
-                <button type="button" onClick={() => shiftDate(1)} className="min-h-[48px] min-w-[48px] flex items-center justify-center hover:bg-white rounded-xl transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600" title="Next day" aria-label="Next day"><ChevronRight size={24} /></button>
             </div>
 
             {/* Search + type filter */}
@@ -1361,9 +1361,9 @@ export const DonationsSection = () => {
                 </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
                 {/* Form Side */}
-                <div className="lg:col-span-1 lg:sticky lg:top-4">
+                <div className="lg:col-span-5 lg:sticky lg:top-4">
                     <div id="donation-form" className="scroll-mt-4">
                         <DonationForm
                             key={editingId ?? 'new'}
@@ -1379,7 +1379,7 @@ export const DonationsSection = () => {
                 </div>
 
                 {/* List Side */}
-                <div className="lg:col-span-2 space-y-4 min-w-0">
+                <div className="lg:col-span-7 space-y-4 min-w-0">
                     {displayed.length > 0 && (
                         <div className="flex justify-between items-center gap-2 flex-wrap">
                             {donorGroups.length > 1 ? (
@@ -1407,19 +1407,23 @@ export const DonationsSection = () => {
                                 ))}
                             </div>
                         ) : displayed.length === 0 ? (
-                            <div className="text-center py-12 bg-white rounded-2xl border border-gray-200 border-dashed">
-                                <Plus size={32} className="mx-auto text-gray-300 mb-2" />
-                                <p className="text-gray-400 font-medium">No records for this date</p>
-                                <p className="text-xs text-gray-300 mt-1">Add donations using the form on the left</p>
+                            <div className="flex min-h-[320px] lg:min-h-[480px] h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/60 px-6 py-12 text-center">
+                                <div className="mb-4 rounded-2xl border border-gray-100 bg-white p-4 text-emerald-500 shadow-sm">
+                                    <Heart size={28} strokeWidth={1.75} aria-hidden="true" />
+                                </div>
+                                <p className="text-base font-bold text-gray-500">No records for this date</p>
+                                <p className="mt-1 text-sm text-gray-400">Add donations using the form on the left</p>
                             </div>
                         ) : filtered.length === 0 ? (
-                            <div className="text-center py-12 bg-white rounded-2xl border border-gray-200 border-dashed">
-                                <Search size={32} className="mx-auto text-gray-300 mb-2" />
-                                <p className="text-gray-500 font-medium">No donations match these filters</p>
+                            <div className="flex min-h-[320px] lg:min-h-[480px] h-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50/60 px-6 py-12 text-center">
+                                <div className="mb-4 rounded-2xl border border-gray-100 bg-white p-4 text-gray-400 shadow-sm">
+                                    <Search size={28} strokeWidth={1.75} aria-hidden="true" />
+                                </div>
+                                <p className="text-base font-bold text-gray-500">No donations match these filters</p>
                                 <button
                                     type="button"
                                     onClick={clearFilters}
-                                    className="mt-2 text-xs font-bold text-emerald-700 hover:underline min-h-[32px] px-3 focus-visible:outline-2 focus-visible:outline-emerald-600 rounded-lg"
+                                    className="mt-3 min-h-[40px] px-4 rounded-xl text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors focus-visible:outline-2 focus-visible:outline-emerald-600"
                                 >
                                     Clear filters
                                 </button>
