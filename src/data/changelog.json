@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.57.0",
+    "date": "November 9, 2026",
+    "highlights": [
+      {
+        "type": "improvement",
+        "title": "Housing Status Icons",
+        "description": "Housing status now shows the icon that matches each category everywhere it appears — a tent for unhoused guests, a house for housed guests, a hotel for temporary shelter, and an RV for guests living in a vehicle. You will see the icons on the guest card, in the shower and laundry queues, and on the holiday registration form."
+      }
+    ]
+  },
+  {
     "version": "0.56.2",
     "date": "November 9, 2026",
     "highlights": [

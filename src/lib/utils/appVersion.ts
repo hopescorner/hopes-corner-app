@@ -1,6 +1,6 @@
 import changelogData from '@/data/changelog.json';
 
-export const APP_VERSION = '0.56.2';
+export const APP_VERSION = '0.57.0';
 
 export interface ChangelogItem {
     type: 'feature' | 'fix' | 'performance' | 'improvement';

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.57.0] - 2026-11-09
+
+### Changed
+
+- Housing status badges now show a category-specific icon instead of the same house icon for everyone: a tent for Unhoused, a house for Housed, a hotel for Temp. shelter, and an RV for RV or vehicle. Unknown or missing housing status shows a help icon.
+- The icons appear everywhere housing status is shown: the guest card, the shower and laundry queues (including the expanded laundry details), and the four housing options on the public holiday registration form.
+
+### Tests
+
+- Added unit coverage for the housing status badge across all four categories, normalisation of inconsistent data, and the unknown fallback.
+
 ## [0.56.2] - 2026-11-09
 
 ### Fixed
