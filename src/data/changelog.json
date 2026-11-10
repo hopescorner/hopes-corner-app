@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.58.0",
+    "date": "November 9, 2026",
+    "highlights": [
+      {
+        "type": "improvement",
+        "title": "Easier Donation Logging",
+        "description": "Logging donations is roomier and easier to use, especially on phones. The save button is no longer clipped, the trays and weight steppers are bigger and stack full-width on small screens, and the layout is wider with less empty space. Empty days now show a friendly placeholder instead of a blank area."
+      }
+    ]
+  },
+  {
     "version": "0.57.0",
     "date": "November 9, 2026",
     "highlights": [

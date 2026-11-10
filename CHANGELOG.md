@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.58.0] - 2026-11-09
+
+### Changed
+
+- Donations tab reworked for clarity and phone use: the header and date stepper are combined into one card, the layout is wider (5/12 form, 7/12 list) with a larger form and no clipped placeholders, and Type / Density share a row. Native number spinner arrows are gone from the Trays / Weight steppers.
+- The empty state is now a full-height dashed placeholder with a heart icon instead of a small box in a mostly blank page. The no-matches filter state got the same treatment.
+- Trays and weight steppers stack full-width on phones and the trays field uses a decimal keyboard (fractional trays are valid). Save Record stays sticky on desktop but flows normally on phones, where a pinned button covered the trays/weight fields; the sticky offset respects the iOS safe-area inset.
+
+### Tests
+
+- Donation form behaviour verified at desktop, 390px, and 375px widths. Existing 83 donation unit tests and 19 Playwright component tests pass.
+
 ## [0.57.0] - 2026-11-09
 
 ### Changed
