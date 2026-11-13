@@ -21,6 +21,14 @@ import toast from 'react-hot-toast';
 import { useDonationsStore, DonationRecord } from '@/stores/useDonationsStore';
 import { DonationTypeEnum } from '@/types/database';
 import {
+    AppleIcon,
+    BananaIcon,
+    PeachIcon,
+    PearIcon,
+    OrangeIcon,
+    SchoolLunchIcon,
+} from '@/components/icons/DonationIcons';
+import {
     calculateServings,
     calculateDonationValue,
     deriveDonationDateKey,
@@ -70,6 +78,26 @@ const TYPE_BADGE_STYLES: Record<string, string> = {
 
 const typeBadgeClass = (type: string) =>
     TYPE_BADGE_STYLES[type] ?? 'bg-emerald-50 text-emerald-700';
+
+const LASD_DONOR = 'LASD';
+
+export interface LasdQuickAddItem {
+    itemName: string;
+    type: DonationTypeEnum;
+    Icon: React.ComponentType<{ size?: number; className?: string }>;
+    tileClassName: string;
+}
+
+// One-tap prefill for the recurring LASD deliveries: item, donor, and type are
+// filled in; staff still enter weight/trays so reports stay accurate.
+export const LASD_QUICK_ADD_ITEMS: LasdQuickAddItem[] = [
+    { itemName: 'Apples', type: 'Fruit', Icon: AppleIcon, tileClassName: 'border-rose-200 bg-rose-50 hover:bg-rose-100' },
+    { itemName: 'Bananas', type: 'Fruit', Icon: BananaIcon, tileClassName: 'border-amber-200 bg-amber-50 hover:bg-amber-100' },
+    { itemName: 'Peaches', type: 'Fruit', Icon: PeachIcon, tileClassName: 'border-pink-200 bg-pink-50 hover:bg-pink-100' },
+    { itemName: 'Pears', type: 'Fruit', Icon: PearIcon, tileClassName: 'border-lime-200 bg-lime-50 hover:bg-lime-100' },
+    { itemName: 'Oranges', type: 'Fruit', Icon: OrangeIcon, tileClassName: 'border-orange-200 bg-orange-50 hover:bg-orange-100' },
+    { itemName: 'School Lunches', type: 'School Lunch', Icon: SchoolLunchIcon, tileClassName: 'border-sky-200 bg-sky-50 hover:bg-sky-100' },
+];
 
 // Interface for grouped donation items
 export interface GroupedDonation {
@@ -441,6 +469,49 @@ const DonorGroupCard = memo(function DonorGroupCard({
     );
 });
 
+// LASD Quick Add — tiles that prefill item, donor, and type in one tap.
+const LasdQuickAdd = memo(function LasdQuickAdd({
+    onSelect,
+}: {
+    onSelect: (item: LasdQuickAddItem) => void;
+}) {
+    return (
+        <div>
+            <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">LASD Quick Add</p>
+                <span className="px-2 py-0.5 rounded-md bg-gray-100 text-[10px] font-bold text-gray-500">
+                    {LASD_DONOR}
+                </span>
+            </div>
+            <p className="text-xs text-gray-500 mb-2">
+                Tap an item to fill the form, then add weight or trays.
+            </p>
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {LASD_QUICK_ADD_ITEMS.map((item) => {
+                    const Icon = item.Icon;
+                    return (
+                        <button
+                            key={item.itemName}
+                            type="button"
+                            onClick={() => onSelect(item)}
+                            aria-label={`Quick add ${item.itemName} from ${LASD_DONOR}`}
+                            className={cn(
+                                'min-h-[76px] flex flex-col items-center justify-center gap-1 rounded-xl border px-1.5 py-2 transition-all active:scale-95 focus-visible:outline-2 focus-visible:outline-emerald-600',
+                                item.tileClassName
+                            )}
+                        >
+                            <Icon size={30} />
+                            <span className="text-[11px] sm:text-xs font-bold text-gray-800 leading-tight text-center">
+                                {item.itemName}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+});
+
 // Quick Select Buttons Component
 const QuickSelectItems = memo(function QuickSelectItems({
     recentItems,
@@ -552,6 +623,16 @@ const DonationForm = memo(function DonationForm({
         }));
     }, []);
 
+    const handleLasdQuickAdd = useCallback((item: LasdQuickAddItem) => {
+        setError(null);
+        setForm((prev) => ({
+            ...prev,
+            itemName: item.itemName,
+            type: item.type,
+            donor: LASD_DONOR,
+        }));
+    }, []);
+
     const handleItemKeyDown = useCallback((e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -659,6 +740,8 @@ const DonationForm = memo(function DonationForm({
                     {error}
                 </p>
             )}
+
+            {!isEditing && <LasdQuickAdd onSelect={handleLasdQuickAdd} />}
 
             <div>
                 <label htmlFor="donation-item" className="block text-xs font-bold text-gray-500 uppercase mb-1">Item Name</label>

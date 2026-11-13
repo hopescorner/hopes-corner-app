@@ -592,6 +592,88 @@ describe('DonationsSection Component', () => {
         });
     });
 
+    describe('LASD quick add', () => {
+        it('renders a tile for each fruit plus school lunches', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            for (const name of ['Apples', 'Bananas', 'Peaches', 'Pears', 'Oranges', 'School Lunches']) {
+                expect(screen.getByRole('button', { name: `Quick add ${name} from LASD` })).toBeInTheDocument();
+            }
+            expect(screen.getByText('LASD Quick Add')).toBeInTheDocument();
+        });
+
+        it('prefills the item, donor, and Fruit type in one tap', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Quick add Apples from LASD' }));
+            });
+
+            expect((screen.getByPlaceholderText('e.g. Chicken breast') as HTMLInputElement).value).toBe('Apples');
+            expect((screen.getByPlaceholderText('e.g., Waymo, LinkedIn, Anonymous') as HTMLInputElement).value).toBe('LASD');
+            expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('Fruit');
+        });
+
+        it('prefills school lunches under the School Lunch type', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Quick add School Lunches from LASD' }));
+            });
+
+            expect((screen.getByPlaceholderText('e.g. Chicken breast') as HTMLInputElement).value).toBe('School Lunches');
+            expect((screen.getByPlaceholderText('e.g., Waymo, LinkedIn, Anonymous') as HTMLInputElement).value).toBe('LASD');
+            expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('School Lunch');
+        });
+
+        it('saves the prefilled values as a LASD donation', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Quick add Oranges from LASD' }));
+            });
+
+            await act(async () => {
+                fireEvent.change(screen.getByPlaceholderText('0.0'), { target: { value: '12' } });
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: /Save Record/ }));
+            });
+
+            expect(mockDonationsStore.addDonation).toHaveBeenCalledWith(expect.objectContaining({
+                item_name: 'Oranges',
+                donor: 'LASD',
+                donation_type: 'Fruit',
+                weight_lbs: 12,
+            }));
+        });
+
+        it('hides the quick-add tiles while editing an existing record', async () => {
+            mockDonationsStore.donationRecords = [
+                createDonationRecord({ id: 'edit-1', itemName: 'Chicken', donor: 'Waymo' })
+            ];
+
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByLabelText('Edit entry'));
+            });
+
+            expect(screen.queryByText('LASD Quick Add')).not.toBeInTheDocument();
+        });
+    });
+
     describe('Card Expansion', () => {
         it('expands grouped card to show individual entries', async () => {
             mockDonationsStore.donationRecords = [
