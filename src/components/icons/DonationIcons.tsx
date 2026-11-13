@@ -60,32 +60,21 @@ export function BananaIcon({ size = 24, className = '' }: DonationIconProps) {
             aria-hidden="true"
             data-testid="banana-icon"
         >
+            {/* Silhouette adapted from Lucide's banana icon (ISC license, lucide.dev) */}
             <path
-                d="M5.6 4.6C3.7 9.9 6 16.4 11.5 19c3 1.4 6.3 1.2 8.8-.4.5-.3.6-1 .2-1.4l-1.3-1.5c-2 .9-4.4.9-6.4-.1C8.6 13.4 6.9 9.5 7.6 5.7c.1-.6-.5-1.1-1-.8L5.6 4.6Z"
-                fill="#F4C542"
+                d="M5.15 17.89c5.52-1.52 8.65-6.89 7-12C11.55 4 11.5 2 13 2c3.22 0 5 5.5 5 8 0 6.5-4.2 12-10.49 12C5.11 22 2 22 2 20c0-1.5 1.14-1.55 3.15-2.11Z"
+                fill="#F6C445"
             />
             <path
-                d="M7.9 6.8c-.3 3.4 1.4 6.8 4.8 8.6 1.9 1 4.1 1.1 6 .4"
+                d="M6.85 16.7c5.4-1.5 8.35-6.6 7-11.1"
                 stroke="#D9A62E"
                 strokeWidth="1.3"
                 strokeLinecap="round"
                 fill="none"
-                opacity="0.75"
+                opacity="0.8"
             />
-            <path
-                d="M18.7 16.9l1.9 1.3"
-                stroke="#7A5A2E"
-                strokeWidth="2"
-                strokeLinecap="round"
-                fill="none"
-            />
-            <path
-                d="M4.8 5.5l1.5-.7"
-                stroke="#7A5A2E"
-                strokeWidth="2"
-                strokeLinecap="round"
-                fill="none"
-            />
+            <circle cx="13" cy="2.4" r="0.75" fill="#7A5A2E" />
+            <circle cx="3" cy="19.4" r="0.7" fill="#7A5A2E" opacity="0.9" />
         </svg>
     );
 }
