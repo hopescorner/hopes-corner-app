@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.60.0",
+    "date": "November 13, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "More LASD Quick Add Items",
+        "description": "The Donations tab now has one-tap tiles for Apples, Bananas, Peaches, Pears, Oranges, Carrots, Mixed Veggies, and School Lunches from LASD. The tiles use large, phone-friendly touch targets so logging is fast on smartphones."
+      }
+    ]
+  },
+  {
     "version": "0.59.1",
     "date": "November 13, 2026",
     "highlights": [

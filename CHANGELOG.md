@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.60.0] - 2026-11-13
+
+### Added
+
+- The **LASD Quick Add** row on the Donations tab now includes Apples, Bananas, Peaches, Pears, Oranges, Carrots, Mixed Veggies, and School Lunches — one tap fills the item, donor (LASD), and type (Fruit or Vegetables for these items; School Lunch for school lunches) so staff can enter weight or trays and save quickly.
+- Custom colored icons for each tile: produce and a lunchbox for school lunches, a carrot (Fruit category, per how LASD tracks it), and a broccoli-plus-edamame mark for Mixed Veggies.
+
+### Changed
+
+- The quick-add tiles use a three-column layout on phones (<640px) with a four-column layout on wider screens, so the tiles stay large and legible in vertical use on smartphones and nothing crowds at 320px-wide screens.
+
+### Tests
+
+- Donation coverage now includes the quick-add tiles, the fruit/vegetable prefill categories, saving a prefilled LASD donation, and hiding the row while editing. Happy-path and validation behavior are unchanged.
+
 ## [0.59.1] - 2026-11-13
 
 ### Fixed
