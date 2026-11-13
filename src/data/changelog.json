@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.59.1",
+    "date": "November 13, 2026",
+    "highlights": [
+      {
+        "type": "fix",
+        "title": "Recognizable Banana Icon",
+        "description": "The banana icon in the LASD Quick Add row now shows a clear banana with a ridge and brown tips instead of an ambiguous yellow hook."
+      }
+    ]
+  },
+  {
     "version": "0.59.0",
     "date": "November 13, 2026",
     "highlights": [

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.59.1] - 2026-11-13
+
+### Fixed
+
+- The banana quick-add icon in Donations now looks like a banana — a filled crescent with an inner ridge and brown stem and bottom tips — instead of an ambiguous yellow hook.
+
 ## [0.59.0] - 2026-11-13
 
 ### Added
