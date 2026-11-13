@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.59.0",
+    "date": "November 13, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "LASD Quick Add for Donations",
+        "description": "A new LASD Quick Add row logs Apples, Bananas, Peaches, Pears, Oranges, or School Lunches in one tap. It fills the item, donor, and type for you; just add the weight or trays and save."
+      }
+    ]
+  },
+  {
     "version": "0.58.0",
     "date": "November 9, 2026",
     "highlights": [

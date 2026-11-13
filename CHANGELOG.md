@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.59.0] - 2026-11-13
+
+### Added
+
+- The Donations tab now has an **LASD Quick Add** row with one-tap tiles for Apples, Bananas, Peaches, Pears, Oranges, and School Lunches. A tap fills the item name, donor (LASD), and type (Fruit or School Lunch); staff then enter weight or trays and save, so donation weights and value totals stay accurate.
+- Custom colored icons for the five produce items and a lunchbox for school lunches keep the tiles recognizable at a glance.
+
+### Tests
+
+- Added coverage for the quick-add tiles, fruit and school-lunch prefills, saving a prefilled LASD donation, and hiding the row while editing an existing record.
+
 ## [0.58.0] - 2026-11-09
 
 ### Changed
