@@ -598,7 +598,7 @@ describe('DonationsSection Component', () => {
                 render(<DonationsSection />);
             });
 
-            for (const name of ['Apples', 'Bananas', 'Peaches', 'Pears', 'Oranges', 'School Lunches']) {
+            for (const name of ['Apples', 'Bananas', 'Peaches', 'Pears', 'Oranges', 'Carrots', 'Mixed Veggies', 'School Lunches']) {
                 expect(screen.getByRole('button', { name: `Quick add ${name} from LASD` })).toBeInTheDocument();
             }
             expect(screen.getByText('LASD Quick Add')).toBeInTheDocument();
@@ -616,6 +616,26 @@ describe('DonationsSection Component', () => {
             expect((screen.getByPlaceholderText('e.g. Chicken breast') as HTMLInputElement).value).toBe('Apples');
             expect((screen.getByPlaceholderText('e.g., Waymo, LinkedIn, Anonymous') as HTMLInputElement).value).toBe('LASD');
             expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('Fruit');
+        });
+
+        it('prefills carrots under Fruit and Mixed Veggies under Vegetables', async () => {
+            await act(async () => {
+                render(<DonationsSection />);
+            });
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Quick add Carrots from LASD' }));
+            });
+            expect((screen.getByPlaceholderText('e.g. Chicken breast') as HTMLInputElement).value).toBe('Carrots');
+            expect((screen.getByPlaceholderText('e.g., Waymo, LinkedIn, Anonymous') as HTMLInputElement).value).toBe('LASD');
+            expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('Fruit');
+
+            await act(async () => {
+                fireEvent.click(screen.getByRole('button', { name: 'Quick add Mixed Veggies from LASD' }));
+            });
+            expect((screen.getByPlaceholderText('e.g. Chicken breast') as HTMLInputElement).value).toBe('Mixed Veggies');
+            expect((screen.getByPlaceholderText('e.g., Waymo, LinkedIn, Anonymous') as HTMLInputElement).value).toBe('LASD');
+            expect((screen.getByLabelText('Type') as HTMLSelectElement).value).toBe('Vegetables');
         });
 
         it('prefills school lunches under the School Lunch type', async () => {

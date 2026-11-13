@@ -191,6 +191,86 @@ export function OrangeIcon({ size = 24, className = '' }: DonationIconProps) {
     );
 }
 
+export function CarrotIcon({ size = 24, className = '' }: DonationIconProps) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            className={className}
+            aria-hidden="true"
+            data-testid="carrot-icon"
+        >
+            {/* Cone silhouette adapted from Lucide's carrot icon (ISC license, lucide.dev) */}
+            <path
+                d="M2.27 21.7s9.87-3.5 12.73-6.36a4.5 4.5 0 0 0-6.36-6.37C5.77 11.84 2.27 21.7 2.27 21.7z"
+                fill="#F07C1E"
+            />
+            <path
+                d="M6.6 13.2c1.9 1.1 3.6 2.6 4.9 4.3"
+                stroke="#FFC98A"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                fill="none"
+                opacity="0.65"
+            />
+            <path
+                d="M22 9s-1.33-2-3.5-2C16.86 7 15 9 15 9s1.33 2 3.5 2S22 9 22 9z"
+                fill="#4C9A4F"
+            />
+            <path
+                d="M15 2s-2 1.33-2 3.5S15 9 15 9s2-1.84 2-3.5C17 3.33 15 2 15 2z"
+                fill="#3E9C4C"
+            />
+            <path
+                d="M8.64 14l-2.05-2.04M15.34 15l-2.46-2.46"
+                stroke="#C9540E"
+                strokeWidth="1.15"
+                strokeLinecap="round"
+                fill="none"
+                opacity="0.7"
+            />
+        </svg>
+    );
+}
+
+export function MixedVeggiesIcon({ size = 24, className = '' }: DonationIconProps) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width={size}
+            height={size}
+            viewBox="0 0 24 24"
+            className={className}
+            aria-hidden="true"
+            data-testid="mixed-veggies-icon"
+        >
+            {/* Broccoli floret cluster + stalk */}
+            <path
+                d="M9.7 11.9l-2.3 4.8a1 1 0 0 0 .9 1.35h2.65a1 1 0 0 0 .9-1.35l-2.15-4.8Z"
+                fill="#B4DE85"
+            />
+            <circle cx="3.7" cy="10" r="1.8" fill="#3E9C4C" />
+            <circle cx="6.9" cy="7.3" r="2.15" fill="#57A85B" />
+            <circle cx="10.1" cy="10" r="1.8" fill="#3E9C4C" />
+            <circle cx="5.35" cy="11.65" r="1.75" fill="#57A85B" />
+            <circle cx="8.45" cy="11.65" r="1.75" fill="#57A85B" />
+            {/* Edamame pod with three peas */}
+            <path
+                d="M13.2 14.3l6-5.5a2.2 2.2 0 0 1 2.6 1.1 2.2 2.2 0 0 1-1.1 2.6l-6 5.5a2.2 2.2 0 0 1-2.6-1.1 2.2 2.2 0 0 1 1.1-2.6Z"
+                fill="#4C9A4F"
+                stroke="#2F7E3D"
+                strokeWidth="0.8"
+                strokeLinejoin="round"
+            />
+            <circle cx="14.6" cy="15.1" r="0.75" fill="#9BE18B" />
+            <circle cx="16.9" cy="13.2" r="0.75" fill="#9BE18B" />
+            <circle cx="19.2" cy="11.3" r="0.55" fill="#9BE18B" />
+        </svg>
+    );
+}
+
 export function SchoolLunchIcon({ size = 24, className = '' }: DonationIconProps) {
     return (
         <svg

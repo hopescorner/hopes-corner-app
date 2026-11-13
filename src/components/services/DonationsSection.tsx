@@ -26,6 +26,8 @@ import {
     PeachIcon,
     PearIcon,
     OrangeIcon,
+    CarrotIcon,
+    MixedVeggiesIcon,
     SchoolLunchIcon,
 } from '@/components/icons/DonationIcons';
 import {
@@ -96,6 +98,8 @@ export const LASD_QUICK_ADD_ITEMS: LasdQuickAddItem[] = [
     { itemName: 'Peaches', type: 'Fruit', Icon: PeachIcon, tileClassName: 'border-pink-200 bg-pink-50 hover:bg-pink-100' },
     { itemName: 'Pears', type: 'Fruit', Icon: PearIcon, tileClassName: 'border-lime-200 bg-lime-50 hover:bg-lime-100' },
     { itemName: 'Oranges', type: 'Fruit', Icon: OrangeIcon, tileClassName: 'border-orange-200 bg-orange-50 hover:bg-orange-100' },
+    { itemName: 'Carrots', type: 'Fruit', Icon: CarrotIcon, tileClassName: 'border-orange-300 bg-[#FFF3E2] hover:bg-orange-100' },
+    { itemName: 'Mixed Veggies', type: 'Vegetables', Icon: MixedVeggiesIcon, tileClassName: 'border-green-200 bg-green-50 hover:bg-green-100' },
     { itemName: 'School Lunches', type: 'School Lunch', Icon: SchoolLunchIcon, tileClassName: 'border-sky-200 bg-sky-50 hover:bg-sky-100' },
 ];
 
@@ -486,7 +490,7 @@ const LasdQuickAdd = memo(function LasdQuickAdd({
             <p className="text-xs text-gray-500 mb-2">
                 Tap an item to fill the form, then add weight or trays.
             </p>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                 {LASD_QUICK_ADD_ITEMS.map((item) => {
                     const Icon = item.Icon;
                     return (
