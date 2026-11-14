@@ -1,3 +1,4 @@
+import { formatDateForDisplay } from './date';
 
 export const DENSITY_SERVINGS = {
     light: 10,
@@ -200,6 +201,52 @@ export const formatProteinAndCarbsClipboardText = (consolidatedActivity: any[] =
     return lines.join("\n");
 };
 
+// Shared helpers for the clipboard formatters. Both the plain-text and
+// HTML summaries are built from the same grouping so they stay in sync.
+const summarizeClipboardTotals = (
+    totals?: { totalWeight?: number; totalTrays?: number; totalServings?: number },
+): string[] => {
+    const parts: string[] = [];
+    if (totals?.totalWeight) parts.push(`${Number(totals.totalWeight).toFixed(1)} lbs`);
+    if (totals?.totalTrays) {
+        const trays = Number(totals.totalTrays);
+        parts.push(`${trays} ${trays === 1 ? "tray" : "trays"}`);
+    }
+    if (totals?.totalServings) parts.push(`~${totals.totalServings} servings`);
+    return parts;
+};
+
+const groupForClipboard = (records: any[] = []) => {
+    const byType = new Map<string, any[]>();
+    for (const record of records || []) {
+        const type = record?.type || "Other";
+        if (!byType.has(type)) byType.set(type, []);
+        byType.get(type)!.push(record);
+    }
+    return Array.from(byType.keys())
+        .sort((a, b) => a.localeCompare(b))
+        .map((type) => ({
+            type,
+            entries: [...byType.get(type)!].sort(
+                (a, b) => (Number(b.servings) || 0) - (Number(a.servings) || 0)
+                    || String(a.itemName || "").localeCompare(String(b.itemName || "")),
+            ),
+        }));
+};
+
+const clipboardDateLine = (dateKey?: string): string | null => {
+    if (!dateKey) return null;
+    const formatted = formatDateForDisplay(dateKey, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    return formatted || null;
+};
+
+const clipboardEntryFields = (entry: any) => {
+    const trays = Number(entry?.trays || 0);
+    const servings = Number(entry?.servings || 0);
+    const weight = Number(entry?.weightLbs ?? entry?.weight_lbs ?? 0);
+    return { trays, servings, weight: Number.isFinite(weight) ? weight : 0 };
+};
+
 /**
  * Full donations summary for copy/share. Unlike
  * formatProteinAndCarbsClipboardText (which intentionally covers only
@@ -209,49 +256,110 @@ export const formatProteinAndCarbsClipboardText = (consolidatedActivity: any[] =
 export const formatDonationsClipboardText = (
     records: any[] = [],
     totals?: { totalWeight?: number; totalTrays?: number; totalServings?: number; donationValue?: number },
+    dateKey?: string,
 ) => {
-    const lines: string[] = ["Donations", ""];
-    if (totals && (totals.totalWeight || totals.totalTrays || totals.totalServings)) {
-        const parts: string[] = [];
-        if (totals.totalWeight) parts.push(`${Number(totals.totalWeight).toFixed(1)} lbs`);
-        if (totals.totalTrays) parts.push(`${totals.totalTrays} trays`);
-        if (totals.totalServings) parts.push(`~${totals.totalServings} servings`);
-        if (parts.length > 0) {
-            lines.push(`Total: ${parts.join(", ")}`);
-            lines.push("");
-        }
+    const dateLine = clipboardDateLine(dateKey);
+    const lines: string[] = ["Hope's Corner — Food Donations"];
+    if (dateLine) lines.push(dateLine);
+    lines.push("");
+
+    const totalsParts = summarizeClipboardTotals(totals);
+    if (totalsParts.length > 0) {
+        lines.push(`Total: ${totalsParts.join(", ")}`);
+        lines.push("");
     }
 
-    const byType = new Map<string, any[]>();
-    for (const record of records || []) {
-        const type = record?.type || "Other";
-        if (!byType.has(type)) byType.set(type, []);
-        byType.get(type)!.push(record);
-    }
-
-    const orderedTypes = Array.from(byType.keys()).sort((a, b) => a.localeCompare(b));
-    if (orderedTypes.length === 0) {
+    const groups = groupForClipboard(records);
+    if (groups.length === 0) {
         lines.push("None");
         return lines.join("\n");
     }
 
-    for (const type of orderedTypes) {
-        lines.push(type);
-        const entries = [...byType.get(type)!].sort(
-            (a, b) => (Number(b.servings) || 0) - (Number(a.servings) || 0)
-                || String(a.itemName || "").localeCompare(String(b.itemName || "")),
-        );
+    for (const { type, entries } of groups) {
+        lines.push(type.toUpperCase());
         for (const entry of entries) {
-            const trays = Number(entry.trays || 0);
-            const servings = Number(entry.servings || 0);
-            const weight = Number(entry.weightLbs ?? entry.weight_lbs ?? 0);
+            const { trays, servings, weight } = clipboardEntryFields(entry);
             const traysText = `${trays} ${trays === 1 ? "tray" : "trays"}`;
             const servingsText = `${servings} ${servings === 1 ? "serving" : "servings"}`;
-            const weightText = Number.isFinite(weight) && weight > 0 ? `, ${weight.toFixed(1)} lbs` : "";
-            const donorText = entry.donor ? ` (${entry.donor})` : "";
-            lines.push(`${entry.itemName || "Unnamed item"}: ${traysText}, ${servingsText}${weightText}${donorText}`);
+            const weightText = weight > 0 ? `, ${weight.toFixed(1)} lbs` : "";
+            const donorText = entry?.donor ? ` (${entry.donor})` : "";
+            lines.push(`${entry?.itemName || "Unnamed item"}: ${traysText}, ${servingsText}${weightText}${donorText}`);
         }
         lines.push("");
     }
     return lines.join("\n").trimEnd();
+};
+
+const escapeHtml = (value: unknown): string =>
+    String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
+/**
+ * HTML version of formatDonationsClipboardText, written to the clipboard as
+ * text/html so the summary pastes into email clients (Gmail, Outlook, Apple
+ * Mail) with formatting: bold heading, date, totals banner, and one table per
+ * donation type. Table-based layout with inline styles only — no stylesheets
+ * or external resources — because email clients strip both.
+ */
+export const formatDonationsClipboardHtml = (
+    records: any[] = [],
+    totals?: { totalWeight?: number; totalTrays?: number; totalServings?: number; donationValue?: number },
+    dateKey?: string,
+) => {
+    const dateLine = clipboardDateLine(dateKey);
+    const totalsParts = summarizeClipboardTotals(totals);
+    const groups = groupForClipboard(records);
+
+    const parts: string[] = [];
+    parts.push('<div style="font-family:-apple-system,\'Segoe UI\',Roboto,Arial,Helvetica,sans-serif;color:#1f2937;font-size:14px;line-height:1.5;max-width:620px;">');
+    parts.push('<div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;color:#059669;">Hope&#39;s Corner</div>');
+    parts.push('<div style="font-size:20px;font-weight:700;color:#111827;margin:2px 0 0;">Food Donations</div>');
+    if (dateLine) {
+        parts.push(`<div style="color:#6b7280;margin:2px 0 0;">${escapeHtml(dateLine)}</div>`);
+    }
+
+    if (totalsParts.length > 0) {
+        parts.push(`<div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;padding:8px 12px;margin:14px 0 4px;color:#065f46;font-weight:600;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#059669;margin-right:8px;">Total</span>${escapeHtml(totalsParts.join(" · "))}</div>`);
+    }
+
+    if (groups.length === 0) {
+        parts.push('<div style="margin-top:16px;color:#6b7280;">None</div>');
+        parts.push('</div>');
+        return parts.join('');
+    }
+
+    const headerCell = 'padding:4px 8px;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6b7280;border-bottom:1px solid #e5e7eb;';
+    const bodyCell = 'padding:6px 8px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#111827;';
+
+    for (const { type, entries } of groups) {
+        parts.push(`<div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;color:#065f46;border-bottom:2px solid #10b981;padding-bottom:4px;margin:18px 0 6px;">${escapeHtml(type)}</div>`);
+        parts.push('<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">');
+        parts.push('<thead><tr>');
+        parts.push(`<th align="left" style="${headerCell}text-align:left;">Item</th>`);
+        parts.push(`<th align="right" style="${headerCell}text-align:right;">Trays</th>`);
+        parts.push(`<th align="right" style="${headerCell}text-align:right;">Servings</th>`);
+        parts.push(`<th align="right" style="${headerCell}text-align:right;">Weight</th>`);
+        parts.push(`<th align="left" style="${headerCell}text-align:left;">Donor</th>`);
+        parts.push('</tr></thead>');
+        parts.push('<tbody>');
+        for (const entry of entries) {
+            const { trays, servings, weight } = clipboardEntryFields(entry);
+            const donor = entry?.donor ? escapeHtml(entry.donor) : '—';
+            const weightText = weight > 0 ? `${weight.toFixed(1)} lbs` : '—';
+            parts.push('<tr>');
+            parts.push(`<td style="${bodyCell}">${escapeHtml(entry?.itemName || 'Unnamed item')}</td>`);
+            parts.push(`<td style="${bodyCell}text-align:right;white-space:nowrap;">${trays}</td>`);
+            parts.push(`<td style="${bodyCell}text-align:right;white-space:nowrap;">${servings}</td>`);
+            parts.push(`<td style="${bodyCell}text-align:right;white-space:nowrap;">${escapeHtml(weightText)}</td>`);
+            parts.push(`<td style="${bodyCell}color:#4b5563;">${donor}</td>`);
+            parts.push('</tr>');
+        }
+        parts.push('</tbody></table>');
+    }
+    parts.push('</div>');
+    return parts.join('');
 };

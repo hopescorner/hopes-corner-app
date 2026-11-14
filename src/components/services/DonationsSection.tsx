@@ -37,6 +37,7 @@ import {
     formatDonationCurrency,
     formatProteinAndCarbsClipboardText,
     formatDonationsClipboardText,
+    formatDonationsClipboardHtml,
     DENSITY_SERVINGS,
     normalizeDonationDisplay,
     normalizeDonationKey,
@@ -1246,28 +1247,50 @@ export const DonationsSection = () => {
         setEditingId(null);
     }, []);
 
-    // Copy to clipboard logic — full summary (all types + totals). Falls back
-    // to the legacy protein/carbs formatter when the full one is unavailable
-    // (e.g. unit-test mocks).
+    // Copy to clipboard logic — full summary (all types + totals) as rich
+    // HTML plus a plain-text fallback, so it pastes formatted into email
+    // clients. Falls back to the legacy protein/carbs formatter when the
+    // full one is unavailable (e.g. unit-test mocks).
     const handleCopySummary = useCallback(async () => {
         const fullFormatter = formatDonationsClipboardText as unknown as
-            | ((records: DonationRecord[], summaryTotals: typeof totals) => string)
+            | ((records: DonationRecord[], summaryTotals: typeof totals, dateKey?: string) => string)
+            | undefined;
+        const htmlFormatter = formatDonationsClipboardHtml as unknown as
+            | ((records: DonationRecord[], summaryTotals: typeof totals, dateKey?: string) => string)
             | undefined;
         const legacyFormatter = formatProteinAndCarbsClipboardText as unknown as
             | ((records: DonationRecord[]) => string)
             | undefined;
         const text = fullFormatter
-            ? fullFormatter(displayed as DonationRecord[], totals)
+            ? fullFormatter(displayed as DonationRecord[], totals, selectedDate)
             : legacyFormatter
                 ? legacyFormatter(displayed as DonationRecord[])
                 : '';
         try {
-            await navigator.clipboard.writeText(text);
+            const html = htmlFormatter ? htmlFormatter(displayed as DonationRecord[], totals, selectedDate) : undefined;
+            const canWriteRich = Boolean(html)
+                && typeof navigator.clipboard?.write === 'function'
+                && typeof ClipboardItem !== 'undefined';
+            if (canWriteRich) {
+                try {
+                    await navigator.clipboard.write([
+                        new ClipboardItem({
+                            'text/plain': new Blob([text], { type: 'text/plain' }),
+                            'text/html': new Blob([html as string], { type: 'text/html' }),
+                        }),
+                    ]);
+                } catch {
+                    // Rich write rejected (permissions, browser support) — fall back to plain text
+                    await navigator.clipboard.writeText(text);
+                }
+            } else {
+                await navigator.clipboard.writeText(text);
+            }
             toast.success('Copied summary to clipboard');
         } catch (err) {
             toast.error('Failed to copy');
         }
-    }, [displayed, totals]);
+    }, [displayed, totals, selectedDate]);
 
     const toggleDonor = useCallback((donorKey: string) => {
         setCollapsedDonors((prev) => {

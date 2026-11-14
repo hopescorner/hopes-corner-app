@@ -47,6 +47,7 @@ vi.mock('@/lib/utils/donationUtils', () => ({
     formatDonationCurrency: (value: number) => `$${value.toFixed(2)}`,
     formatProteinAndCarbsClipboardText: () => 'Mock clipboard text',
     formatDonationsClipboardText: () => 'Mock clipboard text',
+    formatDonationsClipboardHtml: () => '<p>Mock clipboard html</p>',
     DENSITY_SERVINGS: { light: 10, medium: 20, high: 30 },
     normalizeDonationKey: (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' ').toLowerCase(),
     normalizeDonationDisplay: (v: unknown) => String(v ?? '').trim().replace(/\s+/g, ' '),

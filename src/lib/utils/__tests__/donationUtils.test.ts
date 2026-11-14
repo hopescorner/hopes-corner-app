@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateDonationLineItemValue, calculateDonationValue, calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, formatDonationsClipboardText, DENSITY_SERVINGS, MINIMAL_TYPES, normalizeDonationKey, normalizeDonationDisplay, getItemSuggestions, getDonorSuggestions } from '../donationUtils';
+import { calculateDonationLineItemValue, calculateDonationValue, calculateServings, deriveDonationDateKey, formatProteinAndCarbsClipboardText, formatDonationsClipboardText, formatDonationsClipboardHtml, DENSITY_SERVINGS, MINIMAL_TYPES, normalizeDonationKey, normalizeDonationDisplay, getItemSuggestions, getDonorSuggestions } from '../donationUtils';
 
 describe('donationUtils', () => {
     describe('calculateDonationValue', () => {
@@ -324,7 +324,7 @@ describe('donationUtils', () => {
             const text = formatDonationsClipboardText(activity);
             expect(text).toContain('Chicken');
             expect(text).toContain('Donuts');
-            expect(text).toContain('Pastries');
+            expect(text).toContain('PASTRIES');
         });
 
         it('summarizes day totals when provided', () => {
@@ -337,6 +337,62 @@ describe('donationUtils', () => {
 
         it('returns None for empty input', () => {
             expect(formatDonationsClipboardText([])).toContain('None');
+        });
+
+        it('includes the date line and Hope\'s Corner heading when a date is provided', () => {
+            const text = formatDonationsClipboardText(
+                [{ type: 'Protein', itemName: 'Chicken', trays: 2, servings: 40, weightLbs: 10 }],
+                { totalWeight: 10, totalTrays: 2, totalServings: 40 },
+                '2026-11-13',
+            );
+            expect(text).toContain("Hope's Corner");
+            expect(text).toContain('Food Donations');
+            expect(text).toMatch(/November/);
+            expect(text).toContain('2026');
+            expect(text.indexOf('Total:')).toBeLessThan(text.indexOf('PROTEIN'));
+        });
+
+        it('omits the date line when no date is provided', () => {
+            const text = formatDonationsClipboardText([{ type: 'Protein', itemName: 'Chicken', trays: 1, servings: 20 }]);
+            expect(text).not.toMatch(/\d{4}/);
+        });
+    });
+
+    describe('formatDonationsClipboardHtml', () => {
+        it('returns HTML with heading, date, totals, and escaped item text', () => {
+            const text = formatDonationsClipboardHtml(
+                [{ type: 'Protein', itemName: 'Chicken & <ribs>', trays: 2, servings: 40, weightLbs: 10, donor: "A&B <Bakery>" }],
+                { totalWeight: 10, totalTrays: 2, totalServings: 40 },
+                '2026-11-13',
+            );
+            expect(text).toContain('Food Donations');
+            expect(text).toMatch(/November/);
+            expect(text).toContain('Chicken &amp; &lt;ribs&gt;');
+            expect(text).toContain('A&amp;B &lt;Bakery&gt;');
+            expect(text).not.toContain('<ribs>');
+            expect(text).toContain('10.0 lbs');
+            expect(text).toContain('>Protein<');
+        });
+
+        it('includes every donation type and the donor name', () => {
+            const text = formatDonationsClipboardHtml([
+                { type: 'Pastries', itemName: 'Donuts', trays: 1, servings: 12, donor: 'Bakery' },
+            ]);
+            expect(text).toContain('Pastries');
+            expect(text).toContain('Bakery');
+            expect(text).toContain('Donuts');
+        });
+
+        it('returns a None block for empty input', () => {
+            expect(formatDonationsClipboardHtml([])).toContain('None');
+        });
+
+        it('omits the totals banner when totals are zero', () => {
+            const text = formatDonationsClipboardHtml(
+                [{ type: 'Protein', itemName: 'Chicken', trays: 1, servings: 20 }],
+                { totalWeight: 0, totalTrays: 0, totalServings: 0 },
+            );
+            expect(text).not.toContain('Total</span>');
         });
     });
 
