@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 // IMPORTANT: Update this version when APP_VERSION changes in src/lib/utils/appVersion.ts
-const APP_VERSION = '0.60.0';
+const APP_VERSION = '0.61.0';
 const STATIC_CACHE_NAME = `hopes-corner-static-v${APP_VERSION}`;
 
 

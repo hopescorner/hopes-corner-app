@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.61.0] - 2026-11-13
+
+### Added
+
+- The **Copy Summary** button on the Donations tab now copies a summary formatted for email: a Hope's Corner heading with the day's date, a totals banner (weight, trays, servings), and one table per donation type with Item, Trays, Servings, Weight, and Donor columns. It pastes into Gmail, Outlook, and Apple Mail with the formatting intact, and a plain-text version is included for clients that can't show rich text. The plain-text fallback gains the same heading, full date, and clearer section headers.
+
+### Tests
+
+- Clipboard formatter coverage now includes the date line and heading, the HTML output (escaping, totals banner, per-type sections), and the empty state.
+
 ## [0.60.0] - 2026-11-13
 
 ### Added

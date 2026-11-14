@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.61.0",
+    "date": "November 13, 2026",
+    "highlights": [
+      {
+        "type": "feature",
+        "title": "Email-Ready Donation Summary",
+        "description": "The Copy Summary button on the Donations tab now copies a formatted summary — Hope's Corner heading with the day's date, a totals banner, and one table per donation type with donor names — that pastes straight into an email. A plain-text version is included for apps that can't show formatting."
+      }
+    ]
+  },
+  {
     "version": "0.60.0",
     "date": "November 13, 2026",
     "highlights": [
