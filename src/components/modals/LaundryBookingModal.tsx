@@ -41,7 +41,7 @@ export function LaundryBookingModal() {
     const isCheckinRole = role === 'checkin';
 
     const today = todayPacificDateString();
-    const allSlots = generateLaundrySlots();
+    const allSlots = generateLaundrySlots(new Date(`${today}T12:00:00`));
 
     const slotsWithStatus = useMemo(() => {
         if (!laundryPickerGuest) return [];

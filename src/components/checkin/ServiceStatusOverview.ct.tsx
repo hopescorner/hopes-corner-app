@@ -3,6 +3,9 @@ import { ServiceStatusOverviewStory } from '../__ct__/stories';
 import { todayPacificDateString } from '@/lib/utils/date';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
 
+// Expected schedules must match the Pacific service day the component uses.
+const pacificNoon = () => new Date(`${todayPacificDateString()}T12:00:00`);
+
 test.describe('ServiceStatusOverview Component Tests', () => {
   test('renders Showers and Laundry cards with OPEN status', async ({ mount }) => {
     const component = await mount(<ServiceStatusOverviewStory />);
@@ -14,7 +17,7 @@ test.describe('ServiceStatusOverview Component Tests', () => {
 
   test('reflects next unblocked slot when earlier slots are blocked for showers', async ({ mount }) => {
     const today = todayPacificDateString();
-    const allSlots = generateShowerSlots();
+    const allSlots = generateShowerSlots(pacificNoon());
     const firstSlot = allSlots[0];
     const secondSlot = allSlots[1];
 
@@ -32,7 +35,7 @@ test.describe('ServiceStatusOverview Component Tests', () => {
 
   test('reflects next unblocked slot when earlier slots are blocked for laundry', async ({ mount }) => {
     const today = todayPacificDateString();
-    const allSlots = generateLaundrySlots();
+    const allSlots = generateLaundrySlots(pacificNoon());
     const firstSlot = allSlots[0];
     const secondSlot = allSlots[1];
 
@@ -50,7 +53,7 @@ test.describe('ServiceStatusOverview Component Tests', () => {
 
   test('shows Waitlist only when all shower slots are blocked', async ({ mount }) => {
     const today = todayPacificDateString();
-    const allSlots = generateShowerSlots();
+    const allSlots = generateShowerSlots(pacificNoon());
     const blockedSlots = allSlots.map((slot) => ({
       serviceType: 'shower' as const,
       slotTime: slot,
@@ -66,7 +69,7 @@ test.describe('ServiceStatusOverview Component Tests', () => {
 
   test('shows No more onsite slots when all laundry slots are blocked', async ({ mount }) => {
     const today = todayPacificDateString();
-    const allSlots = generateLaundrySlots();
+    const allSlots = generateLaundrySlots(pacificNoon());
     const blockedSlots = allSlots.map((slot) => ({
       serviceType: 'laundry' as const,
       slotTime: slot,

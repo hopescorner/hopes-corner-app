@@ -45,7 +45,7 @@ export function ShowerBookingModal() {
     const isCheckinRole = role === 'checkin';
 
     const today = todayPacificDateString();
-    const allSlots = generateShowerSlots();
+    const allSlots = generateShowerSlots(new Date(`${today}T12:00:00`));
 
     const slotsWithDetails = useMemo(() => {
         if (!showerPickerGuest) return [];

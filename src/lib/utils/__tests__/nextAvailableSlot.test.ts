@@ -16,8 +16,11 @@ describe('nextAvailableSlot', () => {
     });
     const today = todayPacificDateString();
     const isSlotBlocked = () => false;
-    const showerSlots = generateShowerSlots();
-    const laundrySlots = generateLaundrySlots();
+    // Slot schedules depend on the weekday of the Pacific service day — derive
+    // from the same Pacific date the functions under test use, not from the
+    // system-local clock (which is a different day in UTC after midnight).
+    const showerSlots = generateShowerSlots(new Date(`${today}T12:00:00`));
+    const laundrySlots = generateLaundrySlots(new Date(`${today}T12:00:00`));
 
     describe('findNextAvailableShowerSlot', () => {
         it('returns the earliest open slot when no records exist', () => {

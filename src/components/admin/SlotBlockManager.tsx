@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useBlockedSlotsStore } from '@/stores/useBlockedSlotsStore';
 import { useServicesStore } from '@/stores/useServicesStore';
-import { pacificDateStringFrom, todayPacificDateString } from '@/lib/utils/date';
+import { pacificDateStringFrom, todayPacificDateString, formatDateForDisplay } from '@/lib/utils/date';
 import { generateShowerSlots, generateLaundrySlots, formatSlotLabel } from '@/lib/utils/serviceSlots';
 import { capacityFor } from '@/lib/utils/blockedSlots';
 import { SHOWER_SLOT_OCCUPYING_STATUSES, LAUNDRY_SLOT_OCCUPYING_STATUSES } from '@/lib/constants/constants';
@@ -30,7 +30,7 @@ type SpotChoice = 1 | 2;
 const slotStartTime = (slot: string) => slot.split(' - ')[0].trim();
 
 export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
-    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [selectedDate, setSelectedDate] = useState(() => todayPacificDateString());
     const store = useBlockedSlotsStore();
     const { fetchBlockedSlots, blockSlot, unblockSlot, isSlotBlocked } = store;
     // Defensive fallbacks keep the manager working with a partial store shape
@@ -62,7 +62,11 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
 
     const isShower = serviceType === 'shower';
     const capacity = capacityFor(serviceType);
-    const dateStr = pacificDateStringFrom(selectedDate);
+    // The selected day is always a Pacific service-day string — the same
+    // convention as the services views. Slot schedules depend on the weekday,
+    // so they must be generated from this date, not from a system-local Date
+    // (which is a different day for anyone not in the Americas, e.g. CI).
+    const dateStr = selectedDate;
     const todayStr = todayPacificDateString();
     const isTodayOrFuture = dateStr >= todayStr;
 
@@ -72,15 +76,18 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
     }, [fetchBlockedSlots]);
 
     const handleDateChange = (days: number) => {
-        const newDate = new Date(selectedDate);
-        newDate.setDate(selectedDate.getDate() + days);
-        setSelectedDate(newDate);
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const next = new Date(year, month - 1, day + days, 12);
+        const y = next.getFullYear();
+        const m = String(next.getMonth() + 1).padStart(2, '0');
+        const d = String(next.getDate()).padStart(2, '0');
+        setSelectedDate(`${y}-${m}-${d}`);
         setRangeFromOverride(null);
         setRangeToOverride(null);
     };
 
-    const getDisplayDate = (date: Date) =>
-        date.toLocaleDateString('en-US', {
+    const getDisplayDate = (dateKey: string) =>
+        formatDateForDisplay(dateKey, {
             weekday: 'long',
             year: 'numeric',
             month: 'long',
@@ -94,7 +101,7 @@ export function SlotBlockManager({ serviceType }: SlotBlockManagerProps) {
         return laundryRecords.filter(r => r.time === slotLabel && r.laundryType !== 'offsite' && pacificDateStringFrom(r.date) === dateStr && LAUNDRY_SLOT_OCCUPYING_STATUSES.has(r.status)).length;
     };
 
-    const slots = isShower ? generateShowerSlots(selectedDate) : generateLaundrySlots(selectedDate);
+    const slots = isShower ? generateShowerSlots(new Date(`${dateStr}T12:00:00`)) : generateLaundrySlots(new Date(`${dateStr}T12:00:00`));
 
     /**
      * From / To always list every time on the selected date. Filtering past

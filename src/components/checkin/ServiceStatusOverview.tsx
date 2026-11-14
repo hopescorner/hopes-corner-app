@@ -129,8 +129,8 @@ export function ServiceStatusOverview({ onShowerClick, onLaundryClick }: Service
     const showerRecordsLength = useShowerRecordsLength();
     const laundryRecordsLength = useLaundryRecordsLength();
 
-    const allShowerSlots = useMemo(() => generateShowerSlots(), []);
-    const allLaundrySlots = useMemo(() => generateLaundrySlots(), []);
+    const allShowerSlots = useMemo(() => generateShowerSlots(new Date(`${todayString}T12:00:00`)), [todayString]);
+    const allLaundrySlots = useMemo(() => generateLaundrySlots(new Date(`${todayString}T12:00:00`)), [todayString]);
     const { isSlotBlocked, blockedSlots, fetchBlockedSlots } = useBlockedSlotsStore();
 
     useEffect(() => {

@@ -6,6 +6,10 @@
 
 - The **Copy Summary** button on the Donations tab now copies a summary formatted for email: a Hope's Corner heading with the day's date, a totals banner (weight, trays, servings), and one table per donation type with Item, Trays, Servings, Weight, and Donor columns. It pastes into Gmail, Outlook, and Apple Mail with the formatting intact, and a plain-text version is included for clients that can't show rich text. The plain-text fallback gains the same heading, full date, and clearer section headers.
 
+### Fixed
+
+- Slot schedules (showers, laundry, slot blocking, booking modals, and the check-in service overview) now derive the weekday from the Pacific service day instead of the device's local clock. For environments not in Pacific time — notably CI runners after midnight UTC — slot lists were the wrong day's schedule, which broke slot blocking and the nextAvailableSlot tests.
+
 ### Tests
 
 - Clipboard formatter coverage now includes the date line and heading, the HTML output (escaping, totals banner, per-type sections), and the empty state.
