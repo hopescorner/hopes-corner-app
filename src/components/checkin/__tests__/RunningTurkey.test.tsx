@@ -1,93 +1,65 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
-import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { RunningTurkey } from '../RunningTurkey';
 
-type ObserverCallback = (entries: Array<{ isIntersecting: boolean }>) => void;
+const overlay = () => screen.queryByTestId('running-turkey-overlay');
+const endRun = () => fireEvent.animationEnd(screen.getByTestId('running-turkey-runner'));
 
-let observerCallback: ObserverCallback | null = null;
-
-class MockIntersectionObserver {
-    constructor(cb: ObserverCallback) {
-        observerCallback = cb;
-    }
-    observe = vi.fn();
-    unobserve = vi.fn();
-    disconnect = vi.fn();
-    takeRecords = vi.fn(() => []);
-}
-
-function triggerSentinel(isIntersecting: boolean) {
-    if (!observerCallback) throw new Error('no observer captured');
-    act(() => {
-        observerCallback!([{ isIntersecting }]);
-    });
+function scrollTo(top: number) {
+    document.documentElement.scrollTop = top;
+    fireEvent.scroll(window);
 }
 
 describe('RunningTurkey', () => {
     beforeEach(() => {
-        observerCallback = null;
-        vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-11-16T20:00:00Z'));
+        window.localStorage.clear();
+        document.documentElement.scrollTop = 0;
+        vi.spyOn(document.documentElement, 'scrollHeight', 'get').mockReturnValue(2000);
+        vi.spyOn(document.documentElement, 'clientHeight', 'get').mockReturnValue(800);
     });
 
     afterEach(() => {
-        vi.unstubAllGlobals();
-        vi.clearAllMocks();
+        vi.useRealTimers();
+        vi.restoreAllMocks();
     });
 
     it('renders nothing when the season is inactive', () => {
         const { container } = render(<RunningTurkey active={false} />);
+        scrollTo(1200);
         expect(container.firstChild).toBeNull();
-        expect(screen.queryByTestId('running-turkey-sentinel')).toBeNull();
     });
 
-    it('renders only the sentinel (no turkey) before scrolling to the bottom', () => {
-        render(<RunningTurkey active={true} />);
-        expect(screen.getByTestId('running-turkey-sentinel')).toBeDefined();
-        expect(screen.queryByTestId('running-turkey-overlay')).toBeNull();
+    it('runs a decorative sprite only when a scroll reaches the page bottom', () => {
+        render(<RunningTurkey active />);
+        expect(overlay()).toBeNull();
+        scrollTo(1100);
+        expect(overlay()).toBeNull();
+        scrollTo(1200);
+        expect(overlay()).toHaveAttribute('aria-hidden', 'true');
+        expect(overlay()).toHaveClass('pointer-events-none');
+        endRun();
+        expect(overlay()).toBeNull();
     });
 
-    it('shows the turkey when the bottom sentinel becomes visible', () => {
-        render(<RunningTurkey active={true} />);
-        triggerSentinel(true);
-        expect(screen.getByTestId('running-turkey-overlay')).toBeDefined();
-        expect(screen.getByTestId('running-turkey-svg')).toBeDefined();
-    });
+    it('waits 15 minutes and another trip to the bottom, even after remounting', () => {
+        const { unmount } = render(<RunningTurkey active />);
+        scrollTo(1200);
+        endRun();
+        unmount();
 
-    it('is non-interactable: pointer-events-none, aria-hidden, no controls', () => {
-        render(<RunningTurkey active={true} />);
-        triggerSentinel(true);
-        const overlay = screen.getByTestId('running-turkey-overlay');
-        expect(overlay.getAttribute('aria-hidden')).toBe('true');
-        expect(overlay.className).toContain('pointer-events-none');
-        expect(overlay.querySelector('button')).toBeNull();
-        expect(overlay.querySelector('a')).toBeNull();
-        expect(overlay.querySelector('input')).toBeNull();
-        const svg = screen.getByTestId('running-turkey-svg');
-        expect(svg.getAttribute('aria-hidden')).toBe('true');
-        expect(svg.getAttribute('viewBox')).toBe('0 0 380 260');
-        const sentinel = screen.getByTestId('running-turkey-sentinel');
-        expect(sentinel.getAttribute('aria-hidden')).toBe('true');
-    });
+        render(<RunningTurkey active />);
+        vi.advanceTimersByTime(14 * 60_000 + 59_999);
+        scrollTo(0);
+        scrollTo(1200);
+        expect(overlay()).toBeNull();
 
-    it('removes the turkey when the run animation ends', () => {
-        render(<RunningTurkey active={true} />);
-        triggerSentinel(true);
-        expect(screen.getByTestId('running-turkey-overlay')).toBeDefined();
-        fireEvent.animationEnd(screen.getByTestId('running-turkey-runner'));
-        expect(screen.queryByTestId('running-turkey-overlay')).toBeNull();
-    });
-
-    it('does not run again until the user scrolls away and back', () => {
-        render(<RunningTurkey active={true} />);
-        triggerSentinel(true);
-        fireEvent.animationEnd(screen.getByTestId('running-turkey-runner'));
-        // Still at the bottom: no second run.
-        triggerSentinel(true);
-        expect(screen.queryByTestId('running-turkey-overlay')).toBeNull();
-        // Scroll away, then back: runs again.
-        triggerSentinel(false);
-        triggerSentinel(true);
-        expect(screen.getByTestId('running-turkey-overlay')).toBeDefined();
+        vi.advanceTimersByTime(1);
+        scrollTo(1200);
+        expect(overlay()).toBeNull();
+        scrollTo(0);
+        scrollTo(1200);
+        expect(overlay()).toBeInTheDocument();
     });
 });

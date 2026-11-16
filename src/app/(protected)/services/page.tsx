@@ -27,6 +27,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useSession } from 'next-auth/react';
 import type { UserRole } from '@/lib/auth/types';
 import { serviceTabDataKeys, type ServiceDataKey } from '@/lib/services/tabLoading';
+import { RunningTurkey } from '@/components/checkin/RunningTurkey';
 
 const ALL_TABS = [
     { id: 'overview', label: 'Overview', icon: BarChart3, color: 'text-blue-600', bg: 'bg-blue-50' },
@@ -435,6 +436,7 @@ export default function ServicesPage() {
                 )}
                 {renderContent()}
             </div>
+            {(activeTab === 'showers' || activeTab === 'laundry') && <RunningTurkey mode="services" />}
         </div>
     );
 }

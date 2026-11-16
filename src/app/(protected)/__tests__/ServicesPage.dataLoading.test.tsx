@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 
 /**
@@ -236,5 +236,38 @@ describe('ServicesPage data loading (integration, real stores)', () => {
         expect(overviewTab.className).toContain('bg-white');
 
         pushStateSpy.mockRestore();
+    });
+
+    it('runs the turkey automatically once an hour across Showers and Laundry', async () => {
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date('2026-11-16T20:00:00Z'));
+        window.localStorage.removeItem('hopes-corner:running-turkey:services-last-run');
+        const { unmount } = render(<ServicesPage />);
+        const overlay = () => screen.queryByTestId('running-turkey-overlay');
+        const advance = (ms: number) => act(() => vi.advanceTimersByTimeAsync(ms));
+        const select = (tab: string) => fireEvent.click(screen.getByTestId(`services-tab-${tab}-desktop`));
+
+        try {
+            await advance(3_600_000);
+            expect(overlay()).toBeNull();
+
+            select('showers');
+            await advance(3_599_999);
+            expect(overlay()).toBeNull();
+            select('laundry');
+            await advance(1);
+            expect(overlay()).toBeInTheDocument();
+
+            select('overview');
+            expect(overlay()).toBeNull();
+            select('showers');
+            await advance(3_599_999);
+            expect(overlay()).toBeNull();
+            await advance(1);
+            expect(overlay()).toBeInTheDocument();
+        } finally {
+            unmount();
+            vi.useRealTimers();
+        }
     });
 });

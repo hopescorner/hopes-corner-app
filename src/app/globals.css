@@ -161,17 +161,28 @@ select,
    check-in page is scrolled to the bottom (see RunningTurkey). */
 @keyframes turkey-run-across {
   from {
-    transform: translateX(-22vw);
+    transform: translateX(-100%);
   }
 
   to {
-    transform: translateX(108vw);
+    transform: translateX(100vw);
   }
 }
 
 .turkey-run-across {
-  animation: turkey-run-across 4.2s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+  animation: turkey-run-across 4.2s linear forwards;
   will-change: transform;
+}
+
+@keyframes turkey-run-stride {
+  to {
+    background-position-x: 120%;
+  }
+}
+
+.turkey-run-sprite {
+  background: url('/turkey-run-sprites.webp') left center / 600% 100% no-repeat;
+  animation: turkey-run-stride 0.48s steps(6) infinite;
 }
 
 /* Glassmorphism utilities */
