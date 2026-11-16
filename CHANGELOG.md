@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.61.1] - 2026-11-16
+
+- Routine maintenance.
+
 ## [0.61.0] - 2026-11-13
 
 ### Added
