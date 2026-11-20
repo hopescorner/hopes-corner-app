@@ -29,10 +29,6 @@ interface HolidayStoreState {
     updateFamilyRegistration: (id: string, input: HolidayRegistrationInput) => Promise<HolidayRegistration | null>;
     deleteRegistration: (id: string) => Promise<boolean>;
     addWalkInRegistration: (input: HolidayRegistrationInput) => Promise<HolidayRegistration | null>;
-    resetTicketCounter: (options?: {
-        clearRegistrations?: boolean;
-        targetNumber?: number;
-    }) => Promise<{ success: boolean; deletedRegistrations: number; nextTicketNumber: number; error?: string } | null>;
     setSelectedSlotFilter: (slot: string | null) => void;
     setSearchQuery: (query: string) => void;
     setStatusFilter: (filter: 'all' | 'registered' | 'checked_in') => void;
@@ -262,45 +258,6 @@ export const useHolidayStore = create<HolidayStoreState>()(
                     return newReg;
                 } catch (error) {
                     console.error('[useHolidayStore] Exception adding walk-in:', error);
-                    return null;
-                }
-            },
-
-            resetTicketCounter: async (options) => {
-                try {
-                    const res = await fetch('/api/holiday/staff/reset-tickets', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(options || {}),
-                    });
-
-                    if (!res.ok) {
-                        // res.statusText is empty over HTTP/2, so read the
-                        // JSON error body. The message travels with the
-                        // result (instead of null) so the UI can show staff
-                        // the real reason instead of a generic toast.
-                        let detail = '';
-                        try {
-                            const body = await res.json() as { error?: string };
-                            if (body?.error) detail = body.error;
-                        } catch {
-                            // Fall back to the status code below.
-                        }
-                        const message = detail || `HTTP ${res.status}`;
-                        console.error('[useHolidayStore] Error resetting ticket counter:', message);
-                        return { success: false, deletedRegistrations: 0, nextTicketNumber: 0, error: message };
-                    }
-
-                    const json = await res.json();
-                    if (options?.clearRegistrations !== false) {
-                        set((state) => {
-                            state.registrations = [];
-                        });
-                    }
-                    await get().loadFromSupabase();
-                    return json;
-                } catch (error) {
-                    console.error('[useHolidayStore] Exception resetting ticket counter:', error);
                     return null;
                 }
             },

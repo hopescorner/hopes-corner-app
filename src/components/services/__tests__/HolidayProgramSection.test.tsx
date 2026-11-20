@@ -314,30 +314,6 @@ describe('HolidayProgramSection', () => {
         });
     });
 
-    it('opens reset modal and confirms resetting ticket counter to #1', async () => {        const resetSpy = vi.fn().mockResolvedValue({ success: true, deletedRegistrations: 2, nextTicketNumber: 1 });
-        useHolidayStore.setState({ resetTicketCounter: resetSpy });
-
-        render(<HolidayProgramSection />);
-
-        const resetBtn = screen.getByRole('button', { name: /Reset Test Data/i });
-        fireEvent.click(resetBtn);
-
-        await waitFor(() => {
-            expect(screen.getByRole('heading', { name: /Reset Test Data & Ticket Counter/i })).toBeDefined();
-            expect(screen.getByText(/Delete all test registrations/i)).toBeDefined();
-        });
-
-        const confirmBtn = screen.getByRole('button', { name: /Reset Test Data & Start at #1/i });
-        fireEvent.click(confirmBtn);
-
-        await waitFor(() => {
-            expect(resetSpy).toHaveBeenCalledWith({
-                clearRegistrations: true,
-                targetNumber: 1,
-            });
-        });
-    });
-
     it('refreshes registrations from the protected API every 30 seconds', async () => {
         vi.useFakeTimers();
         const reload = vi.fn().mockResolvedValue(undefined);
@@ -350,20 +326,5 @@ describe('HolidayProgramSection', () => {
         });
 
         expect(reload).toHaveBeenCalledTimes(1);
-    });
-
-    it('shows the server reason when resetting the ticket counter fails', async () => {
-        const resetSpy = vi.fn().mockResolvedValue({ success: false, deletedRegistrations: 0, nextTicketNumber: 0, error: 'DB down' });
-        useHolidayStore.setState({ resetTicketCounter: resetSpy });
-        const toast = await import('react-hot-toast');
-
-        render(<HolidayProgramSection />);
-
-        fireEvent.click(screen.getByRole('button', { name: /Reset Test Data/i }));
-        fireEvent.click(screen.getByRole('button', { name: /Reset Test Data & Start at #1/i }));
-
-        await waitFor(() => {
-            expect(toast.default.error).toHaveBeenCalledWith('DB down');
-        });
     });
 });

@@ -325,33 +325,4 @@ describe('useHolidayStore & Selectors', () => {
             expect(result).toBeNull();
         });
     });
-
-    describe('resetTicketCounter', () => {
-        it('returns the server error message (not null) when reset fails', async () => {
-            global.fetch = vi.fn().mockResolvedValueOnce({
-                ok: false,
-                status: 500,
-                statusText: '',
-                json: async () => ({ error: 'Failed to reset ticket counter: DELETE requires a WHERE clause' }),
-            } as any);
-            const log = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-            try {
-                const result = await useHolidayStore.getState().resetTicketCounter({ clearRegistrations: true, targetNumber: 1 });
-
-                // Staff cannot open devtools: the message must travel with the
-                // result so the UI can show the real reason.
-                expect(result).toMatchObject({
-                    success: false,
-                    error: expect.stringContaining('WHERE clause'),
-                });
-                expect(log).toHaveBeenCalledWith(
-                    '[useHolidayStore] Error resetting ticket counter:',
-                    expect.stringContaining('WHERE clause'),
-                );
-            } finally {
-                log.mockRestore();
-            }
-        });
-    });
 });
