@@ -1,5 +1,16 @@
 [
   {
+    "version": "0.62.0",
+    "date": "November 20, 2026",
+    "highlights": [
+      {
+        "type": "improvement",
+        "title": "Holiday Test-Data Reset Removed",
+        "description": "The Reset Test Data button is gone from the Holiday tab, so an accidental tap can't wipe out family registrations. Ticket numbers keep counting forward from where they are."
+      }
+    ]
+  },
+  {
     "version": "0.61.1",
     "date": "November 16, 2026",
     "highlights": [

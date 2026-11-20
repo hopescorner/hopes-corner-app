@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.62.0] - 2026-11-20
+
+### Removed
+
+- The **Reset Test Data & Ticket #1** button is gone from the Holiday tab, along with its confirmation modal, the `resetTicketCounter` store action, and the `/api/holiday/staff/reset-tickets` endpoint. The tool deletes every 2026 holiday registration in one pass — right for clearing test data before launch, but one stray tap too easy to fire once real families are registering. Ticket numbers now only count forward. If a deliberate reset is ever needed, the `reset_holiday_ticket_counter` database function can still be run directly in Supabase by an admin.
+
+### Tests
+
+- Removed the reset-flow coverage (modal interaction, store error surfacing, endpoint success and role gating) together with the feature. The migration contract tests for the database function stay, since the function itself is unchanged and remains in the database.
+
 ## [0.61.1] - 2026-11-16
 
 - Routine maintenance.
